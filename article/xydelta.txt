@@ -1,0 +1,56 @@
+		// Encode xy delta:
+
+		{
+			// Walk backwards from the end
+			u32 *lagger = buffer + bufferSize - bufferStride;
+			int hctr = height;
+			while (--hctr) {
+				u32 cb = 0;
+
+				for (int jj = 0; jj < bufferStride; ++jj) {
+					u32 above = lagger[jj - (int)bufferStride];
+					u32 now = lagger[jj];
+
+					u32 ydelta = now ^ above;
+					u32 xydelta = ydelta ^ ((ydelta << 1) | cb);
+					cb = ydelta >> 31;
+
+					lagger[jj] = xydelta;
+				}
+				lagger -= bufferStride;
+			}
+
+			// First line
+			u32 cb = 0;
+			for (int jj = 0; jj < bufferStride; ++jj) {
+				u32 oldv = lagger[jj];
+				lagger[jj] = oldv ^ ((oldv << 1) | cb);
+				cb = oldv >> 31;
+			}
+		}
+
+		// Decode xy delta:
+
+		{
+			u32 *lagger = buffer;
+			u32 cb = 0;
+			for (int jj = 0; jj < bufferStride; ++jj) {
+				u32 oldv = lagger[jj];
+				lagger[jj] = oldv ^ ((oldv << 1) | cb);
+				cb = oldv >> 31;
+			}
+
+			int hctr = height;
+			while (--hctr) {
+				for (int jj = 0; jj < bufferStride; ++jj) {
+					u32 now = lagger[jj];
+					u32 below = lagger[jj + bufferStride];
+
+					u32 ydelta = now ^ below;
+
+					lagger[jj + bufferStride] = now ^ below;
+				}
+				lagger += bufferStride;
+			}
+		}
+
