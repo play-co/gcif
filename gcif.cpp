@@ -5,6 +5,7 @@ using namespace std;
 #include "Log.hpp"
 #include "Clock.hpp"
 #include "EndianNeutral.hpp"
+#include "BitMath.hpp"
 using namespace cat;
 
 #include "lodepng.h"
@@ -86,7 +87,7 @@ public:
 			}
 		}
 
-		// Encode majority delta:
+		// Encode y2x delta:
 
 		{
 			// Walk backwards from the end
@@ -94,39 +95,73 @@ public:
 			int hctr = height;
 			while (--hctr) {
 				u32 cb = 0;
-				u32 cbabove = 0;
 
 				for (int jj = 0; jj < bufferStride; ++jj) {
 					u32 above = lagger[jj - (int)bufferStride];
 					u32 now = lagger[jj];
 
-					u32 above_shifted = (above << 1) | cbabove;
-					u32 above_or_mask = above_shifted | above;
-					u32 above_and_mask = above_shifted & above;
-					u32 left = (now << 1) | cb;
+					u32 ydelta = now ^ above;
+					u32 y2xdelta = ydelta ^ (((ydelta >> 2) | cb) & ((ydelta >> 1) | (cb << 1)));
+					cb = ydelta << 30;
 
-					// left and at least one above, or both above
-					u32 majority = (left & above_or_mask) | above_and_mask;
-
-					// delta with prediction
-					u32 mdelta = now ^ left;
-
-					cb = now >> 31;
-					cbabove = above >> 31;
-
-					lagger[jj] = mdelta;
+					lagger[jj] = y2xdelta;
 				}
-
 				lagger -= bufferStride;
 			}
 
 			// First line
 			u32 cb = 0;
 			for (int jj = 0; jj < bufferStride; ++jj) {
-				u32 oldv = lagger[jj];
-				lagger[jj] = oldv ^ ((oldv << 1) | cb);
-				cb = oldv >> 31;
+				u32 now = lagger[jj];
+				lagger[jj] = now ^ ((now >> 1) | cb);
+				cb = now << 31;
 			}
+		}
+
+		// RLE
+
+		vector<int> rle1;
+
+		{
+			u32 *lagger = buffer;
+			int hctr = height, zeroes = 0;
+			while (hctr--) {
+				int groupIndex = (int)rle1.size();
+				rle1.push_back(0);
+
+				for (int jj = 0, jjlen = bufferStride - 1; jj <= jjlen; ++jj) {
+					u32 now = lagger[jj];
+
+					if (now) {
+						u32 lastbit = 31;
+						do {
+							u32 bit = BSR32(now);
+
+							zeroes += lastbit - bit;
+
+							rle1.push_back(zeroes);
+							cout << zeroes << " ";
+
+							zeroes = 0;
+							lastbit = bit - 1;
+							now ^= 1 << bit;
+						} while (now);
+					} else {
+						zeroes += 32;
+					}
+				}
+
+				rle1[groupIndex] = (int)rle1.size() - groupIndex - 1;
+
+				//cout << " : " << rle1[groupIndex] << endl;
+
+				lagger += bufferStride;
+			}
+		}
+
+		// RLE delta
+
+		{
 		}
 
 		// Convert to image:
