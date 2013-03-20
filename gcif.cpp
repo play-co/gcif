@@ -11,6 +11,42 @@ using namespace cat;
 #include "lodepng.h"
 #include "optionparser.h"
 
+static CAT_INLINE void byteEncode(vector<unsigned char> &bytes, int data) {
+	/*
+	 * Delta byte-wise encoding:
+	 *
+	 * cDDDDDDs cDDDDDDD ...
+	 */
+
+	unsigned char s = 0;
+	if (data < 0) {
+		s = 1;
+		data = -data;
+	}
+
+	unsigned char e = ((data & 63) << 1) | s;
+	if (data < 64) {
+		bytes.push_back(e);
+	} else {
+		e |= 128;
+		data >>= 6;
+		bytes.push_back(e);
+
+		while (true) {
+			e = (data & 127);
+
+			if (data < 128) {
+				bytes.push_back(e);
+				break;
+			} else {
+				e |= 128;
+				data >>= 7;
+				bytes.push_back(e);
+			}
+		}
+	}
+}
+
 class MonoConverter {
 	vector<unsigned char> image;
 	unsigned width, height;
@@ -106,6 +142,7 @@ public:
 
 					lagger[jj] = y2xdelta;
 				}
+
 				lagger -= bufferStride;
 			}
 
@@ -120,14 +157,25 @@ public:
 
 		// RLE
 
-		vector<int> rle1;
+		vector<unsigned char> rle;
+
+		/*
+		 * Delta byte-wise encoding:
+		 *
+		 * cDDDDDDs cDDDDDDD ...
+		 */
 
 		{
+			vector<int> rlePrevZeroes;
+			int prevCount = 0;
+			vector<int> rleCurZeroes;
+			vector<int> rleCurDeltas;
+
 			u32 *lagger = buffer;
 			int hctr = height, zeroes = 0;
+
 			while (hctr--) {
-				int groupIndex = (int)rle1.size();
-				rle1.push_back(0);
+				int prevIndex = 0;
 
 				for (int jj = 0, jjlen = bufferStride - 1; jj <= jjlen; ++jj) {
 					u32 now = lagger[jj];
@@ -139,8 +187,15 @@ public:
 
 							zeroes += lastbit - bit;
 
-							rle1.push_back(zeroes);
-							cout << zeroes << " ";
+							int delta;
+							if (prevIndex < prevCount) {
+								delta = zeroes - rlePrevZeroes[prevIndex++];
+							} else {
+								delta = zeroes;
+							}
+
+							rleCurZeroes.push_back(zeroes);
+							rleCurDeltas.push_back(delta);
 
 							zeroes = 0;
 							lastbit = bit - 1;
@@ -151,18 +206,26 @@ public:
 					}
 				}
 
-				rle1[groupIndex] = (int)rle1.size() - groupIndex - 1;
+				int deltaCount = (int)rleCurDeltas.size();
+				byteEncode(rle, deltaCount);
 
-				//cout << " : " << rle1[groupIndex] << endl;
+				for (int kk = 0; kk < deltaCount; ++kk) {
+					int delta = rleCurDeltas[kk];
+					byteEncode(rle, delta);
+				}
+
+				rlePrevZeroes = rleCurZeroes;
+				rleCurZeroes.clear();
+				rleCurDeltas.clear();
 
 				lagger += bufferStride;
 			}
 		}
 
-		// RLE delta
-
-		{
+		for (int ii = 0; ii < rle.size(); ++ii) {
+			cout << (int)rle[ii] << " ";
 		}
+		cout << endl;
 
 		// Convert to image:
 
