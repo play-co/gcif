@@ -263,6 +263,8 @@ public:
 
 		// Compress with Huffman encoding
 
+		vector<unsigned char> huffStream;
+
 		{
 			huffman::huffman_work_tables state;
 
@@ -314,6 +316,11 @@ public:
 
 			CAT_INFO("main") << "Huffman: Total message size (without table) = " << (bitcount + 7) / 8 << " bytes";
 
+			// Encode table
+
+			vector<unsigned char> huffTable;
+			int lzhSize = 256;
+
 			int lastCodeSize = 3;
 			for (int ii = 0; ii < 256; ++ii) {
 				u8 symbol = symbol_lut[ii];
@@ -322,18 +329,75 @@ public:
 				int delta = codesize - lastCodeSize;
 				lastCodeSize = codesize;
 
-				if (delta < 0) {
-					delta = (-delta << 1) | 1;
-				} else {
-					delta <<= 1;
+				byteEncode(huffTable, delta);
+			}
+
+			// Collect byte symbol statistics
+
+			int hhist[32] = {0};
+			int hnum_syms = 0;
+
+			{
+				for (int ii = 0; ii < lzhSize; ++ii) {
+					if (hhist[huffTable[ii]]++ == 0) {
+						++hnum_syms;
+					}
 				}
 
-				if (symbol > num_syms) {
-					cout << ii << ": <unused>" << endl;
+				CAT_INFO("main") << "Huffman: Number of table symbols = " << hnum_syms << " syms";
+			}
+
+			// Huffman compress header
+
+			huffman::huffman_work_tables hstate;
+
+			u16 hfreqs[32];
+
+			u8 hsymbol_lut[32];
+
+			int hfreqIndex = 0;
+			for (int ii = 0; ii < 32; ++ii) {
+				int count = hhist[ii];
+				if (count) {
+					hsymbol_lut[ii] = (u8)hfreqIndex;
+					hfreqs[hfreqIndex++] = count;
 				} else {
-					cout << ii << ": " << delta << endl;
+					hsymbol_lut[ii] = 255;
 				}
 			}
+
+			u8 hcodesizes[32];
+			u32 hmax_code_size;
+			u32 htotal_freq;
+
+			huffman::generate_huffman_codes(&hstate, hnum_syms, hfreqs, hcodesizes, hmax_code_size, htotal_freq);
+
+			CAT_INFO("main") << "Huffman: Max table code size = " << hmax_code_size << " bits";
+			CAT_INFO("main") << "Huffman: Total table freq = " << htotal_freq << " rels";
+
+			if (hmax_code_size > huffman::cMaxExpectedCodeSize) {
+				huffman::limit_max_code_size(hnum_syms, hcodesizes, huffman::cMaxExpectedCodeSize);
+			}
+
+			u16 hcodes[32];
+
+			huffman::generate_codes(hnum_syms, hcodesizes, hcodes);
+
+			// Encode symbols
+
+			u32 hbitcount = 0;
+
+			for (int ii = 0; ii < lzhSize; ++ii) {
+				u8 byte = huffTable[ii];
+				u8 symbol = hsymbol_lut[byte];
+
+				u16 code = hcodes[symbol];
+				u8 codesize = hcodesizes[symbol];
+
+				hbitcount += codesize;
+			}
+
+			CAT_INFO("main") << "Huffman: Table size = " << (hbitcount + 7) / 8 + 16 << " bytes";
 		}
 
 		// Convert to image:
