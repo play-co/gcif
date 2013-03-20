@@ -1,0 +1,5 @@
+[Dec 31 16:08] <main> RLE size = 8603 bytes
+[Dec 31 16:08] <main> New size = 6703 bytes <- 1
+[Dec 31 16:08] <main> New size = 6697 bytes <- 2
+[Dec 31 16:08] <main> New size = 6714 bytes <- 3
+

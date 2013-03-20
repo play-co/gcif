@@ -200,7 +200,7 @@ bool generate_huffman_codes(huffman_work_tables *state, u32 num_syms, const u16 
 			total_freq += freq;
 			max_freq = max_freq > freq ? max_freq : freq;
 
-			sym_freq &sf = state.syms0[num_used_syms];
+			sym_freq &sf = state->syms0[num_used_syms];
 			sf.left = static_cast<u16>( ii );
 			sf.right = UINT16_MAX;
 			sf.freq = freq;
@@ -210,14 +210,13 @@ bool generate_huffman_codes(huffman_work_tables *state, u32 num_syms, const u16 
 
 	total_freq_ret = total_freq;
 
-	if (num_used_syms == 1)
-	{
-		pCodesizes[state.syms0[0].left] = 1;
+	if (num_used_syms == 1) {
+		pCodesizes[state->syms0[0].left] = 1;
 
 		return true;
 	}
 
-	sym_freq *syms = radix_sort_syms(num_used_syms, state.syms0, state.syms1);
+	sym_freq *syms = radix_sort_syms(num_used_syms, state->syms0, state->syms1);
 
 	int x[cHuffmanMaxSupportedSyms];
 
@@ -229,18 +228,16 @@ bool generate_huffman_codes(huffman_work_tables *state, u32 num_syms, const u16 
 
 	u32 max_len = 0;
 
-	for (u32 ii = 0; ii < num_used_syms; ++ii)
-	{
+	for (u32 ii = 0; ii < num_used_syms; ++ii) {
 		u32 len = x[ii];
 
 		max_len = len > max_len ? len : max_len;
 
-		pCodesizes[syms[i].left] = static_cast<u8>(len);
+		pCodesizes[syms[ii].left] = static_cast<u8>(len);
 	}
 
 	max_code_size = max_len;
 
 	return true;
 }
-
 

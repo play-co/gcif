@@ -231,18 +231,15 @@ public:
 
 		vector<unsigned char> lz;
 
-		lz.resize(LZ4_compressBound(rle.size()));
+		{
+			lz.resize(LZ4_compressBound(rle.size()));
 
-		int size = LZ4_compressHC((char*)&rle[0], (char*)&lz[0], rle.size());
+			int size = LZ4_compressHC((char*)&rle[0], (char*)&lz[0], rle.size());
 
-		lz.resize(size);
+			lz.resize(size);
 
-		for (int ii = 0; ii < lz.size(); ++ii) {
-			cout << (int)lz[ii] << " ";
+			CAT_INFO("main") << "New size = " << size << " bytes";
 		}
-		cout << endl;
-
-		CAT_INFO("main") << "New size = " << lz.size() << " bytes";
 
 		// Collect byte symbol statistics
 
