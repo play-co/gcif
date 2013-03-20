@@ -1,0 +1,6 @@
+Based on what I'm seeing right now, the alpha channel for our sprite sheets are trivially custom compressed to under 4.6% of the original 1-bit alpha channel: 131,072KB => 5.6KB compressed.
+
+Original.png (RGBA) : 475KB
+Noalpha.png (RGB) : 450KB + CustomAlpha.gcif (A) : 5.6KB = 456KB.
+
+So it is only saving about 20 KB right now over PNG.  The big wins will come from correlating the alpha channel back to the original color data and using it to improve BCIF performance.

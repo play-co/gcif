@@ -5,8 +5,13 @@
 
 namespace cat {
 
+namespace huffman {
 
 
+static const u32 cMaxExpectedCodeSize = 16;
+
+
+} // namespace huffman
 
 } // namespace cat
 

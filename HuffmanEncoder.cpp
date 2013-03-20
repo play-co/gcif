@@ -1,4 +1,5 @@
 #include "HuffmanEncoder.hpp"
+#include "HuffmanDecoder.hpp"
 using namespace cat;
 using namespace huffman;
 
@@ -182,7 +183,7 @@ static void calculate_minimum_redundancy(int A[], int n) {
 }
 
 
-bool generate_huffman_codes(huffman_work_tables *state, u32 num_syms, const u16 *pFreq, u8 *pCodesizes, u32 &max_code_size, u32 &total_freq_ret) {
+bool huffman::generate_huffman_codes(huffman_work_tables *state, u32 num_syms, const u16 *pFreq, u8 *pCodesizes, u32 &max_code_size, u32 &total_freq_ret) {
 	if ((!num_syms) || (num_syms > cHuffmanMaxSupportedSyms)) {
 		return false;
 	}
@@ -237,6 +238,154 @@ bool generate_huffman_codes(huffman_work_tables *state, u32 num_syms, const u16 
 	}
 
 	max_code_size = max_len;
+
+	return true;
+}
+
+
+
+bool huffman::limit_max_code_size(u32 num_syms, u8 *pCodesizes, u32 max_code_size) {
+	const u32 cMaxEverCodeSize = 34;
+
+	if ((!num_syms) || (num_syms > cHuffmanMaxSupportedSyms) || (max_code_size < 1) || (max_code_size > cMaxEverCodeSize)) {
+		return false;
+	}
+
+	u32 num_codes[cMaxEverCodeSize + 1] = {0};
+	bool should_limit = false;
+
+	for (u32 ii = 0; ii < num_syms; ++ii)
+	{
+		u32 size = pCodesizes[ii];
+
+		num_codes[size]++;
+
+		if (size > max_code_size) {
+			should_limit = true;
+		}
+	}
+
+	if (!should_limit) {
+		return true;
+	}
+
+	u32 ofs = 0;
+	u32 next_sorted_ofs[cMaxEverCodeSize + 1];
+
+	for (u32 ii = 1; ii <= cMaxEverCodeSize; ++ii) {
+		next_sorted_ofs[ii] = ofs;
+		ofs += num_codes[ii];
+	}
+
+	if ((ofs < 2) || (ofs > cHuffmanMaxSupportedSyms)) {
+		return true;
+	}
+
+	if (ofs > (1U << max_code_size)) {
+		return false;
+	}
+
+	for (u32 ii = max_code_size + 1; ii <= cMaxEverCodeSize; ++ii) {
+		num_codes[max_code_size] += num_codes[ii];
+	}
+
+	// Technique of adjusting tree to enforce maximum code size from LHArc
+
+	u32 total = 0;
+	for (u32 ii = max_code_size; ii; --ii) {
+		total += (num_codes[ii] << (max_code_size - ii));
+	}
+
+	if (total == (1U << max_code_size)) {
+		return true;
+	}
+
+	do {
+		num_codes[max_code_size]--;
+
+		u32 ii;
+		for (ii = max_code_size - 1; ii; --ii) {
+			if (num_codes[ii]) {
+				num_codes[ii]--;
+				num_codes[ii + 1] += 2;   
+				break;
+			}
+		}
+
+		if (!ii) {
+			return false;
+		}
+
+		total--;   
+	} while (total != (1U << max_code_size));
+
+	u8 new_codesizes[cHuffmanMaxSupportedSyms];
+	u8 *p = new_codesizes;
+
+	for (u32 ii = 1; ii <= max_code_size; ++ii) {
+		u32 n = num_codes[ii];
+
+		if (n) {
+			memset(p, ii, n);
+			p += n;
+		}
+	}
+
+	for (u32 ii = 0; ii < num_syms; ++ii) {
+		const u32 size = pCodesizes[ii];
+
+		if (size) {
+			u32 next_ofs = next_sorted_ofs[size];
+			next_sorted_ofs[size] = next_ofs + 1;
+
+			pCodesizes[ii] = static_cast<u8>( new_codesizes[next_ofs] );
+		}
+	}
+
+	return true;
+}
+
+
+
+
+
+bool huffman::generate_codes(u32 num_syms, const u8 *pCodesizes, u16 *pCodes) {
+	u32 num_codes[cMaxExpectedCodeSize + 1] = { 0 };
+
+	for (u32 ii = 0; ii < num_syms; ++ii) {
+		num_codes[pCodesizes[ii]]++;
+	}
+
+	u32 code = 0;
+
+	u32 next_code[cMaxExpectedCodeSize + 1];
+	next_code[0] = 0;
+
+	for (u32 ii = 1; ii <= cMaxExpectedCodeSize; ++ii)
+	{
+		next_code[ii] = code;
+
+		code = (code + num_codes[ii]) << 1;
+	}
+
+	if (code != (1 << (cMaxExpectedCodeSize + 1)))
+	{
+		u32 tt = 0;
+
+		for (u32 ii = 1; ii <= cMaxExpectedCodeSize; ++ii)
+		{
+			tt += num_codes[ii];
+
+			if (tt > 1) {
+				return false;
+			}
+		}
+	}
+
+	for (u32 ii = 0; ii < num_syms; ++ii)
+	{
+		pCodes[ii] = static_cast<u16>( next_code[pCodesizes[ii]]++ );
+	}
 
 	return true;
 }

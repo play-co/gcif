@@ -7,6 +7,7 @@ using namespace std;
 #include "EndianNeutral.hpp"
 #include "BitMath.hpp"
 #include "HuffmanDecoder.hpp"
+#include "HuffmanEncoder.hpp"
 using namespace cat;
 
 #include "lodepng.h"
@@ -68,6 +69,8 @@ public:
 			CAT_WARN("main") << "Image dimensions must be an even multiple of 8x8";
 			return false;
 		}
+
+		CAT_INFO("main") << "Uncompressed size = " << (width * height / 8) << " bytes";
 
 		// Convert to monochrome image
 		u32 bufferStride = (width + 31) >> 5;
@@ -225,28 +228,88 @@ public:
 			}
 		}
 
-		CAT_INFO("main") << "RLE size = " << rle.size() << " bytes";
+		CAT_INFO("main") << "Post-RLE size = " << rle.size() << " bytes";
 
 		// Compress with LZ4
 
 		vector<unsigned char> lz;
+		int lzSize;
 
 		{
 			lz.resize(LZ4_compressBound(rle.size()));
 
-			int size = LZ4_compressHC((char*)&rle[0], (char*)&lz[0], rle.size());
+			lzSize = LZ4_compressHC((char*)&rle[0], (char*)&lz[0], rle.size());
 
-			lz.resize(size);
+			lz.resize(lzSize);
 
-			CAT_INFO("main") << "New size = " << size << " bytes";
+			CAT_INFO("main") << "Post-LZ4 size = " << lzSize << " bytes";
 		}
 
 		// Collect byte symbol statistics
 
 		int hist[256] = {0};
+		int num_syms = 0;
 
-		for (int ii = 0; ii < lz.size(); ++ii) {
-			hist[lz[ii]]++;
+		{
+			for (int ii = 0; ii < lzSize; ++ii) {
+				if (hist[lz[ii]]++ == 0) {
+					++num_syms;
+				}
+			}
+
+			CAT_INFO("main") << "Huffman: Number of symbols = " << num_syms << " syms";
+		}
+
+		// Compress with Huffman encoding
+
+		{
+			huffman::huffman_work_tables state;
+
+			u16 freqs[256];
+
+			u8 symbol_lut[256];
+
+			int freqIndex = 0;
+			for (int ii = 0; ii < 256; ++ii) {
+				symbol_lut[ii] = (u8)freqIndex;
+				int count = hist[ii];
+				if (count) {
+					freqs[freqIndex++] = count;
+				}
+			}
+
+			u8 codesizes[256];
+			u32 max_code_size;
+			u32 total_freq;
+
+			huffman::generate_huffman_codes(&state, num_syms, freqs, codesizes, max_code_size, total_freq);
+
+			CAT_INFO("main") << "Huffman: Max code size = " << max_code_size << " bits";
+			CAT_INFO("main") << "Huffman: Total freq = " << total_freq << " rels";
+
+			if (max_code_size > huffman::cMaxExpectedCodeSize) {
+				huffman::limit_max_code_size(num_syms, codesizes, huffman::cMaxExpectedCodeSize);
+			}
+
+			u16 codes[256];
+
+			huffman::generate_codes(num_syms, codesizes, codes);
+
+			// Encode symbols
+
+			u32 bitcount = 0;
+
+			for (int ii = 0; ii < lzSize; ++ii) {
+				u8 byte = lz[ii];
+				u8 symbol = symbol_lut[byte];
+
+				u16 code = codes[symbol];
+				u8 codesize = codesizes[symbol];
+
+				bitcount += codesize;
+			}
+
+			CAT_INFO("main") << "Huffman: Total message size (without setup tables) = " << (bitcount + 7) / 8 << " bytes";
 		}
 
 		// Convert to image:

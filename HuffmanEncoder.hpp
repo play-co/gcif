@@ -31,6 +31,10 @@ struct huffman_work_tables {
 
 bool generate_huffman_codes(huffman_work_tables *state, u32 num_syms, const u16 *pFreq, u8 *pCodesizes, u32 &max_code_size, u32 &total_freq_ret);
 
+bool limit_max_code_size(u32 num_syms, u8 *pCodesizes, u32 max_code_size);
+
+bool generate_codes(u32 num_syms, const u8 *pCodesizes, u16 *pCodes);
+
 
 } // namespace huffman
 
