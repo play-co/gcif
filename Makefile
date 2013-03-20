@@ -16,7 +16,7 @@ CPFLAGS = $(CFLAGS)
 
 # List of object files to make
 
-gcif_objects = gcif.o lodepng.o Log.o Mutex.o Clock.o Thread.o EndianNeutral.o lz4.o lz4hc.o
+gcif_objects = gcif.o lodepng.o Log.o Mutex.o Clock.o Thread.o EndianNeutral.o lz4.o lz4hc.o HuffmanDecoder.o HuffmanEncoder.o
 
 
 # Applications
@@ -53,6 +53,12 @@ Thread.o : Thread.cpp
 
 EndianNeutral.o : EndianNeutral.cpp
 	$(CCPP) $(CPFLAGS) -c EndianNeutral.cpp
+
+HuffmanDecoder.o : HuffmanDecoder.cpp
+	$(CCPP) $(CPFLAGS) -c HuffmanDecoder.cpp
+
+HuffmanEncoder.o : HuffmanEncoder.cpp
+	$(CCPP) $(CPFLAGS) -c HuffmanEncoder.cpp
 
 
 # Clean target

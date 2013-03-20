@@ -6,6 +6,7 @@ using namespace std;
 #include "Clock.hpp"
 #include "EndianNeutral.hpp"
 #include "BitMath.hpp"
+#include "HuffmanDecoder.hpp"
 using namespace cat;
 
 #include "lodepng.h"
@@ -242,6 +243,14 @@ public:
 		cout << endl;
 
 		CAT_INFO("main") << "New size = " << lz.size() << " bytes";
+
+		// Collect byte symbol statistics
+
+		int hist[256] = {0};
+
+		for (int ii = 0; ii < lz.size(); ++ii) {
+			hist[lz[ii]]++;
+		}
 
 		// Convert to image:
 
