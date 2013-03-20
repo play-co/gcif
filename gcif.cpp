@@ -10,6 +10,8 @@ using namespace cat;
 
 #include "lodepng.h"
 #include "optionparser.h"
+#include "lz4.h"
+#include "lz4hc.h"
 
 static CAT_INLINE void byteEncode(vector<unsigned char> &bytes, int data) {
 	/*
@@ -222,10 +224,24 @@ public:
 			}
 		}
 
-		for (int ii = 0; ii < rle.size(); ++ii) {
-			cout << (int)rle[ii] << " ";
+		CAT_INFO("main") << "RLE size = " << rle.size() << " bytes";
+
+		// Compress with LZ4
+
+		vector<unsigned char> lz;
+
+		lz.resize(LZ4_compressBound(rle.size()));
+
+		int size = LZ4_compressHC((char*)&rle[0], (char*)&lz[0], rle.size());
+
+		lz.resize(size);
+
+		for (int ii = 0; ii < lz.size(); ++ii) {
+			cout << (int)lz[ii] << " ";
 		}
 		cout << endl;
+
+		CAT_INFO("main") << "New size = " << lz.size() << " bytes";
 
 		// Convert to image:
 
