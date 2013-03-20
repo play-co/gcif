@@ -272,10 +272,12 @@ public:
 
 			int freqIndex = 0;
 			for (int ii = 0; ii < 256; ++ii) {
-				symbol_lut[ii] = (u8)freqIndex;
 				int count = hist[ii];
 				if (count) {
+					symbol_lut[ii] = (u8)freqIndex;
 					freqs[freqIndex++] = count;
+				} else {
+					symbol_lut[ii] = 255;
 				}
 			}
 
@@ -310,7 +312,28 @@ public:
 				bitcount += codesize;
 			}
 
-			CAT_INFO("main") << "Huffman: Total message size (without setup tables) = " << (bitcount + 7) / 8 << " bytes";
+			CAT_INFO("main") << "Huffman: Total message size (without table) = " << (bitcount + 7) / 8 << " bytes";
+
+			int lastCodeSize = 3;
+			for (int ii = 0; ii < 256; ++ii) {
+				u8 symbol = symbol_lut[ii];
+				u8 codesize = codesizes[symbol];
+
+				int delta = codesize - lastCodeSize;
+				lastCodeSize = codesize;
+
+				if (delta < 0) {
+					delta = (-delta << 1) | 1;
+				} else {
+					delta <<= 1;
+				}
+
+				if (symbol > num_syms) {
+					cout << ii << ": <unused>" << endl;
+				} else {
+					cout << ii << ": " << delta << endl;
+				}
+			}
 		}
 
 		// Convert to image:
