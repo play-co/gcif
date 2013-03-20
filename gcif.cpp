@@ -221,6 +221,7 @@ public:
 				}
 
 				rlePrevZeroes = rleCurZeroes;
+				prevCount = (int)rlePrevZeroes.size();
 				rleCurZeroes.clear();
 				rleCurDeltas.clear();
 
