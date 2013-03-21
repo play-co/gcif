@@ -16,6 +16,8 @@ using namespace cat;
 #include "lz4.h"
 #include "lz4hc.h"
 
+static const u32 GCIF_MAGIC = 0x46494347;
+
 static CAT_INLINE void byteEncode(vector<unsigned char> &bytes, int data) {
 	/*
 	 * Delta byte-wise encoding:
@@ -462,10 +464,9 @@ public:
 				if (fileData) {
 					u32 *words = reinterpret_cast<u32*>( fileData );
 
-					const u32 magic = 0x47434946;
 					u32 header1 = (width << 16) | height; // Temporary
 
-					words[0] = getLE(magic);
+					words[0] = getLE(GCIF_MAGIC);
 					words[1] = getLE(header1);
 					words += 2;
 
@@ -511,10 +512,12 @@ public:
 					u32 *words = reinterpret_cast<u32*>( fileData );
 					u32 fileSize = fileView.GetLength();
 
-					if (fileSize > 16) { // iunno
-						const u32 magic = 0x47434946;
-
-						if (magic == getLE(words[0])) {
+					if (fileSize < 4) { // iunno
+						CAT_WARN("main") << "File is too short to be a GCIF file: " << filename;
+					} else {
+						if (GCIF_MAGIC != getLE(words[0])) {
+							CAT_WARN("main") << "File is not a GCIF formatted file (magic mismatch): " << filename;
+						} else {
 							u32 header1 = getLE(words[1]);
 							u16 width = header1 >> 16;
 							u16 height = header1 & 0xffff;
@@ -565,7 +568,7 @@ int processParameters(option::Parser &parse, option::Option options[]) {
 
 	if (options[COMPRESS]) {
 		if (parse.nonOptionsCount() != 2) {
-			CAT_WARN("main") << "Input error: Please provide an output file path";
+			CAT_WARN("main") << "Input error: Please provide input and output file paths";
 		} else {
 			const char *inFilePath = parse.nonOption(0);
 			const char *outFilePath = parse.nonOption(1);
@@ -579,7 +582,20 @@ int processParameters(option::Parser &parse, option::Option options[]) {
 			return 0;
 		}
 	} else if (options[DECOMPRESS]) {
-		CAT_FATAL("main") << "TODO";
+		if (parse.nonOptionsCount() != 2) {
+			CAT_WARN("main") << "Input error: Please provide input and output file paths";
+		} else {
+			const char *inFilePath = parse.nonOption(0);
+			const char *outFilePath = parse.nonOption(1);
+			MonoConverter converter;
+
+			if (!converter.decompress(inFilePath, outFilePath)) {
+				CAT_INFO("main") << "Error during conversion [retcode:3]";
+				return 3;
+			}
+
+			return 0;
+		}
 	} else if (options[TEST]) {
 		CAT_FATAL("main") << "TODO";
 	}

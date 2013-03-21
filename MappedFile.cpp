@@ -83,7 +83,7 @@ bool MappedFile::OpenRead(const char *path, bool read_ahead, bool no_cache)
 
 #else
 
-	_file = open(path, O_RDONLY, (mode_t)0400);
+	_file = open(path, O_RDONLY, (mode_t)0444);
 
 	if (_file == -1) {
 		CAT_WARN("MappedFile") << "open error " << errno << " for " << path;
@@ -123,7 +123,7 @@ bool MappedFile::OpenWrite(const char *path, int size)
 
 #else
 
-	_file = open(path, O_RDWR|O_CREAT|O_TRUNC, (mode_t)0600);
+	_file = open(path, O_RDWR|O_CREAT|O_TRUNC, (mode_t)0666);
 
 	if (_file == -1) {
 		CAT_WARN("MappedFile") << "open error " << errno << " for " << path;
@@ -218,17 +218,19 @@ bool MappedView::Open(MappedFile *file)
 
 u8 *MappedView::MapView(u64 offset, u32 length)
 {
-	u32 granularity = SystemInfo::ref()->GetAllocationGranularity();
+	if (offset) {
+		u32 granularity = SystemInfo::ref()->GetAllocationGranularity();
 
-	CAT_DEBUG_ENFORCE(CAT_IS_POWER_OF_2(granularity)) << "Allocation granularity is not a power of 2!";
+		CAT_DEBUG_ENFORCE(CAT_IS_POWER_OF_2(granularity)) << "Allocation granularity is not a power of 2!";
 
-	// Bring offset back to the previous allocation granularity
-	u32 mask = granularity - 1;
-	u32 masked = (u32)offset & mask;
-	if (masked)
-	{
-		offset -= masked;
-		length += masked;
+		// Bring offset back to the previous allocation granularity
+		u32 mask = granularity - 1;
+		u32 masked = (u32)offset & mask;
+		if (masked)
+		{
+			offset -= masked;
+			length += masked;
+		}
 	}
 
 #if defined(CAT_OS_WINDOWS)
@@ -258,7 +260,7 @@ u8 *MappedView::MapView(u64 offset, u32 length)
 		length = _file->_len;
 	}
 
-	_map = mmap(0, length, prot, MAP_PRIVATE, _file->_file, offset);
+	_map = mmap(0, length, prot, MAP_SHARED, _file->_file, offset);
 
 	if (_map == MAP_FAILED) {
 		CAT_WARN("MappedView") << "mmap error " << errno;
@@ -292,16 +294,12 @@ void MappedView::Close()
 
 #else
 
-	if (_data)
-	{
-		munmap(_data, _length);
-		_data = 0;
-	}
 	if (_map != MAP_FAILED)
 	{
 		munmap(_map, _length);
 		_map = MAP_FAILED;
 	}
+	_data = 0;
 
 #endif
 
