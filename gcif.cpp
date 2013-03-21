@@ -51,6 +51,21 @@ static CAT_INLINE void byteEncode(vector<unsigned char> &bytes, int data) {
 	}
 }
 
+static CAT_INLINE void bitWrite(vector<u32> &words, u32 &currentWord, int &bitCount, u32 code, int codelen) {
+	int bitWordOffset = bitCount & 31;
+	int available = 32 - bitWordOffset;
+	bitCount += codelen;
+
+	currentWord |= (u32)(code << bitWordOffset);
+
+	codelen -= available;
+
+	if (codelen >= 0) {
+		words.push_back(currentWord);
+		currentWord = code >> available;
+	}
+}
+
 class MonoConverter {
 	vector<unsigned char> image;
 	unsigned width, height;
@@ -180,8 +195,14 @@ public:
 			u32 *lagger = buffer;
 			int hctr = height, zeroes = 0;
 
+			// ydelta for count
+			int lastDeltaCount = 0;
+
 			while (hctr--) {
 				int prevIndex = 0;
+
+				// for xdelta:
+				int lastZeroes = 0;
 
 				for (int jj = 0, jjlen = bufferStride - 1; jj <= jjlen; ++jj) {
 					u32 now = lagger[jj];
@@ -193,12 +214,23 @@ public:
 
 							zeroes += lastbit - bit;
 
+#define USE_YDELTA_RLE 0
+#define USE_XDELTA_RLE 0
+#define USE_YDELTA_COUNT 1
+
+#if USE_YDELTA_RLE
 							int delta;
 							if (prevIndex < prevCount) {
 								delta = zeroes - rlePrevZeroes[prevIndex++];
 							} else {
 								delta = zeroes;
 							}
+#elif USE_XDELTA_RLE
+							int delta = zeroes - lastZeroes;
+							lastZeroes = zeroes;
+#else
+							int delta = zeroes;
+#endif
 
 							rleCurZeroes.push_back(zeroes);
 							rleCurDeltas.push_back(delta);
@@ -213,7 +245,12 @@ public:
 				}
 
 				int deltaCount = (int)rleCurDeltas.size();
+#if USE_YDELTA_COUNT
+				byteEncode(rle, deltaCount - lastDeltaCount);
+				lastDeltaCount = deltaCount;
+#else
 				byteEncode(rle, deltaCount);
+#endif
 
 				for (int kk = 0; kk < deltaCount; ++kk) {
 					int delta = rleCurDeltas[kk];
@@ -263,9 +300,12 @@ public:
 
 		// Compress with Huffman encoding
 
-		vector<unsigned char> huffStream;
+		vector<u32> huffStream;
+		int huffBits = 0;
 
 		{
+			u32 bitWorks = 0; // Bit encoding workspace
+
 			huffman::huffman_work_tables state;
 
 			u16 freqs[256];
@@ -295,26 +335,6 @@ public:
 			if (max_code_size > huffman::cMaxExpectedCodeSize) {
 				huffman::limit_max_code_size(num_syms, codesizes, huffman::cMaxExpectedCodeSize);
 			}
-
-			u16 codes[256];
-
-			huffman::generate_codes(num_syms, codesizes, codes);
-
-			// Encode symbols
-
-			u32 bitcount = 0;
-
-			for (int ii = 0; ii < lzSize; ++ii) {
-				u8 byte = lz[ii];
-				u8 symbol = symbol_lut[byte];
-
-				u16 code = codes[symbol];
-				u8 codesize = codesizes[symbol];
-
-				bitcount += codesize;
-			}
-
-			CAT_INFO("main") << "Huffman: Total message size (without table) = " << (bitcount + 7) / 8 << " bytes";
 
 			// Encode table
 
@@ -347,7 +367,9 @@ public:
 
 			CAT_INFO("main") << "Golomb: Chose table pivot " << shift << " bits";
 
-			// Write out shift: number from 0..5
+			// Write out shift: number from 0..5, so round up to 0..7 in 3 bits
+			CAT_ENFORCE(shift <= 7);
+			bitWrite(huffStream, bitWorks, huffBits, shift, 3);
 
 			int hbitcount = 3;
 
@@ -357,21 +379,39 @@ public:
 
 				for (int jj = 0; jj < q; ++jj) {
 					// write a 1
+					bitWrite(huffStream, bitWorks, huffBits, 1, 1);
 					++hbitcount;
 				}
 				// write a 0
+				bitWrite(huffStream, bitWorks, huffBits, 0, 1);
 				++hbitcount;
 
-				int v = 1;
 				for (int jj = 0; jj < shift; ++jj) {
 					// write v & symbol
+					bitWrite(huffStream, bitWorks, huffBits, (symbol >> jj) & 1, 1);
 					++hbitcount;
-					v <<= 1;
 				}
 			}
 
 			CAT_INFO("main") << "Golomb: Table size = " << (hbitcount + 7) / 8 << " bytes";
-			CAT_INFO("main") << "Huffman: Total compressed message size = " << (bitcount + 7) / 8 + (hbitcount + 7) / 8 << " bytes";
+
+			// Encode data to Huffman stream
+
+			u16 codes[256];
+
+			huffman::generate_codes(num_syms, codesizes, codes);
+
+			for (int ii = 0; ii < lzSize; ++ii) {
+				u8 byte = lz[ii];
+				u8 symbol = symbol_lut[byte];
+
+				u16 code = codes[symbol];
+				u8 codesize = codesizes[symbol];
+
+				bitWrite(huffStream, bitWorks, huffBits, code, codesize);
+			}
+
+			CAT_INFO("main") << "Huffman: Total compressed message size = " << (huffBits + 7) / 8 << " bytes";
 		}
 
 		// Convert to image:
