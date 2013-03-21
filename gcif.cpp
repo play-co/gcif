@@ -189,7 +189,7 @@ public:
 					if (now) {
 						u32 lastbit = 31;
 						do {
-							u32 bit = BSR32(now);
+							u32 bit = now > 0 ? BSR32(now) : 0;
 
 							zeroes += lastbit - bit;
 
@@ -319,7 +319,6 @@ public:
 			// Encode table
 
 			vector<unsigned char> huffTable;
-			int lzhSize = 256;
 
 			int lastCodeSize = 3;
 			u32 sum = 0;
@@ -340,12 +339,17 @@ public:
 				sum += delta;
 			}
 
+			CAT_INFO("main") << "Huffman: Encoded table size = " << huffTable.size() << " bytes";
+
 			// Find K shift
-			u32 shift = BSR32(sum) - 8;
+			sum >>= 8;
+			u32 shift = sum > 0 ? BSR32(sum) : 0;
+
+			CAT_INFO("main") << "Golomb: Chose table pivot " << shift << " bits";
 
 			// Write out shift: number from 0..5
 
-			int hbitcount = 0;
+			int hbitcount = 3;
 
 			for (int ii = 0; ii < huffTable.size(); ++ii) {
 				int symbol = huffTable[ii];
@@ -366,7 +370,8 @@ public:
 				}
 			}
 
-			CAT_INFO("main") << "Huffman: Table size = " << (hbitcount + 7 + 3) / 8 << " bytes";
+			CAT_INFO("main") << "Golomb: Table size = " << (hbitcount + 7) / 8 << " bytes";
+			CAT_INFO("main") << "Huffman: Total compressed message size = " << (bitcount + 7) / 8 + (hbitcount + 7) / 8 << " bytes";
 		}
 
 		// Convert to image:
