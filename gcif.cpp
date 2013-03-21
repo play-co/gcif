@@ -271,6 +271,8 @@ public:
 
 		CAT_INFO("main") << "Post-RLE size = " << rle.size() << " bytes";
 
+		delete []buffer;
+
 		// Compress with LZ4
 
 		vector<unsigned char> lz;
@@ -455,8 +457,8 @@ public:
 			MappedView fileView;
 
 			if (fileView.Open(&file)) {
-
 				u8 *fileData = fileView.MapView();
+
 				if (fileData) {
 					u32 *words = reinterpret_cast<u32*>( fileData );
 
@@ -491,7 +493,39 @@ public:
 			}
 		}
 
-		delete []buffer;
+		return success;
+	}
+
+	bool decompress(const char *filename, const char *outfile) {
+		bool success = false;
+
+		MappedFile file;
+
+		if (file.OpenRead(filename)) {
+			MappedView fileView;
+
+			if (fileView.Open(&file)) {
+				u8 *fileData = fileView.MapView();
+
+				if (fileData) {
+					u32 *words = reinterpret_cast<u32*>( fileData );
+					u32 fileSize = fileView.GetLength();
+
+					if (fileSize > 16) { // iunno
+						const u32 magic = 0x47434946;
+
+						if (magic == getLE(words[0])) {
+							u32 header1 = getLE(words[1]);
+							u16 width = header1 >> 16;
+							u16 height = header1 & 0xffff;
+
+							words += 2;
+							fileSize -= 8;
+						}
+					}
+				}
+			}
+		}
 
 		return success;
 	}
@@ -530,20 +564,20 @@ int processParameters(option::Parser &parse, option::Option options[]) {
 	}
 
 	if (options[COMPRESS]) {
-
-		if (parse.nonOptionsCount() > 0 && options[COMPRESS].arg) {
-			const char *inFilePath = options[COMPRESS].arg;
-			const char *outFilePath = parse.nonOption(0);
+		if (parse.nonOptionsCount() != 2) {
+			CAT_WARN("main") << "Input error: Please provide an output file path";
+		} else {
+			const char *inFilePath = parse.nonOption(0);
+			const char *outFilePath = parse.nonOption(1);
 			MonoConverter converter;
 
 			if (!converter.compress(inFilePath, outFilePath)) {
 				CAT_INFO("main") << "Error during conversion [retcode:2]";
 				return 2;
 			}
+
+			return 0;
 		}
-
-		return 0;
-
 	} else if (options[DECOMPRESS]) {
 		CAT_FATAL("main") << "TODO";
 	} else if (options[TEST]) {

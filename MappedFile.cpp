@@ -115,6 +115,7 @@ bool MappedFile::OpenWrite(const char *path, int size)
 	Close();
 
 	_readonly = false;
+	_len = size;
 
 #if defined(CAT_OS_WINDOWS)
 
@@ -263,6 +264,8 @@ u8 *MappedView::MapView(u64 offset, u32 length)
 		CAT_WARN("MappedView") << "mmap error " << errno;
 		return 0;
 	}
+
+	_data = reinterpret_cast<u8*>( _map );
 
 #endif
 

@@ -63,8 +63,10 @@ bool cat::SetExecPriority(ThreadPrio prio)
 # include <sys/syscall.h>
 # if defined(CAT_OS_LINUX)
 #  include <linux/unistd.h>
-# elif defined(CAT_OS_BSD) || defined(CAT_OS_OSX)
+# elif defined(CAT_OS_BSD)
 #  include <bsd/unistd.h>
+# elif defined(CAT_OS_OSX)
+#  include <unistd.h>
 # endif
 #endif
 
@@ -74,12 +76,19 @@ u32 cat::GetThreadID()
 
 	return GetCurrentThreadId();
 
-#elif defined(CAT_OS_LINUX) || defined(CAT_OS_BSD) || defined(CAT_OS_OSX)
+#elif defined(CAT_OS_LINUX) || defined(CAT_OS_BSD)
 
 	s32 thread_id = syscall(__NR_gettid);
 	if (thread_id != -1) return thread_id;
 
-	return getpid();
+	return (u32)(pthread_self() - (pthread_t)0);
+
+#elif defined(CAT_OS_OSX)
+
+	s32 thread_id = syscall(SYS_thread_selfid);
+	if (thread_id != -1) return thread_id;
+
+	return (u32)(pthread_self() - (pthread_t)0);
 
 #else
 
