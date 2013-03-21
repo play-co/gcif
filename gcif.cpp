@@ -16,7 +16,30 @@ using namespace cat;
 #include "lz4.h"
 #include "lz4hc.h"
 
+static const u32 GCIF_HEAD_WORDS = 4;
 static const u32 GCIF_MAGIC = 0x46494347;
+static const u32 GCIF_HEAD_SEED = 0x120CA71D;
+static const u32 GCIF_DATA_SEED = 0xCA71D034;
+
+/*
+ * File format:
+ *
+ * GCIF
+ * <width(16)> <height(16)>
+ * MurmurHash3-32(DATA_SEED, all words after header)
+ * MurmurHash3-32(HEAD_SEED, all words above)
+ *
+ * Golomb-coded Huffman table
+ * Huffman-coded {
+ *   LZ4-coded {
+ *     RLE+Delta-coded {
+ *       y2xdelta-coded {
+ *         Monochrome image raster
+ *       }
+ *     }
+ *   }
+ * }
+ */
 
 static CAT_INLINE void byteEncode(vector<unsigned char> &bytes, int data) {
 	/*
@@ -69,6 +92,128 @@ static CAT_INLINE void bitWrite(vector<u32> &words, u32 &currentWord, int &bitCo
 	}
 }
 
+
+
+
+
+/*
+ * MurmurHash3 - 32 bit version
+ * https://code.google.com/p/smhasher/source/browse/trunk/MurmurHash3.cpp
+ * by Austin Appleby
+ *
+ * Chosen because it works quickly on whole words at a time, just like GCIF
+ */
+class MurmurHash3 {
+	static const u32 c1 = 0xcc9e2d51;
+	static const u32 c2 = 0x1b873593;
+
+	u32 h1;
+
+	static CAT_INLINE u32 fmix(u32 h) {
+		h ^= h >> 16;
+		h *= 0x85ebca6b;
+		h ^= h >> 13;
+		h *= 0xc2b2ae35;
+		h ^= h >> 16;
+		return h;
+	}
+
+public:
+	void init(u32 seed) {
+		h1 = seed;
+	}
+
+	CAT_INLINE void hashWord(u32 k1) {
+		k1 *= c1;
+		k1 = CAT_ROL32(k1, 15);
+		k1 *= c2;
+
+		h1 ^= k1;
+		h1 = CAT_ROL32(h1, 13); 
+		h1 = h1 * 5 + 0xe6546b64;
+	}
+
+	CAT_INLINE void hashWords(u32 *keys, int wc) {
+		for (int ii = 0; ii < wc; ++ii) {
+			u32 k1 = keys[ii];
+
+			k1 *= c1;
+			k1 = CAT_ROL32(k1, 15);
+			k1 *= c2;
+
+			h1 ^= k1;
+			h1 = CAT_ROL32(h1, 13); 
+			h1 = h1 * 5 + 0xe6546b64;
+		}
+	}
+
+	void hashBytes(u8 *bytes, int bc) {
+		int wc = bc >> 2;
+		u32 *keys = reinterpret_cast<u32*>( bytes );
+		for (int ii = 0; ii < wc; ++ii) {
+			u32 k1 = keys[ii];
+
+			k1 *= c1;
+			k1 = CAT_ROL32(k1, 15);
+			k1 *= c2;
+
+			h1 ^= k1;
+			h1 = CAT_ROL32(h1, 13); 
+			h1 = h1 * 5 + 0xe6546b64;
+		}
+
+		bytes += wc << 2;
+		u32 k1 = 0;
+		switch (bc & 3) {
+		case 3: k1 ^= bytes[2] << 16;
+		case 2: k1 ^= bytes[1] << 8;
+		case 1: k1 ^= bytes[0];
+				k1 *= c1;
+				k1 = CAT_ROL32(k1, 15);
+				k1 *= c2;
+				h1 ^= k1;
+		}
+	}
+
+	CAT_INLINE u32 final(u32 len) {
+		return fmix(h1 ^ len);
+	}
+};
+
+u32 murmurHash(void *data, int bytes) {
+	MurmurHash3 h;
+	h.init(123456789);
+	h.hashBytes(reinterpret_cast<u8*>( data ), bytes);
+	return h.final(bytes);
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 class MonoConverter {
 	vector<unsigned char> image;
 	unsigned width, height;
@@ -79,6 +224,8 @@ public:
 		bool success = false;
 
 		unsigned error = lodepng::decode(image, width, height, filename);
+
+		CAT_INFO("main") << "Original image hash: " << hex << murmurHash(&image[0], image.size());
 
 		if (error) {
 			CAT_WARN("main") << "Decoder error " << error << ": " << lodepng_error_text(error);
@@ -149,6 +296,8 @@ public:
 			}
 		}
 
+		CAT_INFO("main") << "Monochrome image hash: " << hex << murmurHash(&buffer[0], bufferSize * 4);
+
 		// Encode y2x delta:
 
 		{
@@ -180,6 +329,8 @@ public:
 				cb = now << 31;
 			}
 		}
+
+		CAT_INFO("main") << "Monochrome y2x delta image hash: " << hex << murmurHash(&buffer[0], bufferSize * 4);
 
 		// RLE
 
@@ -271,6 +422,8 @@ public:
 			}
 		}
 
+		CAT_INFO("main") << "RLE data hash: " << hex << murmurHash(&rle[0], rle.size());
+
 		CAT_INFO("main") << "Post-RLE size = " << rle.size() << " bytes";
 
 		delete []buffer;
@@ -289,6 +442,8 @@ public:
 
 			CAT_INFO("main") << "Post-LZ4 size = " << lzSize << " bytes";
 		}
+
+		CAT_INFO("main") << "LZ data hash: " << hex << murmurHash(&lz[0], lz.size());
 
 		// Collect byte symbol statistics
 
@@ -311,8 +466,6 @@ public:
 		int huffBits = 0;
 
 		{
-			u32 bitWorks = 0; // Bit encoding workspace
-
 			huffman::huffman_work_tables state;
 
 			u16 freqs[256];
@@ -347,14 +500,20 @@ public:
 
 			vector<unsigned char> huffTable;
 
-			int lastCodeSize = 3;
+			int lag0 = 3, lag1 = 3;
 			u32 sum = 0;
 			for (int ii = 0; ii < 256; ++ii) {
 				u8 symbol = symbol_lut[ii];
 				u8 codesize = codesizes[symbol];
 
-				int delta = codesize - lastCodeSize;
-				lastCodeSize = codesize;
+				int delta = codesize;
+				if (ii < 16) {
+					delta -= lag0;
+				} else {
+					delta -= lag1;
+				}
+				lag1 = lag0;
+				lag0 = codesize;
 
 				if (delta < 0) {
 					delta = (-delta << 1) | 1;
@@ -362,20 +521,27 @@ public:
 					delta <<= 1;
 				}
 
+				cout << delta << " ";
 				huffTable.push_back(delta);
 				sum += delta;
 			}
+			cout << endl;
 
+			CAT_INFO("main") << "Huffman: Encoded table hash = " << hex << murmurHash(&huffTable[0], huffTable.size());
 			CAT_INFO("main") << "Huffman: Encoded table size = " << huffTable.size() << " bytes";
 
 			// Find K shift
 			sum >>= 8;
 			u32 shift = sum > 0 ? BSR32(sum) : 0;
+			u32 shiftMask = (1 << shift) - 1;
 
 			CAT_INFO("main") << "Golomb: Chose table pivot " << shift << " bits";
 
 			// Write out shift: number from 0..5, so round up to 0..7 in 3 bits
 			CAT_ENFORCE(shift <= 7);
+
+			u32 bitWorks = 0; // Bit encoding workspace
+
 			bitWrite(huffStream, bitWorks, huffBits, shift, 3);
 
 			int hbitcount = 3;
@@ -393,11 +559,10 @@ public:
 				bitWrite(huffStream, bitWorks, huffBits, 0, 1);
 				++hbitcount;
 
-				for (int jj = 0; jj < shift; ++jj) {
-					// write v & symbol
-					bitWrite(huffStream, bitWorks, huffBits, (symbol >> jj) & 1, 1);
-					++hbitcount;
+				if (shift) {
+					bitWrite(huffStream, bitWorks, huffBits, symbol & shiftMask, shift);
 				}
+				hbitcount += shift;
 			}
 
 			CAT_INFO("main") << "Golomb: Table size = " << (hbitcount + 7) / 8 << " bytes";
@@ -422,6 +587,8 @@ public:
 			if ((huffBits & 31)) {
 				huffStream.push_back(bitWorks);
 			}
+
+			CAT_INFO("main") << "Huffman+table hash: " << hex << murmurHash(&huffStream[0], huffStream.size() * 4);
 
 			CAT_INFO("main") << "Huffman: Total compressed message size = " << (huffBits + 7) / 8 << " bytes";
 		}
@@ -453,9 +620,9 @@ public:
 		 * "GCIF" + width(2) + height(2) + huffbytes
 		 */
 
-		int huffBytes = (huffBits + 7) / 8;
+		int huffWords = (huffBits + 31) / 32;
 
-		if (file.OpenWrite(outfile, 8 + huffBytes)) {
+		if (file.OpenWrite(outfile, (GCIF_HEAD_WORDS + huffWords) * sizeof(u32))) {
 			MappedView fileView;
 
 			if (fileView.Open(&file)) {
@@ -464,29 +631,28 @@ public:
 				if (fileData) {
 					u32 *words = reinterpret_cast<u32*>( fileData );
 
-					u32 header1 = (width << 16) | height; // Temporary
+					MurmurHash3 hash;
+					hash.init(GCIF_DATA_SEED);
+					hash.hashWords(&huffStream[0], huffWords);
+					u32 dataHash = hash.final(huffWords);
+
+					hash.init(GCIF_HEAD_SEED);
 
 					words[0] = getLE(GCIF_MAGIC);
+					hash.hashWord(GCIF_MAGIC);
+					u32 header1 = (width << 16) | height; // Temporary
 					words[1] = getLE(header1);
-					words += 2;
+					hash.hashWord(header1);
+					words[2] = getLE(dataHash);
+					hash.hashWord(dataHash);
 
-					int wordCount = huffBits >> 5;
-					for (int ii = 0; ii < wordCount; ++ii) {
+					u32 headerHash = hash.final(GCIF_HEAD_WORDS);
+					words[3] = getLE(headerHash);
+
+					words += GCIF_HEAD_WORDS;
+
+					for (int ii = 0; ii < huffWords; ++ii) {
 						words[ii] = getLE(huffStream[ii]);
-					}
-
-					int remaining = huffBits & 31;
-					if (remaining) {
-						u8 *outBytes = reinterpret_cast<u8*>( &words[wordCount] );
-						u32 inBytes = huffStream[wordCount];
-
-						remaining = (remaining + 7) >> 3;
-						switch (remaining) {
-						case 4: outBytes[3] = static_cast<u8>( inBytes >> 24 );
-						case 3: outBytes[2] = static_cast<u8>( inBytes >> 16 );
-						case 2: outBytes[1] = static_cast<u8>( inBytes >> 8 );
-						case 1: outBytes[0] = static_cast<u8>( inBytes );
-						}
 					}
 
 					success = true;
@@ -495,6 +661,84 @@ public:
 		}
 
 		return success;
+	}
+
+	bool decode(u16 width, u16 height, u32 *words, int wordCount, u32 dataHash) {
+		CAT_INFO("main") << "Huffman+table hash: " << hex << murmurHash(words, wordCount * 4);
+
+		// Decode Golomb-encoded Huffman table
+
+		MurmurHash3 hash;
+		hash.init(GCIF_DATA_SEED);
+
+		if (wordCount-- < 1) {
+			return false;
+		}
+		u32 word = getLE(*words++);
+		hash.hashWord(word);
+
+		u32 pivot = word & 3;
+		word >>= 3;
+
+		CAT_INFO("main") << "Huffman table pivot: " << pivot << " bits";
+
+		u32 pivotMask;
+		if (!pivot) {
+			pivotMask = 0;
+		} else {
+			pivotMask = (1 << pivot) - 1;
+		}
+
+		u8 table[256];
+		int tableWriteIndex = 0;
+
+		int q = 0, bitsLeft = 29;
+		for (;;) {
+			if (--bitsLeft <= 0) {
+				if (--wordCount < 0) {
+					return false;
+				}
+				word = getLE(*words++);
+				bitsLeft = 32;
+			}
+
+			u32 bit = word & 1;
+			q += bit;
+			word >>= 1;
+
+			if (!bit) {
+				u32 result = word;
+
+				if (bitsLeft < pivot) {
+					if (--wordCount < 0) {
+						return false;
+					}
+					word = getLE(*words++);
+					result |= word << bitsLeft;
+					int eat = pivot - bitsLeft;
+					word >>= eat;
+					bitsLeft = 32 - eat;
+				} else {
+					word >>= pivot;
+					bitsLeft -= pivot;
+				}
+				result &= pivotMask;
+
+				result += q << pivot;
+				q = 0;
+
+				cout << result << " ";
+				table[tableWriteIndex++] = result;
+				if (tableWriteIndex >= 256) {
+					break;
+				}
+			}
+		}
+		cout << endl;
+
+		CAT_INFO("main") << "Delta Huffman table hash: " << hex << murmurHash(&table[0], 256);
+
+		return true;
 	}
 
 	bool decompress(const char *filename, const char *outfile) {
@@ -511,20 +755,40 @@ public:
 				if (fileData) {
 					u32 *words = reinterpret_cast<u32*>( fileData );
 					u32 fileSize = fileView.GetLength();
+					u32 fileWords = fileSize / 4;
 
-					if (fileSize < 4) { // iunno
+					MurmurHash3 hash;
+					hash.init(GCIF_HEAD_SEED);
+
+					if (fileWords < GCIF_HEAD_WORDS) { // iunno
 						CAT_WARN("main") << "File is too short to be a GCIF file: " << filename;
 					} else {
-						if (GCIF_MAGIC != getLE(words[0])) {
+						u32 word0 = getLE(words[0]);
+						hash.hashWord(word0);
+
+						if (GCIF_MAGIC != word0) {
 							CAT_WARN("main") << "File is not a GCIF formatted file (magic mismatch): " << filename;
 						} else {
-							u32 header1 = getLE(words[1]);
-							u16 width = header1 >> 16;
-							u16 height = header1 & 0xffff;
-							CAT_WARN("main") << "Image: Dimensions " << width << " x " << height;
+							u32 word1 = getLE(words[1]);
+							hash.hashWord(word1);
 
-							words += 2;
-							fileSize -= 8;
+							u32 dataHash = getLE(words[2]);
+							hash.hashWord(dataHash);
+
+							u32 word3 = getLE(words[3]);
+							if (word3 != hash.final(GCIF_HEAD_WORDS)) {
+								CAT_WARN("main") << "File header is corrupted: " << filename;
+							} else {
+								u16 width = word1 >> 16;
+								u16 height = word1 & 0xffff;
+								CAT_WARN("main") << "Image: Dimensions " << width << " x " << height;
+
+								if (!decode(width, height, words + GCIF_HEAD_WORDS, fileWords - GCIF_HEAD_WORDS, dataHash)) {
+									CAT_WARN("main") << "Decoder failed";
+								} else {
+									success = true;
+								}
+							}
 						}
 					}
 				}
