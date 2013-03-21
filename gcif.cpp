@@ -521,6 +521,7 @@ public:
 							u32 header1 = getLE(words[1]);
 							u16 width = header1 >> 16;
 							u16 height = header1 & 0xffff;
+							CAT_WARN("main") << "Image: Dimensions " << width << " x " << height;
 
 							words += 2;
 							fileSize -= 8;
