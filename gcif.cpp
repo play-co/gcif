@@ -521,13 +521,11 @@ public:
 					delta <<= 1;
 				}
 
-				cout << delta << " ";
 				huffTable.push_back(delta);
 				sum += delta;
 			}
-			cout << endl;
 
-			CAT_INFO("main") << "Huffman: Encoded table hash = " << hex << murmurHash(&huffTable[0], huffTable.size());
+			//CAT_INFO("main") << "Huffman: Encoded table hash = " << hex << murmurHash(&huffTable[0], huffTable.size());
 			CAT_INFO("main") << "Huffman: Encoded table size = " << huffTable.size() << " bytes";
 
 			// Find K shift
@@ -666,77 +664,100 @@ public:
 	bool decode(u16 width, u16 height, u32 *words, int wordCount, u32 dataHash) {
 		CAT_INFO("main") << "Huffman+table hash: " << hex << murmurHash(words, wordCount * 4);
 
-		// Decode Golomb-encoded Huffman table
-
 		MurmurHash3 hash;
 		hash.init(GCIF_DATA_SEED);
 
-		if (wordCount-- < 1) {
-			return false;
-		}
-		u32 word = getLE(*words++);
-		hash.hashWord(word);
+		u32 word;
+		int bitsLeft;
 
-		u32 pivot = word & 3;
-		word >>= 3;
-
-		CAT_INFO("main") << "Huffman table pivot: " << pivot << " bits";
-
-		u32 pivotMask;
-		if (!pivot) {
-			pivotMask = 0;
-		} else {
-			pivotMask = (1 << pivot) - 1;
-		}
+		// Decode Golomb-encoded Huffman table
 
 		u8 table[256];
-		int tableWriteIndex = 0;
 
-		int q = 0, bitsLeft = 29;
-		for (;;) {
-			if (--bitsLeft <= 0) {
-				if (--wordCount < 0) {
-					return false;
-				}
-				word = getLE(*words++);
-				bitsLeft = 32;
+		{
+			if (wordCount-- < 1) {
+				return false;
+			}
+			word = getLE(*words++);
+			hash.hashWord(word);
+
+			u32 pivot = word & 3;
+			word >>= 3;
+
+			CAT_INFO("main") << "Huffman table pivot: " << pivot << " bits";
+
+			u32 pivotMask;
+			if (!pivot) {
+				pivotMask = 0;
+			} else {
+				pivotMask = (1 << pivot) - 1;
 			}
 
-			u32 bit = word & 1;
-			q += bit;
-			word >>= 1;
+			int tableWriteIndex = 0;
 
-			if (!bit) {
-				u32 result = word;
-
-				if (bitsLeft < pivot) {
+			int lag0 = 3, lag1 = 3, q = 0;
+			bitsLeft = 29;
+			for (;;) {
+				if (bitsLeft <= 0) {
 					if (--wordCount < 0) {
 						return false;
 					}
 					word = getLE(*words++);
-					result |= word << bitsLeft;
-					int eat = pivot - bitsLeft;
-					word >>= eat;
-					bitsLeft = 32 - eat;
-				} else {
-					word >>= pivot;
-					bitsLeft -= pivot;
+					hash.hashWord(word);
+					bitsLeft = 32;
 				}
-				result &= pivotMask;
 
-				result += q << pivot;
-				q = 0;
+				u32 bit = word & 1;
+				q += bit;
+				word >>= 1;
+				--bitsLeft;
 
-				cout << result << " ";
-				table[tableWriteIndex++] = result;
-				if (tableWriteIndex >= 256) {
-					break;
+				if (!bit) {
+					int result = word;
+
+					if (bitsLeft < pivot) {
+						if (--wordCount < 0) {
+							return false;
+						}
+						word = getLE(*words++);
+						hash.hashWord(word);
+						result |= word << bitsLeft;
+						int eat = pivot - bitsLeft;
+						word >>= eat;
+						bitsLeft = 32 - eat;
+					} else {
+						word >>= pivot;
+						bitsLeft -= pivot;
+					}
+					result &= pivotMask;
+
+					result += q << pivot;
+					q = 0;
+
+					if (result & 1) {
+						result = -(result >> 1);
+					} else {
+						result >>= 1;
+					}
+
+					int orig = result;
+					if (tableWriteIndex < 16) {
+						orig += lag0;
+					} else {
+						orig += lag1;
+					}
+					lag1 = lag0;
+					lag0 = orig;
+
+					table[tableWriteIndex++] = orig;
+					if (tableWriteIndex >= 256) {
+						break;
+					}
 				}
 			}
 		}
-		cout << endl;
 
-		CAT_INFO("main") << "Delta Huffman table hash: " << hex << murmurHash(&table[0], 256);
+		//CAT_INFO("main") << "Huffman table hash: " << hex << murmurHash(&table[0], 256);
 
 		return true;
 	}
