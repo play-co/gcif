@@ -1,0 +1,8 @@
+[Dec 31 16:08] <main> Uncompressed size = 131072 bytes
+[Dec 31 16:08] <main> Post-RLE size = 7518 bytes
+[Dec 31 16:08] <main> Post-LZ4 size = 5941 bytes
+[Dec 31 16:08] <main> Huffman: Number of symbols = 254 syms
+[Dec 31 16:08] <main> Huffman: Max code size = 12 bits
+[Dec 31 16:08] <main> Huffman: Total freq = 5941 rels
+[Dec 31 16:08] <main> Huffman: Total message size (without table) = 4747 bytes
+0 2 0 0 2 0 0 2 0 2 3 4 5 4 3 0 3 4 5 4 5 4 3 2 3 4 5 4 3 4 7 2 3 2 0 2 5 4 3 2 3 2 5 4 3 2 0 0 3 0 0 2 3 2 0 0 0 0 0 2 3 2 5 0 0 0 0 0 2 2 3 0 2 2 3 2 3 2 5 2 0 0 3 2 0 0 3 0 2 0 0 3 0 2 3 2 3 2 3 0 0 4 5 2 3 2 0 0 0 0 0 0 5 4 3 0 0 2 0 21 18 2 3 4 3 0 3 2 5 2 3 0 2 2 3 0 3 4 3 0 0 2 5 2 0 0 3 6 5 2 3 2 3 2 3 4 5 2 0 0 5 2 0 0 0 2 3 2 0 0 3 2 0 0 0 3 0 2 0 0 3 4 3 0 0 0 0 0 3 2 3 0 0 2 5 2 0 2 3 2 5 6 5 4 3 0 3 2 3 2 3 2 3 2 0 0 3 2 3 2 0 0 0 0 3 2 0 0 0 3 2 0 0 4 7 19 20 4 5 0 5 0 2 2 0 0 3 2 3 2 3 0 4 3 3 0 
