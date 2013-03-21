@@ -8,6 +8,7 @@ using namespace std;
 #include "BitMath.hpp"
 #include "HuffmanDecoder.hpp"
 #include "HuffmanEncoder.hpp"
+#include "MappedFile.hpp"
 using namespace cat;
 
 #include "lodepng.h"
@@ -72,7 +73,9 @@ class MonoConverter {
 	vector<unsigned short> symbols;
 
 public:
-	bool compress(const char *filename) {
+	bool compress(const char *filename, const char *outfile) {
+		bool success = false;
+
 		unsigned error = lodepng::decode(image, width, height, filename);
 
 		if (error) {
@@ -411,9 +414,14 @@ public:
 				bitWrite(huffStream, bitWorks, huffBits, code, codesize);
 			}
 
+			// Push remaining bits
+			if ((huffBits & 31)) {
+				huffStream.push_back(bitWorks);
+			}
+
 			CAT_INFO("main") << "Huffman: Total compressed message size = " << (huffBits + 7) / 8 << " bytes";
 		}
-
+/*
 		// Convert to image:
 
 		vector<unsigned char> output;
@@ -433,10 +441,59 @@ public:
 		}
 
 		lodepng_encode_file("output.png", (const unsigned char*)&output[0], width, height, LCT_GREY, 1);
+*/
+
+		MappedFile file;
+
+		/*
+		 * "GCIF" + width(2) + height(2) + huffbytes
+		 */
+
+		int huffBytes = (huffBits + 7) / 8;
+
+		if (file.OpenWrite(outfile, 8 + huffBytes)) {
+			MappedView fileView;
+
+			if (fileView.Open(&file)) {
+
+				u8 *fileData = fileView.MapView();
+				if (fileData) {
+					u32 *words = reinterpret_cast<u32*>( fileData );
+
+					const u32 magic = 0x47434946;
+					u32 header1 = (width << 16) | height; // Temporary
+
+					words[0] = getLE(magic);
+					words[1] = getLE(header1);
+					words += 2;
+
+					int wordCount = huffBits >> 5;
+					for (int ii = 0; ii < wordCount; ++ii) {
+						words[ii] = getLE(huffStream[ii]);
+					}
+
+					int remaining = huffBits & 31;
+					if (remaining) {
+						u8 *outBytes = reinterpret_cast<u8*>( &words[wordCount] );
+						u32 inBytes = huffStream[wordCount];
+
+						remaining = (remaining + 7) >> 3;
+						switch (remaining) {
+						case 4: outBytes[3] = static_cast<u8>( inBytes >> 24 );
+						case 3: outBytes[2] = static_cast<u8>( inBytes >> 16 );
+						case 2: outBytes[1] = static_cast<u8>( inBytes >> 8 );
+						case 1: outBytes[0] = static_cast<u8>( inBytes );
+						}
+					}
+
+					success = true;
+				}
+			}
+		}
 
 		delete []buffer;
 
-		return true;
+		return success;
 	}
 };
 
@@ -474,11 +531,15 @@ int processParameters(option::Parser &parse, option::Option options[]) {
 
 	if (options[COMPRESS]) {
 
-		const char *filePath = parse.nonOption(0);
-		MonoConverter converter;
-		if (!converter.compress(filePath)) {
-			CAT_INFO("main") << "Error during conversion [retcode:2]";
-			return 2;
+		if (parse.nonOptionsCount() > 0 && options[COMPRESS].arg) {
+			const char *inFilePath = options[COMPRESS].arg;
+			const char *outFilePath = parse.nonOption(0);
+			MonoConverter converter;
+
+			if (!converter.compress(inFilePath, outFilePath)) {
+				CAT_INFO("main") << "Error during conversion [retcode:2]";
+				return 2;
+			}
 		}
 
 		return 0;

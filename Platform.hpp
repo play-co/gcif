@@ -417,12 +417,12 @@ namespace cat {
 #if defined(__SVR4) && defined(__sun)
 # define CAT_OS_SOLARIS
 
-#elif defined(__APPLE__) && defined(TARGET_OS_IPHONE)
-# define CAT_OS_IPHONE
-# define CAT_OS_APPLE
-
 #elif defined(__APPLE__) && (defined(__MACH__) || defined(__DARWIN__))
 # define CAT_OS_OSX
+# define CAT_OS_APPLE
+
+#elif defined(__APPLE__) && defined(TARGET_OS_IPHONE)
+# define CAT_OS_IPHONE
 # define CAT_OS_APPLE
 
 #elif defined(__OpenBSD__) || defined(__NetBSD__) || defined(__FreeBSD__)
