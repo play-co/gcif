@@ -353,17 +353,43 @@ public:
 
 		// Collect byte symbol statistics
 
-		int hist[256] = {0};
-		int num_syms = 0;
+		const int num_syms = 256;
+		u16 freqs[256];
 
 		{
+			int hist[256] = {0};
+			int max_sym = 0;
+
 			for (int ii = 0; ii < lzSize; ++ii) {
-				if (hist[lz[ii]]++ == 0) {
-					++num_syms;
+				int count = ++hist[lz[ii]];
+				if (max_sym < count) {
+					max_sym = count;
 				}
 			}
 
-			CAT_INFO("main") << "Huffman: Number of symbols = " << num_syms << " syms";
+			// Scale to fit in 16-bit frequency counter
+			while (max_sym > 0xffff) {
+				max_sym = 0;
+
+				for (int ii = 0; ii < 256; ++ii) {
+					int count = hist[ii];
+					if (count) {
+						count >>= 1;
+
+						if (!count) {
+							count = 1;
+						}
+
+						if (max_sym < count) {
+							max_sym = count;
+						}
+					}
+				}
+			}
+
+			for (int ii = 0; ii < 256; ++ii) {
+				freqs[ii] = static_cast<u16>( hist[ii] );
+			}
 		}
 
 		// Compress with Huffman encoding
@@ -373,21 +399,6 @@ public:
 
 		{
 			huffman::huffman_work_tables state;
-
-			u16 freqs[256];
-
-			u8 symbol_lut[256];
-
-			int freqIndex = 0;
-			for (int ii = 0; ii < 256; ++ii) {
-				int count = hist[ii];
-				if (count) {
-					symbol_lut[ii] = (u8)freqIndex;
-					freqs[freqIndex++] = count;
-				} else {
-					symbol_lut[ii] = 255;
-				}
-			}
 
 			u8 codesizes[256];
 			u32 max_code_size;
@@ -409,7 +420,7 @@ public:
 			int lag0 = 3, lag1 = 3;
 			u32 sum = 0;
 			for (int ii = 0; ii < 256; ++ii) {
-				u8 symbol = symbol_lut[ii];
+				u8 symbol = ii;
 				u8 codesize = codesizes[symbol];
 
 				int delta = codesize;
@@ -478,8 +489,7 @@ public:
 			huffman::generate_codes(num_syms, codesizes, codes);
 
 			for (int ii = 0; ii < lzSize; ++ii) {
-				u8 byte = lz[ii];
-				u8 symbol = symbol_lut[byte];
+				u8 symbol = lz[ii];
 
 				u16 code = codes[symbol];
 				u8 codesize = codesizes[symbol];
