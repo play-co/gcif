@@ -6,6 +6,9 @@
 using namespace cat;
 using namespace huffman;
 
+#include <iostream>
+using namespace std;
+
 void huffman::init_decoder_tables(decoder_tables *pTables) {
 	pTables->cur_sorted_symbol_order_size = 0;
 	pTables->sorted_symbol_order = 0;
@@ -206,7 +209,7 @@ bool HuffmanDecoder::init(u32 *words, int wordCount) {
 
 	// Decode Golomb-encoded Huffman table
 
-	u8 codelens[256], symbol_map[256];
+	u8 codelens[256];
 	int num_syms = 0;
 
 	{
@@ -284,12 +287,7 @@ bool HuffmanDecoder::init(u32 *words, int wordCount) {
 				lag1 = lag0;
 				lag0 = orig;
 
-				// If original codelen is not a zero (unused) slot,
-				if (orig) {
-					symbol_map[num_syms] = tableWriteIndex;
-					codelens[num_syms] = orig;
-					++num_syms;
-				}
+				codelens[tableWriteIndex] = orig;
 
 				// If we're done,
 				if (++tableWriteIndex >= 256) {
@@ -299,9 +297,8 @@ bool HuffmanDecoder::init(u32 *words, int wordCount) {
 		}
 	}
 
-	if (num_syms <= 0) {
-		return false;
-	}
+	huffman::init_decoder_tables(&_tables);
+	huffman::generate_decoder_tables(256, codelens, &_tables, 8);
 
 	_words = words;
 	_wordsLeft = wordCount;
@@ -318,7 +315,7 @@ u32 HuffmanDecoder::next() {
 	u32 code = _curWord;
 	u32 bitsLeft = _bitsLeft;
 	while (bitsLeft < (cBitBufSize - 8)) {
-
+		
 		// TODO add more here
 	}
 
