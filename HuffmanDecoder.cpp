@@ -320,9 +320,6 @@ u32 HuffmanDecoder::next() {
 	while (bitsLeft < (cBitBufSize - 8)) {
 
 		// TODO add more here
-
-		m_bit_count += 8;
-		m_bit_buf |= (static_cast<bit_buf_t>(c) << (cBitBufSize - m_bit_count));
 	}
 
 	u32 k = static_cast<u32>((code >> (cBitBufSize - 16)) + 1);

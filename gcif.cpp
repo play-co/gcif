@@ -131,7 +131,7 @@ public:
 
 		unsigned error = lodepng::decode(image, width, height, filename);
 
-		CAT_INFO("main") << "Original image hash: " << hex << murmurHash(&image[0], image.size());
+		CAT_INFO("main") << "Original image hash: " << hex << MurmurHash3::hash(&image[0], image.size());
 
 		if (error) {
 			CAT_WARN("main") << "Decoder error " << error << ": " << lodepng_error_text(error);
@@ -202,7 +202,7 @@ public:
 			}
 		}
 
-		CAT_INFO("main") << "Monochrome image hash: " << hex << murmurHash(&buffer[0], bufferSize * 4);
+		CAT_INFO("main") << "Monochrome image hash: " << hex << MurmurHash3::hash(&buffer[0], bufferSize * 4);
 
 		// Encode y2x delta:
 
@@ -236,7 +236,7 @@ public:
 			}
 		}
 
-		CAT_INFO("main") << "Monochrome y2x delta image hash: " << hex << murmurHash(&buffer[0], bufferSize * 4);
+		CAT_INFO("main") << "Monochrome y2x delta image hash: " << hex << MurmurHash3::hash(&buffer[0], bufferSize * 4);
 
 		// RLE
 
@@ -328,7 +328,7 @@ public:
 			}
 		}
 
-		CAT_INFO("main") << "RLE data hash: " << hex << murmurHash(&rle[0], rle.size());
+		CAT_INFO("main") << "RLE data hash: " << hex << MurmurHash3::hash(&rle[0], rle.size());
 
 		CAT_INFO("main") << "Post-RLE size = " << rle.size() << " bytes";
 
@@ -349,7 +349,7 @@ public:
 			CAT_INFO("main") << "Post-LZ4 size = " << lzSize << " bytes";
 		}
 
-		CAT_INFO("main") << "LZ data hash: " << hex << murmurHash(&lz[0], lz.size());
+		CAT_INFO("main") << "LZ data hash: " << hex << MurmurHash3::hash(&lz[0], lz.size());
 
 		// Collect byte symbol statistics
 
@@ -492,7 +492,7 @@ public:
 				huffStream.push_back(bitWorks);
 			}
 
-			CAT_INFO("main") << "Huffman+table hash: " << hex << murmurHash(&huffStream[0], huffStream.size() * 4);
+			CAT_INFO("main") << "Huffman+table hash: " << hex << MurmurHash3::hash(&huffStream[0], huffStream.size() * 4);
 
 			CAT_INFO("main") << "Huffman: Total compressed message size = " << (huffBits + 7) / 8 << " bytes";
 		}
@@ -536,7 +536,7 @@ public:
 					u32 *words = reinterpret_cast<u32*>( fileData );
 
 					MurmurHash3 hash;
-					hash.init(GCIF_DATA_SEED);
+					hash.init(huffman::GCIF_DATA_SEED);
 					hash.hashWords(&huffStream[0], huffWords);
 					u32 dataHash = hash.final(huffWords);
 
@@ -568,165 +568,11 @@ public:
 	}
 
 	bool decode(u16 width, u16 height, u32 *words, int wordCount, u32 dataHash) {
-		CAT_INFO("main") << "Huffman+table hash: " << hex << murmurHash(words, wordCount * 4);
+		CAT_INFO("main") << "Huffman+table hash: " << hex << MurmurHash3::hash(words, wordCount * 4);
 
-		MurmurHash3 hash;
-		hash.init(GCIF_DATA_SEED);
+		huffman::HuffmanDecoder decoder;
 
-		u32 word;
-		int bitsLeft;
-
-		// Decode Golomb-encoded Huffman table
-
-		u8 codelens[256], symbol_map[256];
-		int num_syms = 0;
-
-		{
-			if (wordCount-- < 1) {
-				return false;
-			}
-			word = getLE(*words++);
-			hash.hashWord(word);
-
-			u32 pivot = word & 3;
-			word >>= 3;
-
-			CAT_INFO("main") << "Huffman table pivot: " << pivot << " bits";
-
-			u32 pivotMask;
-			if (!pivot) {
-				pivotMask = 0;
-			} else {
-				pivotMask = (1 << pivot) - 1;
-			}
-
-			int tableWriteIndex = 0;
-
-			int lag0 = 3, lag1 = 3, q = 0;
-			bitsLeft = 29;
-			for (;;) {
-				if (bitsLeft <= 0) {
-					if (--wordCount < 0) {
-						return false;
-					}
-					word = getLE(*words++);
-					hash.hashWord(word);
-					bitsLeft = 32;
-				}
-
-				u32 bit = word & 1;
-				q += bit;
-				word >>= 1;
-				--bitsLeft;
-
-				if (!bit) {
-					int result = word;
-
-					if (bitsLeft < pivot) {
-						if (--wordCount < 0) {
-							return false;
-						}
-						word = getLE(*words++);
-						hash.hashWord(word);
-						result |= word << bitsLeft;
-						int eat = pivot - bitsLeft;
-						word >>= eat;
-						bitsLeft = 32 - eat;
-					} else {
-						word >>= pivot;
-						bitsLeft -= pivot;
-					}
-					result &= pivotMask;
-
-					result += q << pivot;
-					q = 0;
-
-					if (result & 1) {
-						result = -(result >> 1);
-					} else {
-						result >>= 1;
-					}
-
-					int orig = result;
-					if (tableWriteIndex < 16) {
-						orig += lag0;
-					} else {
-						orig += lag1;
-					}
-					lag1 = lag0;
-					lag0 = orig;
-
-					// If original codelen is not a zero (unused) slot,
-					if (orig) {
-						symbol_map[num_syms] = tableWriteIndex;
-						codelens[num_syms] = orig;
-						++num_syms;
-					}
-
-					// If we're done,
-					if (++tableWriteIndex >= 256) {
-						break;
-					}
-				}
-			}
-		}
-
-		if (num_syms <= 0) {
-			return false;
-		}
-
-		//CAT_INFO("main") << "Huffman table hash: " << hex << murmurHash(&table[0], 256);
-
-		huffman::decoder_tables tables;
-
-		huffman::init_decoder_tables(&tables);
-
-		// Calculate table size
-		int tableBits = BSR32(num_syms) + 1;
-		if (tableBits > huffman::cMaxTableBits) {
-			tableBits = huffman::cMaxTableBits;
-		}
-
-		CAT_INFO("main") << "Huffman decode optimization table size: " << tableBits << " bits";
-
-		huffman::generate_decoder_tables(num_syms, codelens, &tables, tableBits);
-
-		// Decode Huffman symbols
-
-		vector<unsigned char> lz;
-
-		{
-			if (--wordCount < 0) {
-				return false;
-			}
-
-			u32 nextWord = getLE(*words++), bitsLeft = 0;
-
-			word <<= 32 - bitsLeft;
-			word |= nextWord >> bitsLeft;
-
-			u32 sym, len;
-
-			if (word <= tables.table_max_code) {
-				u32 tableIndex = word >> (32 - tables.table_bits);
-				u32 t = tables.lookup[tableIndex];
-				sym = static_cast<u16>( t );
-				len = static_cast<u16>( t >> 16 );
-			} else {
-				len = tables.decode_start_code_size;
-				for (;;) {
-					if (word <= tables.max_codes[len - 1]) {
-						break;
-					}
-					++len;
-				}
-
-				int val_ptr = tables.val_ptrs[len - 1] + (int)(  );
-			}
-		}
-
-
-		huffman::clean_decoder_tables(&tables);
+		decoder.init(words, wordCount);
 
 		return true;
 	}
