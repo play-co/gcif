@@ -7,6 +7,8 @@ namespace cat {
 
 namespace huffman {
 
+static const u32 GCIF_DATA_SEED = 0xCA71D034;
+
 static const u32 cHuffmanMaxSupportedSyms = 256;
 
 struct sym_freq

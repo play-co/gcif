@@ -18,7 +18,7 @@ CPFLAGS = $(CFLAGS)
 
 gcif_objects = gcif.o lodepng.o Log.o Mutex.o Clock.o Thread.o
 gcif_objects += EndianNeutral.o lz4.o lz4hc.o HuffmanDecoder.o HuffmanEncoder.o
-gcif_objects += MappedFile.o SystemInfo.o
+gcif_objects += MappedFile.o SystemInfo.o MurmurHash3.o
 
 
 # Applications
@@ -67,6 +67,9 @@ HuffmanDecoder.o : HuffmanDecoder.cpp
 
 HuffmanEncoder.o : HuffmanEncoder.cpp
 	$(CCPP) $(CPFLAGS) -c HuffmanEncoder.cpp
+
+MurmurHash3.o : MurmurHash3.cpp
+	$(CCPP) $(CPFLAGS) -c MurmurHash3.cpp
 
 
 # Clean target

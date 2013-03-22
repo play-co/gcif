@@ -9,6 +9,7 @@ using namespace std;
 #include "HuffmanDecoder.hpp"
 #include "HuffmanEncoder.hpp"
 #include "MappedFile.hpp"
+#include "MurmurHash3.hpp"
 using namespace cat;
 
 #include "lodepng.h"
@@ -19,7 +20,6 @@ using namespace cat;
 static const u32 GCIF_HEAD_WORDS = 4;
 static const u32 GCIF_MAGIC = 0x46494347;
 static const u32 GCIF_HEAD_SEED = 0x120CA71D;
-static const u32 GCIF_DATA_SEED = 0xCA71D034;
 
 /*
  * File format:
@@ -92,100 +92,6 @@ static CAT_INLINE void bitWrite(vector<u32> &words, u32 &currentWord, int &bitCo
 	}
 }
 
-
-
-
-
-/*
- * MurmurHash3 - 32 bit version
- * https://code.google.com/p/smhasher/source/browse/trunk/MurmurHash3.cpp
- * by Austin Appleby
- *
- * Chosen because it works quickly on whole words at a time, just like GCIF
- */
-class MurmurHash3 {
-	static const u32 c1 = 0xcc9e2d51;
-	static const u32 c2 = 0x1b873593;
-
-	u32 h1;
-
-	static CAT_INLINE u32 fmix(u32 h) {
-		h ^= h >> 16;
-		h *= 0x85ebca6b;
-		h ^= h >> 13;
-		h *= 0xc2b2ae35;
-		h ^= h >> 16;
-		return h;
-	}
-
-public:
-	void init(u32 seed) {
-		h1 = seed;
-	}
-
-	CAT_INLINE void hashWord(u32 k1) {
-		k1 *= c1;
-		k1 = CAT_ROL32(k1, 15);
-		k1 *= c2;
-
-		h1 ^= k1;
-		h1 = CAT_ROL32(h1, 13); 
-		h1 = h1 * 5 + 0xe6546b64;
-	}
-
-	CAT_INLINE void hashWords(u32 *keys, int wc) {
-		for (int ii = 0; ii < wc; ++ii) {
-			u32 k1 = keys[ii];
-
-			k1 *= c1;
-			k1 = CAT_ROL32(k1, 15);
-			k1 *= c2;
-
-			h1 ^= k1;
-			h1 = CAT_ROL32(h1, 13); 
-			h1 = h1 * 5 + 0xe6546b64;
-		}
-	}
-
-	void hashBytes(u8 *bytes, int bc) {
-		int wc = bc >> 2;
-		u32 *keys = reinterpret_cast<u32*>( bytes );
-		for (int ii = 0; ii < wc; ++ii) {
-			u32 k1 = keys[ii];
-
-			k1 *= c1;
-			k1 = CAT_ROL32(k1, 15);
-			k1 *= c2;
-
-			h1 ^= k1;
-			h1 = CAT_ROL32(h1, 13); 
-			h1 = h1 * 5 + 0xe6546b64;
-		}
-
-		bytes += wc << 2;
-		u32 k1 = 0;
-		switch (bc & 3) {
-		case 3: k1 ^= bytes[2] << 16;
-		case 2: k1 ^= bytes[1] << 8;
-		case 1: k1 ^= bytes[0];
-				k1 *= c1;
-				k1 = CAT_ROL32(k1, 15);
-				k1 *= c2;
-				h1 ^= k1;
-		}
-	}
-
-	CAT_INLINE u32 final(u32 len) {
-		return fmix(h1 ^ len);
-	}
-};
-
-u32 murmurHash(void *data, int bytes) {
-	MurmurHash3 h;
-	h.init(123456789);
-	h.hashBytes(reinterpret_cast<u8*>( data ), bytes);
-	return h.final(bytes);
-}
 
 
 
@@ -672,7 +578,8 @@ public:
 
 		// Decode Golomb-encoded Huffman table
 
-		u8 table[256];
+		u8 codelens[256], symbol_map[256];
+		int num_syms = 0;
 
 		{
 			if (wordCount-- < 1) {
@@ -749,15 +656,77 @@ public:
 					lag1 = lag0;
 					lag0 = orig;
 
-					table[tableWriteIndex++] = orig;
-					if (tableWriteIndex >= 256) {
+					// If original codelen is not a zero (unused) slot,
+					if (orig) {
+						symbol_map[num_syms] = tableWriteIndex;
+						codelens[num_syms] = orig;
+						++num_syms;
+					}
+
+					// If we're done,
+					if (++tableWriteIndex >= 256) {
 						break;
 					}
 				}
 			}
 		}
 
+		if (num_syms <= 0) {
+			return false;
+		}
+
 		//CAT_INFO("main") << "Huffman table hash: " << hex << murmurHash(&table[0], 256);
+
+		huffman::decoder_tables tables;
+
+		huffman::init_decoder_tables(&tables);
+
+		// Calculate table size
+		int tableBits = BSR32(num_syms) + 1;
+		if (tableBits > huffman::cMaxTableBits) {
+			tableBits = huffman::cMaxTableBits;
+		}
+
+		CAT_INFO("main") << "Huffman decode optimization table size: " << tableBits << " bits";
+
+		huffman::generate_decoder_tables(num_syms, codelens, &tables, tableBits);
+
+		// Decode Huffman symbols
+
+		vector<unsigned char> lz;
+
+		{
+			if (--wordCount < 0) {
+				return false;
+			}
+
+			u32 nextWord = getLE(*words++), bitsLeft = 0;
+
+			word <<= 32 - bitsLeft;
+			word |= nextWord >> bitsLeft;
+
+			u32 sym, len;
+
+			if (word <= tables.table_max_code) {
+				u32 tableIndex = word >> (32 - tables.table_bits);
+				u32 t = tables.lookup[tableIndex];
+				sym = static_cast<u16>( t );
+				len = static_cast<u16>( t >> 16 );
+			} else {
+				len = tables.decode_start_code_size;
+				for (;;) {
+					if (word <= tables.max_codes[len - 1]) {
+						break;
+					}
+					++len;
+				}
+
+				int val_ptr = tables.val_ptrs[len - 1] + (int)(  );
+			}
+		}
+
+
+		huffman::clean_decoder_tables(&tables);
 
 		return true;
 	}
