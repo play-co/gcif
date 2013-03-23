@@ -589,7 +589,14 @@ public:
 		return success;
 	}
 
-	bool decodeRLE(u8 data) {
+	bool decodeRLE(u8 *rle, int len) {
+		if (len <= 0) {
+			return false;
+		}
+
+		// here
+
+		return false;
 	}
 
 	bool decode(u16 width, u16 height, u32 *words, int wordCount, u32 dataHash) {
@@ -600,11 +607,12 @@ public:
 		decoder.init(words, wordCount);
 
 		u8 *lz = new u8[65536];
-		u16 lzIndex = 0;
+		u16 lzIndex = 0, lzLast = 0;
+		const int BATCH_RATE = 8096;
 
 		// LZ4
 		{
-			for (;;) {
+			while (!decoder.isEOF()) {
 				// Read token
 				u8 token = decoder.next();
 
@@ -621,11 +629,24 @@ public:
 				// Decode literal symbols
 				for (int ii = 0; ii < literalLength; ++ii) {
 					u8 symbol = decoder.next();
-					if (decodeRLE(symbol)) {
-						delete []lz;
-						return true;
-					}
 					lz[lzIndex++] = symbol;
+
+					// Decode [wrapped] RLE sequence
+					if CAT_UNLIKELY((u16)(lzIndex - lzLast) >= BATCH_RATE) {
+						if CAT_UNLIKELY(lzLast < lzIndex) {
+							if (decodeRLE(&lz[lzLast], 65536 - lzLast)) {
+								return true;
+							}
+
+							lzLast = 0;
+						}
+
+						if CAT_UNLIKELY(decodeRLE(&lz[lzLast], lzIndex - lzLast)) {
+							return true;
+						}
+
+						lzLast = lzIndex;
+					}
 				}
 
 				// Read match offset
@@ -647,12 +668,38 @@ public:
 				// Copy match data
 				for (int ii = 0; ii < matchLength; ++ii) {
 					u8 symbol = lz[ (u16)(lzIndex - offset + ii) ];
-					if (decodeRLE(symbol)) {
-						delete []lz;
-						return true;
-					}
 					lz[lzIndex++] = symbol;
+
+					// Decode [wrapped] RLE sequence
+					if CAT_UNLIKELY((u16)(lzIndex - lzLast) >= BATCH_RATE) {
+						if CAT_UNLIKELY(lzLast < lzIndex) {
+							if (decodeRLE(&lz[lzLast], 65536 - lzLast)) {
+								return true;
+							}
+
+							lzLast = 0;
+						}
+
+						if CAT_UNLIKELY(decodeRLE(&lz[lzLast], lzIndex - lzLast)) {
+							return true;
+						}
+
+						lzLast = lzIndex;
+					}
 				}
+			}
+
+			// Decode [wrapped] RLE sequence
+			if CAT_UNLIKELY(lzLast < lzIndex) {
+				if (decodeRLE(&lz[lzLast], 65536 - lzLast)) {
+					return true;
+				}
+
+				lzLast = 0;
+			}
+
+			if CAT_UNLIKELY(decodeRLE(&lz[lzLast], lzIndex - lzLast)) {
+				return true;
 			}
 		}
 
