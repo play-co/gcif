@@ -47,6 +47,8 @@ void clean_decoder_tables(decoder_tables *pTables);
 class HuffmanDecoder {
 	decoder_tables _tables;
 
+	bool _eof;
+
 	u32 *_words;
 	int _wordsLeft;
 
@@ -62,6 +64,10 @@ public:
 	bool init(u32 *words, int wordCount);
 
 	u32 next();
+
+	CAT_INLINE bool isEOF() {
+		return _eof;
+	}
 };
 
 

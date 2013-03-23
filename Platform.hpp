@@ -196,6 +196,12 @@ namespace cat {
 #if !defined(CAT_FUNCTION)
 # define CAT_FUNCTION "???"
 #endif
+#if !defined(CAT_LIKELY)
+# define CAT_LIKELY(expr) ( (expr) != 0 )
+#endif
+#if !defined(CAT_UNLIKELY)
+# define CAT_UNLIKELY(expr) ( (expr) != 0 )
+#endif
 
 // GCC-compatible compilers
 #elif defined(CAT_COMPILER_COMPAT_GCC)
@@ -238,6 +244,12 @@ namespace cat {
 #endif
 #if !defined(CAT_FUNCTION)
 # define CAT_FUNCTION "???"
+#endif
+#if !defined(CAT_LIKELY)
+# define CAT_LIKELY(expr) ( __builtin_expect (( (expr) != 0 ), 1) )
+#endif
+#if !defined(CAT_UNLIKELY)
+# define CAT_UNLIKELY(expr) ( __builtin_expect (( (expr) != 0 ), 0) )
 #endif
 
 #endif // CAT_COMPILER_COMPAT_*

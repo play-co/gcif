@@ -318,6 +318,8 @@ bool HuffmanDecoder::init(u32 *words, int wordCount) {
 	_nextWord = 0;
 	_nextLeft = 0;
 
+	_eof = false;
+
 	return true;
 }
 
@@ -327,7 +329,7 @@ u32 HuffmanDecoder::next() {
 	// Maintain buffer
 	u32 code = _bits;
 	int bitsLeft = _bitsLeft;
-	cout << "Bits left in buffer " << bitsLeft << endl;
+	//cout << "Bits left in buffer " << bitsLeft << endl;
 	if (bitsLeft < 16) { // symbols are not longer than this
 
 		// fill back up to a full buffer
@@ -335,40 +337,43 @@ u32 HuffmanDecoder::next() {
 		u32 bits = _nextWord;
 		int avail = _nextLeft;
 
+		code |= bits >> bitsLeft;
+
 		int readBits = 32 - bitsLeft;
+
 		if (avail >= readBits) {
-			code |= bits >> bitsLeft;
-			bits <<= bitsLeft;
-			bitsLeft = 32;
+			bits <<= readBits;
 			avail -= readBits;
 		} else {
-			cout << "Out of bits, using up remaining " << avail << endl;
-			code |= bits >> bitsLeft;
-			bitsLeft += avail;
+			//cout << "Out of bits, using up remaining " << avail << endl;
 
 			if (_wordsLeft > 0) {
 				--_wordsLeft;
 				bits = getLE(*_words++);
 				_hash.hashWord(bits);
 
-				readBits -= avail;
+				bitsLeft += avail;
 				code |= bits >> bitsLeft;
-				bits <<= readBits;
-				avail = 32 - readBits;
+				bits <<= (32 - bitsLeft);
+				avail = bitsLeft;
 			} else {
-				cout << "Out of words!" << endl;
+				//cout << "Out of words!" << endl;
 				bits = 0;
 				avail = 32;
-			}
 
-			bitsLeft = 32;
+				// TODO: Fix this
+				if (bitsLeft <= 0) {
+					_eof = true;
+				}
+			}
 		}
 
 		_nextWord = bits;
 		_nextLeft = avail;
-		cout << "Next left = " << avail << endl;
+		//cout << "Next left = " << avail << endl;
+
+		bitsLeft = 32;
 	}
-	cout << "NOW: Bits left in buffer " << bitsLeft << endl;
 
 	u32 k = static_cast<u32>((code >> (cBitBufSize - 16)) + 1);
 	u32 sym, len;
@@ -379,7 +384,7 @@ u32 HuffmanDecoder::next() {
 		sym = static_cast<u16>( t );
 		len = static_cast<u16>( t >> 16 );
 
-		cout << "tabular symbol " << sym << " of length " << len << endl;
+		//cout << "tabular symbol " << sym << " of length " << len << endl;
 	}
 	else {
 		len = _tables.decode_start_code_size;
@@ -390,25 +395,25 @@ u32 HuffmanDecoder::next() {
 			len++;
 		}
 
-		cout << "non-tabular symbol of length " << len << endl;
+		//cout << "non-tabular symbol of length " << len << endl;
 
 		int val_ptr = _tables.val_ptrs[len - 1] + static_cast<int>((code >> (cBitBufSize - len)));
 
 		if (((u32)val_ptr >= _tables.num_syms)) {
-			cout << "val_ptr exceeds num_syms" << endl;
+			cout << "WARNING: val_ptr exceeds num_syms" << endl;
 			return 0;
 		}
 
 		sym = _tables.sorted_symbol_order[val_ptr];
 
-		cout << "sym decoded as " << sym << endl;
+		//cout << "sym decoded as " << sym << endl;
 	}
 
 	// Remember buffer state
 	_bits = code << len;
 	_bitsLeft = bitsLeft - len;
 
-	cout << "------------------ RETURNING SYMBOL " << sym << endl;
+	//cout << "------------------ RETURNING SYMBOL " << sym << endl;
 
 	return sym;
 }

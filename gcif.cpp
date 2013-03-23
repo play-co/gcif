@@ -335,6 +335,11 @@ public:
 			}
 		}
 
+		for (int ii = 0; ii < 100; ++ii) {
+			cout << (int)rle[ii] << " ";
+		}
+		cout << endl;
+
 		CAT_INFO("main") << "RLE data hash: " << hex << MurmurHash3::hash(&rle[0], rle.size());
 
 		CAT_INFO("main") << "Post-RLE size = " << rle.size() << " bytes";
@@ -501,13 +506,8 @@ public:
 				u16 code = codes[symbol];
 				u8 codesize = codesizes[symbol];
 
-				if (ii < 100) {
-					cout << (int)symbol << " ";
-				}
-
 				bitWrite(huffStream, bitWorks, huffBits, code, codesize);
 			}
-			cout << endl;
 
 			// Push remaining bits
 			if ((huffBits & 31)) {
@@ -589,6 +589,9 @@ public:
 		return success;
 	}
 
+	bool decodeRLE(u8 data) {
+	}
+
 	bool decode(u16 width, u16 height, u32 *words, int wordCount, u32 dataHash) {
 		CAT_INFO("main") << "Huffman+table hash: " << hex << MurmurHash3::hash(words, wordCount * 4);
 
@@ -596,10 +599,62 @@ public:
 
 		decoder.init(words, wordCount);
 
-		for (int ii = 0; ii < 100; ++ii) {
-			cout << decoder.next() << " ";
+		u8 *lz = new u8[65536];
+		u16 lzIndex = 0;
+
+		// LZ4
+		{
+			for (;;) {
+				// Read token
+				u8 token = decoder.next();
+
+				// Read Literal Length
+				int literalLength = token >> 4;
+				if (literalLength == 15) {
+					int s;
+					do {
+						s = decoder.next();
+						literalLength += s;
+					} while (s == 255 && CAT_UNLIKELY(!decoder.isEOF()));
+				}
+
+				// Decode literal symbols
+				for (int ii = 0; ii < literalLength; ++ii) {
+					u8 symbol = decoder.next();
+					if (decodeRLE(symbol)) {
+						delete []lz;
+						return true;
+					}
+					lz[lzIndex++] = symbol;
+				}
+
+				// Read match offset
+				u8 offset0 = decoder.next();
+				u8 offset1 = decoder.next();
+				u16 offset = ((u16)offset1 << 8) | offset0;
+
+				// Read match length
+				int matchLength = token & 15;
+				if (matchLength == 15) {
+					int s;
+					do {
+						s = decoder.next();
+						matchLength += s;
+					} while (s == 255 && CAT_UNLIKELY(!decoder.isEOF()));
+				}
+				matchLength += 4;
+
+				// Copy match data
+				for (int ii = 0; ii < matchLength; ++ii) {
+					u8 symbol = lz[ (u16)(lzIndex - offset + ii) ];
+					if (decodeRLE(symbol)) {
+						delete []lz;
+						return true;
+					}
+					lz[lzIndex++] = symbol;
+				}
+			}
 		}
-		cout << endl;
 
 		return true;
 	}
