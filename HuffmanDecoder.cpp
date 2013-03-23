@@ -214,7 +214,6 @@ bool HuffmanDecoder::init(u32 *words, int wordCount) {
 	// Decode Golomb-encoded Huffman table
 
 	u8 codelens[256];
-	int num_syms = 0;
 
 	{
 		if (wordCount-- < 1) {
@@ -229,16 +228,9 @@ bool HuffmanDecoder::init(u32 *words, int wordCount) {
 
 		CAT_INFO("main") << "Huffman table pivot: " << pivot << " bits";
 
-		u32 pivotMask;
-		if (!pivot) {
-			pivotMask = 0;
-		} else {
-			pivotMask = (1 << pivot) - 1;
-		}
-
 		int tableWriteIndex = 0;
 
-		int lag0 = 3, lag1 = 3, q = 0;
+		int lag0 = 3, q = 0;
 		for (;;) {
 			if (bitsLeft <= 0) {
 				if (--wordCount < 0) {
@@ -257,25 +249,29 @@ bool HuffmanDecoder::init(u32 *words, int wordCount) {
 			if (!bit) {
 				u32 result = word;
 
-				if (bitsLeft < pivot) {
-					if (--wordCount < 0) {
-						return false;
-					}
-					word = getLE(*words++);
-					_hash.hashWord(word);
-
-					int newWordBits = pivot - bitsLeft;
-					bitsLeft = 32 - newWordBits;
-
-					result >>= 32 - pivot;
-					result |= word >> bitsLeft;
-
-					word <<= newWordBits;
+				if (pivot == 0) {
+					result = 0;
 				} else {
-					result >>= (32 - pivot);
+					if (bitsLeft < pivot) {
+						if (--wordCount < 0) {
+							return false;
+						}
+						word = getLE(*words++);
+						_hash.hashWord(word);
 
-					bitsLeft -= pivot;
-					word <<= pivot;
+						int newWordBits = pivot - bitsLeft;
+						bitsLeft = 32 - newWordBits;
+
+						result >>= 32 - pivot;
+						result |= word >> bitsLeft;
+
+						word <<= newWordBits;
+					} else {
+						result >>= (32 - pivot);
+
+						bitsLeft -= pivot;
+						word <<= pivot;
+					}
 				}
 
 				result += q << pivot;
@@ -283,18 +279,17 @@ bool HuffmanDecoder::init(u32 *words, int wordCount) {
 
 				int orig = result;
 				if (orig & 1) {
-					orig = -(orig >> 1);
+					orig = (orig >> 1) + 1;
 				} else {
-					orig >>= 1;
+					orig = -(orig >> 1);
 				}
 
-				if (tableWriteIndex < 16) {
-					orig += lag0;
-				} else {
-					orig += lag1;
-				}
-				lag1 = lag0;
+				orig += lag0;
 				lag0 = orig;
+
+				if ((u32)orig > cMaxExpectedCodeSize) {
+					return false;
+				}
 
 				codelens[tableWriteIndex] = orig;
 

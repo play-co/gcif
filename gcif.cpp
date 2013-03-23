@@ -42,7 +42,30 @@ static const u32 GCIF_HEAD_SEED = 0x120CA71D;
  */
 
 static CAT_INLINE void byteEncode(vector<unsigned char> &bytes, int data) {
-#if 0
+	unsigned char e = data & 127;
+	if (data < 128) {
+		bytes.push_back(e);
+	} else {
+		e |= 128;
+		data >>= 7;
+		bytes.push_back(e);
+
+		while (true) {
+			e = (data & 127);
+
+			if (data < 128) {
+				bytes.push_back(e);
+				break;
+			} else {
+				e |= 128;
+				data >>= 7;
+				bytes.push_back(e);
+			}
+		}
+	}
+}
+
+static CAT_INLINE void signByteEncode(vector<unsigned char> &bytes, int data) {
 	/*
 	 * Delta byte-wise encoding:
 	 *
@@ -76,29 +99,6 @@ static CAT_INLINE void byteEncode(vector<unsigned char> &bytes, int data) {
 			}
 		}
 	}
-#else
-	unsigned char e = data & 127;
-	if (data < 128) {
-		bytes.push_back(e);
-	} else {
-		e |= 128;
-		data >>= 7;
-		bytes.push_back(e);
-
-		while (true) {
-			e = (data & 127);
-
-			if (data < 128) {
-				bytes.push_back(e);
-				break;
-			} else {
-				e |= 128;
-				data >>= 7;
-				bytes.push_back(e);
-			}
-		}
-	}
-#endif
 }
 
 
@@ -365,11 +365,6 @@ public:
 			}
 		}
 
-		for (int ii = 0; ii < 100; ++ii) {
-			cout << (int)rle[ii] << " ";
-		}
-		cout << endl;
-
 		CAT_INFO("main") << "RLE data hash: " << hex << MurmurHash3::hash(&rle[0], rle.size());
 
 		CAT_INFO("main") << "Post-RLE size = " << rle.size() << " bytes";
@@ -459,26 +454,22 @@ public:
 
 			vector<unsigned char> huffTable;
 
-			int lag0 = 3, lag1 = 3;
+			int lag0 = 3;
 			u32 sum = 0;
 			for (int ii = 0; ii < 256; ++ii) {
 				u8 symbol = ii;
 				u8 codesize = codesizes[symbol];
 
-				int delta = codesize;
-				if (ii < 16) {
-					delta -= lag0;
-				} else {
-					delta -= lag1;
-				}
-				lag1 = lag0;
+				int delta = codesize - lag0;
 				lag0 = codesize;
 
-				if (delta < 0) {
-					delta = (-delta << 1) | 1;
+				if (delta <= 0) {
+					delta = -delta << 1;
 				} else {
-					delta <<= 1;
+					delta = ((delta - 1) << 1) | 1;
 				}
+
+				cout << (int)delta << " ";
 
 				huffTable.push_back(delta);
 				sum += delta;
