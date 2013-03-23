@@ -77,22 +77,29 @@ static CAT_INLINE void byteEncode(vector<unsigned char> &bytes, int data) {
 	}
 }
 
+
+/*
+ * Shove bits from high to low
+ */
 static CAT_INLINE void bitWrite(vector<u32> &words, u32 &currentWord, int &bitCount, u32 code, int codelen) {
-	int bitWordOffset = bitCount & 31;
-	int available = 32 - bitWordOffset;
+	int available = 32 - (bitCount & 31);
 	bitCount += codelen;
 
-	currentWord |= (u32)(code << bitWordOffset);
+	if (available > codelen) {
+		currentWord |= code << (available - codelen);
+	} else {
+		int shift = codelen - available;
+		currentWord |= code >> shift;
 
-	codelen -= available;
-
-	if (codelen >= 0) {
 		words.push_back(currentWord);
-		currentWord = code >> available;
+
+		if (shift) {
+			currentWord = code << (32 - shift);
+		} else {
+			currentWord = 0;
+		}
 	}
 }
-
-
 
 
 

@@ -219,8 +219,9 @@ bool HuffmanDecoder::init(u32 *words, int wordCount) {
 		word = getLE(*words++);
 		_hash.hashWord(word);
 
-		u32 pivot = word & 3;
-		word >>= 3;
+		u32 pivot = word >> 29;
+		word <<= 3;
+		bitsLeft = 29;
 
 		CAT_INFO("main") << "Huffman table pivot: " << pivot << " bits";
 
@@ -234,7 +235,6 @@ bool HuffmanDecoder::init(u32 *words, int wordCount) {
 		int tableWriteIndex = 0;
 
 		int lag0 = 3, lag1 = 3, q = 0;
-		bitsLeft = 29;
 		for (;;) {
 			if (bitsLeft <= 0) {
 				if (--wordCount < 0) {
@@ -245,13 +245,13 @@ bool HuffmanDecoder::init(u32 *words, int wordCount) {
 				bitsLeft = 32;
 			}
 
-			u32 bit = word & 1;
+			u32 bit = word >> 31;
 			q += bit;
-			word >>= 1;
+			word <<= 1;
 			--bitsLeft;
 
 			if (!bit) {
-				int result = word;
+				u32 result = word;
 
 				if (bitsLeft < pivot) {
 					if (--wordCount < 0) {
@@ -259,26 +259,31 @@ bool HuffmanDecoder::init(u32 *words, int wordCount) {
 					}
 					word = getLE(*words++);
 					_hash.hashWord(word);
-					result |= word << bitsLeft;
-					int eat = pivot - bitsLeft;
-					word >>= eat;
-					bitsLeft = 32 - eat;
+
+					int newWordBits = pivot - bitsLeft;
+					bitsLeft = 32 - newWordBits;
+
+					result >>= 32 - pivot;
+					result |= word >> bitsLeft;
+
+					word <<= newWordBits;
 				} else {
-					word >>= pivot;
+					result >>= (32 - pivot);
+
 					bitsLeft -= pivot;
+					word <<= pivot;
 				}
-				result &= pivotMask;
 
 				result += q << pivot;
 				q = 0;
 
-				if (result & 1) {
-					result = -(result >> 1);
+				int orig = result;
+				if (orig & 1) {
+					orig = -(orig >> 1);
 				} else {
-					result >>= 1;
+					orig >>= 1;
 				}
 
-				int orig = result;
 				if (tableWriteIndex < 16) {
 					orig += lag0;
 				} else {
@@ -296,6 +301,8 @@ bool HuffmanDecoder::init(u32 *words, int wordCount) {
 			}
 		}
 	}
+
+	return true;
 
 	huffman::init_decoder_tables(&_tables);
 	huffman::generate_decoder_tables(256, codelens, &_tables, 8);
