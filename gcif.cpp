@@ -348,6 +348,7 @@ public:
 #else
 				byteEncode(rle, deltaCount);
 #endif
+				cout << deltaCount << " ";
 
 				for (int kk = 0; kk < deltaCount; ++kk) {
 					int delta = rleCurDeltas[kk];
@@ -630,14 +631,21 @@ public:
 				_sum += symbol;
 
 				if (_rowLeft == 0) {
-					if (++_writeRow >= _height) {
+					if (_writeRow++ >= _height) {
 						// done!
 						return true;
 					}
 
+					cout << _sum << " ";
 					_rowLeft = _sum;
 				} else {
-					cout << _sum << " ";
+					if (--_rowLeft <= 0) {
+						if (_writeRow++ >= _height) {
+							// done!
+							return true;
+						}
+					}
+					//cout << _sum << " ";
 				}
 
 				_sum = 0;
@@ -690,7 +698,7 @@ public:
 
 					// Decode [wrapped] RLE sequence
 					if CAT_UNLIKELY((u16)(lzIndex - lzLast) >= BATCH_RATE) {
-						if CAT_UNLIKELY(lzLast < lzIndex) {
+						if CAT_UNLIKELY(lzLast > lzIndex) {
 							if (decodeRLE(&lz[lzLast], 65536 - lzLast)) {
 								return true;
 							}
@@ -729,7 +737,7 @@ public:
 
 					// Decode [wrapped] RLE sequence
 					if CAT_UNLIKELY((u16)(lzIndex - lzLast) >= BATCH_RATE) {
-						if CAT_UNLIKELY(lzLast < lzIndex) {
+						if CAT_UNLIKELY(lzLast > lzIndex) {
 							if (decodeRLE(&lz[lzLast], 65536 - lzLast)) {
 								return true;
 							}
