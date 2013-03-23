@@ -501,8 +501,13 @@ public:
 				u16 code = codes[symbol];
 				u8 codesize = codesizes[symbol];
 
+				if (ii < 100) {
+					cout << (int)symbol << " ";
+				}
+
 				bitWrite(huffStream, bitWorks, huffBits, code, codesize);
 			}
+			cout << endl;
 
 			// Push remaining bits
 			if ((huffBits & 31)) {
@@ -590,6 +595,11 @@ public:
 		huffman::HuffmanDecoder decoder;
 
 		decoder.init(words, wordCount);
+
+		for (int ii = 0; ii < 100; ++ii) {
+			cout << decoder.next() << " ";
+		}
+		cout << endl;
 
 		return true;
 	}

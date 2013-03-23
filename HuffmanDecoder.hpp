@@ -49,8 +49,12 @@ class HuffmanDecoder {
 
 	u32 *_words;
 	int _wordsLeft;
-	u32 _curWord;
+
+	u32 _bits;
 	int _bitsLeft;
+
+	u32 _nextWord;
+	int _nextLeft;
 
 	MurmurHash3 _hash;
 

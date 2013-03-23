@@ -101,7 +101,11 @@ bool huffman::generate_decoder_tables(u32 num_syms, const u8 *pCodesizes, decode
 	pTables->max_code_size = static_cast<u8>( max_code_size );
 
 	for (u16 sym = 0; sym < num_syms; ++sym) {
-		pTables->sorted_symbol_order[ sorted_positions[ pCodesizes[sym] ]++ ] = sym;
+		int codesize = pCodesizes[sym];
+		if (codesize) {
+			int spos = sorted_positions[codesize]++;
+			pTables->sorted_symbol_order[ spos ] = sym;
+		}
 	}
 
 	if (table_bits <= pTables->min_code_size) {
@@ -302,15 +306,17 @@ bool HuffmanDecoder::init(u32 *words, int wordCount) {
 		}
 	}
 
-	return true;
-
 	huffman::init_decoder_tables(&_tables);
 	huffman::generate_decoder_tables(256, codelens, &_tables, 8);
 
 	_words = words;
 	_wordsLeft = wordCount;
-	_curWord = word;
+
+	_bits = word;
 	_bitsLeft = bitsLeft;
+
+	_nextWord = 0;
+	_nextLeft = 0;
 
 	return true;
 }
@@ -319,47 +325,90 @@ u32 HuffmanDecoder::next() {
 	static const int cBitBufSize = 32;
 
 	// Maintain buffer
-	u32 code = _curWord;
-	u32 bitsLeft = _bitsLeft;
-	while (bitsLeft < (cBitBufSize - 8)) {
-		
-		// TODO add more here
+	u32 code = _bits;
+	int bitsLeft = _bitsLeft;
+	cout << "Bits left in buffer " << bitsLeft << endl;
+	if (bitsLeft < 16) { // symbols are not longer than this
+
+		// fill back up to a full buffer
+
+		u32 bits = _nextWord;
+		int avail = _nextLeft;
+
+		int readBits = 32 - bitsLeft;
+		if (avail >= readBits) {
+			code |= bits >> bitsLeft;
+			bits <<= bitsLeft;
+			bitsLeft = 32;
+			avail -= readBits;
+		} else {
+			cout << "Out of bits, using up remaining " << avail << endl;
+			code |= bits >> bitsLeft;
+			bitsLeft += avail;
+
+			if (_wordsLeft > 0) {
+				--_wordsLeft;
+				bits = getLE(*_words++);
+				_hash.hashWord(bits);
+
+				readBits -= avail;
+				code |= bits >> bitsLeft;
+				bits <<= readBits;
+				avail = 32 - readBits;
+			} else {
+				cout << "Out of words!" << endl;
+				bits = 0;
+				avail = 32;
+			}
+
+			bitsLeft = 32;
+		}
+
+		_nextWord = bits;
+		_nextLeft = avail;
+		cout << "Next left = " << avail << endl;
 	}
+	cout << "NOW: Bits left in buffer " << bitsLeft << endl;
 
 	u32 k = static_cast<u32>((code >> (cBitBufSize - 16)) + 1);
 	u32 sym, len;
 
-	if (k <= _tables.table_max_code)
-	{
+	if (k <= _tables.table_max_code) {
 		u32 t = _tables.lookup[code >> (cBitBufSize - _tables.table_bits)];
 
 		sym = static_cast<u16>( t );
 		len = static_cast<u16>( t >> 16 );
+
+		cout << "tabular symbol " << sym << " of length " << len << endl;
 	}
-	else
-	{
+	else {
 		len = _tables.decode_start_code_size;
 
-		for ( ; ; )
-		{
+		for (;;) {
 			if (k <= _tables.max_codes[len - 1])
 				break;
 			len++;
 		}
 
+		cout << "non-tabular symbol of length " << len << endl;
+
 		int val_ptr = _tables.val_ptrs[len - 1] + static_cast<int>((code >> (cBitBufSize - len)));
 
 		if (((u32)val_ptr >= _tables.num_syms)) {
+			cout << "val_ptr exceeds num_syms" << endl;
 			return 0;
 		}
 
-		// TODO: Roll the reduced symbol set map into this
 		sym = _tables.sorted_symbol_order[val_ptr];
+
+		cout << "sym decoded as " << sym << endl;
 	}
 
 	// Remember buffer state
-	_curWord = code << len;
-	_bitsLeft -= len;
+	_bits = code << len;
+	_bitsLeft = bitsLeft - len;
+
+	cout << "------------------ RETURNING SYMBOL " << sym << endl;
 
 	return sym;
 }
