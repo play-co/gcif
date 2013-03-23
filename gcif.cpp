@@ -42,6 +42,7 @@ static const u32 GCIF_HEAD_SEED = 0x120CA71D;
  */
 
 static CAT_INLINE void byteEncode(vector<unsigned char> &bytes, int data) {
+#if 0
 	/*
 	 * Delta byte-wise encoding:
 	 *
@@ -75,6 +76,29 @@ static CAT_INLINE void byteEncode(vector<unsigned char> &bytes, int data) {
 			}
 		}
 	}
+#else
+	unsigned char e = data & 127;
+	if (data < 128) {
+		bytes.push_back(e);
+	} else {
+		e |= 128;
+		data >>= 7;
+		bytes.push_back(e);
+
+		while (true) {
+			e = (data & 127);
+
+			if (data < 128) {
+				bytes.push_back(e);
+				break;
+			} else {
+				e |= 128;
+				data >>= 7;
+				bytes.push_back(e);
+			}
+		}
+	}
+#endif
 }
 
 
@@ -256,9 +280,15 @@ public:
 		 */
 
 		{
+#define USE_YDELTA_RLE 0
+#define USE_XDELTA_RLE 0
+#define USE_YDELTA_COUNT 0
+
+#if USE_YDELTA_RLE
 			vector<int> rlePrevZeroes;
-			int prevCount = 0;
 			vector<int> rleCurZeroes;
+#endif
+			int prevCount = 0;
 			vector<int> rleCurDeltas;
 
 			u32 *lagger = buffer;
@@ -283,10 +313,6 @@ public:
 
 							zeroes += lastbit - bit;
 
-#define USE_YDELTA_RLE 0
-#define USE_XDELTA_RLE 0
-#define USE_YDELTA_COUNT 1
-
 #if USE_YDELTA_RLE
 							int delta;
 							if (prevIndex < prevCount) {
@@ -301,8 +327,10 @@ public:
 							int delta = zeroes;
 #endif
 
-							rleCurZeroes.push_back(zeroes);
 							rleCurDeltas.push_back(delta);
+#if USE_YDELTA_RLE
+							rleCurZeroes.push_back(zeroes);
+#endif
 
 							zeroes = 0;
 							lastbit = bit - 1;
@@ -326,9 +354,11 @@ public:
 					byteEncode(rle, delta);
 				}
 
+#if USE_YDELTA_RLE
 				rlePrevZeroes = rleCurZeroes;
 				prevCount = (int)rlePrevZeroes.size();
 				rleCurZeroes.clear();
+#endif
 				rleCurDeltas.clear();
 
 				lagger += bufferStride;
@@ -589,18 +619,54 @@ public:
 		return success;
 	}
 
+	int _width, _height, _stride;
+	int _writeRow;
+	u32 *_image;
+
+	int _sum, _rowLeft;
+
 	bool decodeRLE(u8 *rle, int len) {
 		if (len <= 0) {
 			return false;
 		}
 
-		// here
+		for (int ii = 0; ii < len; ++ii) {
+			u8 symbol = rle[ii];
+
+			if (symbol & 128) {
+				_sum += symbol & 127;
+			} else {
+				_sum += symbol;
+
+				if (_rowLeft == 0) {
+					if (++_writeRow >= _height) {
+						// done!
+						return true;
+					}
+
+					_rowLeft = _sum;
+				} else {
+					cout << _sum << " ";
+				}
+
+				_sum = 0;
+			}
+		}
 
 		return false;
 	}
 
 	bool decode(u16 width, u16 height, u32 *words, int wordCount, u32 dataHash) {
 		CAT_INFO("main") << "Huffman+table hash: " << hex << MurmurHash3::hash(words, wordCount * 4);
+
+		_width = width;
+		_height = height;
+		_stride = (((u32)width + 31) / 32);
+		_writeRow = 0;
+		_image = new u32[(u32)height * _stride];
+
+		_sum = 0;
+		_rowLeft = 0;
 
 		huffman::HuffmanDecoder decoder;
 
