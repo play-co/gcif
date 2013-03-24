@@ -349,7 +349,6 @@ public:
 				byteEncode(rle, deltaCount);
 #endif
 				cout << deltaCount << " ";
-
 				for (int kk = 0; kk < deltaCount; ++kk) {
 					int delta = rleCurDeltas[kk];
 					byteEncode(rle, delta);
@@ -469,8 +468,6 @@ public:
 				} else {
 					delta = ((delta - 1) << 1) | 1;
 				}
-
-				cout << (int)delta << " ";
 
 				huffTable.push_back(delta);
 				sum += delta;
@@ -645,7 +642,6 @@ public:
 							return true;
 						}
 					}
-					//cout << _sum << " ";
 				}
 
 				_sum = 0;
@@ -692,9 +688,11 @@ public:
 				}
 
 				// Decode literal symbols
+				//cout << "lit:" << literalLength << " ";
 				for (int ii = 0; ii < literalLength; ++ii) {
 					u8 symbol = decoder.next();
 					lz[lzIndex++] = symbol;
+					if (decodeRLE(&symbol, 1)) return true; /*
 
 					// Decode [wrapped] RLE sequence
 					if CAT_UNLIKELY((u16)(lzIndex - lzLast) >= BATCH_RATE) {
@@ -711,7 +709,7 @@ public:
 						}
 
 						lzLast = lzIndex;
-					}
+					} */
 				}
 
 				// Read match offset
@@ -731,9 +729,12 @@ public:
 				matchLength += 4;
 
 				// Copy match data
+				//cout << "rep:" << matchLength << " off:" << offset;
 				for (int ii = 0; ii < matchLength; ++ii) {
-					u8 symbol = lz[ (u16)(lzIndex - offset + ii) ];
+					u8 symbol = lz[ (u16)(lzIndex - offset) ];
 					lz[lzIndex++] = symbol;
+
+					if (decodeRLE(&symbol, 1)) return true; /*
 
 					// Decode [wrapped] RLE sequence
 					if CAT_UNLIKELY((u16)(lzIndex - lzLast) >= BATCH_RATE) {
@@ -750,7 +751,7 @@ public:
 						}
 
 						lzLast = lzIndex;
-					}
+					}*/
 				}
 			}
 
