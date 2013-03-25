@@ -298,12 +298,12 @@ public:
 			vector<int> rleCurDeltas;
 
 			u32 *lagger = buffer;
-			int hctr = height, zeroes = 0;
+			int zeroes = 0;
 
 			// ydelta for count
 			int lastDeltaCount = 0;
 
-			while (hctr--) {
+			for (int ii = 0; ii < height; ++ii) {
 				int prevIndex = 0;
 
 				// for xdelta:
@@ -354,7 +354,7 @@ public:
 #else
 				byteEncode(rle, deltaCount);
 #endif
-				cout << deltaCount << " ";
+				cout << deltaCount << ":" << ii << " ";
 				for (int kk = 0; kk < deltaCount; ++kk) {
 					int delta = rleCurDeltas[kk];
 					byteEncode(rle, delta);
@@ -619,41 +619,60 @@ public:
 	u32 *_image;
 
 	int _sum, _rowLeft;
+	bool _rowStarted;
 
 	bool decodeRLE(u8 *rle, int len) {
 		if (len <= 0) {
 			return false;
 		}
 
+		u32 sum = _sum;
+		bool rowStarted = _rowStarted;
+		int rowLeft = _rowLeft;
 		for (int ii = 0; ii < len; ++ii) {
 			u8 symbol = rle[ii];
 
-			_sum <<= 7;
+			sum <<= 7;
 			if (symbol & 128) {
-				_sum += symbol & 127;
+				sum |= symbol & 127;
 			} else {
-				_sum += symbol;
+				sum |= symbol;
 
-				if (_rowLeft == 0) {
-					if (_writeRow++ >= _height) {
-						// done!
-						return true;
-					}
+				if (rowStarted) {
+					// TODO: Write row pixels here
 
-					cout << _sum << " ";
-					_rowLeft = _sum;
-				} else {
-					if (--_rowLeft <= 0) {
-						if (_writeRow++ >= _height) {
+					if (--rowLeft <= 0) {
+						// TODO: Write row pixels here
+
+						if (++_writeRow >= _height) {
 							// done!
 							return true;
 						}
+
+						rowStarted = false;
+					}
+				} else {
+					rowLeft = sum;
+
+					// If row was empty,
+					if (rowLeft == 0) {
+						// TODO: Write row pixels here
+
+						if (++_writeRow >= _height) {
+							// done!
+							return true;
+						}
+					} else {
+						rowStarted = true;
 					}
 				}
 
-				_sum = 0;
+				sum = 0;
 			}
 		}
+		_sum = sum;
+		_rowStarted = rowStarted;
+		_rowLeft = rowLeft;
 
 		return false;
 	}
@@ -669,6 +688,7 @@ public:
 
 		_sum = 0;
 		_rowLeft = 0;
+		_rowStarted = false;
 
 		huffman::HuffmanDecoder decoder;
 
@@ -699,7 +719,6 @@ public:
 				for (int ii = 0; ii < literalLength; ++ii) {
 					u8 symbol = decoder.next();
 					lz[lzIndex++] = symbol;
-					if (decodeRLE(&symbol, 1)) return true; /*
 
 					// Decode [wrapped] RLE sequence
 					if CAT_UNLIKELY((u16)(lzIndex - lzLast) >= BATCH_RATE) {
@@ -716,7 +735,7 @@ public:
 						}
 
 						lzLast = lzIndex;
-					} */
+					}
 				}
 
 				// Read match offset
@@ -741,8 +760,6 @@ public:
 					u8 symbol = lz[ (u16)(lzIndex - offset) ];
 					lz[lzIndex++] = symbol;
 
-					if (decodeRLE(&symbol, 1)) return true; /*
-
 					// Decode [wrapped] RLE sequence
 					if CAT_UNLIKELY((u16)(lzIndex - lzLast) >= BATCH_RATE) {
 						if CAT_UNLIKELY(lzLast > lzIndex) {
@@ -758,7 +775,7 @@ public:
 						}
 
 						lzLast = lzIndex;
-					}*/
+					}
 				}
 			}
 
