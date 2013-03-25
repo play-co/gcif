@@ -248,7 +248,7 @@ public:
 			u32 *lagger = buffer + bufferSize - bufferStride;
 			int hctr = height;
 			while (--hctr) {
-				u32 cb = 0;
+				u32 cb = 0; // assume no delta from row above
 
 				for (int jj = 0; jj < bufferStride; ++jj) {
 					u32 above = lagger[jj - (int)bufferStride];
@@ -265,7 +265,7 @@ public:
 			}
 
 			// First line
-			u32 cb = 0;
+			u32 cb = 1 << 31; // assume it is on the edges
 			for (int jj = 0; jj < bufferStride; ++jj) {
 				u32 now = lagger[jj];
 				lagger[jj] = now ^ ((now >> 1) | cb);
@@ -274,6 +274,28 @@ public:
 		}
 
 		CAT_INFO("main") << "Monochrome y2x delta image hash: " << hex << MurmurHash3::hash(&buffer[0], bufferSize * 4);
+
+
+		// Convert to image:
+
+		vector<unsigned char> output;
+		u8 bits = 0, bitCount = 0;
+
+		for (int ii = 0; ii < height; ++ii) {
+			for (int jj = 0; jj < width; ++jj) {
+				u32 set = (buffer[ii * bufferStride + jj / 32] >> (31 - (jj & 31))) & 1;
+				bits <<= 1;
+				bits |= set;
+				if (++bitCount >= 8) {
+					output.push_back(bits);
+					bits = 0;
+					bitCount = 0;
+				}
+			}
+		}
+
+		lodepng_encode_file("alpha.png", (const unsigned char*)&output[0], width, height, LCT_GREY, 1);
+
 
 		// RLE
 
@@ -354,7 +376,7 @@ public:
 #else
 				byteEncode(rle, deltaCount);
 #endif
-				cout << deltaCount << ":" << ii << " ";
+				cout << deltaCount << " ";
 				for (int kk = 0; kk < deltaCount; ++kk) {
 					int delta = rleCurDeltas[kk];
 					byteEncode(rle, delta);
@@ -543,27 +565,6 @@ public:
 
 			CAT_INFO("main") << "Huffman: Total compressed message size = " << (huffBits + 7) / 8 << " bytes";
 		}
-/*
-		// Convert to image:
-
-		vector<unsigned char> output;
-		u8 bits = 0, bitCount = 0;
-
-		for (int ii = 0; ii < height; ++ii) {
-			for (int jj = 0; jj < width; ++jj) {
-				u32 set = (buffer[ii * bufferStride + jj / 32] >> (31 - (jj & 31))) & 1;
-				bits <<= 1;
-				bits |= set;
-				if (++bitCount >= 8) {
-					output.push_back(bits);
-					bits = 0;
-					bitCount = 0;
-				}
-			}
-		}
-
-		lodepng_encode_file("output.png", (const unsigned char*)&output[0], width, height, LCT_GREY, 1);
-*/
 
 		MappedFile file;
 
@@ -621,6 +622,10 @@ public:
 	int _sum, _rowLeft;
 	bool _rowStarted;
 
+	u32 *_row;
+	int _bitOffset;
+	bool _bitOn;
+
 	bool decodeRLE(u8 *rle, int len) {
 		if (len <= 0) {
 			return false;
@@ -639,10 +644,16 @@ public:
 				sum |= symbol;
 
 				if (rowStarted) {
+
+					int wordOffset = _bitOffset >> 5;
+					int newOffset = (_bitOffset + sum + 1) >> 5;
+
+					//_row[wordOffset]
+
 					// TODO: Write row pixels here
 
 					if (--rowLeft <= 0) {
-						// TODO: Write row pixels here
+						// TODO: Write remaining row pixels here
 
 						if (++_writeRow >= _height) {
 							// done!
@@ -656,7 +667,20 @@ public:
 
 					// If row was empty,
 					if (rowLeft == 0) {
-						// TODO: Write row pixels here
+						// Decode as an exact copy of the row above it
+						u32 *row = _row;
+						if (_writeRow > 0) {
+							u32 *copy = row - _stride;
+							for (int ii = 0; ii < _stride; ++ii) {
+								row[ii] = copy[ii];
+							}
+							row += _stride;
+						} else {
+							for (int ii = 0; ii < _stride; ++ii) {
+								row[ii] = 0;
+							}
+						}
+						_row = row;
 
 						if (++_writeRow >= _height) {
 							// done!
@@ -689,6 +713,10 @@ public:
 		_sum = 0;
 		_rowLeft = 0;
 		_rowStarted = false;
+
+		_row = _image;
+		_bitOffset = 0;
+		_bitOn = true;
 
 		huffman::HuffmanDecoder decoder;
 
