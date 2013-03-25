@@ -276,27 +276,6 @@ public:
 		CAT_INFO("main") << "Monochrome y2x delta image hash: " << hex << MurmurHash3::hash(&buffer[0], bufferSize * 4);
 
 
-		// Convert to image:
-
-		vector<unsigned char> output;
-		u8 bits = 0, bitCount = 0;
-
-		for (int ii = 0; ii < height; ++ii) {
-			for (int jj = 0; jj < width; ++jj) {
-				u32 set = (buffer[ii * bufferStride + jj / 32] >> (31 - (jj & 31))) & 1;
-				bits <<= 1;
-				bits |= set;
-				if (++bitCount >= 8) {
-					output.push_back(bits);
-					bits = 0;
-					bitCount = 0;
-				}
-			}
-		}
-
-		lodepng_encode_file("alpha.png", (const unsigned char*)&output[0], width, height, LCT_GREY, 1);
-
-
 		// RLE
 
 		vector<unsigned char> rle;
@@ -624,7 +603,7 @@ public:
 
 	u32 *_row;
 	int _bitOffset;
-	bool _bitOn0, _bitOn1;
+	bool _bitOn0;
 
 	bool decodeRLE(u8 *rle, int len) {
 		if (len <= 0) {
@@ -634,6 +613,9 @@ public:
 		u32 sum = _sum;
 		bool rowStarted = _rowStarted;
 		int rowLeft = _rowLeft;
+		u32 *row = _row;
+		const int stride = _stride;
+
 		for (int ii = 0; ii < len; ++ii) {
 			u8 symbol = rle[ii];
 
@@ -643,21 +625,15 @@ public:
 			} else {
 				sum |= symbol;
 
+				// If has read row length yet,
 				if (rowStarted) {
-					if CAT_LIKELY(_writeRow > 0) {
-						int wordOffset = _bitOffset >> 5;
-						int newOffset = (_bitOffset + sum + 1) >> 5;
+					int wordOffset = _bitOffset >> 5;
+					int newBitOffset = _bitOffset + sum;
+					int newOffset = newBitOffset >> 5;
+					int shift = 31 - (newBitOffset & 31);
 
-						if (newOffset > wordOffset) {
-							if (_bitOn) {
-							} else {
-							}
-						}
-
-						// DO CURRENT WORD HERE
-
-						//_row[wordOffset]
-					} else {
+					// If at the first row,
+					if CAT_UNLIKELY(_writeRow <= 0) {
 						/*
 						 * First row is handled specially:
 						 *
@@ -666,32 +642,140 @@ public:
 						 * 2. Flip the state
 						 * 3. Then write out one bit of the new state
 						 * When out of input, pad to the end with current state
+						 *
+						 * Demo:
+						 *
+						 * (1) 1 0 1 0 0 0 1 1 1
+						 *     0 1 1 1 0 0 1 0 0
+						 * {1, 0, 0, 2}
+						 * --> 1 0 1 0 0 0 1 1 1
 						 */
-						int wordOffset = _bitOffset >> 5;
-						int newOffset = (_bitOffset + sum + 1) >> 5;
 
-						if (newOffset > wordOffset) {
-							// If previous state was 0,
-							if (_bitOn0 ^= 1) {
-								// Fill bottom bits with 0s (do nothing)
+						// If previous state was 0,
+						if (_bitOn0 ^= 1) {
+							// Fill bottom bits with 0s (do nothing)
+
+							// For each intervening word and new one,
+							for (int ii = wordOffset + 1; ii < newOffset; ++ii) {
+								row[ii] = 0;
+							}
+
+							// Write a 1 at the new location
+							row[newOffset] = 1 << shift;
+						} else {
+							u32 bitsUsedMask = 0xffffffff >> (_bitOffset & 31);
+
+							if (newOffset <= wordOffset) {
+								row[newOffset] |= bitsUsedMask & (0xfffffffe << shift);
 							} else {
 								// Fill bottom bits with 1s
-								_row[wordOffset] |= (1 << (32 - (_bitOffset & 31))) - 1;
+								row[wordOffset] |= bitsUsedMask;
+
+								// For each intervening word,
+								for (int ii = wordOffset + 1; ii < newOffset; ++ii) {
+									row[ii] = 0xffffffff;
+								}
+
+								// Set 1s for new word, ending with a 0
+								row[newOffset] = 0xfffffffe << shift;
+							}
+						}
+					} else {
+						/*
+						 * 0011110100
+						 * 0011001100
+						 * {2,0,2,0}
+						 * 0011110100
+						 *
+						 * Same as first row except only flip when we get X = 0
+						 * And we will XOR with previous row for each finished word
+						 */
+
+
+						// If previous state was toggled on,
+						if (_bitOn0) {
+							u32 bitsUsedMask = 0xffffffff >> (_bitOffset & 31);
+
+							if (newOffset <= wordOffset) {
+								row[newOffset] ^= bitsUsedMask & (0xfffffffe << shift);
+							} else {
+								// Fill bottom bits with 1s
+								row[wordOffset] ^= bitsUsedMask;
+
+								// For each intervening word,
+								for (int ii = wordOffset + 1; ii < newOffset; ++ii) {
+									row[ii] = 0xffffffff ^ row[ii - stride];
+								}
+
+								// Set 1s for new word, ending with a 0
+								row[newOffset] = (0xfffffffe << shift) ^ row[newOffset - stride];
+							}
+						} else {
+							// Fill bottom bits with 0s (do nothing)
+
+							if (newOffset > wordOffset) {
+								// For each intervening word and new one,
+								for (int ii = wordOffset + 1; ii < newOffset; ++ii) {
+									row[ii] = row[ii - stride];
+								}
+
+								// Write a 1 at the new location
+								row[newOffset] = (1 << shift) ^ row[newOffset - stride];
+							} else {
+								row[newOffset] ^= (1 << shift);
 							}
 						}
 
-						if (_bitOn0) {
-							_row[0] |= 1 << shift;
-							_bitOn0 = false;
-						} else {
-							_bitOn0 = true;
+						if (sum == 0) {
+							_bitOn0 ^= 1;
 						}
 					}
 
-					// TODO: Write row pixels here
+					_bitOffset += sum + 1;
 
+					// If just finished this row,
 					if (--rowLeft <= 0) {
-						// TODO: Write remaining row pixels here
+						int wordOffset = _bitOffset >> 5;
+
+						if CAT_LIKELY(_writeRow > 0) {
+							// If last bit written was 1,
+							if (_bitOn0) {
+								// Fill bottom bits with 1s
+
+								row[wordOffset] = ((0xffffffff >> (_bitOffset & 31)) | row[wordOffset]) ^ row[wordOffset - stride];
+
+								// For each remaining word,
+								for (int ii = wordOffset + 1; ii < stride; ++ii) {
+									row[ii] = 0xffffffff ^ row[ii - stride];
+								}
+							} else {
+								// Fill bottom bits with 0s (do nothing)
+								row[wordOffset] ^= row[wordOffset - stride];
+
+								// For each remaining word,
+								for (int ii = wordOffset + 1; ii < stride; ++ii) {
+									row[ii] = row[ii - stride];
+								}
+							}
+						} else {
+							// If last bit written was 1,
+							if (_bitOn0) {
+								// Fill bottom bits with 1s
+								row[wordOffset] |= 0xffffffff >> (_bitOffset & 31);
+
+								// For each remaining word,
+								for (int ii = wordOffset + 1; ii < stride; ++ii) {
+									row[ii] = 0xffffffff;
+								}
+							} else {
+								// Fill bottom bits with 0s (do nothing)
+
+								// For each remaining word,
+								for (int ii = wordOffset + 1; ii < stride; ++ii) {
+									row[ii] = 0;
+								}
+							}
+						}
 
 						if (++_writeRow >= _height) {
 							// done!
@@ -699,6 +783,12 @@ public:
 						}
 
 						rowStarted = false;
+						_bitOn0 = false;
+						_bitOffset = 0;
+
+						u32 last = row[0];
+						row += stride;
+						row[0] = last;
 					}
 				} else {
 					rowLeft = sum;
@@ -706,24 +796,25 @@ public:
 					// If row was empty,
 					if (rowLeft == 0) {
 						// Decode as an exact copy of the row above it
-						u32 *row = _row;
 						if (_writeRow > 0) {
-							u32 *copy = row - _stride;
-							for (int ii = 0; ii < _stride; ++ii) {
+							u32 *copy = row - stride;
+							for (int ii = 0; ii < stride; ++ii) {
 								row[ii] = copy[ii];
 							}
-							row += _stride;
 						} else {
-							for (int ii = 0; ii < _stride; ++ii) {
-								row[ii] = 0;
+							for (int ii = 0; ii < stride; ++ii) {
+								row[ii] = 0xffffffff;
 							}
 						}
-						_row = row;
 
 						if (++_writeRow >= _height) {
 							// done!
 							return true;
 						}
+
+						u32 last = row[0];
+						row += stride;
+						row[0] = last;
 					} else {
 						rowStarted = true;
 					}
@@ -732,6 +823,8 @@ public:
 				sum = 0;
 			}
 		}
+
+		_row = row;
 		_sum = sum;
 		_rowStarted = rowStarted;
 		_rowLeft = rowLeft;
@@ -755,7 +848,6 @@ public:
 		_row = _image;
 		_bitOffset = 0;
 		_bitOn0 = true;
-		_bitOn1 = false;
 
 		_row[0] = 0;
 
@@ -917,6 +1009,29 @@ public:
 					}
 				}
 			}
+		}
+
+		if (success) {
+			CAT_WARN("main") << "Writing output image file: " << outfile;
+			// Convert to image:
+
+			vector<unsigned char> output;
+			u8 bits = 0, bitCount = 0;
+
+			for (int ii = 0; ii < _height; ++ii) {
+				for (int jj = 0; jj < _width; ++jj) {
+					u32 set = (_image[ii * _stride + jj / 32] >> (31 - (jj & 31))) & 1;
+					bits <<= 1;
+					bits |= set;
+					if (++bitCount >= 8) {
+						output.push_back(bits);
+						bits = 0;
+						bitCount = 0;
+					}
+				}
+			}
+
+			lodepng_encode_file(outfile, (const unsigned char*)&output[0], _width, _height, LCT_GREY, 1);
 		}
 
 		return success;
