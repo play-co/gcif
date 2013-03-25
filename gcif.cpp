@@ -42,11 +42,9 @@ static const u32 GCIF_HEAD_SEED = 0x120CA71D;
  */
 
 static CAT_INLINE void byteEncode(vector<unsigned char> &bytes, int data) {
-	unsigned char b0 = data & 127;
-	if (data < 128) {
-		bytes.push_back(b0);
-	} else {
-		data >>= 7;
+	unsigned char b0 = data;
+
+	if (data >>= 7) {
 		u8 b1 = data;
 
 		if (data >>= 7) {
@@ -57,6 +55,7 @@ static CAT_INLINE void byteEncode(vector<unsigned char> &bytes, int data) {
 
 				if (data >>= 7) {
 					u8 b4 = data;
+
 					bytes.push_back(b4 | 128);
 				}
 
@@ -67,8 +66,9 @@ static CAT_INLINE void byteEncode(vector<unsigned char> &bytes, int data) {
 		}
 
 		bytes.push_back(b1 | 128);
-		bytes.push_back(b0);
 	}
+
+	bytes.push_back(b0 & 127);
 }
 
 	/*
