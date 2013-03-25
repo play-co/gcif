@@ -299,7 +299,6 @@ public:
 			vector<int> rleCurDeltas;
 
 			u32 *lagger = buffer;
-			int zeroes = 0;
 
 			// ydelta for count
 			int lastDeltaCount = 0;
@@ -309,14 +308,15 @@ public:
 
 				// for xdelta:
 				int lastZeroes = 0;
+				int zeroes = 0;
 
-				for (int jj = 0, jjlen = bufferStride - 1; jj <= jjlen; ++jj) {
+				for (int jj = 0, jjlen = bufferStride; jj < jjlen; ++jj) {
 					u32 now = lagger[jj];
 
 					if (now) {
 						u32 lastbit = 31;
 						do {
-							u32 bit = now > 0 ? BSR32(now) : 0;
+							u32 bit = BSR32(now);
 
 							zeroes += lastbit - bit;
 
@@ -355,7 +355,6 @@ public:
 #else
 				byteEncode(rle, deltaCount);
 #endif
-				cout << deltaCount << " ";
 				for (int kk = 0; kk < deltaCount; ++kk) {
 					int delta = rleCurDeltas[kk];
 					byteEncode(rle, delta);
@@ -603,7 +602,7 @@ public:
 
 	u32 *_row;
 	int _bitOffset;
-	bool _bitOn0;
+	bool _bitOn;
 
 	bool decodeRLE(u8 *rle, int len) {
 		if (len <= 0) {
@@ -615,6 +614,8 @@ public:
 		int rowLeft = _rowLeft;
 		u32 *row = _row;
 		const int stride = _stride;
+		int bitOffset = _bitOffset;
+		bool bitOn = _bitOn;
 
 		for (int ii = 0; ii < len; ++ii) {
 			u8 symbol = rle[ii];
@@ -627,8 +628,8 @@ public:
 
 				// If has read row length yet,
 				if (rowStarted) {
-					int wordOffset = _bitOffset >> 5;
-					int newBitOffset = _bitOffset + sum;
+					int wordOffset = bitOffset >> 5;
+					int newBitOffset = bitOffset + sum;
 					int newOffset = newBitOffset >> 5;
 					int shift = 31 - (newBitOffset & 31);
 
@@ -652,7 +653,7 @@ public:
 						 */
 
 						// If previous state was 0,
-						if (_bitOn0 ^= 1) {
+						if (bitOn ^= 1) {
 							// Fill bottom bits with 0s (do nothing)
 
 							// For each intervening word and new one,
@@ -663,7 +664,7 @@ public:
 							// Write a 1 at the new location
 							row[newOffset] = 1 << shift;
 						} else {
-							u32 bitsUsedMask = 0xffffffff >> (_bitOffset & 31);
+							u32 bitsUsedMask = 0xffffffff >> (bitOffset & 31);
 
 							if (newOffset <= wordOffset) {
 								row[newOffset] |= bitsUsedMask & (0xfffffffe << shift);
@@ -688,13 +689,14 @@ public:
 						 * 0011110100
 						 *
 						 * Same as first row except only flip when we get X = 0
-						 * And we will XOR with previous row for each finished word
+						 * And we will XOR with previous row
 						 */
 
+						cout << sum << " ";
 
 						// If previous state was toggled on,
-						if (_bitOn0) {
-							u32 bitsUsedMask = 0xffffffff >> (_bitOffset & 31);
+						if (bitOn) {
+							u32 bitsUsedMask = 0xffffffff >> (bitOffset & 31);
 
 							if (newOffset <= wordOffset) {
 								row[newOffset] ^= bitsUsedMask & (0xfffffffe << shift);
@@ -727,22 +729,23 @@ public:
 						}
 
 						if (sum == 0) {
-							_bitOn0 ^= 1;
+							bitOn ^= 1;
 						}
 					}
 
-					_bitOffset += sum + 1;
+					bitOffset += sum + 1;
 
 					// If just finished this row,
 					if (--rowLeft <= 0) {
-						int wordOffset = _bitOffset >> 5;
+						cout << endl;
+						int wordOffset = bitOffset >> 5;
 
 						if CAT_LIKELY(_writeRow > 0) {
 							// If last bit written was 1,
-							if (_bitOn0) {
+							if (bitOn) {
 								// Fill bottom bits with 1s
 
-								row[wordOffset] = ((0xffffffff >> (_bitOffset & 31)) | row[wordOffset]) ^ row[wordOffset - stride];
+								row[wordOffset] ^= 0xffffffff >> (bitOffset & 31);
 
 								// For each remaining word,
 								for (int ii = wordOffset + 1; ii < stride; ++ii) {
@@ -750,7 +753,6 @@ public:
 								}
 							} else {
 								// Fill bottom bits with 0s (do nothing)
-								row[wordOffset] ^= row[wordOffset - stride];
 
 								// For each remaining word,
 								for (int ii = wordOffset + 1; ii < stride; ++ii) {
@@ -759,9 +761,9 @@ public:
 							}
 						} else {
 							// If last bit written was 1,
-							if (_bitOn0) {
+							if (bitOn) {
 								// Fill bottom bits with 1s
-								row[wordOffset] |= 0xffffffff >> (_bitOffset & 31);
+								row[wordOffset] |= 0xffffffff >> (bitOffset & 31);
 
 								// For each remaining word,
 								for (int ii = wordOffset + 1; ii < stride; ++ii) {
@@ -783,12 +785,6 @@ public:
 						}
 
 						rowStarted = false;
-						_bitOn0 = false;
-						_bitOffset = 0;
-
-						u32 last = row[0];
-						row += stride;
-						row[0] = last;
 					}
 				} else {
 					rowLeft = sum;
@@ -811,19 +807,29 @@ public:
 							// done!
 							return true;
 						}
-
-						u32 last = row[0];
-						row += stride;
-						row[0] = last;
 					} else {
 						rowStarted = true;
 					}
+
+					// Reset row decode state
+					bitOn = false;
+					bitOffset = 0;
+
+					// Setup first word
+					u32 last = 0;
+					if CAT_LIKELY(_writeRow > 0) {
+						last = row[0];
+						row += stride;
+					}
+					row[0] = last;
 				}
 
 				sum = 0;
 			}
 		}
 
+		_bitOffset = bitOffset;
+		_bitOn = bitOn;
 		_row = row;
 		_sum = sum;
 		_rowStarted = rowStarted;
@@ -837,19 +843,14 @@ public:
 
 		_width = width;
 		_height = height;
-		_stride = (((u32)width + 31) / 32);
+		_stride = ((u32)width + 31) >> 5;
 		_writeRow = 0;
 		_image = new u32[(u32)height * _stride];
 
 		_sum = 0;
 		_rowLeft = 0;
 		_rowStarted = false;
-
 		_row = _image;
-		_bitOffset = 0;
-		_bitOn0 = true;
-
-		_row[0] = 0;
 
 		huffman::HuffmanDecoder decoder;
 
@@ -865,6 +866,7 @@ public:
 				// Read token
 				u8 token = decoder.next();
 
+				// TODO: Change LZ4 encoding to avoid EOF checks here
 				// Read Literal Length
 				int literalLength = token >> 4;
 				if (literalLength == 15) {
