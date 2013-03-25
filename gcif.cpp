@@ -624,7 +624,7 @@ public:
 
 	u32 *_row;
 	int _bitOffset;
-	bool _bitOn;
+	bool _bitOn0, _bitOn1;
 
 	bool decodeRLE(u8 *rle, int len) {
 		if (len <= 0) {
@@ -638,17 +638,55 @@ public:
 			u8 symbol = rle[ii];
 
 			sum <<= 7;
-			if (symbol & 128) {
+			if CAT_UNLIKELY(symbol & 128) {
 				sum |= symbol & 127;
 			} else {
 				sum |= symbol;
 
 				if (rowStarted) {
-
 					int wordOffset = _bitOffset >> 5;
 					int newOffset = (_bitOffset + sum + 1) >> 5;
 
-					//_row[wordOffset]
+					if CAT_LIKELY(_writeRow > 0) {
+						if (newOffset > wordOffset) {
+							if (_bitOn) {
+							} else {
+							}
+						}
+
+						// DO CURRENT WORD HERE
+
+						//_row[wordOffset]
+					} else {
+						/*
+						 * First row is handled specially:
+						 *
+						 * For each input X:
+						 * 1. Write out X bits of current state
+						 * 2. Flip the state
+						 * 3. Then write out one bit of the new state
+						 * When out of input, pad to the end with current state
+						 */
+
+						int shift = 31 - (_bitOffset & 31);
+
+						if (newOffset > wordOffset) {
+							if (_bitOn0) {
+								_row[wordOffset] = 
+								_row[0] |= 1 << shift;
+								_bitOn0 = false;
+							} else {
+								_bitOn0 = true;
+							}
+						}
+
+						if (_bitOn0) {
+							_row[0] |= 1 << shift;
+							_bitOn0 = false;
+						} else {
+							_bitOn0 = true;
+						}
+					}
 
 					// TODO: Write row pixels here
 
@@ -716,7 +754,10 @@ public:
 
 		_row = _image;
 		_bitOffset = 0;
-		_bitOn = true;
+		_bitOn0 = true;
+		_bitOn1 = false;
+
+		_row[0] = 0;
 
 		huffman::HuffmanDecoder decoder;
 
