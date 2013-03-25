@@ -644,10 +644,10 @@ public:
 				sum |= symbol;
 
 				if (rowStarted) {
-					int wordOffset = _bitOffset >> 5;
-					int newOffset = (_bitOffset + sum + 1) >> 5;
-
 					if CAT_LIKELY(_writeRow > 0) {
+						int wordOffset = _bitOffset >> 5;
+						int newOffset = (_bitOffset + sum + 1) >> 5;
+
 						if (newOffset > wordOffset) {
 							if (_bitOn) {
 							} else {
@@ -667,16 +667,16 @@ public:
 						 * 3. Then write out one bit of the new state
 						 * When out of input, pad to the end with current state
 						 */
-
-						int shift = 31 - (_bitOffset & 31);
+						int wordOffset = _bitOffset >> 5;
+						int newOffset = (_bitOffset + sum + 1) >> 5;
 
 						if (newOffset > wordOffset) {
-							if (_bitOn0) {
-								_row[wordOffset] = 
-								_row[0] |= 1 << shift;
-								_bitOn0 = false;
+							// If previous state was 0,
+							if (_bitOn0 ^= 1) {
+								// Fill bottom bits with 0s (do nothing)
 							} else {
-								_bitOn0 = true;
+								// Fill bottom bits with 1s
+								_row[wordOffset] |= (1 << (32 - (_bitOffset & 31))) - 1;
 							}
 						}
 
