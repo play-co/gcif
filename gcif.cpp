@@ -42,36 +42,42 @@ static const u32 GCIF_HEAD_SEED = 0x120CA71D;
  */
 
 static CAT_INLINE void byteEncode(vector<unsigned char> &bytes, int data) {
-	unsigned char e = data & 127;
+	unsigned char b0 = data & 127;
 	if (data < 128) {
-		bytes.push_back(e);
+		bytes.push_back(b0);
 	} else {
-		e |= 128;
 		data >>= 7;
-		bytes.push_back(e);
+		u8 b1 = data;
 
-		while (true) {
-			e = (data & 127);
+		if (data >>= 7) {
+			u8 b2 = data;
 
-			if (data < 128) {
-				bytes.push_back(e);
-				break;
-			} else {
-				e |= 128;
-				data >>= 7;
-				bytes.push_back(e);
+			if (data >>= 7) {
+				u8 b3 = data;
+
+				if (data >>= 7) {
+					u8 b4 = data;
+					bytes.push_back(b4 | 128);
+				}
+
+				bytes.push_back(b3 | 128);
 			}
+
+			bytes.push_back(b2 | 128);
 		}
+
+		bytes.push_back(b1 | 128);
+		bytes.push_back(b0);
 	}
 }
 
-static CAT_INLINE void signByteEncode(vector<unsigned char> &bytes, int data) {
 	/*
 	 * Delta byte-wise encoding:
 	 *
 	 * cDDDDDDs cDDDDDDD ...
 	 */
-
+/*
+static CAT_INLINE void signByteEncode(vector<unsigned char> &bytes, int data) {
 	unsigned char s = 0;
 	if (data < 0) {
 		s = 1;
@@ -100,7 +106,7 @@ static CAT_INLINE void signByteEncode(vector<unsigned char> &bytes, int data) {
 		}
 	}
 }
-
+*/
 
 /*
  * Shove bits from high to low
@@ -622,6 +628,7 @@ public:
 		for (int ii = 0; ii < len; ++ii) {
 			u8 symbol = rle[ii];
 
+			_sum <<= 7;
 			if (symbol & 128) {
 				_sum += symbol & 127;
 			} else {
