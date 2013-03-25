@@ -780,7 +780,7 @@ public:
 			}
 
 			// Decode [wrapped] RLE sequence
-			if CAT_UNLIKELY(lzLast < lzIndex) {
+			if CAT_UNLIKELY(lzLast > lzIndex) {
 				if (decodeRLE(&lz[lzLast], 65536 - lzLast)) {
 					return true;
 				}
