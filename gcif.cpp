@@ -238,7 +238,7 @@ public:
 				*writer++ = bits;
 			}
 		}
-#if 0
+#if 1
 		{
 			CAT_WARN("main") << "Writing alpha image file";
 
@@ -299,7 +299,7 @@ public:
 
 		CAT_INFO("main") << "Monochrome y2x delta image hash: " << hex << MurmurHash3::hash(&buffer[0], bufferSize * 4);
 
-#if 0
+#if 1
 		{
 			CAT_WARN("main") << "Writing delta image file";
 
