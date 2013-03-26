@@ -692,6 +692,7 @@ public:
 						 * And we will XOR with previous row
 						 */
 
+						if (_writeRow < 32)
 						cout << sum << " ";
 
 						// If previous state was toggled on,
@@ -737,6 +738,7 @@ public:
 
 					// If just finished this row,
 					if (--rowLeft <= 0) {
+						if (_writeRow < 32)
 						cout << endl;
 						int wordOffset = bitOffset >> 5;
 
@@ -809,19 +811,19 @@ public:
 						}
 					} else {
 						rowStarted = true;
-					}
 
-					// Reset row decode state
-					bitOn = false;
-					bitOffset = 0;
+						// Reset row decode state
+						bitOn = false;
+						bitOffset = 0;
 
-					// Setup first word
-					u32 last = 0;
-					if CAT_LIKELY(_writeRow > 0) {
-						last = row[0];
-						row += stride;
+						// Setup first word
+						u32 last = 0;
+						if CAT_LIKELY(_writeRow > 0) {
+							last = row[0];
+							row += stride;
+						}
+						row[0] = last;
 					}
-					row[0] = last;
 				}
 
 				sum = 0;
