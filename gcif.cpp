@@ -605,9 +605,13 @@ public:
 	u32 *_row;
 	int _bitOffset;
 	bool _bitOn;
+	double _rleTime;
 
 	bool decodeRLE(u8 *rle, int len) {
+		double t0 = Clock::ref()->usec();
+
 		if (len <= 0) {
+			_rleTime += Clock::ref()->usec() - t0;
 			return false;
 		}
 
@@ -786,6 +790,7 @@ public:
 
 						if (++_writeRow >= _height) {
 							// done!
+							_rleTime += Clock::ref()->usec() - t0;
 							return true;
 						}
 
@@ -812,6 +817,7 @@ public:
 
 						if (++_writeRow >= _height) {
 							// done!
+							_rleTime += Clock::ref()->usec() - t0;
 							return true;
 						}
 
@@ -843,6 +849,7 @@ public:
 		_rowStarted = rowStarted;
 		_rowLeft = rowLeft;
 
+		_rleTime += Clock::ref()->usec() - t0;
 		return false;
 	}
 
@@ -859,6 +866,7 @@ public:
 		_rowLeft = 0;
 		_rowStarted = false;
 		_row = _image;
+		_rleTime = 0;
 
 		huffman::HuffmanDecoder decoder;
 
@@ -1017,7 +1025,11 @@ public:
 									success = true;
 									double t1 = Clock::ref()->usec();
 
-									cout << "Processed data at " << (fileWords - GCIF_HEAD_WORDS) * 4 / (t1 - t0) << " MB/S" << endl;
+									CAT_WARN("main") << "Time took: " << t1 - t0 << " usec";
+									CAT_WARN("main") << "RLE took: " << _rleTime << " usec";
+
+									CAT_WARN("main") << "Processed input at " << (fileWords - GCIF_HEAD_WORDS) * 4 / (t1 - t0) << " MB/S";
+									CAT_WARN("main") << "Generated at " << (width * (u32)height / 8) / (t1 - t0) << " MB/S";
 								}
 							}
 						}

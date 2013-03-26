@@ -39,6 +39,10 @@ Rename this file to lodepng.cpp to use it for C++, or to lodepng.c to use it for
 
 #define VERSION_STRING "20130311"
 
+#include "Log.hpp"
+#include "Clock.hpp"
+using namespace cat;
+
 /*
 This source file is built up in the following large parts. The code sections
 with the "LODEPNG_COMPILE_" #defines divide this up further in an intermixed way.
@@ -1277,12 +1281,21 @@ unsigned lodepng_inflate(unsigned char** out, size_t* outsize,
                          const unsigned char* in, size_t insize,
                          const LodePNGDecompressSettings* settings)
 {
+	double t0 = Clock::ref()->usec();
+
   unsigned error;
   ucvector v;
   ucvector_init_buffer(&v, *out, *outsize);
   error = lodepng_inflatev(&v, in, insize, settings);
   *out = v.data;
   *outsize = v.size;
+
+  	double t1 = Clock::ref()->usec();
+	CAT_WARN("png") << "Inflate took " << t1 - t0 << " usec";
+
+	CAT_WARN("png") << "Processed input at " << insize / (t1 - t0) << " MB/S";
+	CAT_WARN("png") << "Generated at " << *outsize / (t1 - t0) << " MB/S";
+
   return error;
 }
 
