@@ -314,9 +314,9 @@ public:
 					u32 now = lagger[jj];
 
 					if (now) {
-						u32 lastbit = 31;
+						u32 bit, lastbit = 31;
 						do {
-							u32 bit = BSR32(now);
+							bit = BSR32(now);
 
 							zeroes += lastbit - bit;
 
@@ -343,6 +343,8 @@ public:
 							lastbit = bit - 1;
 							now ^= 1 << bit;
 						} while (now);
+
+						zeroes += bit;
 					} else {
 						zeroes += 32;
 					}
