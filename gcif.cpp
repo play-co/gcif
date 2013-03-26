@@ -694,22 +694,22 @@ public:
 						 * {2,0,2,0}
 						 * 0011110100
 						 *
-						 * Same as first row except only flip when we get X = 0
+						 * Same as first row except only flip on when we get X = 0
 						 * And we will XOR with previous row
 						 */
 
-//						if (_writeRow < 100) cout << sum << ":" << bitOn << " ";
+						if (_writeRow < 100) cout << sum << ":" << bitOn << " ";
 
 						// If previous state was toggled on,
 						if (bitOn) {
 							u32 bitsUsedMask = 0xffffffff >> (bitOffset & 31);
 
 							if (newOffset <= wordOffset) {
-								//cout << "S(" << row[newOffset] << "," << bitsUsedMask << "," << shift << ") ";
+								cout << "S(" << row[newOffset] << "," << bitsUsedMask << "," << shift << ") ";
 								row[newOffset] ^= bitsUsedMask & (0xfffffffe << shift);
 								//cout << "S(" << row[newOffset] << "," << bitsUsedMask << "," << shift << ") ";
 							} else {
-								//cout << "M ";
+								cout << "M ";
 								// Fill bottom bits with 1s
 								row[wordOffset] ^= bitsUsedMask;
 
@@ -719,13 +719,14 @@ public:
 								}
 
 								// Set 1s for new word, ending with a 0
-								row[newOffset] = (0xfffffffe << shift);
+								row[newOffset] ^= (0xfffffffe << shift);
 							}
 
 							bitOn ^= 1;
 						} else {
 							// Fill bottom bits with 0s (do nothing)
 
+							cout << "Z ";
 							row[newOffset] ^= (1 << shift);
 
 							if (sum == 0) {
@@ -772,7 +773,7 @@ public:
 							}
 						}
 
-						//if (_writeRow < 100) cout << endl;
+						if (_writeRow < 100) cout << endl;
 
 						if (++_writeRow >= _height) {
 							// done!
@@ -788,7 +789,7 @@ public:
 
 					// If row was empty,
 					if (rowLeft == 0) {
-						//if (_writeRow < 100) cout << "(empty)" << endl;
+						if (_writeRow < 100) cout << "(empty)" << endl;
 						// Decode as an exact copy of the row above it
 						if (_writeRow > 0) {
 							u32 *copy = row - stride;
