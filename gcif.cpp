@@ -692,8 +692,7 @@ public:
 						 * And we will XOR with previous row
 						 */
 
-						if (_writeRow < 32)
-						cout << sum << " ";
+						if (_writeRow < 100) cout << sum << ":" << bitOn << " ";
 
 						// If previous state was toggled on,
 						if (bitOn) {
@@ -738,13 +737,12 @@ public:
 
 					// If just finished this row,
 					if (--rowLeft <= 0) {
-						if (_writeRow < 32)
-						cout << endl;
 						int wordOffset = bitOffset >> 5;
 
 						if CAT_LIKELY(_writeRow > 0) {
 							// If last bit written was 1,
 							if (bitOn) {
+								if (_writeRow < 100) cout << "ON" << endl;
 								// Fill bottom bits with 1s
 
 								row[wordOffset] ^= 0xffffffff >> (bitOffset & 31);
@@ -754,6 +752,7 @@ public:
 									row[ii] = 0xffffffff ^ row[ii - stride];
 								}
 							} else {
+								if (_writeRow < 100) cout << "OFF" << endl;
 								// Fill bottom bits with 0s (do nothing)
 
 								// For each remaining word,
@@ -781,18 +780,22 @@ public:
 							}
 						}
 
+						if (_writeRow < 100) cout << endl;
+
 						if (++_writeRow >= _height) {
 							// done!
 							return true;
 						}
 
 						rowStarted = false;
+						row += stride;
 					}
 				} else {
 					rowLeft = sum;
 
 					// If row was empty,
 					if (rowLeft == 0) {
+						if (_writeRow < 100) cout << "(empty)" << endl;
 						// Decode as an exact copy of the row above it
 						if (_writeRow > 0) {
 							u32 *copy = row - stride;
@@ -809,6 +812,8 @@ public:
 							// done!
 							return true;
 						}
+
+						row += stride;
 					} else {
 						rowStarted = true;
 
@@ -819,8 +824,7 @@ public:
 						// Setup first word
 						u32 last = 0;
 						if CAT_LIKELY(_writeRow > 0) {
-							last = row[0];
-							row += stride;
+							last = row[-stride];
 						}
 						row[0] = last;
 					}
