@@ -712,6 +712,8 @@ public:
 								// Set 1s for new word, ending with a 0
 								row[newOffset] = (0xfffffffe << shift) ^ row[newOffset - stride];
 							}
+
+							bitOn ^= 1;
 						} else {
 							// Fill bottom bits with 0s (do nothing)
 
@@ -726,10 +728,10 @@ public:
 							} else {
 								row[newOffset] ^= (1 << shift);
 							}
-						}
 
-						if (sum == 0) {
-							bitOn ^= 1;
+							if (sum == 0) {
+								bitOn ^= 1;
+							}
 						}
 					}
 
@@ -742,7 +744,6 @@ public:
 						if CAT_LIKELY(_writeRow > 0) {
 							// If last bit written was 1,
 							if (bitOn) {
-								if (_writeRow < 100) cout << "ON" << endl;
 								// Fill bottom bits with 1s
 
 								row[wordOffset] ^= 0xffffffff >> (bitOffset & 31);
@@ -752,7 +753,6 @@ public:
 									row[ii] = 0xffffffff ^ row[ii - stride];
 								}
 							} else {
-								if (_writeRow < 100) cout << "OFF" << endl;
 								// Fill bottom bits with 0s (do nothing)
 
 								// For each remaining word,
