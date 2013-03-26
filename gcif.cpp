@@ -238,7 +238,31 @@ public:
 				*writer++ = bits;
 			}
 		}
+#if 0
+		{
+			CAT_WARN("main") << "Writing alpha image file";
 
+			// Convert to image:
+
+			vector<unsigned char> output;
+			u8 bits = 0, bitCount = 0;
+
+			for (int ii = 0; ii < height; ++ii) {
+				for (int jj = 0; jj < width; ++jj) {
+					u32 set = (buffer[ii * bufferStride + jj / 32] >> (31 - (jj & 31))) & 1;
+					bits <<= 1;
+					bits |= set;
+					if (++bitCount >= 8) {
+						output.push_back(bits);
+						bits = 0;
+						bitCount = 0;
+					}
+				}
+			}
+
+			lodepng_encode_file("alpha.png", (const unsigned char*)&output[0], width, height, LCT_GREY, 1);
+		}
+#endif
 		CAT_INFO("main") << "Monochrome image hash: " << hex << MurmurHash3::hash(&buffer[0], bufferSize * 4);
 
 		// Encode y2x delta:
@@ -275,6 +299,31 @@ public:
 
 		CAT_INFO("main") << "Monochrome y2x delta image hash: " << hex << MurmurHash3::hash(&buffer[0], bufferSize * 4);
 
+#if 0
+		{
+			CAT_WARN("main") << "Writing delta image file";
+
+			// Convert to image:
+
+			vector<unsigned char> output;
+			u8 bits = 0, bitCount = 0;
+
+			for (int ii = 0; ii < height; ++ii) {
+				for (int jj = 0; jj < width; ++jj) {
+					u32 set = (buffer[ii * bufferStride + jj / 32] >> (31 - (jj & 31))) & 1;
+					bits <<= 1;
+					bits |= set;
+					if (++bitCount >= 8) {
+						output.push_back(bits);
+						bits = 0;
+						bitCount = 0;
+					}
+				}
+			}
+
+			lodepng_encode_file("delta.png", (const unsigned char*)&output[0], width, height, LCT_GREY, 1);
+		}
+#endif
 
 		// RLE
 
@@ -695,16 +744,15 @@ public:
 						 * {2,0,2,0}
 						 * 0011110100
 						 *
-						 *
-						 * 00110100
-						 * 00111100
-						 * 00110100
+						 * 0111110100
+						 * 1,0,0,0,0,1
+						 * 0110110
 						 *
 						 * Same as first row except only flip on when we get X = 0
 						 * And we will XOR with previous row
 						 */
 
-						//if (_writeRow > 700) cout << sum << ":" << bitOn << " ";
+						//if (_writeRow > 120 && _writeRow < 200) cout << sum << ":" << bitOn << " ";
 
 						// If previous state was toggled on,
 						if (bitOn) {
@@ -729,21 +777,20 @@ public:
 							}
 
 							bitOn ^= 1;
+							_lastSum = 0;
 						} else {
 							// Fill bottom bits with 0s (do nothing)
 
 							//cout << "Z ";
 							row[newOffset] ^= (1 << shift);
 
-							if (sum == 0) {
-								if (_lastSum != 0) {
-									bitOn ^= 1;
-								}
+							if (sum == 0 && _lastSum) {
+								bitOn ^= 1;
 							}
+							_lastSum = 1;
 						}
 					}
 
-					_lastSum = sum;
 					bitOffset += sum + 1;
 
 					// If just finished this row,
@@ -782,7 +829,7 @@ public:
 							}
 						}
 
-						//if (_writeRow > 700) cout << endl;
+						//if (_writeRow > 120 && _writeRow < 200) cout << endl;
 
 						if (++_writeRow >= _height) {
 							// done!
@@ -798,7 +845,7 @@ public:
 
 					// If row was empty,
 					if (rowLeft == 0) {
-						//if (_writeRow > 700) cout << "(empty)" << endl;
+						//if (_writeRow > 120 && _writeRow < 200) cout << "(empty)" << endl;
 						// Decode as an exact copy of the row above it
 						if (_writeRow > 0) {
 							u32 *copy = row - stride;
@@ -824,7 +871,7 @@ public:
 						// Reset row decode state
 						bitOn = false;
 						bitOffset = 0;
-						_lastSum = -1;
+						_lastSum = 0;
 
 						// Setup first word
 						if CAT_LIKELY(_writeRow > 0) {
