@@ -605,6 +605,7 @@ public:
 	u32 *_row;
 	int _bitOffset;
 	bool _bitOn;
+	int _lastSum;
 	double _rleTime;
 
 	bool decodeRLE(u8 *rle, int len) {
@@ -694,11 +695,16 @@ public:
 						 * {2,0,2,0}
 						 * 0011110100
 						 *
+						 *
+						 * 00110100
+						 * 00111100
+						 * 00110100
+						 *
 						 * Same as first row except only flip on when we get X = 0
 						 * And we will XOR with previous row
 						 */
 
-						if (_writeRow < 100) cout << sum << ":" << bitOn << " ";
+						if (_writeRow > 700) cout << sum << ":" << bitOn << " ";
 
 						// If previous state was toggled on,
 						if (bitOn) {
@@ -730,11 +736,14 @@ public:
 							row[newOffset] ^= (1 << shift);
 
 							if (sum == 0) {
-								bitOn ^= 1;
+								if (_lastSum != 0) {
+									bitOn ^= 1;
+								}
 							}
 						}
 					}
 
+					_lastSum = sum;
 					bitOffset += sum + 1;
 
 					// If just finished this row,
@@ -773,7 +782,7 @@ public:
 							}
 						}
 
-						if (_writeRow < 100) cout << endl;
+						if (_writeRow > 700) cout << endl;
 
 						if (++_writeRow >= _height) {
 							// done!
@@ -789,7 +798,7 @@ public:
 
 					// If row was empty,
 					if (rowLeft == 0) {
-						if (_writeRow < 100) cout << "(empty)" << endl;
+						if (_writeRow > 700) cout << "(empty)" << endl;
 						// Decode as an exact copy of the row above it
 						if (_writeRow > 0) {
 							u32 *copy = row - stride;
@@ -815,6 +824,7 @@ public:
 						// Reset row decode state
 						bitOn = false;
 						bitOffset = 0;
+						_lastSum = -1;
 
 						// Setup first word
 						if CAT_LIKELY(_writeRow > 0) {
