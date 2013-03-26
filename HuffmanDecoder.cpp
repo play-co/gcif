@@ -226,7 +226,7 @@ bool HuffmanDecoder::init(u32 *words, int wordCount) {
 		word <<= 3;
 		bitsLeft = 29;
 
-		CAT_INFO("main") << "Huffman table pivot: " << pivot << " bits";
+		//CAT_INFO("main") << "Huffman table pivot: " << pivot << " bits";
 
 		int tableWriteIndex = 0;
 

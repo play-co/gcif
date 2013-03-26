@@ -694,7 +694,7 @@ public:
 						 * And we will XOR with previous row
 						 */
 
-						if (_writeRow < 100) cout << sum << ":" << bitOn << " ";
+						//if (_writeRow < 100) cout << sum << ":" << bitOn << " ";
 
 						// If previous state was toggled on,
 						if (bitOn) {
@@ -782,7 +782,7 @@ public:
 							}
 						}
 
-						if (_writeRow < 100) cout << endl;
+						//if (_writeRow < 100) cout << endl;
 
 						if (++_writeRow >= _height) {
 							// done!
@@ -797,7 +797,7 @@ public:
 
 					// If row was empty,
 					if (rowLeft == 0) {
-						if (_writeRow < 100) cout << "(empty)" << endl;
+						//if (_writeRow < 100) cout << "(empty)" << endl;
 						// Decode as an exact copy of the row above it
 						if (_writeRow > 0) {
 							u32 *copy = row - stride;
@@ -866,7 +866,7 @@ public:
 
 		u8 *lz = new u8[65536];
 		u16 lzIndex = 0, lzLast = 0;
-		const int BATCH_RATE = 8096;
+		const int BATCH_RATE = 2048;
 
 		// LZ4
 		{
@@ -1009,10 +1009,15 @@ public:
 								u16 height = word1 & 0xffff;
 								CAT_WARN("main") << "Image: Dimensions " << width << " x " << height;
 
+								double t0 = Clock::ref()->usec();
+
 								if (!decode(width, height, words + GCIF_HEAD_WORDS, fileWords - GCIF_HEAD_WORDS, dataHash)) {
 									CAT_WARN("main") << "Decoder failed";
 								} else {
 									success = true;
+									double t1 = Clock::ref()->usec();
+
+									cout << "Processed data at " << (fileWords - GCIF_HEAD_WORDS) * 4 / (t1 - t0) << " MB/S" << endl;
 								}
 							}
 						}
