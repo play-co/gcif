@@ -1,0 +1,20 @@
+make: `gcif' is up to date.
+[Dec 31 16:08] <png> Inflate took 43377 usec
+[Dec 31 16:08] <png> Processed input at 31.0029 MB/S
+[Dec 31 16:08] <png> Generated at 96.7178 MB/S
+[Dec 31 16:08] <main> Original image hash: e0d4c66e
+[Dec 31 16:08] <main> Uncompressed size = 131072 bytes
+[Dec 31 16:08] <main> Monochrome image hash: 57632eef
+[Dec 31 16:08] <main> Monochrome y2x delta image hash: 29d578a2
+[Dec 31 16:08] <main> Writing delta image file
+[Dec 31 16:08] <main> RLE data hash: 52c22bac
+[Dec 31 16:08] <main> Post-RLE size = 24949 bytes
+[Dec 31 16:08] <main> Post-LZ4 size = 21953 bytes
+[Dec 31 16:08] <main> LZ data hash: 7828f361
+[Dec 31 16:08] <main> Huffman: Max code size = 13 bits
+[Dec 31 16:08] <main> Huffman: Total freq = 21953 rels
+[Dec 31 16:08] <main> Huffman: Encoded table size = 256 bytes
+[Dec 31 16:08] <main> Golomb: Chose table pivot 0 bits
+[Dec 31 16:08] <main> Golomb: Table size = 66 bytes
+[Dec 31 16:08] <main> Huffman+table hash: 511b9472
+[Dec 31 16:08] <main> Huffman: Total compressed message size = 18107 bytes
