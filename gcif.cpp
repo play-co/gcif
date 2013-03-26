@@ -698,42 +698,35 @@ public:
 						 * And we will XOR with previous row
 						 */
 
-						//if (_writeRow < 100) cout << sum << ":" << bitOn << " ";
+//						if (_writeRow < 100) cout << sum << ":" << bitOn << " ";
 
 						// If previous state was toggled on,
 						if (bitOn) {
 							u32 bitsUsedMask = 0xffffffff >> (bitOffset & 31);
 
 							if (newOffset <= wordOffset) {
+								//cout << "S(" << row[newOffset] << "," << bitsUsedMask << "," << shift << ") ";
 								row[newOffset] ^= bitsUsedMask & (0xfffffffe << shift);
+								//cout << "S(" << row[newOffset] << "," << bitsUsedMask << "," << shift << ") ";
 							} else {
+								//cout << "M ";
 								// Fill bottom bits with 1s
 								row[wordOffset] ^= bitsUsedMask;
 
 								// For each intervening word,
 								for (int ii = wordOffset + 1; ii < newOffset; ++ii) {
-									row[ii] = 0xffffffff ^ row[ii - stride];
+									row[ii] ^= 0xffffffff;
 								}
 
 								// Set 1s for new word, ending with a 0
-								row[newOffset] = (0xfffffffe << shift) ^ row[newOffset - stride];
+								row[newOffset] = (0xfffffffe << shift);
 							}
 
 							bitOn ^= 1;
 						} else {
 							// Fill bottom bits with 0s (do nothing)
 
-							if (newOffset > wordOffset) {
-								// For each intervening word and new one,
-								for (int ii = wordOffset + 1; ii < newOffset; ++ii) {
-									row[ii] = row[ii - stride];
-								}
-
-								// Write a 1 at the new location
-								row[newOffset] = (1 << shift) ^ row[newOffset - stride];
-							} else {
-								row[newOffset] ^= (1 << shift);
-							}
+							row[newOffset] ^= (1 << shift);
 
 							if (sum == 0) {
 								bitOn ^= 1;
@@ -756,14 +749,7 @@ public:
 
 								// For each remaining word,
 								for (int ii = wordOffset + 1; ii < stride; ++ii) {
-									row[ii] = 0xffffffff ^ row[ii - stride];
-								}
-							} else {
-								// Fill bottom bits with 0s (do nothing)
-
-								// For each remaining word,
-								for (int ii = wordOffset + 1; ii < stride; ++ii) {
-									row[ii] = row[ii - stride];
+									row[ii] ^= 0xffffffff;
 								}
 							}
 						} else {
@@ -830,11 +816,14 @@ public:
 						bitOffset = 0;
 
 						// Setup first word
-						u32 last = 0;
 						if CAT_LIKELY(_writeRow > 0) {
-							last = row[-stride];
+							u32 *copy = row - stride;
+							for (int ii = 0; ii < stride; ++ii) {
+								row[ii] = copy[ii];
+							}
+						} else {
+							row[0] = 0;
 						}
-						row[0] = last;
 					}
 				}
 
@@ -874,7 +863,7 @@ public:
 
 		u8 *lz = new u8[65536];
 		u16 lzIndex = 0, lzLast = 0;
-		const int BATCH_RATE = 2048;
+		const int BATCH_RATE = 8192; 
 
 		// LZ4
 		{
@@ -894,7 +883,6 @@ public:
 				}
 
 				// Decode literal symbols
-				//cout << "lit:" << literalLength << " ";
 				for (int ii = 0; ii < literalLength; ++ii) {
 					u8 symbol = decoder.next();
 					lz[lzIndex++] = symbol;
