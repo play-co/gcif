@@ -134,40 +134,14 @@ int ImageReader::init(const void *buffer, int fileSize) {
 	return RE_OK;
 }
 
-u32 ImageReader::nextHuffmanSymbol(huffman::decoder_tables *table) {
+u32 ImageReader::nextHuffmanSymbol(HuffmanDecoder *dec) {
 	u32 code = peek(16);
 
-	// Fast static Huffman decoder, centralized here since this is how most of the data is encoded
-
-	u32 k = static_cast<u32>((code >> 16) + 1);
-	u32 sym, len;
-
-	if (k <= table->table_max_code) {
-		u32 t = table->lookup[code >> (32 - table->table_bits)];
-
-		sym = static_cast<u16>( t );
-		len = static_cast<u16>( t >> 16 );
-	}
-	else {
-		len = table->decode_start_code_size;
-
-		const u32 *max_codes = table->max_codes;
-
-		for (;;) {
-			if (k <= max_codes[len - 1])
-				break;
-			len++;
-		}
-
-		int val_ptr = table->val_ptrs[len - 1] + static_cast<int>((code >> (32 - len)));
-
-		if (((u32)val_ptr >= table->num_syms)) {
-			return 0;
-		}
-
-		sym = table->sorted_symbol_order[val_ptr];
-	}
+	u32 len;
+	u32 sym = dec->get(code, len);
 
 	eat(len);
+
+	return sym;
 }
 

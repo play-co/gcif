@@ -6,63 +6,58 @@
 using namespace cat;
 using namespace huffman;
 
-void huffman::init_decoder_tables(decoder_tables *pTables) {
-	pTables->cur_sorted_symbol_order_size = 0;
-	pTables->sorted_symbol_order = 0;
 
-	pTables->lookup = 0;
-	pTables->cur_lookup_size = 0;
-}
+//// HuffmanDecoder
 
-void huffman::clean_decoder_tables(decoder_tables *pTables) {
-	if (pTables->sorted_symbol_order) {
-		delete []pTables->sorted_symbol_order;
-		pTables->sorted_symbol_order = 0;
+void HuffmanDecoder::clear() {
+	if (_sorted_symbol_order) {
+		delete []_sorted_symbol_order;
+		_sorted_symbol_order = 0;
 	}
 
-	if (pTables->lookup) {
-		delete []pTables->lookup;
-		pTables->lookup = 0;
+	if (_lookup) {
+		delete []_lookup;
+		_lookup = 0;
 	}
 }
 
-bool huffman::generate_decoder_tables(u32 num_syms, const u8 *pCodesizes, decoder_tables *pTables, u32 table_bits) {
-	u32 min_codes[cMaxExpectedCodeSize];
+bool HuffmanDecoder::init(int count, const u8 *codelens, u32 table_bits) {
+	u32 min_codes[MAX_CODE_SIZE];
 
-	if ((!num_syms) || (table_bits > cMaxTableBits)) {
+	if (count <= 0 || (table_bits > MAX_TABLE_BITS)) {
 		return false;
 	}
 
-	pTables->num_syms = num_syms;
+	_num_syms = count;
 
-	u32 num_codes[cMaxExpectedCodeSize + 1] = { 0 };
-
-	for (u32 ii = 0; ii < num_syms; ++ii) {
-		num_codes[pCodesizes[ii]]++;
+	// Codelen histogram
+	u32 num_codes[MAX_CODE_SIZE + 1] = { 0 };
+	for (u32 ii = 0; ii < _num_syms; ++ii) {
+		num_codes[codelens[ii]]++;
 	}
 
-	u32 sorted_positions[cMaxExpectedCodeSize + 1];
+	u32 sorted_positions[MAX_CODE_SIZE + 1];
 
 	u32 next_code = 0;
 	u32 total_used_syms = 0;
 	u32 max_code_size = 0;
 	u32 min_code_size = 0x7fffffff;
 
-	for (u32 ii = 1; ii <= cMaxExpectedCodeSize; ++ii) {
+	for (u32 ii = 1; ii <= MAX_CODE_SIZE; ++ii) {
 		const u32 n = num_codes[ii];
 
 		if (!n) {
-			pTables->max_codes[ii - 1] = 0;
+			_max_codes[ii - 1] = 0;
 		} else {
 			min_code_size = min_code_size < ii ? min_code_size : ii;
 			max_code_size = max_code_size > ii ? max_code_size : ii;
 
 			min_codes[ii - 1] = next_code;
 
-			pTables->max_codes[ii - 1] = next_code + n - 1;
-			pTables->max_codes[ii - 1] = 1 + ((pTables->max_codes[ii - 1] << (16 - ii)) | ((1 << (16 - ii)) - 1));
+			_max_codes[ii - 1] = next_code + n - 1;
+			_max_codes[ii - 1] = 1 + ((_max_codes[ii - 1] << (16 - ii)) | ((1 << (16 - ii)) - 1));
 
-			pTables->val_ptrs[ii - 1] = total_used_syms;
+			_val_ptrs[ii - 1] = total_used_syms;
 
 			sorted_positions[ii] = total_used_syms;
 
@@ -73,60 +68,60 @@ bool huffman::generate_decoder_tables(u32 num_syms, const u8 *pCodesizes, decode
 		next_code <<= 1;
 	}
 
-	pTables->total_used_syms = total_used_syms;
+	_total_used_syms = total_used_syms;
 
-	if (total_used_syms > pTables->cur_sorted_symbol_order_size) {
-		pTables->cur_sorted_symbol_order_size = total_used_syms;
+	if (total_used_syms > _cur_sorted_symbol_order_size) {
+		_cur_sorted_symbol_order_size = total_used_syms;
 
 		if (!CAT_IS_POWER_OF_2(total_used_syms)) {
 			u32 nextPOT = NextHighestPow2(total_used_syms);
 
-			pTables->cur_sorted_symbol_order_size = num_syms < nextPOT ? num_syms : nextPOT;
+			_cur_sorted_symbol_order_size = count < nextPOT ? count : nextPOT;
 		}
 
-		if (pTables->sorted_symbol_order) {
-			delete []pTables->sorted_symbol_order;
+		if (_sorted_symbol_order) {
+			delete []_sorted_symbol_order;
 		}
 
-		pTables->sorted_symbol_order = new u16[pTables->cur_sorted_symbol_order_size];
-		if (!pTables->sorted_symbol_order) {
+		_sorted_symbol_order = new u16[_cur_sorted_symbol_order_size];
+		if (!_sorted_symbol_order) {
 			return false;
 		}
 	}
 
-	pTables->min_code_size = static_cast<u8>( min_code_size );
-	pTables->max_code_size = static_cast<u8>( max_code_size );
+	_min_code_size = static_cast<u8>( min_code_size );
+	_max_code_size = static_cast<u8>( max_code_size );
 
-	for (u16 sym = 0; sym < num_syms; ++sym) {
-		int codesize = pCodesizes[sym];
-		if (codesize) {
-			int spos = sorted_positions[codesize]++;
-			pTables->sorted_symbol_order[ spos ] = sym;
+	for (u16 sym = 0; sym < count; ++sym) {
+		int len = codelens[sym];
+		if (len > 0) {
+			int spos = sorted_positions[len]++;
+			_sorted_symbol_order[ spos ] = sym;
 		}
 	}
 
-	if (table_bits <= pTables->min_code_size) {
+	if (table_bits <= _min_code_size) {
 		table_bits = 0;
 	}
 
-	pTables->table_bits = table_bits;
+	_table_bits = table_bits;
 
-	if (table_bits) {
+	if (table_bits > 0) {
 		u32 table_size = 1 << table_bits;
-		if (table_size > pTables->cur_lookup_size) {
-			pTables->cur_lookup_size = table_size;
+		if (_cur_lookup_size < table_size) {
+			_cur_lookup_size = table_size;
 
-			if (pTables->lookup) {
-				delete []pTables->lookup;
+			if (_lookup) {
+				delete []_lookup;
 			}
 
-			pTables->lookup = new u32[table_size];
-			if (!pTables->lookup) {
+			_lookup = new u32[table_size];
+			if (!_lookup) {
 				return false;
 			}
 		}
 
-		memset(pTables->lookup, 0xFF, 4 << table_bits);
+		memset(_lookup, 0xFF, 4 << table_bits);
 
 		for (u32 codesize = 1; codesize <= table_bits; ++codesize) {
 			if (!num_codes[codesize]) {
@@ -137,49 +132,49 @@ bool huffman::generate_decoder_tables(u32 num_syms, const u8 *pCodesizes, decode
 			const u32 fillnum = 1 << fillsize;
 
 			const u32 min_code = min_codes[codesize - 1];
-			u32 max_code = pTables->max_codes[codesize - 1];
+			u32 max_code = _max_codes[codesize - 1];
 			if (!max_code) {
 				max_code = 0xffffffff;
 			} else {
 				max_code = (max_code - 1) >> (16 - codesize);
 			}
-			const u32 val_ptr = pTables->val_ptrs[codesize - 1];
+			const u32 val_ptr = _val_ptrs[codesize - 1];
 
 			for (u32 code = min_code; code <= max_code; code++) {
-				const u32 sym_index = pTables->sorted_symbol_order[ val_ptr + code - min_code ];
+				const u32 sym_index = _sorted_symbol_order[ val_ptr + code - min_code ];
 
 				for (u32 jj = 0; jj < fillnum; ++jj) {
 					const u32 tt = jj + (code << fillsize);
 
-					pTables->lookup[tt] = sym_index | (codesize << 16U);
+					_lookup[tt] = sym_index | (codesize << 16U);
 				}
 			}
 		}
 	}         
 
-	for (u32 ii = 0; ii < cMaxExpectedCodeSize; ++ii) {
-		pTables->val_ptrs[ii] -= min_codes[ii];
+	for (u32 ii = 0; ii < MAX_CODE_SIZE; ++ii) {
+		_val_ptrs[ii] -= min_codes[ii];
 	}
 
-	pTables->table_max_code = 0;
-	pTables->decode_start_code_size = pTables->min_code_size;
+	_table_max_code = 0;
+	_decode_start_code_size = _min_code_size;
 
-	if (table_bits) {
+	if (table_bits > 0) {
 		u32 ii;
 
 		for (ii = table_bits; ii >= 1; --ii) {
 			if (num_codes[ii]) {
-				pTables->table_max_code = pTables->max_codes[ii - 1];
+				_table_max_code = _max_codes[ii - 1];
 				break;
 			}
 		}
 
 		if (ii >= 1) {
-			pTables->decode_start_code_size = table_bits + 1;
+			_decode_start_code_size = table_bits + 1;
 
 			for (ii = table_bits + 1; ii <= max_code_size; ++ii) {
 				if (num_codes[ii]) {
-					pTables->decode_start_code_size = ii;
+					_decode_start_code_size = ii;
 					break;
 				}
 			}
@@ -187,130 +182,11 @@ bool huffman::generate_decoder_tables(u32 num_syms, const u8 *pCodesizes, decode
 	}
 
 	// sentinels
-	pTables->max_codes[cMaxExpectedCodeSize] = 0xffffffff;
-	pTables->val_ptrs[cMaxExpectedCodeSize] = 0xFFFFF;
+	_max_codes[MAX_CODE_SIZE] = 0xffffffff;
+	_val_ptrs[MAX_CODE_SIZE] = 0xFFFFF;
 
-	pTables->table_shift = 32 - pTables->table_bits;
-
-	return true;
-}
-
-
-
-
-
-
-
-
-bool HuffmanDecoder::init(u32 *words, int wordCount) {
-	_hash.init(GCIF_DATA_SEED);
-
-	u32 word;
-	int bitsLeft;
-
-	// Decode Golomb-encoded Huffman table
-
-	u8 codelens[256];
-
-	{
-		if (wordCount-- < 1) {
-			return false;
-		}
-		word = getLE(*words++);
-		_hash.hashWord(word);
-
-		u32 pivot = word >> 29;
-		word <<= 3;
-		bitsLeft = 29;
-
-		//CAT_INFO("main") << "Huffman table pivot: " << pivot << " bits";
-
-		int tableWriteIndex = 0;
-
-		int lag0 = 3, q = 0;
-		for (;;) {
-			if (bitsLeft <= 0) {
-				if (--wordCount < 0) {
-					return false;
-				}
-				word = getLE(*words++);
-				_hash.hashWord(word);
-				bitsLeft = 32;
-			}
-
-			u32 bit = word >> 31;
-			q += bit;
-			word <<= 1;
-			--bitsLeft;
-
-			if (!bit) {
-				u32 result = word;
-
-				if (pivot == 0) {
-					result = 0;
-				} else {
-					if (bitsLeft < pivot) {
-						if (--wordCount < 0) {
-							return false;
-						}
-						word = getLE(*words++);
-						_hash.hashWord(word);
-
-						int newWordBits = pivot - bitsLeft;
-						bitsLeft = 32 - newWordBits;
-
-						result >>= 32 - pivot;
-						result |= word >> bitsLeft;
-
-						word <<= newWordBits;
-					} else {
-						result >>= (32 - pivot);
-
-						bitsLeft -= pivot;
-						word <<= pivot;
-					}
-				}
-
-				result += q << pivot;
-				q = 0;
-
-				int orig = result;
-				if (orig & 1) {
-					orig = (orig >> 1) + 1;
-				} else {
-					orig = -(orig >> 1);
-				}
-
-				orig += lag0;
-				lag0 = orig;
-
-				if ((u32)orig > cMaxExpectedCodeSize) {
-					return false;
-				}
-
-				codelens[tableWriteIndex] = orig;
-
-				// If we're done,
-				if (++tableWriteIndex >= 256) {
-					break;
-				}
-			}
-		}
-	}
-
-	huffman::init_decoder_tables(&_tables);
-	huffman::generate_decoder_tables(256, codelens, &_tables, 8);
-
-	_words = words;
-	_wordsLeft = wordCount;
-
-	_bits = word;
-	_bitsLeft = bitsLeft;
-
-	_nextWord = 0;
-	_nextLeft = 0;
-
-	_eof = false;
+	_table_shift = 32 - _table_bits;
 
 	return true;
 }
+

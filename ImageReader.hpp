@@ -27,6 +27,7 @@ enum ReaderErrors {
 
 	RE_FILE,		// File access error
 	RE_BAD_HEAD,	// File header is bad
+	RE_BAD_DATA,	// File data is bad
 
 	RE_COUNT
 };
@@ -108,7 +109,7 @@ public:
 	}
 
 	// Efficient static Huffman symbol decoding
-	u32 nextHuffmanSymbol(huffman::decoder_tables *tables);
+	u32 nextHuffmanSymbol(HuffmanDecoder *dec);
 
 	// No bits left to read?
 	CAT_INLINE bool eof() {

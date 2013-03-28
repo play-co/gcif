@@ -17,6 +17,7 @@ class ImageMaskReader {
 	int _size;
 	int _stride;
 
+	bool decodeLZ();
 	bool readHuffmanCodelens(u8 codelens[256], ImageReader &reader);
 	void clear();
 
