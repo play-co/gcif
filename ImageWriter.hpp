@@ -4,6 +4,7 @@
 #include "Platform.hpp"
 #include "MurmurHash3.hpp"
 #include "ImageReader.hpp"
+#include "EndianNeutral.hpp"
 
 namespace cat {
 
@@ -51,22 +52,18 @@ class WriteVector {
 
 	int _size;		// Total number of words
 
-	MurmurHash3 hash;
+	MurmurHash3 _hash;
 
 	void clear();
 	void grow();
 
 public:
-	CAT_INLINE CustomVector() {
-		head = 0;
-		work = 0;
-
-		used = 0;
-		allocated = 0;
-		size = 0;
+	CAT_INLINE WriteVector() {
+		_head = _work = 0;
+		_used = _allocated = _size = 0;
 	}
 
-	CAT_INLINE virtual ~CustomVector() {
+	CAT_INLINE virtual ~WriteVector() {
 		clear();
 	}
 
@@ -74,22 +71,22 @@ public:
 
 	CAT_INLINE void push(u32 x) {
 		// Grow ropes
-		if CAT_UNLIKELY(used >= allocated) {
+		if CAT_UNLIKELY(_used >= _allocated) {
 			grow();
 		}
 
 		// Munge and write data
-		hash.hashWord(x);
-		work[used++] = getLE(x);
-		++size;
+		_hash.hashWord(x);
+		_work[_used++] = getLE(x);
+		++_size;
 	}
 
 	CAT_INLINE u32 finalizeHash() {
-		return hash.final(size);
+		return _hash.final(_size);
 	}
 
 	CAT_INLINE int getWordCount() {
-		return size;
+		return _size;
 	}
 
 	void write(u32 *target);
@@ -99,7 +96,7 @@ public:
 //// ImageWriter
 
 class ImageWriter {
-	ImageHeader _header;
+	ImageInfo _info;
 
 	WriteVector _words;
 	u32 _work;	// Word workspace
@@ -111,8 +108,8 @@ public:
 	CAT_INLINE virtual ~ImageWriter() {
 	}
 
-	CAT_INLINE ImageHeader *getHeader() {
-		return header;
+	CAT_INLINE ImageInfo *getImageInfo() {
+		return &_info;
 	}
 
 	int init(int width, int height);

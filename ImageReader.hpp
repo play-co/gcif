@@ -70,7 +70,7 @@ public:
 	int init(const void *buffer, int bytes);
 
 	CAT_INLINE ImageInfo *getImageInfo() {
-		return &_header;
+		return &_info;
 	}
 
 	// Returns at least minBits in the high bits, supporting up to 32 bits

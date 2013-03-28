@@ -19,6 +19,9 @@ void WriteVector::clear() {
 		ptr = nextPtr;
 		words <<= 1;
 	}
+
+	_head = 0;
+	_work = 0;
 }
 
 void WriteVector::grow() {

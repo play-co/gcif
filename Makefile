@@ -18,7 +18,8 @@ CPFLAGS = $(CFLAGS)
 
 gcif_objects = gcif.o lodepng.o Log.o Mutex.o Clock.o Thread.o
 gcif_objects += EndianNeutral.o lz4.o lz4hc.o HuffmanDecoder.o HuffmanEncoder.o
-gcif_objects += MappedFile.o SystemInfo.o MurmurHash3.o
+gcif_objects += MappedFile.o SystemInfo.o MurmurHash3.o ImageWriter.o
+gcif_objects += ImageReader.o ImageMaskWriter.o ImageMaskReader.o
 
 
 # Applications
@@ -70,6 +71,18 @@ HuffmanEncoder.o : HuffmanEncoder.cpp
 
 MurmurHash3.o : MurmurHash3.cpp
 	$(CCPP) $(CPFLAGS) -c MurmurHash3.cpp
+
+ImageReader.o : ImageReader.cpp
+	$(CCPP) $(CPFLAGS) -c ImageReader.cpp
+
+ImageWriter.o : ImageWriter.cpp
+	$(CCPP) $(CPFLAGS) -c ImageWriter.cpp
+
+ImageMaskReader.o : ImageMaskReader.cpp
+	$(CCPP) $(CPFLAGS) -c ImageMaskReader.cpp
+
+ImageMaskWriter.o : ImageMaskWriter.cpp
+	$(CCPP) $(CPFLAGS) -c ImageMaskWriter.cpp
 
 
 # Clean target
