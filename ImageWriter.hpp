@@ -6,7 +6,10 @@
 #include "ImageReader.hpp"
 #include "EndianNeutral.hpp"
 
+#include <iostream>
+
 namespace cat {
+using namespace std;
 
 
 // When API functions return an int, it's all about this:

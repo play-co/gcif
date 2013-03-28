@@ -59,7 +59,11 @@ u32 ImageReader::refill() {
 			bitsLeft += nextLeft;
 			bits |= nextWord >> bitsLeft;
 
-			nextWord <<= (32 - bitsLeft);
+			if (bitsLeft == 0) {
+				nextWord = 0;
+			} else {
+				nextWord <<= (32 - bitsLeft);
+			}
 			nextLeft = bitsLeft;
 		} else {
 			nextWord = 0;
