@@ -186,20 +186,13 @@ static CAT_INLINE void byteEncode(vector<unsigned char> &bytes, u32 data) {
 }
 
 void ImageMaskWriter::performRLE(vector<u8> &rle) {
-	int prevCount = 0;
 	vector<int> deltas;
 
 	u32 *lagger = _mask;
 	const int stride = _stride;
 
-	// ydelta for count
-	int lastDeltaCount = 0;
-
 	for (int ii = 0, iilen = _height; ii < iilen; ++ii) {
-		int prevIndex = 0;
-
 		// for xdelta:
-		int lastZeroes = 0;
 		int zeroes = 0;
 
 		for (int jj = 0; jj < stride; ++jj) {
@@ -300,8 +293,8 @@ void ImageMaskWriter::generateHuffmanCodes(u16 freqs[256], u16 codes[256], u8 co
 
 	huffman::generate_huffman_codes(&state, NUM_SYMS, freqs, codelens, max_code_size, total_freq);
 
-	if (max_code_size > huffman::cMaxExpectedCodeSize) {
-		huffman::limit_max_code_size(NUM_SYMS, codelens, huffman::cMaxExpectedCodeSize);
+	if (max_code_size > HuffmanDecoder::MAX_CODE_SIZE) {
+		huffman::limit_max_code_size(NUM_SYMS, codelens, HuffmanDecoder::MAX_CODE_SIZE);
 	}
 
 	huffman::generate_codes(NUM_SYMS, codelens, codes);

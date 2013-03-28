@@ -56,8 +56,6 @@ public:
 	}
 
 	bool decompress(const char *filename, const char *outfile) {
-		bool success = false;
-
 		ImageReader reader;
 
 		if (RE_OK != reader.init(filename)) {

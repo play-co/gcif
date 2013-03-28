@@ -4,6 +4,9 @@ using namespace cat;
 using namespace huffman;
 
 
+// This code is all adapted from LZHAM (see header for license)
+
+
 static sym_freq *radix_sort_syms(u32 num_syms, sym_freq *syms0, sym_freq *syms1) {
 	const u32 cMaxPasses = 2;
 	u32 hist[256 * cMaxPasses];
@@ -243,7 +246,6 @@ bool huffman::generate_huffman_codes(huffman_work_tables *state, u32 num_syms, c
 }
 
 
-
 bool huffman::limit_max_code_size(u32 num_syms, u8 *pCodesizes, u32 max_code_size) {
 	const u32 cMaxEverCodeSize = 34;
 
@@ -346,11 +348,10 @@ bool huffman::limit_max_code_size(u32 num_syms, u8 *pCodesizes, u32 max_code_siz
 }
 
 
-
-
-
 bool huffman::generate_codes(u32 num_syms, const u8 *pCodesizes, u16 *pCodes) {
-	u32 num_codes[cMaxExpectedCodeSize + 1] = { 0 };
+	static const int MAX_CODE_SIZE = HuffmanDecoder::MAX_CODE_SIZE;
+
+	u32 num_codes[MAX_CODE_SIZE + 1] = { 0 };
 
 	for (u32 ii = 0; ii < num_syms; ++ii) {
 		num_codes[pCodesizes[ii]]++;
@@ -358,22 +359,19 @@ bool huffman::generate_codes(u32 num_syms, const u8 *pCodesizes, u16 *pCodes) {
 
 	u32 code = 0;
 
-	u32 next_code[cMaxExpectedCodeSize + 1];
+	u32 next_code[MAX_CODE_SIZE + 1];
 	next_code[0] = 0;
 
-	for (u32 ii = 1; ii <= cMaxExpectedCodeSize; ++ii)
-	{
+	for (u32 ii = 1; ii <= MAX_CODE_SIZE; ++ii) {
 		next_code[ii] = code;
 
 		code = (code + num_codes[ii]) << 1;
 	}
 
-	if (code != (1 << (cMaxExpectedCodeSize + 1)))
-	{
+	if (code != (1 << (MAX_CODE_SIZE + 1))) {
 		u32 tt = 0;
 
-		for (u32 ii = 1; ii <= cMaxExpectedCodeSize; ++ii)
-		{
+		for (u32 ii = 1; ii <= MAX_CODE_SIZE; ++ii) {
 			tt += num_codes[ii];
 
 			if (tt > 1) {
@@ -382,8 +380,7 @@ bool huffman::generate_codes(u32 num_syms, const u8 *pCodesizes, u16 *pCodes) {
 		}
 	}
 
-	for (u32 ii = 0; ii < num_syms; ++ii)
-	{
+	for (u32 ii = 0; ii < num_syms; ++ii) {
 		pCodes[ii] = static_cast<u16>( next_code[pCodesizes[ii]]++ );
 	}
 

@@ -45,7 +45,7 @@ void WriteVector::grow() {
 void WriteVector::init(u32 hashSeed) {
 	clear();
 
-	hash.init(hashSeed);
+	_hash.init(hashSeed);
 
 	u32 *newWork = new u32[HEAD_SIZE + PTR_WORDS];
 	_head = _work = newWork;
@@ -99,10 +99,10 @@ int ImageWriter::init(int width, int height) {
 
 	// Initialize
 
-	_words.init(DATA_SEED);
+	_words.init(ImageReader::DATA_SEED);
 
-	_header.width = static_cast<u16>( width );
-	_header.height = static_cast<u16>( height );
+	_info.width = static_cast<u16>( width );
+	_info.height = static_cast<u16>( height );
 
 	_work = 0;
 	_bits = 0;
@@ -172,7 +172,7 @@ int ImageWriter::finalizeAndWrite(const char *path) {
 
 	// Calculate file size
 	int wordCount = _words.getWordCount();
-	int totalBytes = (HEAD_WORDS + wordCount) * sizeof(u32);
+	int totalBytes = (ImageReader::HEAD_WORDS + wordCount) * sizeof(u32);
 
 	// Map the file
 
@@ -205,22 +205,25 @@ int ImageWriter::finalizeAndWrite(const char *path) {
 	// Write header
 
 	MurmurHash3 hh;
-	hh.init(HEAD_SEED);
+	hh.init(ImageReader::HEAD_SEED);
 
-	fileWords[0] = getLE(HEAD_MAGIC);
-	hh.hashWord(HEAD_MAGIC);
+	fileWords[0] = getLE(ImageReader::HEAD_MAGIC);
+	hh.hashWord(ImageReader::HEAD_MAGIC);
 
-	u32 header1 = (_header.width << 16) | _header.height; // Temporary
+	u32 header1 = (_info.width << 16) | _info.height; // Temporary
 	fileWords[1] = getLE(header1);
 	hh.hashWord(header1);
 
 	fileWords[2] = getLE(dataHash);
 	hh.hashWord(dataHash);
 
-	u32 headerHash = hh.final(HEAD_WORDS);
-	fileWords[3] = getLE(headerHash);
+	u32 headHash = hh.final(ImageReader::HEAD_WORDS);
+	fileWords[3] = getLE(headHash);
 
-	fileWords += HEAD_WORDS;
+	fileWords += ImageReader::HEAD_WORDS;
+
+	_info.headHash = headHash;
+	_info.dataHash = dataHash;
 
 	// Copy file data
 
