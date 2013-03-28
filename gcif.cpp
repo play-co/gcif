@@ -14,7 +14,7 @@ using namespace cat;
 
 class Converter {
 public:
-	bool compress(const char *filename, const char *outfile) {
+	static int compress(const char *filename, const char *outfile) {
 		vector<unsigned char> image;
 		unsigned width, height;
 
@@ -22,7 +22,7 @@ public:
 
 		if (error) {
 			CAT_WARN("main") << "Decoder error " << error << ": " << lodepng_error_text(error);
-			return false;
+			return error;
 		}
 
 		int err;
@@ -31,47 +31,47 @@ public:
 		ImageMaskWriter imageMaskWriter;
 		if ((err = imageMaskWriter.initFromRGBA(&image[0], width, height))) {
 			CAT_WARN("main") << "Unable to generate image mask: " << ImageWriter::ErrorString(err);
-			return false;
+			return err;
 		}
 
 		ImageWriter writer;
 		if ((err = writer.init(width, height))) {
 			CAT_WARN("main") << "Unable to initialize image writer: " << ImageWriter::ErrorString(err);
-			return false;
+			return err;
 		}
 
 		imageMaskWriter.write(writer);
 
 		if ((err = writer.finalizeAndWrite(outfile))) {
 			CAT_WARN("main") << "Unable to finalize and write image mask: " << ImageWriter::ErrorString(err);
-			return false;
+			return err;
 		}
 
 		imageMaskWriter.dumpStats();
 
 		CAT_INFO("main") << "Wrote " << outfile;
-		return true;
+		return 0;
 	}
 
-	bool decompress(const char *filename, const char *outfile) {
+	static int decompress(const char *filename, const char *outfile) {
 		ImageReader reader;
 
 		int err;
 
 		if ((err = reader.init(filename))) {
 			CAT_WARN("main") << "Unable to read file: " << ImageReader::ErrorString(err);
-			return false;
+			return err;
 		}
 
 		ImageMaskReader maskReader;
 		if ((err = maskReader.read(reader))) {
 			CAT_WARN("main") << "Unable to read mask: " << ImageReader::ErrorString(err);
-			return false;
+			return err;
 		}
 
 		if (!reader.finalizeCheckHash()) {
 			CAT_WARN("main") << "Hash mismatch";
-			return false;
+			return 1000;
 		}
 
 /*
@@ -98,7 +98,7 @@ public:
 */
 
 		CAT_INFO("main") << "Read success!";
-		return true;
+		return 0;
 	}
 };
 
@@ -143,11 +143,11 @@ int processParameters(option::Parser &parse, option::Option options[]) {
 		} else {
 			const char *inFilePath = parse.nonOption(0);
 			const char *outFilePath = parse.nonOption(1);
-			Converter converter;
+			int err;
 
-			if (!converter.compress(inFilePath, outFilePath)) {
-				CAT_INFO("main") << "Error during conversion [retcode:2]";
-				return 2;
+			if ((err = Converter::compress(inFilePath, outFilePath))) {
+				CAT_INFO("main") << "Error during conversion [retcode:" << err << "]";
+				return err;
 			}
 
 			return 0;
@@ -158,11 +158,11 @@ int processParameters(option::Parser &parse, option::Option options[]) {
 		} else {
 			const char *inFilePath = parse.nonOption(0);
 			const char *outFilePath = parse.nonOption(1);
-			Converter converter;
+			int err;
 
-			if (!converter.decompress(inFilePath, outFilePath)) {
-				CAT_INFO("main") << "Error during conversion [retcode:3]";
-				return 3;
+			if ((err = Converter::decompress(inFilePath, outFilePath))) {
+				CAT_INFO("main") << "Error during conversion [retcode:" << err << "]";
+				return err;
 			}
 
 			return 0;
