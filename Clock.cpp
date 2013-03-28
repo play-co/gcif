@@ -189,24 +189,24 @@ std::string Clock::format(const char *format_string)
 {
     char ts[256];
 
-    struct tm *pLocalTime;
+    struct tm *pLocalTime = 0;
 
 #if defined(CAT_OS_WINDOWS)
 # if defined(CAT_COMPILER_MSVC)
-    struct tm localTime;
-    __time64_t long_time;
+    struct tm localTime = {0};
+    __time64_t long_time = 0;
     _time64(&long_time);
     _localtime64_s(&localTime, &long_time);
     pLocalTime = &localTime;
 # else
     // MinGW doesn't support 64-bit stuff very well yet...
-    time_t long_time;
+    time_t long_time = 0;
     time(&long_time);
     pLocalTime = localtime(&long_time);
 # endif
 #else
-    struct tm localTime;
-    time_t long_time;
+    struct tm localTime = {0};
+    time_t long_time = 0;
     localtime_r(&long_time, &localTime);
     pLocalTime = &localTime;
 #endif
