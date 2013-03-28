@@ -47,7 +47,7 @@ void WriteVector::grow() {
 	u32 *newWork = new u32[newAllocated + PTR_WORDS];
 
 	// Point current "next" pointer to new workspace
-	*reinterpret_cast<u32**>( _work + newAllocated ) = newWork;
+	*reinterpret_cast<u32**>( _work + _allocated ) = newWork;
 
 	// Set "next" pointer to null
 	*reinterpret_cast<u32**>( newWork + newAllocated ) = 0;
@@ -89,6 +89,8 @@ void WriteVector::write(u32 *target) {
 
 			ptr = nextPtr;
 			words <<= 1;
+
+			nextPtr = *reinterpret_cast<u32**>( ptr + words );
 		}
 
 		// Write final partial rope
