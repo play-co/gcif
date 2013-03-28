@@ -28,6 +28,10 @@ enum ReaderErrors {
 	RE_FILE,		// File access error
 	RE_BAD_HEAD,	// File header is bad
 	RE_BAD_DATA,	// File data is bad
+	RE_MASK_INIT,	// Mask init failed
+	RE_MASK_CODES,	// Mask codelen read failed
+	RE_MASK_DECI,	// Mask decode init failed
+	RE_MASK_LZ,		// Mask LZ decode failed
 
 	RE_COUNT
 };
@@ -46,6 +50,7 @@ class ImageReader {
 	bool _eof;
 
 	const u32 *_words;
+	int _wordCount;
 	int _wordsLeft;
 
 	u32 _bits;
@@ -64,6 +69,8 @@ public:
 	}
 	virtual ~ImageReader() {
 	}
+
+	static const char *ErrorString(int err);
 
 	// Initialize with file or memory buffer
 	int init(const char *path);
@@ -120,6 +127,10 @@ public:
 	static const u32 HEAD_MAGIC = 0x46494347;
 	static const u32 HEAD_SEED = 0x120CA71D;
 	static const u32 DATA_SEED = 0xCA71D123;
+
+	CAT_INLINE bool finalizeCheckHash() {
+		return _info.dataHash == _hash.final(_wordCount);
+	}
 };
 
 } // namespace cat

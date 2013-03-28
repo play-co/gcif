@@ -20,8 +20,6 @@ public:
 
 		unsigned error = lodepng::decode(image, width, height, filename);
 
-		CAT_INFO("main") << "Original image hash: " << hex << MurmurHash3::hash(&image[0], image.size());
-
 		if (error) {
 			CAT_WARN("main") << "Decoder error " << error << ": " << lodepng_error_text(error);
 			return false;
@@ -58,14 +56,21 @@ public:
 	bool decompress(const char *filename, const char *outfile) {
 		ImageReader reader;
 
-		if (RE_OK != reader.init(filename)) {
-			CAT_WARN("main") << "Unable to read file";
+		int err;
+
+		if ((err = reader.init(filename))) {
+			CAT_WARN("main") << "Unable to read file: " << ImageReader::ErrorString(err);
 			return false;
 		}
 
 		ImageMaskReader maskReader;
-		if (RE_OK != maskReader.read(reader)) {
-			CAT_WARN("main") << "Unable to read mask";
+		if ((err = maskReader.read(reader))) {
+			CAT_WARN("main") << "Unable to read mask: " << ImageReader::ErrorString(err);
+			return false;
+		}
+
+		if (!reader.finalizeCheckHash()) {
+			CAT_WARN("main") << "Hash mismatch";
 			return false;
 		}
 

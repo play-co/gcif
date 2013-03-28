@@ -84,9 +84,11 @@ bool ImageMaskWriter::initFromRGBA(u8 *rgba, int width, int height) {
 
 	clear();
 
+	// Init mask bitmatrix
 	_stride = (width + 31) >> 5;
 	_size = height * _stride;
 	_height = height;
+	_mask = new u32[_size];
 
 	// Assumes fully-transparent black for now
 	// TODO: Also work with images that have a different most-common color
@@ -218,8 +220,10 @@ void ImageMaskWriter::performRLE(vector<u8> &rle) {
 			}
 		}
 
-		int deltaCount = static_cast<int>( deltas.size() );
+		const int deltaCount = static_cast<int>( deltas.size() );
+
 		byteEncode(rle, deltaCount);
+
 		for (int kk = 0; kk < deltaCount; ++kk) {
 			int delta = deltas[kk];
 			byteEncode(rle, delta);
@@ -234,7 +238,7 @@ void ImageMaskWriter::performRLE(vector<u8> &rle) {
 void ImageMaskWriter::performLZ(const std::vector<u8> &rle, std::vector<u8> &lz) {
 	lz.resize(LZ4_compressBound(static_cast<int>( rle.size() )));
 
-	int lzSize = LZ4_compressHC((char*)&rle[0], (char*)&lz[0], rle.size());
+	const int lzSize = LZ4_compressHC((char*)&rle[0], (char*)&lz[0], rle.size());
 
 	lz.resize(lzSize);
 }
@@ -287,9 +291,7 @@ void ImageMaskWriter::generateHuffmanCodes(u16 freqs[256], u16 codes[256], u8 co
 	const int NUM_SYMS = 256;
 
 	huffman::huffman_work_tables state;
-
-	u32 max_code_size;
-	u32 total_freq;
+	u32 max_code_size, total_freq;
 
 	huffman::generate_huffman_codes(&state, NUM_SYMS, freqs, codelens, max_code_size, total_freq);
 
@@ -306,6 +308,7 @@ void ImageMaskWriter::writeHuffmanTable(u8 codelens[256], ImageWriter &writer) {
 	// Delta-encode the Huffman codelen table
 	int lag0 = 3;
 	u32 sum = 0;
+
 	for (int ii = 0; ii < 256; ++ii) {
 		u8 symbol = ii;
 		u8 codelen = codelens[symbol];

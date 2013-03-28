@@ -29,7 +29,7 @@ bool ImageMaskReader::readHuffmanCodelens(u8 codelens[256], ImageReader &reader)
 
 	// Decode Golomb-encoded Huffman table
 
-	u32 pivot = reader.readBits(3);
+	int pivot = reader.readBits(3);
 
 	int tableWriteIndex = 0;
 	int lag0 = 3, q = 0;
@@ -39,7 +39,7 @@ bool ImageMaskReader::readHuffmanCodelens(u8 codelens[256], ImageReader &reader)
 		q += bit;
 
 		if (!bit) {
-			u32 result = pivot ? reader.readBits(pivot) : 0;
+			u32 result = pivot > 0 ? reader.readBits(pivot) : 0;
 
 			result += q << pivot;
 			q = 0;
@@ -441,23 +441,23 @@ int ImageMaskReader::read(ImageReader &reader) {
 	static const int TABLE_BITS = 9;
 
 	if (!init(reader.getImageInfo())) {
-		return RE_BAD_DATA;
+		return RE_MASK_INIT;
 	}
 
 	u8 codelens[NUM_SYMS];
 
 	if (!readHuffmanCodelens(codelens, reader)) {
-		return RE_BAD_DATA;
+		return RE_MASK_CODES;
 	}
 
 	HuffmanDecoder decoder;
 
 	if (!decoder.init(NUM_SYMS, codelens, TABLE_BITS)) {
-		return RE_BAD_DATA;
+		return RE_MASK_DECI;
 	}
 
 	if (!decodeLZ(decoder, reader)) {
-		return RE_BAD_DATA;
+		return RE_MASK_LZ;
 	}
 
 	return RE_OK;

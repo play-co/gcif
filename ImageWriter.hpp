@@ -112,6 +112,8 @@ public:
 		return &_info;
 	}
 
+	static const char *ErrorString(int err);
+
 	int init(int width, int height);
 
 	// Only works for 1-bit code, and code must not have dirty high bits
