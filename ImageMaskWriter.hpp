@@ -17,9 +17,9 @@ class ImageMaskWriter {
 	u32 *_mask;
 	int _size, _stride, _height;
 
-	void applyFilter();
 	void clear();
 
+	void applyFilter();
 	void performRLE(std::vector<u8> &rle);
 	void performLZ(const std::vector<u8> &rle, std::vector<u8> &lz);
 	void collectFreqs(const std::vector<u8> &lz, u16 freqs[256]);
@@ -28,11 +28,11 @@ class ImageMaskWriter {
 	void writeEncodedLZ(const std::vector<u8> &lz, u16 codes[256], u8 codelens[256], ImageWriter &writer);
 
 public:
-	ImageMask() {
+	ImageMaskWriter() {
 		_stride = 0;
 		_mask = 0;
 	}
-	virtual ~ImageMask() {
+	virtual ~ImageMaskWriter() {
 		clear();
 	}
 
