@@ -7,6 +7,9 @@ using namespace cat;
 #include "lz4.h"
 
 
+#include <iostream>
+using namespace std;
+
 //// ImageMaskReader
 
 void ImageMaskReader::clear() {
@@ -52,6 +55,8 @@ bool ImageMaskReader::readHuffmanCodelens(u8 codelens[256], ImageReader &reader)
 
 			orig += lag0;
 			lag0 = orig;
+
+			cout << orig << endl;
 
 			if (static_cast<u32>( orig ) > HuffmanDecoder::MAX_CODE_SIZE) {
 				return false;

@@ -32,16 +32,7 @@ const char *ImageReader::ErrorString(int err) {
 //// ImageReader
 
 void ImageReader::clear() {
-	_eof = false;
-
 	_words = 0;
-	_wordsLeft = 0;
-
-	_bits = 0;
-	_bitsLeft = 0;
-
-	_nextWord = 0;
-	_nextLeft = 0;
 }
 
 u32 ImageReader::refill() {
@@ -156,6 +147,14 @@ int ImageReader::init(const void *buffer, int fileSize) {
 
 	_words = words + HEAD_WORDS;
 	_wordsLeft = fileWords - HEAD_WORDS;
+
+	_eof = false;
+
+	_bits = 0;
+	_bitsLeft = 0;
+
+	_nextWord = 0;
+	_nextLeft = 0;
 
 	return RE_OK;
 }

@@ -49,7 +49,7 @@ public:
 
 		imageMaskWriter.dumpStats();
 
-		CAT_INFO("main") << "Wrote " << filename;
+		CAT_INFO("main") << "Wrote " << outfile;
 		return true;
 	}
 

@@ -358,7 +358,7 @@ void ImageMaskWriter::writeHuffmanTable(u8 codelens[256], ImageWriter &writer) {
 			++table_bits;
 #endif // CAT_COLLECT_STATS
 		} else {
-			writer.writeBits((0xffffffff >> (31 - q)) << 1, q + 1);
+			writer.writeBits((0x7fffffff >> (31 - q)) << 1, q + 1);
 #ifdef CAT_COLLECT_STATS
 			table_bits += q + 1;
 #endif // CAT_COLLECT_STATS
