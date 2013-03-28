@@ -124,10 +124,10 @@ public:
 
 	int init(int width, int height);
 
-	// Only works for code in {0, 1}
+	// Only works for 1-bit code, and code must not have dirty high bits
 	void writeBit(u32 code);
 
-	// Only works with len in [1..31]
+	// Only works with len in [1..32], and code must not have dirty high bits
 	void writeBits(u32 code, int len);
 
 	// Write a whole 32-bit word at once

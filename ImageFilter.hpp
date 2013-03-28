@@ -2,8 +2,12 @@
 #define IMAGE_FILTER_HPP
 
 #include "Platform.hpp"
+#include "ImageWriter.hpp"
+
+#include <vector>
 
 namespace cat {
+
 
 /*
  * Filter inputs:
@@ -42,31 +46,8 @@ enum ColorFilters {
 };
 
 
-class ImageMask {
-	// The RGBA value that is represented by the mask
-	u32 repRGBA;
 
-	u32 *mask;
-	int stride;
-
-public:
-	ImageMask() {
-		stride = 0;
-		mask = 0;
-	}
-	virtual ~ImageMask() {
-		if (mask) {
-			delete []mask;
-		}
-	}
-
-	bool initFromRGBA(u8 *rgba, int width, int height);
-
-	CAT_INLINE bool hasRGB(int x, int y) {
-		const u32 word = mask[(x >> 5) + y * stride];
-		return (word >> (x & 31)) & 1;
-	}
-};
+//// RGB Filters
 
 class FilterDesc {
 	int w, h;

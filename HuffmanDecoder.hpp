@@ -2,7 +2,8 @@
 #define CAT_HUFFMAN_DECODER_H
 
 #include "Platform.hpp"
-#include "MurmurHash3.hpp"
+
+// See copyright notice at the top of HuffmanEncoder.hpp
 
 namespace cat {
 
@@ -57,8 +58,6 @@ class HuffmanDecoder {
 
 	u32 _nextWord;
 	int _nextLeft;
-
-	MurmurHash3 _hash;
 
 public:
 	bool init(u32 *words, int wordCount);
