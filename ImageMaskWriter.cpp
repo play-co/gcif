@@ -305,6 +305,9 @@ void ImageMaskWriter::generateHuffmanCodes(u16 freqs[256], u16 codes[256], u8 co
 	huffman::generate_codes(NUM_SYMS, codelens, codes);
 }
 
+#include <iostream>
+using namespace std;
+
 void ImageMaskWriter::writeHuffmanTable(u8 codelens[256], ImageWriter &writer) {
 	vector<unsigned char> huffTable;
 
@@ -315,6 +318,8 @@ void ImageMaskWriter::writeHuffmanTable(u8 codelens[256], ImageWriter &writer) {
 	for (int ii = 0; ii < 256; ++ii) {
 		u8 symbol = ii;
 		u8 codelen = codelens[symbol];
+
+		cout << (int)codelen << " ";
 
 		int delta = codelen - lag0;
 		lag0 = codelen;
@@ -461,6 +466,11 @@ void ImageMaskWriter::write(ImageWriter &writer) {
 	Stats.tableEncodeUsec = t6 - t5;
 	Stats.dataEncodeUsec = t7 - t6;
 	Stats.overallUsec = t7 - t0;
+
+	Stats.originalDataBytes = _width * _height / 8;
+	Stats.compressedDataBytes = (Stats.data_bits + Stats.table_bits + 7) / 8;
+	Stats.compressionRatio = Stats.compressedDataBytes * 100.f / Stats.originalDataBytes;
+
 #endif // CAT_COLLECT_STATS
 }
 
@@ -479,8 +489,10 @@ void ImageMaskWriter::dumpStats() {
 	CAT_INFO("stats") << "(Mask Encoding)   Encode Table : " <<  Stats.tableEncodeUsec << " usec (" << Stats.tableEncodeUsec * 100.f / Stats.overallUsec << " %total)";
 	CAT_INFO("stats") << "(Mask Encoding)    Encode Data : " <<  Stats.dataEncodeUsec << " usec (" << Stats.dataEncodeUsec * 100.f / Stats.overallUsec << " %total)";
 	CAT_INFO("stats") << "(Mask Encoding)        Overall : " <<  Stats.overallUsec << " usec";
-	CAT_INFO("stats") << "(Mask Encoding) Throughput : " << (_width * _height / 8) / Stats.overallUsec << " MBPS (input bytes)";
-	CAT_INFO("stats") << "(Mask Encoding) Throughput : " << ((Stats.data_bits + Stats.table_bits + 7) / 8) / Stats.overallUsec << " MBPS (output bytes)";
+
+	CAT_INFO("stats") << "(Mask Encoding) Throughput : " << Stats.originalDataBytes / Stats.overallUsec << " MBPS (input bytes)";
+	CAT_INFO("stats") << "(Mask Encoding) Throughput : " << Stats.compressedDataBytes / Stats.overallUsec << " MBPS (output bytes)";
+	CAT_INFO("stats") << "(Mask Encoding) Ratio : " << Stats.compressionRatio << "% (" << Stats.compressedDataBytes << " bytes) of original data set (" << Stats.originalDataBytes << " bytes)";
 }
 
 #endif // CAT_COLLECT_STATS

@@ -56,9 +56,10 @@ bool ImageMaskReader::readHuffmanCodelens(u8 codelens[256], ImageReader &reader)
 			orig += lag0;
 			lag0 = orig;
 
-			cout << orig << endl;
+			cout << orig << " ";
 
 			if (static_cast<u32>( orig ) > HuffmanDecoder::MAX_CODE_SIZE) {
+				cout << "Size too big" << endl;
 				return false;
 			}
 

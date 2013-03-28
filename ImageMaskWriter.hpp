@@ -37,6 +37,10 @@ public:
 		double filterUsec, rleUsec, lzUsec, histogramUsec;
 		double generateTableUsec, tableEncodeUsec, dataEncodeUsec;
 		double overallUsec;
+
+		int originalDataBytes, compressedDataBytes;
+
+		double compressionRatio;
 	} Stats;
 #endif // CAT_COLLECT_STATS
 
