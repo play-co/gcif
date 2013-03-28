@@ -4,6 +4,7 @@
 #include "Platform.hpp"
 #include "HuffmanDecoder.hpp"
 #include "MurmurHash3.hpp"
+#include "MappedFile.hpp"
 
 namespace cat {
 
@@ -22,9 +23,10 @@ struct ImageInfo {
 
 
 enum ReaderErrors {
-	RE_OK,		// No problemo
+	RE_OK,			// No problemo
 
-	RE_FILE,	// File access error
+	RE_FILE,		// File access error
+	RE_BAD_HEAD,	// File header is bad
 
 	RE_COUNT
 };
@@ -34,14 +36,15 @@ enum ReaderErrors {
 
 class ImageReader {
 	MappedFile _file;
+	MappedView _fileView;
 
-	ImageHeader _header;
+	ImageInfo _info;
 
 	MurmurHash3 _hash;
 
 	bool _eof;
 
-	u32 *_words;
+	const u32 *_words;
 	int _wordsLeft;
 
 	u32 _bits;
@@ -65,7 +68,7 @@ public:
 	int init(const char *path);
 	int init(const void *buffer, int bytes);
 
-	CAT_INLINE ImageHeader *getHeader() {
+	CAT_INLINE ImageInfo *getImageInfo() {
 		return &_header;
 	}
 

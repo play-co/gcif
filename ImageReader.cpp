@@ -65,15 +65,79 @@ u32 ImageReader::refill() {
 }
 
 int ImageReader::init(const char *path) {
+
+	// Map file for reading
+
+	if (!_file.OpenRead(path)) {
+		return RE_FILE;
+	}
+
+	if (!_fileView.Open(&_file)) {
+		return RE_FILE;
+	}
+
+	u8 *fileData = _fileView.MapView();
+	if (!fileData) {
+		return RE_FILE;
+	}
+
+	// Run from memory
+
+	return init(fileData, _fileView.GetLength());
 }
 
-int ImageReader::init(const void *buffer, int bytes) {
+int ImageReader::init(const void *buffer, int fileSize) {
+	clear();
+
+	const u32 *words = reinterpret_cast<const u32 *>( buffer );
+	const u32 fileWords = fileSize / 4;
+
+	// Validate header
+
+	MurmurHash3 hh;
+	hh.init(HEAD_SEED);
+
+	if (fileWords < HEAD_WORDS) {
+		return RE_BAD_HEAD;
+	}
+
+	u32 word0 = getLE(words[0]);
+	hh.hashWord(word0);
+
+	if (HEAD_MAGIC != word0) {
+		return RE_BAD_HEAD;
+	}
+
+	u32 word1 = getLE(words[1]);
+	hh.hashWord(word1);
+
+	u32 dataHash = getLE(words[2]);
+	hh.hashWord(dataHash);
+
+	u32 headHash = getLE(words[3]);
+	if (headHash != hh.final(HEAD_WORDS)) {
+		return RE_BAD_HEAD;
+	}
+
+	// Read header
+
+	_info.width = word1 >> 16;
+	_info.height = word1 & 0xffff;
+	_info.headHash = headHash;
+	_info.dataHash = dataHash;
+
+	// Get ready to read words
+
+	_words = words + HEAD_WORDS;
+	_wordsLeft = fileWords - HEAD_WORDS;
+
+	return RE_OK;
 }
 
 u32 ImageReader::nextHuffmanSymbol(huffman::decoder_tables *table) {
 	u32 code = peek(16);
 
-	// Fast static Huffman decoder
+	// Fast static Huffman decoder, centralized here since this is how most of the data is encoded
 
 	u32 k = static_cast<u32>((code >> 16) + 1);
 	u32 sym, len;
