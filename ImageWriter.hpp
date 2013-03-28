@@ -3,6 +3,7 @@
 
 #include "Platform.hpp"
 #include "MurmurHash3.hpp"
+#include "ImageReader.hpp"
 
 namespace cat {
 
@@ -15,14 +16,6 @@ enum WriteErrors {
 	WE_FILE,		// Unable to access file
 
 	WE_COUNT
-};
-
-
-/*
- * Image file header
- */
-struct ImageHeader {
-	u16 width, height;
 };
 
 
@@ -132,11 +125,6 @@ public:
 
 	// Write a whole 32-bit word at once
 	void writeWord(u32 word);
-
-	static const u32 HEAD_WORDS = 4;
-	static const u32 HEAD_MAGIC = 0x46494347;
-	static const u32 HEAD_SEED = 0x120CA71D;
-	static const u32 DATA_SEED = 0xCA71D123;
 
 	int finalizeAndWrite(const char *path);
 };

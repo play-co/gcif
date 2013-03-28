@@ -6,9 +6,6 @@
 using namespace cat;
 using namespace huffman;
 
-#include <iostream>
-using namespace std;
-
 void huffman::init_decoder_tables(decoder_tables *pTables) {
 	pTables->cur_sorted_symbol_order_size = 0;
 	pTables->sorted_symbol_order = 0;
@@ -317,99 +314,3 @@ bool HuffmanDecoder::init(u32 *words, int wordCount) {
 
 	return true;
 }
-
-u32 HuffmanDecoder::next() {
-	static const int cBitBufSize = 32;
-
-	// Maintain buffer
-	u32 code = _bits;
-	int bitsLeft = _bitsLeft;
-	//cout << "Bits left in buffer " << bitsLeft << endl;
-	if (bitsLeft < 16) { // symbols are not longer than this
-
-		// fill back up to a full buffer
-
-		u32 bits = _nextWord;
-		int avail = _nextLeft;
-
-		code |= bits >> bitsLeft;
-
-		int readBits = 32 - bitsLeft;
-
-		if (avail >= readBits) {
-			bits <<= readBits;
-			avail -= readBits;
-		} else {
-			//cout << "Out of bits, using up remaining " << avail << endl;
-
-			if (_wordsLeft > 0) {
-				--_wordsLeft;
-				bits = getLE(*_words++);
-				_hash.hashWord(bits);
-
-				bitsLeft += avail;
-				code |= bits >> bitsLeft;
-				bits <<= (32 - bitsLeft);
-				avail = bitsLeft;
-			} else {
-				//cout << "Out of words!" << endl;
-				bits = 0;
-				avail = 32;
-
-				// TODO: Fix this
-				if (bitsLeft <= 0) {
-					_eof = true;
-				}
-			}
-		}
-
-		_nextWord = bits;
-		_nextLeft = avail;
-		//cout << "Next left = " << avail << endl;
-
-		bitsLeft = 32;
-	}
-
-	u32 k = static_cast<u32>((code >> (cBitBufSize - 16)) + 1);
-	u32 sym, len;
-
-	if (k <= _tables.table_max_code) {
-		u32 t = _tables.lookup[code >> (cBitBufSize - _tables.table_bits)];
-
-		sym = static_cast<u16>( t );
-		len = static_cast<u16>( t >> 16 );
-
-		//cout << "tabular symbol " << sym << " of length " << len << endl;
-	}
-	else {
-		len = _tables.decode_start_code_size;
-
-		for (;;) {
-			if (k <= _tables.max_codes[len - 1])
-				break;
-			len++;
-		}
-
-		//cout << "non-tabular symbol of length " << len << endl;
-
-		int val_ptr = _tables.val_ptrs[len - 1] + static_cast<int>((code >> (cBitBufSize - len)));
-
-		if (((u32)val_ptr >= _tables.num_syms)) {
-			cout << "WARNING: val_ptr exceeds num_syms" << endl;
-			return 0;
-		}
-
-		sym = _tables.sorted_symbol_order[val_ptr];
-
-		//cout << "sym decoded as " << sym << endl;
-	}
-
-	// Remember buffer state
-	_bits = code << len;
-	_bitsLeft = bitsLeft - len;
-
-	//cout << "------------------ RETURNING SYMBOL " << sym << endl;
-
-	return sym;
-}
-

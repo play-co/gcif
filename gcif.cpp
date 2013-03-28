@@ -12,13 +12,10 @@ using namespace cat;
 
 
 class Converter {
-	vector<unsigned char> image;
-	unsigned width, height;
-	vector<unsigned short> symbols;
-
 public:
 	bool compress(const char *filename, const char *outfile) {
-		bool success = false;
+		vector<unsigned char> image;
+		unsigned width, height;
 
 		unsigned error = lodepng::decode(image, width, height, filename);
 
@@ -48,7 +45,6 @@ public:
 		}
 
 		imageMaskWriter.write(writer);
-
 		if (writer.finalizeAndWrite(outfile) != WE_OK) {
 			CAT_WARN("main") << "Unable to finalize and write image mask";
 			return false;
