@@ -10,6 +10,7 @@ using namespace std;
 #include "HuffmanEncoder.hpp"
 #include "MappedFile.hpp"
 #include "MurmurHash3.hpp"
+#include "ImageFilter.hpp"
 using namespace cat;
 
 #include "lodepng.h"
@@ -187,6 +188,176 @@ public:
 		u32 bufferSize = bufferStride * height;
 		u32 *buffer = new u32[bufferSize];
 		u32 *writer = buffer;
+
+		// Generate ImageMask
+		ImageMask imageMask;
+		if (!imageMask.initFromRGBA(&image[0], width, height)) {
+			CAT_WARN("main") << "Unable to generate image mask";
+			return false;
+		}
+
+		// RGB filter
+
+		ImageFilter filter;
+		FilterDesc filterDesc;
+		filter.filterImage(&image[0], width, height, filterDesc);
+
+		// Filter statistics
+
+		const int fil_syms = CF_COUNT * SF_COUNT;
+		u16 fil_freqs[fil_syms];
+
+		{
+			int hist[fil_syms] = {0};
+			int max_sym = 0;
+
+			for (int ii = 0; ii < height; ii += 8) {
+				for (int jj = 0; jj < width; jj += 8) {
+					int f = filterDesc.getFilter(jj, ii);
+					int count = ++hist[f];
+					cout << f << " ";
+					if (max_sym < count) {
+						max_sym = count;
+					}
+				}
+				cout << endl;
+			}
+
+			// Scale to fit in 16-bit frequency counter
+			while (max_sym > 0xffff) {
+				max_sym = 0;
+
+				for (int ii = 0; ii < fil_syms; ++ii) {
+					int count = hist[ii];
+					if (count) {
+						count >>= 1;
+
+						if (!count) {
+							count = 1;
+						}
+
+						if (max_sym < count) {
+							max_sym = count;
+						}
+					}
+				}
+			}
+
+			for (int ii = 0; ii < fil_syms; ++ii) {
+				fil_freqs[ii] = static_cast<u16>( hist[ii] );
+			}
+		}
+
+		// Compress filters with Huffman encoding
+
+		vector<u32> fhuffStream;
+		int fhuffBits = 0;
+
+		{
+			huffman::huffman_work_tables state;
+
+			u8 codesizes[fil_syms];
+			u32 max_code_size;
+			u32 total_freq;
+
+			huffman::generate_huffman_codes(&state, fil_syms, fil_freqs, codesizes, max_code_size, total_freq);
+
+			CAT_INFO("main") << "Filters: Huffman: Max code size = " << max_code_size << " bits";
+			CAT_INFO("main") << "Filters: Huffman: Total freq = " << total_freq << " rels";
+
+			if (max_code_size > huffman::cMaxExpectedCodeSize) {
+				huffman::limit_max_code_size(fil_syms, codesizes, huffman::cMaxExpectedCodeSize);
+			}
+
+			// Encode table
+
+			vector<unsigned char> huffTable;
+
+			int lag0 = 3;
+			u32 sum = 0;
+			for (int ii = 0; ii < fil_syms; ++ii) {
+				u8 symbol = ii;
+				u8 codesize = codesizes[symbol];
+
+				int delta = codesize - lag0;
+				lag0 = codesize;
+
+				if (delta <= 0) {
+					delta = -delta << 1;
+				} else {
+					delta = ((delta - 1) << 1) | 1;
+				}
+
+				huffTable.push_back(delta);
+				sum += delta;
+			}
+
+			//CAT_INFO("main") << "Huffman: Encoded table hash = " << hex << murmurHash(&huffTable[0], huffTable.size());
+			CAT_INFO("main") << "Filters: Huffman: Encoded table size = " << huffTable.size() << " bytes";
+
+			// Find K shift
+			sum >>= 8;
+			u32 shift = sum > 0 ? BSR32(sum) : 0;
+			u32 shiftMask = (1 << shift) - 1;
+
+			CAT_INFO("main") << "Filters: Golomb: Chose table pivot " << shift << " bits";
+
+			// Write out shift: number from 0..5, so round up to 0..7 in 3 bits
+			CAT_ENFORCE(shift <= 7);
+
+			u32 bitWorks = 0; // Bit encoding workspace
+
+			//bitWrite(huffStream, bitWorks, huffBits, shift, 3);
+
+			int hbitcount = 3;
+
+			for (int ii = 0; ii < huffTable.size(); ++ii) {
+				int symbol = huffTable[ii];
+				int q = symbol >> shift;
+
+				for (int jj = 0; jj < q; ++jj) {
+					// write a 1
+					//bitWrite(huffStream, bitWorks, huffBits, 1, 1);
+					++hbitcount;
+				}
+				// write a 0
+				//bitWrite(huffStream, bitWorks, huffBits, 0, 1);
+				++hbitcount;
+
+				if (shift) {
+					//bitWrite(huffStream, bitWorks, huffBits, symbol & shiftMask, shift);
+				}
+				hbitcount += shift;
+			}
+
+			CAT_INFO("main") << "Filters: Golomb: Table size = " << (hbitcount + 7) / 8 << " bytes";
+
+			// Encode data to Huffman stream
+
+			u16 codes[fil_syms];
+
+			huffman::generate_codes(fil_syms, codesizes, codes);
+
+			for (int ii = 0; ii < height; ii += 8) {
+				for (int jj = 0; jj < width; jj += 8) {
+					u8 symbol = filterDesc.getFilter(jj, ii);
+
+					u16 code = codes[symbol];
+					u8 codesize = codesizes[symbol];
+
+					hbitcount += codesize;
+					//bitWrite(huffStream, bitWorks, huffBits, code, codesize);
+				}
+			}
+
+			// Push remaining bits
+//			if ((huffBits & 31)) {
+//				huffStream.push_back(bitWorks);
+//			}
+
+			CAT_INFO("main") << "Filters: Huffman: Total compressed filters size = " << (hbitcount + 7) / 8 << " bytes";
+		}
+
 		const unsigned char *reader = (const unsigned char*)&image[0] + 3;
 
 		for (int ii = 0; ii < height; ++ii) {

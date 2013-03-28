@@ -1,0 +1,228 @@
+#include "ImageWriter.hpp"
+#include "EndianNeutral.hpp"
+#include "MappedFile.hpp"
+using namespace cat;
+
+
+//// WriteVector
+
+void WriteVector::clear() {
+	int words = HEAD_SIZE;
+	u32 *ptr = _head;
+
+	// For each rope,
+	while (ptr) {
+		u32 *nextPtr = *reinterpret_cast<u32**>( ptr + words );
+
+		delete []ptr;
+
+		ptr = nextPtr;
+		words <<= 1;
+	}
+}
+
+void WriteVector::grow() {
+	const int newAllocated = _allocated << 1;
+
+	// If initializing,
+	u32 *newWork = new u32[newAllocated + PTR_WORDS];
+
+	// Point current "next" pointer to new workspace
+	*reinterpret_cast<u32**>( _work + newAllocated ) = newWork;
+
+	// Set "next" pointer to null
+	*reinterpret_cast<u32**>( newWork + newAllocated ) = 0;
+
+	// Update class state
+	_work = newWork;
+	_allocated = newAllocated;
+	_used = 0;
+}
+
+void WriteVector::init(u32 hashSeed) {
+	clear();
+
+	hash.init(hashSeed);
+
+	u32 *newWork = new u32[HEAD_SIZE + PTR_WORDS];
+	_head = _work = newWork;
+
+	_used = 0;
+	_allocated = HEAD_SIZE;
+	_size = 0;
+
+	// Set "next" pointer to null
+	*reinterpret_cast<u32**>( newWork + HEAD_SIZE ) = 0;
+}
+
+void WriteVector::write(u32 *target) {
+	u32 *ptr = _head;
+
+	// If any data to write at all,
+	if (ptr) {
+		int words = HEAD_SIZE;
+		u32 *nextPtr = *reinterpret_cast<u32**>( ptr + words );
+
+		// For each full rope,
+		while (nextPtr) {
+			memcpy(target, ptr, words * WORD_BYTES);
+			target += words;
+
+			ptr = nextPtr;
+			words <<= 1;
+		}
+
+		// Write final partial rope
+		memcpy(target, ptr, _used * WORD_BYTES);
+	}
+}
+
+
+//// ImageWriter
+
+int ImageWriter::init(int width, int height) {
+	// Validate
+
+	if ((width & 7) | (height & 7)) {
+		return WE_BAD_DIMS;
+	}
+
+	width >>= 3;
+	height >>= 3;
+
+	if (width > 65535 || height > 65535) {
+		return WE_BAD_DIMS;
+	}
+
+	// Initialize
+
+	_words.init(DATA_SEED);
+
+	_header.width = static_cast<u16>( width );
+	_header.height = static_cast<u16>( height );
+
+	_work = 0;
+	_bits = 0;
+
+	return WE_OK;
+}
+
+void ImageWriter::writeBit(u32 code) {
+	const int bits = _bits;
+	const int available = 31 - bits;
+
+	if CAT_LIKELY(available > 0) {
+		_work |= code << available;
+
+		_bits = bits + 1;
+	} else {
+		const u32 pushWord = _work | (code << 31);
+
+		_words.push(pushWord);
+
+		_work = 0;
+		_bits = 0;
+	}
+}
+
+void ImageWriter::writeBits(u32 code, int len) {
+	const int bits = _bits;
+	const int available = 32 - bits;
+
+	if CAT_LIKELY(available > len) {
+		_work |= code << (available - len);
+
+		_bits = bits + len;
+	} else {
+		const int shift = len - available;
+
+		const u32 pushWord = _work | (code >> shift);
+
+		_words.push(pushWord);
+
+		if (shift) {
+			_work = code << (32 - shift);
+		} else {
+			_work = 0;
+		}
+
+		_bits = shift;
+	}
+}
+
+void ImageWriter::writeWord(u32 word) {
+	const int shift = _bits;
+
+	if (shift == 0) {
+		_words.push(word);
+	} else {
+		const u32 pushWord = _work | (word >> shift);
+
+		_words.push(pushWord);
+
+		_work = word << (32 - shift);
+	}
+}
+
+int ImageWriter::finalizeAndWrite(const char *path) {
+	MappedFile file;
+
+	// Calculate file size
+	int wordCount = _words.getWordCount();
+	int totalBytes = (HEAD_WORDS + wordCount) * sizeof(u32);
+
+	// Map the file
+
+	if (!file.OpenWrite(path, totalBytes)) {
+		return WE_FILE;
+	}
+
+	MappedView fileView;
+
+	if (!fileView.Open(&file)) {
+		return WE_FILE;
+	}
+
+	u8 *fileData = fileView.MapView();
+
+	if (!fileData) {
+		return WE_FILE;
+	}
+
+	u32 *fileWords = reinterpret_cast<u32*>( fileData );
+
+	// Finalize the bit data
+
+	if (_bits) {
+		_words.push(_work);
+	}
+
+	u32 dataHash = _words.finalizeHash();
+
+	// Write header
+
+	MurmurHash3 hh;
+	hh.init(HEAD_SEED);
+
+	fileWords[0] = getLE(HEAD_MAGIC);
+	hh.hashWord(HEAD_MAGIC);
+
+	u32 header1 = (_header.width << 16) | _header.height; // Temporary
+	fileWords[1] = getLE(header1);
+	hh.hashWord(header1);
+
+	fileWords[2] = getLE(dataHash);
+	hh.hashWord(dataHash);
+
+	u32 headerHash = hh.final(HEAD_WORDS);
+	fileWords[3] = getLE(headerHash);
+
+	fileWords += HEAD_WORDS;
+
+	// Copy file data
+
+	_words.write(fileWords);
+
+	return WE_OK;
+}
+
