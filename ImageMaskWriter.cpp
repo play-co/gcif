@@ -305,9 +305,6 @@ void ImageMaskWriter::generateHuffmanCodes(u16 freqs[256], u16 codes[256], u8 co
 	huffman::generate_codes(NUM_SYMS, codelens, codes);
 }
 
-#include <iostream>
-using namespace std;
-
 void ImageMaskWriter::writeHuffmanTable(u8 codelens[256], ImageWriter &writer) {
 	vector<unsigned char> huffTable;
 
@@ -318,8 +315,6 @@ void ImageMaskWriter::writeHuffmanTable(u8 codelens[256], ImageWriter &writer) {
 	for (int ii = 0; ii < 256; ++ii) {
 		u8 symbol = ii;
 		u8 codelen = codelens[symbol];
-
-		cout << (int)codelen << " ";
 
 		int delta = codelen - lag0;
 		lag0 = codelen;
