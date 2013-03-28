@@ -125,61 +125,29 @@ int ImageWriter::init(int width, int height) {
 	return WE_OK;
 }
 
-void ImageWriter::writeBit(u32 code) {
-	const int bits = _bits;
-	const int available = 31 - bits;
+void ImageWriter::writeBitPush(u32 code) {
+	const u32 pushWord = _work | (code << 31);
 
-	if CAT_LIKELY(available > 0) {
-		_work |= code << available;
+	_words.push(pushWord);
 
-		_bits = bits + 1;
+	_work = 0;
+	_bits = 0;
+}
+
+void ImageWriter::writeBitsPush(u32 code, int len, int available) {
+	const int shift = len - available;
+
+	const u32 pushWord = _work | (code >> shift);
+
+	_words.push(pushWord);
+
+	if (shift) {
+		_work = code << (32 - shift);
 	} else {
-		const u32 pushWord = _work | (code << 31);
-
-		_words.push(pushWord);
-
 		_work = 0;
-		_bits = 0;
 	}
-}
 
-void ImageWriter::writeBits(u32 code, int len) {
-	const int bits = _bits;
-	const int available = 32 - bits;
-
-	if CAT_LIKELY(available > len) {
-		_work |= code << (available - len);
-
-		_bits = bits + len;
-	} else {
-		const int shift = len - available;
-
-		const u32 pushWord = _work | (code >> shift);
-
-		_words.push(pushWord);
-
-		if (shift) {
-			_work = code << (32 - shift);
-		} else {
-			_work = 0;
-		}
-
-		_bits = shift;
-	}
-}
-
-void ImageWriter::writeWord(u32 word) {
-	const int shift = _bits;
-
-	if (shift == 0) {
-		_words.push(word);
-	} else {
-		const u32 pushWord = _work | (word >> shift);
-
-		_words.push(pushWord);
-
-		_work = word << (32 - shift);
-	}
+	_bits = shift;
 }
 
 int ImageWriter::finalizeAndWrite(const char *path) {

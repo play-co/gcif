@@ -102,6 +102,9 @@ class ImageWriter {
 	u32 _work;	// Word workspace
 	int _bits;	// Modulo 32
 
+	void writeBitPush(u32 code);
+	void writeBitsPush(u32 code, int len, int available);
+
 public:
 	CAT_INLINE ImageWriter() {
 	}
@@ -117,13 +120,45 @@ public:
 	int init(int width, int height);
 
 	// Only works for 1-bit code, and code must not have dirty high bits
-	void writeBit(u32 code);
+	CAT_INLINE void writeBit(u32 code) {
+		const int bits = _bits;
+		const int available = 31 - bits;
+
+		if CAT_LIKELY(available > 0) {
+			_work |= code << available;
+
+			_bits = bits + 1;
+		} else {
+			writeBitPush(code);
+		}
+	}
 
 	// Only works with len in [1..32], and code must not have dirty high bits
-	void writeBits(u32 code, int len);
+	CAT_INLINE void writeBits(u32 code, int len) {
+		const int bits = _bits;
+		const int available = 32 - bits;
+
+		if CAT_LIKELY(available > len) {
+			_work |= code << (available - len);
+
+			_bits = bits + len;
+		} else {
+			writeBitsPush(code, len, available);
+		}
+	}
 
 	// Write a whole 32-bit word at once
-	void writeWord(u32 word);
+	CAT_INLINE void writeWord(u32 word) {
+		const int shift = _bits;
+
+		const u32 pushWord = _work | (word >> shift);
+
+		_words.push(pushWord);
+
+		if (shift > 0) {
+			_work = word << (32 - shift);
+		}
+	}
 
 	int finalizeAndWrite(const char *path);
 };
