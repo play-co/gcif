@@ -9,19 +9,7 @@
 namespace cat {
 
 
-/*
- * Image file info
- *
- * This is the parsed, not raw, data
- */
-struct ImageInfo {
-	u16 width, height; // pixels
-
-	u32 headHash; // MurmurHash3 of head words
-	u32 dataHash; // MurmurHash3 of data words
-};
-
-
+// When API functions return an int, it's all about this:
 enum ReaderErrors {
 	RE_OK,			// No problemo
 
@@ -34,6 +22,19 @@ enum ReaderErrors {
 	RE_MASK_LZ,		// Mask LZ decode failed
 
 	RE_COUNT
+};
+
+
+/*
+ * Image file info
+ *
+ * This is the parsed, not raw, data
+ */
+struct ImageInfo {
+	u16 width, height; // pixels
+
+	u32 headHash; // MurmurHash3 of head words
+	u32 dataHash; // MurmurHash3 of data words
 };
 
 

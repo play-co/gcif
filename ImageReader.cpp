@@ -3,6 +3,32 @@
 using namespace cat;
 
 
+const char *ImageReader::ErrorString(int err) {
+	switch (err) {
+		case RE_OK:			// No problemo
+			return "No problemo";
+		case RE_FILE:		// File access error
+			return "File access error";
+		case RE_BAD_HEAD:	// File header is bad
+			return "File header is bad";
+		case RE_BAD_DATA:	// File data is bad
+			return "File data is bad";
+		case RE_MASK_INIT:	// Mask init failed
+			return "Mask init failed";
+		case RE_MASK_CODES:	// Mask codelen read failed
+			return "Mask codelen read failed";
+		case RE_MASK_DECI:	// Mask decode init failed
+			return "Mask decode init failed";
+		case RE_MASK_LZ:	// Mask LZ decode failed
+			return "Mask LZ decode failed";
+		default:
+			break;
+	}
+
+	return "Unknown error code";
+}
+
+
 //// ImageReader
 
 void ImageReader::clear() {
@@ -62,31 +88,6 @@ u32 ImageReader::refill() {
 	_bits = bits;
 
 	return bits;
-}
-
-const char *ImageReader::ErrorString(int err) {
-	switch (err) {
-		case RE_OK:			// No problemo
-			return "No problemo";
-		case RE_FILE:		// File access error
-			return "File access error";
-		case RE_BAD_HEAD:	// File header is bad
-			return "File header is bad";
-		case RE_BAD_DATA:	// File data is bad
-			return "File data is bad";
-		case RE_MASK_INIT:	// Mask init failed
-			return "Mask init failed";
-		case RE_MASK_CODES:	// Mask codelen read failed
-			return "Mask codelen read failed";
-		case RE_MASK_DECI:	// Mask decode init failed
-			return "Mask decode init failed";
-		case RE_MASK_LZ:	// Mask LZ decode failed
-			return "Mask LZ decode failed";
-		default:
-			break;
-	}
-
-	return "Unknown error code";
 }
 
 int ImageReader::init(const char *path) {

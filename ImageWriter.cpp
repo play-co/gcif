@@ -4,6 +4,22 @@
 using namespace cat;
 
 
+const char *ImageWriter::ErrorString(int err) {
+	switch (err) {
+		case WE_OK:			// No error
+			return "No errors";
+		case WE_BAD_DIMS:	// Image dimensions are invalid
+			return "Image dimensions are invalid";
+		case WE_FILE:		// Unable to access file
+			return "Unable to access the file";
+		default:
+			break;
+	}
+
+	return "Unknown error code";
+}
+
+
 //// WriteVector
 
 void WriteVector::clear() {
@@ -82,21 +98,6 @@ void WriteVector::write(u32 *target) {
 
 
 //// ImageWriter
-
-const char *ImageWriter::ErrorString(int err) {
-	switch (err) {
-		case WE_OK:			// No error
-			return "No errors";
-		case WE_BAD_DIMS:	// Image dimensions are invalid
-			return "Image dimensions are invalid";
-		case WE_FILE:		// Unable to access file
-			return "Unable to access the file";
-		default:
-			break;
-	}
-
-	return "Unknown error code";
-}
 
 int ImageWriter::init(int width, int height) {
 	// Validate
