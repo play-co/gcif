@@ -25,27 +25,24 @@ public:
 			return false;
 		}
 
-		if ((width & 7) | (height & 7)) {
-			CAT_WARN("main") << "Image dimensions must be an even multiple of 8x8";
-			return false;
-		}
+		int err;
 
 		// Generate ImageMask
 		ImageMaskWriter imageMaskWriter;
-		if (!imageMaskWriter.initFromRGBA(&image[0], width, height)) {
-			CAT_WARN("main") << "Unable to generate image mask";
+		if ((err = imageMaskWriter.initFromRGBA(&image[0], width, height))) {
+			CAT_WARN("main") << "Unable to generate image mask: " << ImageWriter::ErrorString(err);
 			return false;
 		}
 
 		ImageWriter writer;
-		if (writer.init(width, height) != WE_OK) {
-			CAT_WARN("main") << "Unable to initialize image writer";
+		if ((err = writer.init(width, height))) {
+			CAT_WARN("main") << "Unable to initialize image writer: " << ImageWriter::ErrorString(err);
 			return false;
 		}
 
 		imageMaskWriter.write(writer);
-		if (writer.finalizeAndWrite(outfile) != WE_OK) {
-			CAT_WARN("main") << "Unable to finalize and write image mask";
+		if ((err = writer.finalizeAndWrite(outfile))) {
+			CAT_WARN("main") << "Unable to finalize and write image mask: " << ImageWriter::ErrorString(err);
 			return false;
 		}
 
