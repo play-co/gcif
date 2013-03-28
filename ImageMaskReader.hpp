@@ -4,8 +4,6 @@
 #include "Platform.hpp"
 #include "ImageReader.hpp"
 
-#include <vector>
-
 namespace cat {
 
 
