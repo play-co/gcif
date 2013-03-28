@@ -471,7 +471,7 @@ void ImageMaskWriter::write(ImageWriter &writer) {
 
 #ifdef CAT_COLLECT_STATS
 
-void ImageMaskWriter::dumpStats() {
+bool ImageMaskWriter::dumpStats() {
 	CAT_INFO("stats") << "(Mask Encoding) Table Pivot : " <<  Stats.pivot;
 	CAT_INFO("stats") << "(Mask Encoding) Table Bits Used : " <<  Stats.table_bits << " (" << (Stats.table_bits + 7) / 8 << " bytes)";
 	CAT_INFO("stats") << "(Mask Encoding) Data Bits Used : " <<  Stats.data_bits << " (" << (Stats.data_bits + 7) / 8 << " bytes)";
@@ -488,6 +488,9 @@ void ImageMaskWriter::dumpStats() {
 	CAT_INFO("stats") << "(Mask Encoding) Throughput : " << Stats.originalDataBytes / Stats.overallUsec << " MBPS (input bytes)";
 	CAT_INFO("stats") << "(Mask Encoding) Throughput : " << Stats.compressedDataBytes / Stats.overallUsec << " MBPS (output bytes)";
 	CAT_INFO("stats") << "(Mask Encoding) Ratio : " << Stats.compressionRatio << "% (" << Stats.compressedDataBytes << " bytes) of original data set (" << Stats.originalDataBytes << " bytes)";
+
+	return true;
 }
 
 #endif // CAT_COLLECT_STATS
+

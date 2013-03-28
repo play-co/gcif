@@ -69,19 +69,18 @@ public:
 			return err;
 		}
 
+		maskReader.dumpStats();
+
 		if (!reader.finalizeCheckHash()) {
 			CAT_WARN("main") << "Hash mismatch";
 			return 1000;
 		}
 
 /*
-		CAT_WARN("main") << "Writing output image file: " << outfile;
-		// Convert to image:
-
 		vector<unsigned char> output;
 		u8 bits = 0, bitCount = 0;
 
-		for (int ii = 0; ii < _height; ++ii) {
+		for (int ii = 0; ii < maskReader._height; ++ii) {
 			for (int jj = 0; jj < _width; ++jj) {
 				u32 set = (_image[ii * _stride + jj / 32] >> (31 - (jj & 31))) & 1;
 				bits <<= 1;
@@ -96,6 +95,8 @@ public:
 
 		lodepng_encode_file(outfile, (const unsigned char*)&output[0], _width, _height, LCT_GREY, 1);
 */
+		CAT_WARN("main") << "Writing output image file: " << outfile;
+		// Convert to image:
 
 		CAT_INFO("main") << "Read success!";
 		return 0;

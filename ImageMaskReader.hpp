@@ -12,6 +12,7 @@ namespace cat {
 class ImageMaskReader {
 
 	u32 *_mask;
+	int _width;
 	int _height;
 	int _stride;
 
@@ -33,6 +34,18 @@ class ImageMaskReader {
 
 	bool init(const ImageInfo *info);
 
+#ifdef CAT_COLLECT_STATS
+public:
+	struct _Stats {
+		int pivot;
+
+		double initUsec, readCodelensUsec, initHuffmanUsec;
+		double overallUsec;
+
+		u32 originalDataBytes, compressedDataBytes;
+	} Stats;
+#endif // CAT_COLLECT_STATS
+
 public:
 	ImageMaskReader() {
 		_mask = 0;
@@ -48,6 +61,15 @@ public:
 		const u32 word = _mask[(x >> 5) + y * _stride];
 		return (word >> (x & 31)) & 1;
 	}
+
+#ifdef CAT_COLLECT_STATS
+	bool dumpStats();
+#else
+	CAT_INLINE bool dumpStats() {
+		// Not implemented
+		return false;
+	}
+#endif
 };
 
 

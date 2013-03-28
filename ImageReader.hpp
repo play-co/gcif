@@ -71,6 +71,14 @@ public:
 	virtual ~ImageReader() {
 	}
 
+	CAT_INLINE int getTotalDataWords() {
+		return _wordCount;
+	}
+
+	CAT_INLINE int getWordsLeft() {
+		return _wordsLeft;
+	}
+
 	static const char *ErrorString(int err);
 
 	// Initialize with file or memory buffer

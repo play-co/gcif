@@ -151,6 +151,7 @@ int ImageReader::init(const void *buffer, int fileSize) {
 
 	_words = words + HEAD_WORDS;
 	_wordsLeft = fileWords - HEAD_WORDS;
+	_wordCount = _wordsLeft;
 
 	_eof = false;
 

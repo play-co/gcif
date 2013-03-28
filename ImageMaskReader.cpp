@@ -2,6 +2,14 @@
 #include "EndianNeutral.hpp"
 #include "BitMath.hpp"
 #include "HuffmanDecoder.hpp"
+
+#ifdef CAT_COLLECT_STATS
+#include "Log.hpp"
+#include "Clock.hpp"
+
+static cat::Clock *m_clock = 0;
+#endif // CAT_COLLECT_STATS
+
 using namespace cat;
 
 #include "lz4.h"
@@ -29,6 +37,9 @@ bool ImageMaskReader::readHuffmanCodelens(u8 codelens[256], ImageReader &reader)
 	// Decode Golomb-encoded Huffman table
 
 	int pivot = reader.readBits(3);
+#ifdef CAT_COLLECT_STATS
+	Stats.pivot = pivot;
+#endif // CAT_COLLECT_STATS
 
 	int tableWriteIndex = 0;
 	int lag0 = 3, q = 0;
@@ -416,6 +427,7 @@ bool ImageMaskReader::init(const ImageInfo *info) {
 	clear();
 
 	_stride = (info->width + 31) >> 5;
+	_width = info->width;
 	_height = info->height;
 
 	_mask = new u32[_stride * _height];
@@ -439,26 +451,73 @@ int ImageMaskReader::read(ImageReader &reader) {
 	static const int NUM_SYMS = 256;
 	static const int TABLE_BITS = 9;
 
+#ifdef CAT_COLLECT_STATS
+	m_clock = Clock::ref();
+
+	double t0 = m_clock->usec();
+#endif // CAT_COLLECT_STATS
+
 	if (!init(reader.getImageInfo())) {
 		return RE_MASK_INIT;
 	}
 
-	u8 codelens[NUM_SYMS];
+#ifdef CAT_COLLECT_STATS
+	double t1 = m_clock->usec();
+#endif // CAT_COLLECT_STATS
 
+	u8 codelens[NUM_SYMS];
 	if (!readHuffmanCodelens(codelens, reader)) {
 		return RE_MASK_CODES;
 	}
 
-	HuffmanDecoder decoder;
+#ifdef CAT_COLLECT_STATS
+	double t2 = m_clock->usec();
+#endif // CAT_COLLECT_STATS
 
+	HuffmanDecoder decoder;
 	if (!decoder.init(NUM_SYMS, codelens, TABLE_BITS)) {
 		return RE_MASK_DECI;
 	}
+
+#ifdef CAT_COLLECT_STATS
+	double t3 = m_clock->usec();
+#endif // CAT_COLLECT_STATS
 
 	if (!decodeLZ(decoder, reader)) {
 		return RE_MASK_LZ;
 	}
 
+#ifdef CAT_COLLECT_STATS
+	double t4 = m_clock->usec();
+
+	Stats.initUsec = t1 - t0;
+	Stats.readCodelensUsec = t2 - t1;
+	Stats.initHuffmanUsec = t3 - t2;
+	Stats.overallUsec = t4 - t0;
+
+	Stats.originalDataBytes = _width * _height / 8;
+	Stats.compressedDataBytes = reader.getTotalDataWords() * 4;
+#endif // CAT_COLLECT_STATS
+
 	return RE_OK;
 }
+
+#ifdef CAT_COLLECT_STATS
+
+bool ImageMaskReader::dumpStats() {
+	CAT_INFO("stats") << "(Mask Decoding) Table Pivot : " <<  Stats.pivot;
+
+	CAT_INFO("stats") << "(Mask Decoding) Initialization : " <<  Stats.initUsec << " usec (" << Stats.initUsec * 100.f / Stats.overallUsec << " %total)";
+	CAT_INFO("stats") << "(Mask Decoding)  Read Codelens : " <<  Stats.readCodelensUsec << " usec (" << Stats.readCodelensUsec * 100.f / Stats.overallUsec << " %total)";
+	CAT_INFO("stats") << "(Mask Decoding)  Setup Huffman : " <<  Stats.initHuffmanUsec << " usec (" << Stats.initHuffmanUsec * 100.f / Stats.overallUsec << " %total)";
+	CAT_INFO("stats") << "(Mask Decoding)        Overall : " <<  Stats.overallUsec << " usec";
+
+	CAT_INFO("stats") << "(Mask Decoding) Throughput : " << Stats.originalDataBytes / Stats.overallUsec << " MBPS (input bytes)";
+	CAT_INFO("stats") << "(Mask Decoding) Throughput : " << Stats.compressedDataBytes / Stats.overallUsec << " MBPS (output bytes)";
+
+	return true;
+}
+
+#endif // CAT_COLLECT_STATS
+
 

@@ -63,10 +63,11 @@ public:
 	}
 
 #ifdef CAT_COLLECT_STATS
-	void dumpStats();
+	bool dumpStats();
 #else
-	CAT_INLINE void dumpStats() {
+	CAT_INLINE bool dumpStats() {
 		// Not implemented
+		return false;
 	}
 #endif
 };
