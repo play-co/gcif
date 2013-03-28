@@ -47,7 +47,9 @@ public:
 			return false;
 		}
 
-		CAT_WARN("main") << "Write success!";
+		imageMaskWriter.dumpStats();
+
+		CAT_INFO("main") << "Wrote " << filename;
 		return true;
 	}
 
@@ -95,7 +97,7 @@ public:
 		lodepng_encode_file(outfile, (const unsigned char*)&output[0], _width, _height, LCT_GREY, 1);
 */
 
-		CAT_WARN("main") << "Read success!";
+		CAT_INFO("main") << "Read success!";
 		return true;
 	}
 };

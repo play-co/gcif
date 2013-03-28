@@ -15,7 +15,7 @@ class ImageMaskWriter {
 	u32 _value;
 
 	u32 *_mask;
-	int _size, _stride, _height;
+	int _size, _stride, _width, _height;
 
 	void clear();
 
@@ -26,6 +26,19 @@ class ImageMaskWriter {
 	void generateHuffmanCodes(u16 freqs[256], u16 codes[256], u8 codelens[256]);
 	void writeHuffmanTable(u8 codelens[256], ImageWriter &writer);
 	void writeEncodedLZ(const std::vector<u8> &lz, u16 codes[256], u8 codelens[256], ImageWriter &writer);
+
+#ifdef CAT_COLLECT_STATS
+public:
+	struct _Stats {
+		u32 pivot;
+		u32 table_bits;
+		u32 data_bits;
+
+		double filterUsec, rleUsec, lzUsec, histogramUsec;
+		double generateTableUsec, tableEncodeUsec, dataEncodeUsec;
+		double overallUsec;
+	} Stats;
+#endif // CAT_COLLECT_STATS
 
 public:
 	ImageMaskWriter() {
@@ -44,6 +57,14 @@ public:
 		const u32 word = _mask[(x >> 5) + y * _stride];
 		return (word >> (x & 31)) & 1;
 	}
+
+#ifdef CAT_COLLECT_STATS
+	void dumpStats();
+#else
+	CAT_INLINE void dumpStats() {
+		// Not implemented
+	}
+#endif
 };
 
 

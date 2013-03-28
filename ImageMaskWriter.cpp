@@ -3,6 +3,12 @@
 #include "BitMath.hpp"
 #include "HuffmanEncoder.hpp"
 #include "HuffmanDecoder.hpp"
+
+#ifdef CAT_COLLECT_STATS
+#include "Log.hpp"
+#include "Clock.hpp"
+#endif // CAT_COLLECT_STATS
+
 using namespace cat;
 using namespace std;
 
@@ -85,6 +91,7 @@ int ImageMaskWriter::initFromRGBA(u8 *rgba, int width, int height) {
 	clear();
 
 	// Init mask bitmatrix
+	_width = width;
 	_stride = (width + 31) >> 5;
 	_size = height * _stride;
 	_height = height;
@@ -149,10 +156,6 @@ int ImageMaskWriter::initFromRGBA(u8 *rgba, int width, int height) {
 			*writer++ = bits;
 		}
 	}
-
-	// Filter it
-
-	applyFilter();
 
 	return WE_OK;
 }
@@ -333,6 +336,11 @@ void ImageMaskWriter::writeHuffmanTable(u8 codelens[256], ImageWriter &writer) {
 
 	writer.writeBits(shift, 3);
 
+#ifdef CAT_COLLECT_STATS
+	Stats.pivot = shift;
+	u32 table_bits = 0;
+#endif // CAT_COLLECT_STATS
+
 	// For each symbol,
 	for (int ii = 0; ii < huffTable.size(); ++ii) {
 		int symbol = huffTable[ii];
@@ -341,44 +349,138 @@ void ImageMaskWriter::writeHuffmanTable(u8 codelens[256], ImageWriter &writer) {
 		if CAT_UNLIKELY(q > 31) {
 			for (int ii = 0; ii < q; ++ii) {
 				writer.writeBit(1);
+#ifdef CAT_COLLECT_STATS
+				++table_bits;
+#endif // CAT_COLLECT_STATS
 			}
 			writer.writeBit(0);
+#ifdef CAT_COLLECT_STATS
+			++table_bits;
+#endif // CAT_COLLECT_STATS
 		} else {
 			writer.writeBits((0xffffffff >> (31 - q)) << 1, q + 1);
+#ifdef CAT_COLLECT_STATS
+			table_bits += q + 1;
+#endif // CAT_COLLECT_STATS
 		}
 
 		if (shift > 0) {
 			writer.writeBits(symbol & shiftMask, shift);
+#ifdef CAT_COLLECT_STATS
+			table_bits += shift;
+#endif // CAT_COLLECT_STATS
 		}
 	}
+
+#ifdef CAT_COLLECT_STATS
+	Stats.table_bits = table_bits;
+#endif // CAT_COLLECT_STATS
 }
 
 void ImageMaskWriter::writeEncodedLZ(const std::vector<u8> &lz, u16 codes[256], u8 codelens[256], ImageWriter &writer) {
 	const int lzSize = static_cast<int>( lz.size() );
 
+#ifdef CAT_COLLECT_STATS
+	u32 data_bits = 0;
+#endif // CAT_COLLECT_STATS
+
 	for (int ii = 0; ii < lzSize; ++ii) {
 		u8 symbol = lz[ii];
 
-		writer.writeBits(codes[symbol], codelens[symbol]);
+		u16 code = codes[symbol];
+		u8 len = codelens[symbol];
+
+		writer.writeBits(code, len);
+#ifdef CAT_COLLECT_STATS
+		data_bits += len;
+#endif // CAT_COLLECT_STATS
 	}
+
+#ifdef CAT_COLLECT_STATS
+	Stats.data_bits = data_bits;
+#endif // CAT_COLLECT_STATS
 }
 
 void ImageMaskWriter::write(ImageWriter &writer) {
+#ifdef CAT_COLLECT_STATS
+	Clock *clock = Clock::ref();
+	double t0 = clock->usec();
+#endif // CAT_COLLECT_STATS
+
+	applyFilter();
+
+#ifdef CAT_COLLECT_STATS
+	double t1 = clock->usec();
+#endif // CAT_COLLECT_STATS
+
 	vector<u8> rle;
 	performRLE(rle);
+
+#ifdef CAT_COLLECT_STATS
+	double t2 = clock->usec();
+#endif // CAT_COLLECT_STATS
 
 	vector<u8> lz;
 	performLZ(rle, lz);
 
+#ifdef CAT_COLLECT_STATS
+	double t3 = clock->usec();
+#endif // CAT_COLLECT_STATS
+
 	u16 freqs[256];
 	collectFreqs(lz, freqs);
+
+#ifdef CAT_COLLECT_STATS
+	double t4 = clock->usec();
+#endif // CAT_COLLECT_STATS
 
 	u8 codelens[256];
 	u16 codes[256];
 	generateHuffmanCodes(freqs, codes, codelens);
 
+#ifdef CAT_COLLECT_STATS
+	double t5 = clock->usec();
+#endif // CAT_COLLECT_STATS
+
 	writeHuffmanTable(codelens, writer);
 
+#ifdef CAT_COLLECT_STATS
+	double t6 = clock->usec();
+#endif // CAT_COLLECT_STATS
+
 	writeEncodedLZ(lz, codes, codelens, writer);
+
+#ifdef CAT_COLLECT_STATS
+	double t7 = clock->usec();
+
+	Stats.filterUsec = t1 - t0;
+	Stats.rleUsec = t2 - t1;
+	Stats.lzUsec = t3 - t2;
+	Stats.histogramUsec = t4 - t3;
+	Stats.generateTableUsec = t5 - t4;
+	Stats.tableEncodeUsec = t6 - t5;
+	Stats.dataEncodeUsec = t7 - t6;
+	Stats.overallUsec = t7 - t0;
+#endif // CAT_COLLECT_STATS
 }
 
+#ifdef CAT_COLLECT_STATS
+
+void ImageMaskWriter::dumpStats() {
+	CAT_INFO("stats") << "(Mask Encoding) Table Pivot : " <<  Stats.pivot;
+	CAT_INFO("stats") << "(Mask Encoding) Table Bits Used : " <<  Stats.table_bits << " (" << (Stats.table_bits + 7) / 8 << " bytes)";
+	CAT_INFO("stats") << "(Mask Encoding) Data Bits Used : " <<  Stats.data_bits << " (" << (Stats.data_bits + 7) / 8 << " bytes)";
+
+	CAT_INFO("stats") << "(Mask Encoding)      Filtering : " <<  Stats.filterUsec << " usec (" << Stats.filterUsec * 100.f / Stats.overallUsec << " %total)";
+	CAT_INFO("stats") << "(Mask Encoding)            RLE : " <<  Stats.rleUsec << " usec (" << Stats.rleUsec * 100.f / Stats.overallUsec << " %total)";
+	CAT_INFO("stats") << "(Mask Encoding)             LZ : " <<  Stats.lzUsec << " usec (" << Stats.lzUsec * 100.f / Stats.overallUsec << " %total)";
+	CAT_INFO("stats") << "(Mask Encoding)      Histogram : " <<  Stats.histogramUsec << " usec (" << Stats.histogramUsec * 100.f / Stats.overallUsec << " %total)";
+	CAT_INFO("stats") << "(Mask Encoding) Generate Table : " <<  Stats.generateTableUsec << " usec (" << Stats.generateTableUsec * 100.f / Stats.overallUsec << " %total)";
+	CAT_INFO("stats") << "(Mask Encoding)   Encode Table : " <<  Stats.tableEncodeUsec << " usec (" << Stats.tableEncodeUsec * 100.f / Stats.overallUsec << " %total)";
+	CAT_INFO("stats") << "(Mask Encoding)    Encode Data : " <<  Stats.dataEncodeUsec << " usec (" << Stats.dataEncodeUsec * 100.f / Stats.overallUsec << " %total)";
+	CAT_INFO("stats") << "(Mask Encoding)        Overall : " <<  Stats.overallUsec << " usec";
+	CAT_INFO("stats") << "(Mask Encoding) Throughput : " << (_width * _height / 8) / Stats.overallUsec << " MBPS (input bytes)";
+	CAT_INFO("stats") << "(Mask Encoding) Throughput : " << ((Stats.data_bits + Stats.table_bits + 7) / 8) / Stats.overallUsec << " MBPS (output bytes)";
+}
+
+#endif // CAT_COLLECT_STATS
