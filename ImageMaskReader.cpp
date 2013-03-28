@@ -14,6 +14,14 @@ using namespace cat;
 
 #include "lz4.h"
 
+#define DUMP_MONOCHROME
+
+#ifdef DUMP_MONOCHROME
+#include "lodepng.h"
+#include <vector>
+using namespace std;
+#endif
+
 
 //// ImageMaskReader
 
@@ -84,6 +92,10 @@ bool ImageMaskReader::decodeRLE(u8 *rle, int len) {
 	if (len <= 0) {
 		return false;
 	}
+
+#ifdef CAT_COLLECT_STATS
+	double t0 = m_clock->usec();
+#endif // CAT_COLLECT_STATS
 
 	u32 sum = _sum;
 	bool rowStarted = _rowStarted;
@@ -253,6 +265,10 @@ bool ImageMaskReader::decodeRLE(u8 *rle, int len) {
 
 					if (++_writeRow >= _height) {
 						// done!
+#ifdef CAT_COLLECT_STATS
+						double t1 = m_clock->usec();
+						Stats.rleUsec += t1 - t0;
+#endif // CAT_COLLECT_STATS
 						return true;
 					}
 
@@ -281,6 +297,10 @@ bool ImageMaskReader::decodeRLE(u8 *rle, int len) {
 
 					if (++_writeRow >= _height) {
 						// done!
+#ifdef CAT_COLLECT_STATS
+						double t1 = m_clock->usec();
+						Stats.rleUsec += t1 - t0;
+#endif // CAT_COLLECT_STATS
 						return true;
 					}
 
@@ -318,6 +338,11 @@ bool ImageMaskReader::decodeRLE(u8 *rle, int len) {
 	_rowStarted = rowStarted;
 	_rowLeft = rowLeft;
 
+#ifdef CAT_COLLECT_STATS
+	double t1 = m_clock->usec();
+	Stats.rleUsec += t1 - t0;
+#endif // CAT_COLLECT_STATS
+
 	return false;
 }
 
@@ -331,8 +356,6 @@ bool ImageMaskReader::decodeLZ(HuffmanDecoder &decoder, ImageReader &reader) {
 	while CAT_UNLIKELY(!reader.eof()) {
 		// Read token
 		u8 token = reader.nextHuffmanSymbol(&decoder);
-
-		// TODO: Change LZ4 encoding to avoid EOF checks here
 
 		// Read Literal Length
 		int literalLength = token >> 4;
@@ -383,27 +406,30 @@ bool ImageMaskReader::decodeLZ(HuffmanDecoder &decoder, ImageReader &reader) {
 		}
 		matchLength += 4;
 
-		// Copy match data
+		// Copy the match
+		u16 copyStart = static_cast<u16>( lzIndex - offset );
+
 		for (int ii = 0; ii < matchLength; ++ii) {
-			u8 symbol = lz[ (u16)(lzIndex - offset) ];
+			u8 symbol = lz[static_cast<u16>( copyStart + ii )];
+
 			lz[lzIndex++] = symbol;
+		}
 
-			// Decode [wrapped] RLE sequence
-			if CAT_UNLIKELY((u16)(lzIndex - lzLast) >= BATCH_RATE) {
-				if CAT_UNLIKELY(lzLast > lzIndex) {
-					if (decodeRLE(&lz[lzLast], 65536 - lzLast)) {
-						return true;
-					}
-
-					lzLast = 0;
-				}
-
-				if CAT_UNLIKELY(decodeRLE(&lz[lzLast], lzIndex - lzLast)) {
+		// Decode [wrapped] RLE sequence
+		if CAT_UNLIKELY((u16)(lzIndex - lzLast) >= BATCH_RATE) {
+			if CAT_UNLIKELY(lzLast > lzIndex) {
+				if (decodeRLE(&lz[lzLast], 65536 - lzLast)) {
 					return true;
 				}
 
-				lzLast = lzIndex;
+				lzLast = 0;
 			}
+
+			if CAT_UNLIKELY(decodeRLE(&lz[lzLast], lzIndex - lzLast)) {
+				return true;
+			}
+
+			lzLast = lzIndex;
 		}
 	}
 
@@ -481,6 +507,8 @@ int ImageMaskReader::read(ImageReader &reader) {
 
 #ifdef CAT_COLLECT_STATS
 	double t3 = m_clock->usec();
+
+	Stats.rleUsec = 0;
 #endif // CAT_COLLECT_STATS
 
 	if (!decodeLZ(decoder, reader)) {
@@ -493,11 +521,32 @@ int ImageMaskReader::read(ImageReader &reader) {
 	Stats.initUsec = t1 - t0;
 	Stats.readCodelensUsec = t2 - t1;
 	Stats.initHuffmanUsec = t3 - t2;
+	Stats.lzUsec = t4 - t3 - Stats.rleUsec;
 	Stats.overallUsec = t4 - t0;
 
 	Stats.originalDataBytes = _width * _height / 8;
 	Stats.compressedDataBytes = reader.getTotalDataWords() * 4;
 #endif // CAT_COLLECT_STATS
+
+#ifdef DUMP_MONOCHROME
+	vector<unsigned char> output;
+	u8 bits = 0, bitCount = 0;
+
+	for (int ii = 0; ii < _height; ++ii) {
+		for (int jj = 0; jj < _width; ++jj) {
+			u32 set = (_mask[ii * _stride + jj / 32] >> (31 - (jj & 31))) & 1;
+			bits <<= 1;
+			bits |= set;
+			if (++bitCount >= 8) {
+				output.push_back(bits);
+				bits = 0;
+				bitCount = 0;
+			}
+		}
+	}
+
+	lodepng_encode_file("decoded_mono.png", (const unsigned char*)&output[0], _width, _height, LCT_GREY, 1);
+#endif
 
 	return RE_OK;
 }
@@ -510,6 +559,8 @@ bool ImageMaskReader::dumpStats() {
 	CAT_INFO("stats") << "(Mask Decoding) Initialization : " <<  Stats.initUsec << " usec (" << Stats.initUsec * 100.f / Stats.overallUsec << " %total)";
 	CAT_INFO("stats") << "(Mask Decoding)  Read Codelens : " <<  Stats.readCodelensUsec << " usec (" << Stats.readCodelensUsec * 100.f / Stats.overallUsec << " %total)";
 	CAT_INFO("stats") << "(Mask Decoding)  Setup Huffman : " <<  Stats.initHuffmanUsec << " usec (" << Stats.initHuffmanUsec * 100.f / Stats.overallUsec << " %total)";
+	CAT_INFO("stats") << "(Mask Decoding)     Huffman+LZ : " <<  Stats.lzUsec << " usec (" << Stats.lzUsec * 100.f / Stats.overallUsec << " %total)";
+	CAT_INFO("stats") << "(Mask Decoding)     RLE+Filter : " <<  Stats.rleUsec << " usec (" << Stats.rleUsec * 100.f / Stats.overallUsec << " %total)";
 	CAT_INFO("stats") << "(Mask Decoding)        Overall : " <<  Stats.overallUsec << " usec";
 
 	CAT_INFO("stats") << "(Mask Decoding) Throughput : " << Stats.compressedDataBytes / Stats.overallUsec << " MBPS (input bytes)";

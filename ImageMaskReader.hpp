@@ -40,6 +40,7 @@ public:
 		int pivot;
 
 		double initUsec, readCodelensUsec, initHuffmanUsec;
+		double lzUsec, rleUsec;
 		double overallUsec;
 
 		u32 originalDataBytes, compressedDataBytes;
