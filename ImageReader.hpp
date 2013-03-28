@@ -111,7 +111,7 @@ public:
 	u32 nextHuffmanSymbol(huffman::decoder_tables *tables);
 
 	// No bits left to read?
-	CAT_INLINE bool isEOF() {
+	CAT_INLINE bool eof() {
 		return _eof;
 	}
 

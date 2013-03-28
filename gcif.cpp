@@ -9,6 +9,7 @@ using namespace std;
 using namespace cat;
 
 #include "lodepng.h"
+#include "optionparser.h"
 
 
 class Converter {
@@ -433,90 +434,41 @@ public:
 	bool decompress(const char *filename, const char *outfile) {
 		bool success = false;
 
-		MappedFile file;
+		ImageReader reader;
 
-		if (file.OpenRead(filename)) {
-			MappedView fileView;
+		if (RE_OK != reader.init(filename)) {
+			CAT_WARN("main") << "Unable to read file";
+			return false;
+		}
 
-			if (fileView.Open(&file)) {
-				u8 *fileData = fileView.MapView();
+		ImageMaskReader maskReader;
+		if (RE_OK != maskReader.read(reader)) {
+			CAT_WARN("main") << "Unable to read mask";
+			return false;
+		}
+/*
+		CAT_WARN("main") << "Writing output image file: " << outfile;
+		// Convert to image:
 
-				if (fileData) {
-					u32 *words = reinterpret_cast<u32*>( fileData );
-					u32 fileSize = fileView.GetLength();
-					u32 fileWords = fileSize / 4;
+		vector<unsigned char> output;
+		u8 bits = 0, bitCount = 0;
 
-					MurmurHash3 hash;
-					hash.init(GCIF_HEAD_SEED);
-
-					if (fileWords < GCIF_HEAD_WORDS) { // iunno
-						CAT_WARN("main") << "File is too short to be a GCIF file: " << filename;
-					} else {
-						u32 word0 = getLE(words[0]);
-						hash.hashWord(word0);
-
-						if (GCIF_MAGIC != word0) {
-							CAT_WARN("main") << "File is not a GCIF formatted file (magic mismatch): " << filename;
-						} else {
-							u32 word1 = getLE(words[1]);
-							hash.hashWord(word1);
-
-							u32 dataHash = getLE(words[2]);
-							hash.hashWord(dataHash);
-
-							u32 word3 = getLE(words[3]);
-							if (word3 != hash.final(GCIF_HEAD_WORDS)) {
-								CAT_WARN("main") << "File header is corrupted: " << filename;
-							} else {
-								u16 width = word1 >> 16;
-								u16 height = word1 & 0xffff;
-								CAT_WARN("main") << "Image: Dimensions " << width << " x " << height;
-
-								double t0 = Clock::ref()->usec();
-
-								if (!decode(width, height, words + GCIF_HEAD_WORDS, fileWords - GCIF_HEAD_WORDS, dataHash)) {
-									CAT_WARN("main") << "Decoder failed";
-								} else {
-									success = true;
-									double t1 = Clock::ref()->usec();
-
-									CAT_WARN("main") << "Time took: " << t1 - t0 << " usec";
-									CAT_WARN("main") << "RLE took: " << _rleTime << " usec";
-
-									CAT_WARN("main") << "Processed input at " << (fileWords - GCIF_HEAD_WORDS) * 4 / (t1 - t0) << " MB/S";
-									CAT_WARN("main") << "Generated at " << (width * (u32)height / 8) / (t1 - t0) << " MB/S";
-								}
-							}
-						}
-					}
+		for (int ii = 0; ii < _height; ++ii) {
+			for (int jj = 0; jj < _width; ++jj) {
+				u32 set = (_image[ii * _stride + jj / 32] >> (31 - (jj & 31))) & 1;
+				bits <<= 1;
+				bits |= set;
+				if (++bitCount >= 8) {
+					output.push_back(bits);
+					bits = 0;
+					bitCount = 0;
 				}
 			}
 		}
 
-		if (success) {
-			CAT_WARN("main") << "Writing output image file: " << outfile;
-			// Convert to image:
-
-			vector<unsigned char> output;
-			u8 bits = 0, bitCount = 0;
-
-			for (int ii = 0; ii < _height; ++ii) {
-				for (int jj = 0; jj < _width; ++jj) {
-					u32 set = (_image[ii * _stride + jj / 32] >> (31 - (jj & 31))) & 1;
-					bits <<= 1;
-					bits |= set;
-					if (++bitCount >= 8) {
-						output.push_back(bits);
-						bits = 0;
-						bitCount = 0;
-					}
-				}
-			}
-
-			lodepng_encode_file(outfile, (const unsigned char*)&output[0], _width, _height, LCT_GREY, 1);
-		}
-
-		return success;
+		lodepng_encode_file(outfile, (const unsigned char*)&output[0], _width, _height, LCT_GREY, 1);
+*/
+		return true;
 	}
 };
 

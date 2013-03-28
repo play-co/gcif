@@ -15,17 +15,20 @@ class ImageMaskReader {
 
 	u32 *_mask;
 	int _size;
+	int _stride;
 
+	bool readHuffmanCodelens(u8 codelens[256], ImageReader &reader);
 	void clear();
 
 public:
 	ImageMaskReader() {
+		_mask = 0;
 	}
 	virtual ~ImageMaskReader() {
 		clear();
 	}
 
-	void read(ImageReader &reader);
+	int read(ImageReader &reader);
 
 	CAT_INLINE bool hasRGB(int x, int y) {
 		const u32 word = _mask[(x >> 5) + y * _stride];

@@ -72,6 +72,7 @@ void ImageMaskWriter::applyFilter() {
 void ImageMaskWriter::clear() {
 	if (_mask) {
 		delete []_mask;
+		_mask = 0;
 	}
 }
 
