@@ -75,6 +75,8 @@ bool Clock::OnInitialize()
 
 #endif
 
+	usec(); // Prime it: The first call takes a while on MacOSX at least
+
 	return true;
 }
 

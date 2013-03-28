@@ -512,8 +512,8 @@ bool ImageMaskReader::dumpStats() {
 	CAT_INFO("stats") << "(Mask Decoding)  Setup Huffman : " <<  Stats.initHuffmanUsec << " usec (" << Stats.initHuffmanUsec * 100.f / Stats.overallUsec << " %total)";
 	CAT_INFO("stats") << "(Mask Decoding)        Overall : " <<  Stats.overallUsec << " usec";
 
-	CAT_INFO("stats") << "(Mask Decoding) Throughput : " << Stats.originalDataBytes / Stats.overallUsec << " MBPS (input bytes)";
-	CAT_INFO("stats") << "(Mask Decoding) Throughput : " << Stats.compressedDataBytes / Stats.overallUsec << " MBPS (output bytes)";
+	CAT_INFO("stats") << "(Mask Decoding) Throughput : " << Stats.compressedDataBytes / Stats.overallUsec << " MBPS (input bytes)";
+	CAT_INFO("stats") << "(Mask Decoding) Throughput : " << Stats.originalDataBytes / Stats.overallUsec << " MBPS (output bytes)";
 
 	return true;
 }
