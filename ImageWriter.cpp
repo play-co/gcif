@@ -102,12 +102,13 @@ void WriteVector::write(u32 *target) {
 int ImageWriter::init(int width, int height) {
 	// Validate
 
-	if ((width & 7) | (height & 7)) {
+	if (width < 0 || height < 0) {
 		return WE_BAD_DIMS;
 	}
 
-	width >>= 3;
-	height >>= 3;
+	if ((width % 8) || (height % 8)) {
+		return WE_BAD_DIMS;
+	}
 
 	if (width > 65535 || height > 65535) {
 		return WE_BAD_DIMS;

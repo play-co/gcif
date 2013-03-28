@@ -41,6 +41,7 @@ public:
 		}
 
 		imageMaskWriter.write(writer);
+
 		if ((err = writer.finalizeAndWrite(outfile))) {
 			CAT_WARN("main") << "Unable to finalize and write image mask: " << ImageWriter::ErrorString(err);
 			return false;

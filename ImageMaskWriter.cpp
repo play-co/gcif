@@ -76,10 +76,10 @@ void ImageMaskWriter::clear() {
 	}
 }
 
-bool ImageMaskWriter::initFromRGBA(u8 *rgba, int width, int height) {
+int ImageMaskWriter::initFromRGBA(u8 *rgba, int width, int height) {
 
 	if (!rgba || width <= 0 || height <= 0) {
-		return false;
+		return WE_BAD_DIMS;
 	}
 
 	clear();
@@ -154,7 +154,7 @@ bool ImageMaskWriter::initFromRGBA(u8 *rgba, int width, int height) {
 
 	applyFilter();
 
-	return true;
+	return WE_OK;
 }
 
 static CAT_INLINE void byteEncode(vector<unsigned char> &bytes, u32 data) {
