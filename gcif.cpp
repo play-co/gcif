@@ -90,7 +90,7 @@ public:
 enum  optionIndex { UNKNOWN, HELP, VERBOSE, SILENT, COMPRESS, DECOMPRESS, TEST };
 const option::Descriptor usage[] =
 {
-  {UNKNOWN, 0,"" , ""    ,option::Arg::None, "USAGE: gcif_mono [options] [output file path]\n\n"
+  {UNKNOWN, 0,"" , ""    ,option::Arg::None, "USAGE: ./gcif [options] [output file path]\n\n"
                                              "Options:" },
   {HELP,    0,"h", "help",option::Arg::None, "  --[h]elp  \tPrint usage and exit." },
   {VERBOSE,0,"v" , "verbose",option::Arg::None, "  --[v]erbose \tVerbose console output" },
@@ -99,9 +99,9 @@ const option::Descriptor usage[] =
   {DECOMPRESS,0,"d" , "decompress",option::Arg::Optional, "  --[d]ecompress <input GCI file path> \tDecompress the given .GCI image" },
   {TEST,0,"t" , "test",option::Arg::Optional, "  --[t]est <input PNG file path> \tTest compression to verify it is lossless" },
   {UNKNOWN, 0,"" ,  ""   ,option::Arg::None, "\nExamples:\n"
-                                             "  gcif_mono -tv ./original.png\n"
-                                             "  gcif_mono -c ./original.png test.gci\n"
-                                             "  gcif_mono -d ./test.gci decoded.png" },
+                                             "  ./gcif -tv ./original.png\n"
+                                             "  ./gcif -c ./original.png test.gci\n"
+                                             "  ./gcif -d ./test.gci decoded.png" },
   {0,0,0,0,0,0}
 };
 

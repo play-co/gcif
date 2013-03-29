@@ -519,7 +519,7 @@ int ImageMaskReader::read(ImageReader &reader) {
 #endif // CAT_COLLECT_STATS
 
 #ifdef DUMP_MONOCHROME
-	vector<unsigned char> output;
+	std::vector<unsigned char> output;
 	u8 bits = 0, bitCount = 0;
 
 	for (int ii = 0; ii < _height; ++ii) {
