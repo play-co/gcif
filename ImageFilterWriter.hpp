@@ -1,5 +1,5 @@
-#ifndef IMAGE_FILTER_HPP
-#define IMAGE_FILTER_HPP
+#ifndef IMAGE_FILTER_WRITER_HPP
+#define IMAGE_FILTER_WRITER_HPP
 
 #include "Platform.hpp"
 #include "ImageWriter.hpp"
@@ -293,5 +293,5 @@ public:
 
 } // namespace cat
 
-#endif // IMAGE_FILTER_HPP
+#endif // IMAGE_FILTER_WRITER_HPP
 
