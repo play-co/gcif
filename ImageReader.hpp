@@ -91,7 +91,7 @@ public:
 
 	// Returns at least minBits in the high bits, supporting up to 32 bits
 	CAT_INLINE u32 peek(int minBits) {
-		if (_bitsLeft < minBits) {
+		if CAT_UNLIKELY(_bitsLeft < minBits) {
 			return refill();
 		} else {
 			return _bits;
