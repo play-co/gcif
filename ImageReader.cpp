@@ -46,12 +46,12 @@ u32 ImageReader::refill() {
 
 	int readBits = 32 - bitsLeft;
 
-	if (nextLeft >= readBits) {
+	if CAT_LIKELY(nextLeft >= readBits) {
 		nextWord <<= readBits;
 		nextLeft -= readBits;
 		_bitsLeft = 32;
 	} else {
-		if (_wordsLeft > 0) {
+		if CAT_LIKELY(_wordsLeft > 0) {
 			--_wordsLeft;
 
 			nextWord = getLE(*_words++);
@@ -89,16 +89,16 @@ int ImageReader::init(const char *path) {
 
 	// Map file for reading
 
-	if (!_file.OpenRead(path)) {
+	if CAT_UNLIKELY(!_file.OpenRead(path)) {
 		return RE_FILE;
 	}
 
-	if (!_fileView.Open(&_file)) {
+	if CAT_UNLIKELY(!_fileView.Open(&_file)) {
 		return RE_FILE;
 	}
 
 	u8 *fileData = _fileView.MapView();
-	if (!fileData) {
+	if CAT_UNLIKELY(!fileData) {
 		return RE_FILE;
 	}
 
@@ -118,14 +118,14 @@ int ImageReader::init(const void *buffer, int fileSize) {
 	MurmurHash3 hh;
 	hh.init(HEAD_SEED);
 
-	if (fileWords < HEAD_WORDS) {
+	if CAT_UNLIKELY(fileWords < HEAD_WORDS) {
 		return RE_BAD_HEAD;
 	}
 
 	u32 word0 = getLE(words[0]);
 	hh.hashWord(word0);
 
-	if (HEAD_MAGIC != word0) {
+	if CAT_UNLIKELY(HEAD_MAGIC != word0) {
 		return RE_BAD_HEAD;
 	}
 
@@ -136,7 +136,7 @@ int ImageReader::init(const void *buffer, int fileSize) {
 	hh.hashWord(dataHash);
 
 	u32 headHash = getLE(words[3]);
-	if (headHash != hh.final(HEAD_WORDS)) {
+	if CAT_UNLIKELY(headHash != hh.final(HEAD_WORDS)) {
 		return RE_BAD_HEAD;
 	}
 
