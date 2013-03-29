@@ -58,7 +58,7 @@ public:
 		u32 k = static_cast<u32>((code >> 16) + 1);
 		u32 sym, len;
 
-		if (k <= _table_max_code) {
+		if CAT_LIKELY(k <= _table_max_code) {
 			u32 t = _lookup[code >> (32 - _table_bits)];
 
 			sym = static_cast<u16>( t );
@@ -70,14 +70,14 @@ public:
 			const u32 *max_codes = _max_codes;
 
 			for (;;) {
-				if (k <= max_codes[len - 1])
+				if CAT_LIKELY(k <= max_codes[len - 1])
 					break;
 				len++;
 			}
 
 			int val_ptr = _val_ptrs[len - 1] + static_cast<int>((code >> (32 - len)));
 
-			if (((u32)val_ptr >= _num_syms)) {
+			if CAT_UNLIKELY(((u32)val_ptr >= _num_syms)) {
 				bitLength = len;
 				return 0;
 			}
