@@ -4,7 +4,12 @@ using namespace std;
 
 #include "Log.hpp"
 #include "Clock.hpp"
+
+#include "ImageWriter.hpp"
 #include "ImageMaskWriter.hpp"
+#include "ImageFilterWriter.hpp"
+
+#include "ImageReader.hpp"
 #include "ImageMaskReader.hpp"
 using namespace cat;
 
@@ -48,6 +53,20 @@ public:
 		}
 
 		imageMaskWriter.dumpStats();
+
+		ImageFilterWriter imageFilterWriter;
+		if ((err = imageFilterWriter.initFromRGBA(&image[0], width, height))) {
+			CAT_WARN("main") << "Unable to generate image mask: " << ImageWriter::ErrorString(err);
+			return err;
+		}
+
+#if 1
+		{
+			CAT_WARN("main") << "Writing post-filter image file";
+
+			lodepng_encode_file("postfilter.png", (const unsigned char*)&image[0], width, height, LCT_RGBA, 8);
+		}
+#endif
 
 		CAT_INFO("main") << "Wrote " << outfile;
 		return 0;

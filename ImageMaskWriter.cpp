@@ -157,6 +157,20 @@ int ImageMaskWriter::initFromRGBA(u8 *rgba, int width, int height) {
 		}
 	}
 
+	// Clear RGB data from fully-transparent pixels
+
+	for (int y = 0; y < height; ++y) {
+		for (int x = 0; x < width; ++x) {
+			if (rgba[x * 4 + 3] == 0) {
+				rgba[x * 4] = 0;
+				rgba[x * 4 + 1] = 0;
+				rgba[x * 4 + 2] = 0;
+			}
+		}
+
+		rgba += width * 4;
+	}
+
 	return WE_OK;
 }
 
