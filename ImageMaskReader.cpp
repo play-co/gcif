@@ -571,4 +571,3 @@ bool ImageMaskReader::dumpStats() {
 
 #endif // CAT_COLLECT_STATS
 
-

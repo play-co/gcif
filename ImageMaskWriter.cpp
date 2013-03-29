@@ -244,6 +244,11 @@ void ImageMaskWriter::performLZ(const std::vector<u8> &rle, std::vector<u8> &lz)
 	const int lzSize = LZ4_compressHC((char*)&rle[0], (char*)&lz[0], rle.size());
 
 	lz.resize(lzSize);
+
+#ifdef CAT_COLLECT_STATS
+	Stats.rleBytes = rle.size();
+	Stats.lzBytes = lz.size();
+#endif // CAT_COLLECT_STATS
 }
 
 void ImageMaskWriter::collectFreqs(const std::vector<u8> &lz, u16 freqs[256]) {
@@ -472,9 +477,10 @@ void ImageMaskWriter::write(ImageWriter &writer) {
 #ifdef CAT_COLLECT_STATS
 
 bool ImageMaskWriter::dumpStats() {
-	CAT_INFO("stats") << "(Mask Encoding) Table Pivot : " <<  Stats.pivot;
-	CAT_INFO("stats") << "(Mask Encoding) Table Bits Used : " <<  Stats.table_bits << " (" << (Stats.table_bits + 7) / 8 << " bytes)";
-	CAT_INFO("stats") << "(Mask Encoding) Data Bits Used : " <<  Stats.data_bits << " (" << (Stats.data_bits + 7) / 8 << " bytes)";
+	CAT_INFO("stats") << "(Mask Encoding)     Post-RLE Size : " <<  Stats.rleBytes << " bytes";
+	CAT_INFO("stats") << "(Mask Encoding)      Post-LZ Size : " <<  Stats.lzBytes << " bytes";
+	CAT_INFO("stats") << "(Mask Encoding) Post-Huffman Size : " << (Stats.data_bits + 7) / 8 << " bytes (" << Stats.data_bits << " bits)";
+	CAT_INFO("stats") << "(Mask Encoding)        Table Size : " <<  (Stats.table_bits + 7) / 8 << " bytes (" << Stats.table_bits << " bits) [Golomb pivot = " << Stats.pivot << " bits]";
 
 	CAT_INFO("stats") << "(Mask Encoding)      Filtering : " <<  Stats.filterUsec << " usec (" << Stats.filterUsec * 100.f / Stats.overallUsec << " %total)";
 	CAT_INFO("stats") << "(Mask Encoding)            RLE : " <<  Stats.rleUsec << " usec (" << Stats.rleUsec * 100.f / Stats.overallUsec << " %total)";

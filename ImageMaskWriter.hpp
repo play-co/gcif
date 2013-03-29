@@ -34,6 +34,8 @@ public:
 		u32 table_bits;
 		u32 data_bits;
 
+		int rleBytes, lzBytes;
+
 		double filterUsec, rleUsec, lzUsec, histogramUsec;
 		double generateTableUsec, tableEncodeUsec, dataEncodeUsec;
 		double overallUsec;
