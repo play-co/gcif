@@ -71,14 +71,14 @@ bool ImageMaskReader::readHuffmanCodelens(u8 codelens[256], ImageReader &reader)
 			orig += lag0;
 			lag0 = orig;
 
-			if (static_cast<u32>( orig ) > HuffmanDecoder::MAX_CODE_SIZE) {
+			if CAT_UNLIKELY(static_cast<u32>( orig ) > HuffmanDecoder::MAX_CODE_SIZE) {
 				return false;
 			}
 
 			codelens[tableWriteIndex++] = orig;
 
 			// If we're done,
-			if (tableWriteIndex >= 256) {
+			if CAT_UNLIKELY(tableWriteIndex >= 256) {
 				break;
 			}
 		}
@@ -88,7 +88,7 @@ bool ImageMaskReader::readHuffmanCodelens(u8 codelens[256], ImageReader &reader)
 }
 
 bool ImageMaskReader::decodeRLE(u8 *rle, int len) {
-	if (len <= 0) {
+	if CAT_UNLIKELY(len <= 0) {
 		return false;
 	}
 
@@ -114,7 +114,7 @@ bool ImageMaskReader::decodeRLE(u8 *rle, int len) {
 			sum |= symbol;
 
 			// If has read row length yet,
-			if (rowStarted) {
+			if CAT_LIKELY(rowStarted) {
 				int wordOffset = bitOffset >> 5;
 				int newBitOffset = bitOffset + sum;
 				int newOffset = newBitOffset >> 5;
@@ -219,7 +219,7 @@ bool ImageMaskReader::decodeRLE(u8 *rle, int len) {
 				bitOffset += sum + 1;
 
 				// If just finished this row,
-				if (--rowLeft <= 0) {
+				if CAT_UNLIKELY(--rowLeft <= 0) {
 					int wordOffset = bitOffset >> 5;
 
 					if CAT_LIKELY(_writeRow > 0) {
@@ -254,7 +254,7 @@ bool ImageMaskReader::decodeRLE(u8 *rle, int len) {
 						}
 					}
 
-					if (++_writeRow >= _height) {
+					if CAT_UNLIKELY(++_writeRow >= _height) {
 						// done!
 #ifdef CAT_COLLECT_STATS
 						double t1 = m_clock->usec();
