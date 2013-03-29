@@ -149,6 +149,8 @@ int ImageReader::init(const void *buffer, int fileSize) {
 
 	// Get ready to read words
 
+	_hash.init(DATA_SEED);
+
 	_words = words + HEAD_WORDS;
 	_wordsLeft = fileWords - HEAD_WORDS;
 	_wordCount = _wordsLeft;

@@ -19,8 +19,6 @@ using namespace cat;
 #ifdef DUMP_MONOCHROME
 #include "lodepng.h"
 #include <vector>
-#include <iostream>
-using namespace std;
 #endif
 
 
@@ -109,8 +107,6 @@ bool ImageMaskReader::decodeRLE(u8 *rle, int len) {
 	for (int ii = 0; ii < len; ++ii) {
 		u8 symbol = rle[ii];
 
-		cout << (int)symbol << " ";
-
 		sum <<= 7;
 		if CAT_UNLIKELY(symbol & 128) {
 			sum |= symbol & 127;
@@ -187,18 +183,13 @@ bool ImageMaskReader::decodeRLE(u8 *rle, int len) {
 					 * And we will XOR with previous row
 					 */
 
-					//if (_writeRow > 120 && _writeRow < 200) cout << sum << ":" << bitOn << " ";
-
 					// If previous state was toggled on,
 					if (bitOn) {
 						u32 bitsUsedMask = 0xffffffff >> (bitOffset & 31);
 
 						if (newOffset <= wordOffset) {
-							//cout << "S(" << row[newOffset] << "," << bitsUsedMask << "," << shift << ") ";
 							row[newOffset] ^= bitsUsedMask & (0xfffffffe << shift);
-							//cout << "S(" << row[newOffset] << "," << bitsUsedMask << "," << shift << ") ";
 						} else {
-							//cout << "M ";
 							// Fill bottom bits with 1s
 							row[wordOffset] ^= bitsUsedMask;
 
@@ -216,7 +207,6 @@ bool ImageMaskReader::decodeRLE(u8 *rle, int len) {
 					} else {
 						// Fill bottom bits with 0s (do nothing)
 
-						//cout << "Z ";
 						row[newOffset] ^= (1 << shift);
 
 						if (sum == 0 && _lastSum) {
@@ -264,8 +254,6 @@ bool ImageMaskReader::decodeRLE(u8 *rle, int len) {
 						}
 					}
 
-					//if (_writeRow > 120 && _writeRow < 200) cout << endl;
-
 					if (++_writeRow >= _height) {
 						// done!
 #ifdef CAT_COLLECT_STATS
@@ -277,8 +265,6 @@ bool ImageMaskReader::decodeRLE(u8 *rle, int len) {
 
 					rowStarted = false;
 					row += _stride;
-
-					cout << endl;
 				}
 			} else {
 				rowLeft = sum;
@@ -287,7 +273,6 @@ bool ImageMaskReader::decodeRLE(u8 *rle, int len) {
 				if (rowLeft == 0) {
 					const int stride = _stride;
 
-					//if (_writeRow > 120 && _writeRow < 200) cout << "(empty)" << endl;
 					// Decode as an exact copy of the row above it
 					if (_writeRow > 0) {
 						u32 *copy = row - stride;
@@ -310,7 +295,6 @@ bool ImageMaskReader::decodeRLE(u8 *rle, int len) {
 					}
 
 					row += stride;
-					cout << endl;
 				} else {
 					rowStarted = true;
 
@@ -363,15 +347,12 @@ bool ImageMaskReader::decodeLZ(HuffmanDecoder &decoder, ImageReader &reader) {
 		// Read token
 		u8 token = reader.nextHuffmanSymbol(&decoder);
 
-		cout << "t" << (int)token << " ";
-
 		// Read Literal Length
 		int literalLength = token >> 4;
 		if (literalLength == 15) {
 			int s;
 			do {
 				s = reader.nextHuffmanSymbol(&decoder);
-				cout << "l+" << (int)s << " ";
 				literalLength += s;
 			} while (s == 255 && CAT_UNLIKELY(!reader.eof()));
 		}
@@ -380,8 +361,6 @@ bool ImageMaskReader::decodeLZ(HuffmanDecoder &decoder, ImageReader &reader) {
 		for (int ii = 0; ii < literalLength; ++ii) {
 			u8 symbol = reader.nextHuffmanSymbol(&decoder);
 			lz[lzIndex++] = symbol;
-
-			cout << "=" << (int)symbol << " ";
 
 			// Decode [wrapped] RLE sequence
 			if CAT_UNLIKELY((u16)(lzIndex - lzLast) >= BATCH_RATE) {
@@ -406,16 +385,12 @@ bool ImageMaskReader::decodeLZ(HuffmanDecoder &decoder, ImageReader &reader) {
 		u8 offset1 = reader.nextHuffmanSymbol(&decoder);
 		u16 offset = ((u16)offset1 << 8) | offset0;
 
-		cout << "+" << (int)offset0 << " ";
-		cout << "&" << (int)offset1 << " ";
-
 		// Read match length
 		int matchLength = token & 15;
 		if (matchLength == 15) {
 			int s;
 			do {
 				s = reader.nextHuffmanSymbol(&decoder);
-				cout << "m+" << (int)s << " ";
 				matchLength += s;
 			} while (s == 255 && CAT_UNLIKELY(!reader.eof()));
 		}
