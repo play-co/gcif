@@ -62,7 +62,7 @@ since we found that the code could be significantly improved in decompression
 speed, and we also disagreed with some of the finer points of the algorithm.
 
 
-# Fully-Transparent Pixel Encoding
+### Step 0. Fully-Transparent Pixel Encoding
 
 Fully-transparent pixels are combined into a monochrome raster and a filter is
 applied to each pixel:
