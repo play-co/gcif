@@ -19,6 +19,7 @@ using namespace cat;
 #ifdef DUMP_MONOCHROME
 #include "lodepng.h"
 #include <vector>
+#include <iostream>
 using namespace std;
 #endif
 
@@ -107,6 +108,8 @@ bool ImageMaskReader::decodeRLE(u8 *rle, int len) {
 
 	for (int ii = 0; ii < len; ++ii) {
 		u8 symbol = rle[ii];
+
+		cout << (int)symbol << " ";
 
 		sum <<= 7;
 		if CAT_UNLIKELY(symbol & 128) {
@@ -274,6 +277,8 @@ bool ImageMaskReader::decodeRLE(u8 *rle, int len) {
 
 					rowStarted = false;
 					row += _stride;
+
+					cout << endl;
 				}
 			} else {
 				rowLeft = sum;
@@ -305,6 +310,7 @@ bool ImageMaskReader::decodeRLE(u8 *rle, int len) {
 					}
 
 					row += stride;
+					cout << endl;
 				} else {
 					rowStarted = true;
 
@@ -357,12 +363,15 @@ bool ImageMaskReader::decodeLZ(HuffmanDecoder &decoder, ImageReader &reader) {
 		// Read token
 		u8 token = reader.nextHuffmanSymbol(&decoder);
 
+		cout << "t" << (int)token << " ";
+
 		// Read Literal Length
 		int literalLength = token >> 4;
 		if (literalLength == 15) {
 			int s;
 			do {
 				s = reader.nextHuffmanSymbol(&decoder);
+				cout << "l+" << (int)s << " ";
 				literalLength += s;
 			} while (s == 255 && CAT_UNLIKELY(!reader.eof()));
 		}
@@ -371,6 +380,8 @@ bool ImageMaskReader::decodeLZ(HuffmanDecoder &decoder, ImageReader &reader) {
 		for (int ii = 0; ii < literalLength; ++ii) {
 			u8 symbol = reader.nextHuffmanSymbol(&decoder);
 			lz[lzIndex++] = symbol;
+
+			cout << "=" << (int)symbol << " ";
 
 			// Decode [wrapped] RLE sequence
 			if CAT_UNLIKELY((u16)(lzIndex - lzLast) >= BATCH_RATE) {
@@ -395,12 +406,16 @@ bool ImageMaskReader::decodeLZ(HuffmanDecoder &decoder, ImageReader &reader) {
 		u8 offset1 = reader.nextHuffmanSymbol(&decoder);
 		u16 offset = ((u16)offset1 << 8) | offset0;
 
+		cout << "+" << (int)offset0 << " ";
+		cout << "&" << (int)offset1 << " ";
+
 		// Read match length
 		int matchLength = token & 15;
 		if (matchLength == 15) {
 			int s;
 			do {
 				s = reader.nextHuffmanSymbol(&decoder);
+				cout << "m+" << (int)s << " ";
 				matchLength += s;
 			} while (s == 255 && CAT_UNLIKELY(!reader.eof()));
 		}

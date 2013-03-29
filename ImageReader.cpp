@@ -49,6 +49,7 @@ u32 ImageReader::refill() {
 	if (nextLeft >= readBits) {
 		nextWord <<= readBits;
 		nextLeft -= readBits;
+		_bitsLeft = 32;
 	} else {
 		if (_wordsLeft > 0) {
 			--_wordsLeft;
@@ -65,11 +66,11 @@ u32 ImageReader::refill() {
 				nextWord <<= (32 - bitsLeft);
 			}
 			nextLeft = bitsLeft;
+			_bitsLeft = 32;
 		} else {
 			nextWord = 0;
-			nextLeft = 32;
+			nextLeft = 0;
 
-			// TODO: Fix this
 			if (bitsLeft <= 0) {
 				_eof = true;
 			}
@@ -79,7 +80,6 @@ u32 ImageReader::refill() {
 	_nextWord = nextWord;
 	_nextLeft = nextLeft;
 
-	_bitsLeft = 32;
 	_bits = bits;
 
 	return bits;

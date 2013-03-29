@@ -382,6 +382,9 @@ void ImageMaskWriter::writeHuffmanTable(u8 codelens[256], ImageWriter &writer) {
 #endif // CAT_COLLECT_STATS
 }
 
+#include <iostream>
+using namespace std;
+
 void ImageMaskWriter::writeEncodedLZ(const std::vector<u8> &lz, u16 codes[256], u8 codelens[256], ImageWriter &writer) {
 	const int lzSize = static_cast<int>( lz.size() );
 
@@ -392,6 +395,8 @@ void ImageMaskWriter::writeEncodedLZ(const std::vector<u8> &lz, u16 codes[256], 
 	for (int ii = 0; ii < lzSize; ++ii) {
 		u8 symbol = lz[ii];
 
+		cout << (int)symbol << " ";
+
 		u16 code = codes[symbol];
 		u8 len = codelens[symbol];
 
@@ -400,6 +405,7 @@ void ImageMaskWriter::writeEncodedLZ(const std::vector<u8> &lz, u16 codes[256], 
 		data_bits += len;
 #endif // CAT_COLLECT_STATS
 	}
+	cout << endl;
 
 #ifdef CAT_COLLECT_STATS
 	Stats.data_bits = data_bits;

@@ -157,6 +157,14 @@ void ImageWriter::writeBitsPush(u32 code, int len, int available) {
 int ImageWriter::finalizeAndWrite(const char *path) {
 	MappedFile file;
 
+	// Finalize the bit data
+
+	if (_bits) {
+		_words.push(_work);
+	}
+
+	u32 dataHash = _words.finalizeHash();
+
 	// Calculate file size
 	int wordCount = _words.getWordCount();
 	int totalBytes = (ImageReader::HEAD_WORDS + wordCount) * sizeof(u32);
@@ -180,14 +188,6 @@ int ImageWriter::finalizeAndWrite(const char *path) {
 	}
 
 	u32 *fileWords = reinterpret_cast<u32*>( fileData );
-
-	// Finalize the bit data
-
-	if (_bits) {
-		_words.push(_work);
-	}
-
-	u32 dataHash = _words.finalizeHash();
 
 	// Write header
 
