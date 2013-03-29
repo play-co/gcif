@@ -92,7 +92,7 @@ the Huffman symbols for each LZ output byte are written out.
 Pixels that are fully-transparent are skipped over during encoding/decoding.
 
 
-# Filtering
+### Step 1. Filtering
 
 Spatial and color filters are applied to the input data in 8x8 pixel blocks as
 in BCIF.  The pair of filters that best estimate each block are chosen, as
@@ -103,28 +103,26 @@ This generates encoded pixels and a filter description.  The filter description
 is compressed with LZ and Huffman codes then written to the file.
 
 
-# Huffman Encoding
+### Step 2. Huffman Encoding
 
 For each RGB plane, the BCIF "chaos" metric is used to sort each remaining
 filtered pixel into one of 8 bins.  Symbol statistics are collected for each
 bin and each RGB plane.
 
 
-# LZ
+### Step 3. LZ
 
 Now that the length of each symbol is known in bits, LZ can be run on each RGB
 plane with knowledge of the trade-offs between matching and bit-wise literal
 copies.  This encoding changes the symbol statistics.
 
 
-# Interleaved Encoding
+### Step 4. Interleaved Encoding
 
 Finally the LZ-encoded data is written out.  Since the decoder will be in lock-
 step with the encoder, RGB bits may be ommitted during each write.
 
-
-
-## LZ modifications
+##### LZ modifications
 
 Since the LZ4 decoding is more just "in spirit" of the original decoder we have
 decided to change the LZ4 encoding format.
