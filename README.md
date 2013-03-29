@@ -1,14 +1,144 @@
-gcif
+GCIF
 ====
 
 Game Closure Image Format
 
-This is a work-in-progress towards a new RGBA image format that works well for
+This is a Work-In-Progress towards a new RGBA image format that works well for
 our spritehseets.
 
 It is expected to produce files about half the size of the equivalent PNG
 formatted images.  And it is expected to decompress three times faster than the
 equivalent PNG formatted image (with PNGCRUSH) using libpng.
+
+
+Credit Where It's Due
+=====================
+
+The image format is built upon the work of several amazing software developers:
+
+Stefano Brocchi
++ Image codec design inspiration
++ BCIF: http://www.dsi.unifi.it/DRIIA/RaccoltaTesi/Brocchi.pdf
+
+Austin Appleby
++ Fast validation hash
++ MurmurHash3: https://code.google.com/p/smhasher/wiki/MurmurHash3
+
+Yann Collet
++ Fast LZ codec
++ LZ4HC: https://code.google.com/p/lz4/
+
+Charles Bloom
++ JPEG-LS
++ Blog: http://cbloomrants.blogspot.com/2010/08/08-12-10-lost-huffman-paper.html
+
+Rich Geldreich
++ Fast static Huffman codec
++ LZHAM: https://code.google.com/p/lzham/
+
+
+Specification
+=============
+
+Starting from the BCIF spec we decided to make some improvements.
+
+To optimize for low decompression time, we restricted ourself to considering
+only the fastest compression primitives: Filtering, LZ, and static Huffman.
+
+BCIF does filtering and static Huffman coding, but left out LZ, which we feel
+is a mistake since LZ is great for representing repeated data patterns, which
+can be encoded byte-wise, reducing the number of Huffman symbols to decode.
+In our tests so far, adding an LZ step improves compression ratio and speed.
+
+BCIF is also not designed for an alpha channel, and our games require alpha
+for sprite-sheets.  Furthermore, our images tend to have a lot of
+fully-transparent pixels that indicate 1-bit alpha is a good approach.
+So we developed a monochrome compressor that outperforms PNG just for the alpha
+channel.  Pixels that are represented by this monochrome bitmask can be skipped
+during the rest of the RGBA decoding, so the overall performance is improved.
+
+We also decided to rewrite BCIF from scratch after understanding how it worked,
+since we found that the code could be significantly improved in decompression
+speed, and we also disagreed with some of the finer points of the algorithm.
+
+
+# Fully-Transparent Pixel Encoding
+
+Fully-transparent pixels are combined into a monochrome raster and a filter is
+applied to each pixel:
+
+For the first row:
+
++ If the pixel to the left is "on", then we predict the pixel is "on."
+
+For other rows:
+
++ If the pixel above it is "on", then we predict the pixel is "on."
++ If the two pixels to the left are "on", then we predict the pixel is "on."
+
+Whenever the filter fails to predict properly, a 1 bit is written.
+
+The distance between these 1 bits is encoded for each row.
+We tried delta-encoding the distances in x and y but did not see improvement.
+
+For each row: <number of distances recorded> {list of distances}
+This is encoded as a byte stream, which is then LZ compressed with LZ4HC.
+
+Static Huffman encoding is then performed to eliminate a lot of repetition.
+
+The Huffman table is encoded using Golomb codes and written out, and then
+the Huffman symbols for each LZ output byte are written out.
+
+Pixels that are fully-transparent are skipped over during encoding/decoding.
+
+
+# Filtering
+
+Spatial and color filters are applied to the input data in 8x8 pixel blocks as
+in BCIF.  The pair of filters that best estimate each block are chosen, as
+measured by the L1 norm of the resulting pixel color component values, with 0
+and 255 being the best result, and numbers around 128 being the worst.
+
+This generates encoded pixels and a filter description.  The filter description
+is compressed with LZ and Huffman codes then written to the file.
+
+
+# Huffman Encoding
+
+For each RGB plane, the BCIF "chaos" metric is used to sort each remaining
+filtered pixel into one of 8 bins.  Symbol statistics are collected for each
+bin and each RGB plane.
+
+
+# LZ
+
+Now that the length of each symbol is known in bits, LZ can be run on each RGB
+plane with knowledge of the trade-offs between matching and bit-wise literal
+copies.  This encoding changes the symbol statistics.
+
+
+# Interleaved Encoding
+
+Finally the LZ-encoded data is written out.  Since the decoder will be in lock-
+step with the encoder, RGB bits may be ommitted during each write.
+
+
+
+## LZ modifications
+
+Since the LZ4 decoding is more just "in spirit" of the original decoder we have
+decided to change the LZ4 encoding format.
+
+LZ4 additive literal decoding scheme is not ideal because it results in larger
+files and requires more EOF checks since it cannot be unrolled on the decoder.
+
+Our LZ4 encoded block uses the high bit of the literal length field bytes to
+indicate that more bytes are part of the length field, instead of 255.
+
+It may also be interesting to increase the max LZ match offset from -65535 to
+a higher number of bits, since for 1024x1024 images, this restricts its look-
+back to just 64 scan lines.
+
 
 
 What works right now
@@ -95,3 +225,14 @@ The compression ratio achieved by our monochrome encoder on this data is better
 than PNG on all the files we've tested so far.  Sometimes by a little sometimes
 by a lot.  Note this doesn't indicate performance for full RGBA data though.
 
+The code is well-written in our opinion, easy to read and adapt, and easy to
+incorporate into mobile development.
+
+We plan to release a Java version for the encoder after the RGBA compression is
+functional in C++ code, so that the encoder can be run on any platform without
+having to compile it.  The decoder will be split off so that only a minimal
+amount of code needs to be added to support this file format.  We're shooting
+for one large C++ file, though it may end up being a small number of files.
+
+
+Stay tuned! =) -cat
