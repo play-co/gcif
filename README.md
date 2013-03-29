@@ -81,7 +81,7 @@ Whenever the filter fails to predict properly, a 1 bit is written.
 The distance between these 1 bits is encoded for each row.
 We tried delta-encoding the distances in x and y but did not see improvement.
 
-For each row: <number of distances recorded> {list of distances}
+For each scanline: {number of distances recorded} {list of distances...}
 This is encoded as a byte stream, which is then LZ compressed with LZ4HC.
 
 Static Huffman encoding is then performed to eliminate a lot of repetition.
@@ -135,7 +135,7 @@ indicate that more bytes are part of the length field, instead of 255.
 
 It may also be interesting to increase the max LZ match offset from -65535 to
 a higher number of bits, since for 1024x1024 images, this restricts its look-
-back to just 64 scan lines.
+back to just 64 scanlines.
 
 
 
