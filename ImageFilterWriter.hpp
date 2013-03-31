@@ -3,8 +3,7 @@
 
 #include "Platform.hpp"
 #include "ImageWriter.hpp"
-
-#include <vector>
+#include "ImageMaskWriter.hpp"
 
 namespace cat {
 
@@ -64,6 +63,7 @@ class ImageFilterWriter {
 	void clear();
 
 	bool init(int width, int height);
+	void decideAndApplyFilters(u8 *rgba, int width, int height, ImageMaskWriter &mask);
 
 public:
 	CAT_INLINE ImageFilterWriter() {
@@ -113,7 +113,7 @@ public:
 		}
 	}
 
-	int initFromRGBA(u8 *pixels, int width, int height);
+	int initFromRGBA(u8 *rgba, int width, int height, ImageMaskWriter &mask);
 };
 
 

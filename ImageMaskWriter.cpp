@@ -22,6 +22,7 @@ void ImageMaskWriter::applyFilter() {
 	// Walk backwards from the end
 	const int stride = _stride;
 	u32 *lagger = _mask + _size - stride;
+	u32 *writer = _filtered + _size - stride;
 	int hctr = _height;
 	while (--hctr) {
 		u32 cb = 0; // assume no delta from row above
@@ -34,17 +35,18 @@ void ImageMaskWriter::applyFilter() {
 			u32 y2xdelta = ydelta ^ (((ydelta >> 2) | cb) & ((ydelta >> 1) | (cb << 1)));
 			cb = ydelta << 30;
 
-			lagger[jj] = y2xdelta;
+			writer[jj] = y2xdelta;
 		}
 
 		lagger -= stride;
+		writer -= stride;
 	}
 
 	// First line
 	u32 cb = 1 << 31; // assume it is on the edges
 	for (int jj = 0; jj < stride; ++jj) {
 		u32 now = lagger[jj];
-		lagger[jj] = now ^ ((now >> 1) | cb);
+		writer[jj] = now ^ ((now >> 1) | cb);
 		cb = now << 31;
 	}
 }
@@ -80,6 +82,10 @@ void ImageMaskWriter::clear() {
 		delete []_mask;
 		_mask = 0;
 	}
+	if (_filtered) {
+		delete []_filtered;
+		_filtered = 0;
+	}
 }
 
 int ImageMaskWriter::initFromRGBA(u8 *rgba, int width, int height) {
@@ -96,6 +102,7 @@ int ImageMaskWriter::initFromRGBA(u8 *rgba, int width, int height) {
 	_size = height * _stride;
 	_height = height;
 	_mask = new u32[_size];
+	_filtered = new u32[_size];
 
 	// Assumes fully-transparent black for now
 	// TODO: Also work with images that have a different most-common color
@@ -207,7 +214,7 @@ static CAT_INLINE void byteEncode(vector<unsigned char> &bytes, u32 data) {
 void ImageMaskWriter::performRLE(vector<u8> &rle) {
 	vector<int> deltas;
 
-	u32 *lagger = _mask;
+	u32 *lagger = _filtered;
 	const int stride = _stride;
 
 	for (int ii = 0, iilen = _height; ii < iilen; ++ii) {

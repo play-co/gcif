@@ -15,6 +15,7 @@ class ImageMaskWriter {
 	u32 _value;
 
 	u32 *_mask;
+	u32 *_filtered;
 	int _size, _stride, _width, _height;
 
 	void clear();
@@ -48,8 +49,8 @@ public:
 
 public:
 	ImageMaskWriter() {
-		_stride = 0;
 		_mask = 0;
+		_filtered = 0;
 	}
 	virtual ~ImageMaskWriter() {
 		clear();
@@ -61,7 +62,7 @@ public:
 
 	CAT_INLINE bool hasRGB(int x, int y) {
 		const u32 word = _mask[(x >> 5) + y * _stride];
-		return (word >> (x & 31)) & 1;
+		return (word << (x & 31)) >> 31;
 	}
 
 #ifdef CAT_COLLECT_STATS

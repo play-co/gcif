@@ -1,6 +1,17 @@
 #include "ImageFilterWriter.hpp"
 using namespace cat;
 
+#include <vector>
+using namespace std;
+
+#include "lz4.h"
+#include "lz4hc.h"
+#include "Log.hpp"
+#include "HuffmanEncoder.hpp"
+
+#include <iostream>
+using namespace std;
+
 
 //// ImageFilterWriter
 
@@ -29,11 +40,7 @@ bool ImageFilterWriter::init(int width, int height) {
 	return true;
 }
 
-int ImageFilterWriter::initFromRGBA(u8 *pixels, int width, int height) {
-	if (!init(width, height)) {
-		return WE_BAD_DIMS;
-	}
-
+void ImageFilterWriter::decideAndApplyFilters(u8 *rgba, int width, int height, ImageMaskWriter &mask) {
 	u16 *filterWriter = _matrix;
 
 	static const int FSZ = 8;
@@ -48,7 +55,11 @@ int ImageFilterWriter::initFromRGBA(u8 *pixels, int width, int height) {
 			for (int yy = 0; yy < FSZ; ++yy) {
 				for (int xx = 0; xx < FSZ; ++xx) {
 					int px = x + xx, py = y + yy;
-					u8 *p = &pixels[(px + py * width) * 4];
+					if (mask.hasRGB(px, py)) {
+						continue;
+					}
+
+					u8 *p = &rgba[(px + py * width) * 4];
 
 					// Calculate spatial filter predictions
 					u8 sfPred[SF_COUNT*3];
@@ -143,10 +154,12 @@ int ImageFilterWriter::initFromRGBA(u8 *pixels, int width, int height) {
 			u8 cf = bestSF / SF_COUNT;
 			*filterWriter++ = ((u16)sf << 8) | cf;
 
+			cout << (int)cf << " ";
+
 			for (int yy = FSZ-1; yy >= 0; --yy) {
 				for (int xx = FSZ-1; xx >= 0; --xx) {
 					int px = x + xx, py = y + yy;
-					u8 *p = &pixels[(px + py * width) * 4];
+					u8 *p = &rgba[(px + py * width) * 4];
 
 					u8 fp[3];
 
@@ -270,9 +283,145 @@ int ImageFilterWriter::initFromRGBA(u8 *pixels, int width, int height) {
 				}
 			}
 
-			//pixels[(x + y * width) * 4] = 255;
+			//rgba[(x + y * width) * 4] = 255;
 		}
 	}
+}
+
+void collectFreqs(const std::vector<u8> &lz, u16 freqs[256]) {
+	const int NUM_SYMS = 256;
+	const int lzSize = static_cast<int>( lz.size() );
+	const int MAX_FREQ = 0xffff;
+
+	int hist[NUM_SYMS] = {0};
+	int max_freq = 0;
+
+	// Perform histogram, and find maximum symbol count
+	for (int ii = 0; ii < lzSize; ++ii) {
+		int count = ++hist[lz[ii]];
+
+		if (max_freq < count) {
+			max_freq = count;
+		}
+	}
+
+	// Scale to fit in 16-bit frequency counter
+	while (max_freq > MAX_FREQ) {
+		// For each symbol,
+		for (int ii = 0; ii < NUM_SYMS; ++ii) {
+			int count = hist[ii];
+
+			// If it exists,
+			if (count) {
+				count >>= 1;
+
+				// Do not let it go to zero if it is actually used
+				if (!count) {
+					count = 1;
+				}
+			}
+		}
+
+		// Update max
+		max_freq >>= 1;
+	}
+
+	// Store resulting scaled histogram
+	for (int ii = 0; ii < NUM_SYMS; ++ii) {
+		freqs[ii] = static_cast<u16>( hist[ii] );
+	}
+}
+
+void generateHuffmanCodes(u16 freqs[256], u16 codes[256], u8 codelens[256]) {
+	const int NUM_SYMS = 256;
+
+	huffman::huffman_work_tables state;
+	u32 max_code_size, total_freq;
+
+	huffman::generate_huffman_codes(&state, NUM_SYMS, freqs, codelens, max_code_size, total_freq);
+
+	if (max_code_size > HuffmanDecoder::MAX_CODE_SIZE) {
+		huffman::limit_max_code_size(NUM_SYMS, codelens, HuffmanDecoder::MAX_CODE_SIZE);
+	}
+
+	huffman::generate_codes(NUM_SYMS, codelens, codes);
+}
+
+int calcBits(vector<u8> &lz, u8 codelens[256]) {
+	int bits = 0;
+
+	for (int ii = 0; ii < lz.size(); ++ii) {
+		int sym = lz[ii];
+		bits += codelens[sym];
+	}
+
+	return bits;
+}
+
+int ImageFilterWriter::initFromRGBA(u8 *rgba, int width, int height, ImageMaskWriter &mask) {
+	if (!init(width, height)) {
+		return WE_BAD_DIMS;
+	}
+
+	decideAndApplyFilters(rgba, width, height, mask);
+
+	vector<u8> reds, greens, blues, alphas;
+
+	u8 *pixel = rgba;
+	for (int y = 0; y < height; ++y) {
+		for (int x = 0; x < width; ++x) {
+			if (pixel[3] != 0) {
+				reds.push_back(pixel[0]);
+				greens.push_back(pixel[1]);
+				blues.push_back(pixel[2]);
+				alphas.push_back(pixel[3]);
+
+				//cout << (int)pixel[3] << " ";
+			}
+			pixel += 4;
+		}
+	}
+
+	std::vector<u8> lz_reds, lz_greens, lz_blues, lz_alphas;
+	lz_reds.resize(LZ4_compressBound(static_cast<int>( reds.size() )));
+	lz_greens.resize(LZ4_compressBound(static_cast<int>( greens.size() )));
+	lz_blues.resize(LZ4_compressBound(static_cast<int>( blues.size() )));
+	lz_alphas.resize(LZ4_compressBound(static_cast<int>( alphas.size() )));
+
+	lz_reds.resize(LZ4_compressHC((char*)&reds[0], (char*)&lz_reds[0], reds.size()));
+	lz_greens.resize(LZ4_compressHC((char*)&greens[0], (char*)&lz_greens[0], greens.size()));
+	lz_blues.resize(LZ4_compressHC((char*)&blues[0], (char*)&lz_blues[0], blues.size()));
+	lz_alphas.resize(LZ4_compressHC((char*)&alphas[0], (char*)&lz_alphas[0], alphas.size()));
+
+	CAT_WARN("test") << "R bytes: " << lz_reds.size();
+	CAT_WARN("test") << "G bytes: " << lz_greens.size();
+	CAT_WARN("test") << "B bytes: " << lz_blues.size();
+	CAT_WARN("test") << "A bytes: " << lz_alphas.size();
+
+	u16 freq_reds[256], freq_greens[256], freq_blues[256], freq_alphas[256];
+
+	collectFreqs(lz_reds, freq_reds);
+	collectFreqs(lz_greens, freq_greens);
+	collectFreqs(lz_blues, freq_blues);
+	collectFreqs(lz_alphas, freq_alphas);
+
+	u16 c_reds[256], c_greens[256], c_blues[256], c_alphas[256];
+	u8 l_reds[256], l_greens[256], l_blues[256], l_alphas[256];
+	generateHuffmanCodes(freq_reds, c_reds, l_reds);
+	generateHuffmanCodes(freq_greens, c_greens, l_greens);
+	generateHuffmanCodes(freq_blues, c_blues, l_blues);
+	generateHuffmanCodes(freq_alphas, c_alphas, l_alphas);
+
+	int bits_reds, bits_greens, bits_blues, bits_alphas;
+	bits_reds = calcBits(lz_reds, l_reds);
+	bits_greens = calcBits(lz_greens, l_greens);
+	bits_blues = calcBits(lz_blues, l_blues);
+	bits_alphas = calcBits(lz_alphas, l_alphas);
+
+	CAT_WARN("test") << "Huffman-encoded R bytes: " << bits_reds / 8;
+	CAT_WARN("test") << "Huffman-encoded G bytes: " << bits_greens / 8;
+	CAT_WARN("test") << "Huffman-encoded B bytes: " << bits_blues / 8;
+	CAT_WARN("test") << "Huffman-encoded A bytes: " << bits_alphas / 8;
 
 	return WE_OK;
 }

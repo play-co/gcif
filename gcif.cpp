@@ -55,7 +55,7 @@ public:
 		imageMaskWriter.dumpStats();
 
 		ImageFilterWriter imageFilterWriter;
-		if ((err = imageFilterWriter.initFromRGBA(&image[0], width, height))) {
+		if ((err = imageFilterWriter.initFromRGBA(&image[0], width, height, imageMaskWriter))) {
 			CAT_WARN("main") << "Unable to generate image mask: " << ImageWriter::ErrorString(err);
 			return err;
 		}
