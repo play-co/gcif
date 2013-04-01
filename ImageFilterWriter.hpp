@@ -8,6 +8,8 @@
 namespace cat {
 
 
+static const int FILTER_ZONE_SIZE = 8;
+
 /*
  * Filter inputs:
  *
@@ -70,11 +72,11 @@ public:
 	}
 
 	CAT_INLINE void setFilter(int x, int y, u16 filter) {
-		_matrix[(x >> 3) + (y >> 3) * _w] = filter;
+		_matrix[(x / FILTER_ZONE_SIZE) + (y / FILTER_ZONE_SIZE) * _w] = filter;
 	}
 
 	CAT_INLINE u16 getFilter(int x, int y) {
-		return _matrix[(x >> 3) + (y >> 3) * _w];
+		return _matrix[(x / FILTER_ZONE_SIZE) + (y / FILTER_ZONE_SIZE) * _w];
 	}
 
 	static CAT_INLINE u8 paeth(int a, int b, int c) {

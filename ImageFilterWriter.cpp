@@ -126,16 +126,16 @@ void ImageFilterWriter::clear() {
 bool ImageFilterWriter::init(int width, int height) {
 	clear();
 
-	if (width < 8 || height < 8) {
+	if (width < FILTER_ZONE_SIZE || height < FILTER_ZONE_SIZE) {
 		return false;
 	}
 
-	if ((width & 7) | (height & 7)) {
+	if ((width % FILTER_ZONE_SIZE) != 0 || (height % FILTER_ZONE_SIZE) != 0) {
 		return false;
 	}
 
-	_w = width >> 3;
-	_h = height >> 3;
+	_w = width / FILTER_ZONE_SIZE;
+	_h = height / FILTER_ZONE_SIZE;
 	_matrix = new u16[_w * _h];
 	_chaos = new u8[width * 3 + 3];
 
@@ -145,7 +145,7 @@ bool ImageFilterWriter::init(int width, int height) {
 void ImageFilterWriter::decideFilters(u8 *rgba, int width, int height, ImageMaskWriter &mask) {
 	u16 *filterWriter = _matrix;
 
-	static const int FSZ = 8;
+	static const int FSZ = FILTER_ZONE_SIZE;
 
 	for (int y = height - FSZ; y >= 0; y -= FSZ) {
 		for (int x = width - FSZ; x >= 0; x -= FSZ) {
@@ -272,7 +272,7 @@ void ImageFilterWriter::decideFilters(u8 *rgba, int width, int height, ImageMask
 void ImageFilterWriter::applyFilters(u8 *rgba, int width, int height, ImageMaskWriter &mask) {
 	u16 *filterWriter = _matrix;
 
-	static const int FSZ = 8;
+	static const int FSZ = FILTER_ZONE_SIZE;
 
 	// For each zone,
 	for (int y = height - 1; y >= 0; --y) {
