@@ -1,0 +1,29 @@
+[Dec 31 16:00] <png> Inflate took 45779 usec
+[Dec 31 16:00] <png> Processed input at 29.3762 MB/S
+[Dec 31 16:00] <png> Generated at 91.6431 MB/S
+[Dec 31 16:00] <stats> (Mask Encoding)     Post-RLE Size : 24949 bytes
+[Dec 31 16:00] <stats> (Mask Encoding)      Post-LZ Size : 21953 bytes
+[Dec 31 16:00] <stats> (Mask Encoding) Post-Huffman Size : 18041 bytes (144325 bits)
+[Dec 31 16:00] <stats> (Mask Encoding)        Table Size : 66 bytes (521 bits) [Golomb pivot = 0 bits]
+[Dec 31 16:00] <stats> (Mask Encoding)      Filtering : 137 usec (7.87356 %total)
+[Dec 31 16:00] <stats> (Mask Encoding)            RLE : 376 usec (21.6092 %total)
+[Dec 31 16:00] <stats> (Mask Encoding)             LZ : 1084 usec (62.2989 %total)
+[Dec 31 16:00] <stats> (Mask Encoding)      Histogram : 20 usec (1.14943 %total)
+[Dec 31 16:00] <stats> (Mask Encoding) Generate Table : 8 usec (0.45977 %total)
+[Dec 31 16:00] <stats> (Mask Encoding)   Encode Table : 5 usec (0.287356 %total)
+[Dec 31 16:00] <stats> (Mask Encoding)    Encode Data : 110 usec (6.32184 %total)
+[Dec 31 16:00] <stats> (Mask Encoding)        Overall : 1740 usec
+[Dec 31 16:00] <stats> (Mask Encoding) Throughput : 75.3287 MBPS (input bytes)
+[Dec 31 16:00] <stats> (Mask Encoding) Throughput : 10.4057 MBPS (output bytes)
+[Dec 31 16:00] <stats> (Mask Encoding) Ratio : 13.8138% (18106 bytes) of original data set (131072 bytes)
+[Dec 31 16:00] <test> R bytes: 273587
+[Dec 31 16:00] <test> G bytes: 398946
+[Dec 31 16:00] <test> B bytes: 400623
+[Dec 31 16:00] <test> A bytes: 105217
+[Dec 31 16:00] <test> Huffman-encoded R bytes: 237520
+[Dec 31 16:00] <test> Huffman-encoded G bytes: 338997
+[Dec 31 16:00] <test> Huffman-encoded B bytes: 340852
+[Dec 31 16:00] <test> Huffman-encoded A bytes: 101020
+[Dec 31 16:00] <test> Estimated file size = 1074390
+[Dec 31 16:00] <main> Writing post-filter image file
+[Dec 31 16:00] <main> Wrote test.gci
