@@ -34,7 +34,7 @@ namespace cat {
 
 namespace huffman {
 
-static const u32 cHuffmanMaxSupportedSyms = 256;
+static const u32 cHuffmanMaxSupportedSyms = 256+8;
 
 struct sym_freq
 {

@@ -22,7 +22,7 @@ static CAT_INLINE int score(u8 p) {
 	}
 }
 
-static CAT_INLINE int encodeNeg(u8 p) {
+static CAT_INLINE int wrapNeg(u8 p) {
 	if (p == 0) {
 		return 0;
 	} else if (p < 128) {
@@ -77,19 +77,17 @@ static void collectFreqs(const std::vector<u8> &lz, u16 freqs[256]) {
 	}
 }
 
-static void generateHuffmanCodes(u16 freqs[256], u16 codes[256], u8 codelens[256]) {
-	const int NUM_SYMS = 256;
-
+static void generateHuffmanCodes(int num_syms, u16 freqs[], u16 codes[], u8 codelens[]) {
 	huffman::huffman_work_tables state;
 	u32 max_code_size, total_freq;
 
-	huffman::generate_huffman_codes(&state, NUM_SYMS, freqs, codelens, max_code_size, total_freq);
+	huffman::generate_huffman_codes(&state, num_syms, freqs, codelens, max_code_size, total_freq);
 
 	if (max_code_size > HuffmanDecoder::MAX_CODE_SIZE) {
-		huffman::limit_max_code_size(NUM_SYMS, codelens, HuffmanDecoder::MAX_CODE_SIZE);
+		huffman::limit_max_code_size(num_syms, codelens, HuffmanDecoder::MAX_CODE_SIZE);
 	}
 
-	huffman::generate_codes(NUM_SYMS, codelens, codes);
+	huffman::generate_codes(num_syms, codelens, codes);
 }
 
 static int calcBits(vector<u8> &lz, u8 codelens[256]) {
@@ -233,12 +231,12 @@ void ImageFilterWriter::decideFilters(u8 *rgba, int width, int height, ImageMask
 						u8 b = xb - pb;
 
 						// Calculate color filter error
-						predErrors[ii + SF_COUNT*CF_NOOP] += score(r)*score(r) + score(g)*score(g) + score(b)*score(b);
-						predErrors[ii + SF_COUNT*CF_GB_RG] += score(r-g)*score(r-g) + score(g-b)*score(g-b) + score(b)*score(b);
-						predErrors[ii + SF_COUNT*CF_GB_RB] += score(r-b)*score(r-b) + score(g-b)*score(g-b) + score(b)*score(b);
-						predErrors[ii + SF_COUNT*CF_GR_BR] += score(r)*score(r) + score(g-r)*score(g-r) + score(b-r)*score(b-r);
-						predErrors[ii + SF_COUNT*CF_GR_BG] += score(r)*score(r) + score(g-r)*score(g-r) + score(b-g)*score(b-g);
-						predErrors[ii + SF_COUNT*CF_BG_RG] += score(r-g)*score(r-g) + score(g)*score(g) + score(b-g)*score(b-g);
+						predErrors[ii + SF_COUNT*CF_NOOP] += score(r) + score(g) + score(b);
+						predErrors[ii + SF_COUNT*CF_GB_RG] += score(r-g) + score(g-b) + score(b);
+						predErrors[ii + SF_COUNT*CF_GB_RB] += score(r-b) + score(g-b) + score(b);
+						predErrors[ii + SF_COUNT*CF_GR_BR] += score(r) + score(g-r) + score(b-r);
+						predErrors[ii + SF_COUNT*CF_GR_BG] += score(r) + score(g-r) + score(b-g);
+						predErrors[ii + SF_COUNT*CF_BG_RG] += score(r-g) + score(g) + score(b-g);
 					}
 				}
 			}
@@ -408,15 +406,9 @@ void ImageFilterWriter::applyFilters(u8 *rgba, int width, int height, ImageMaskW
 						break;
 				}
 
-#if 0
-				p[0] = encodeNeg(fp[0]);
-				p[1] = encodeNeg(fp[1]);
-				p[2] = encodeNeg(fp[2]);
-#else
 				p[0] = fp[0];
 				p[1] = fp[1];
 				p[2] = fp[2];
-#endif
 			}
 
 			//rgba[(x + y * width) * 4] = 255;
@@ -430,7 +422,7 @@ static int CalculateChaos(int sum) {
 	if (sum <= 0) {
 		return 0;
 	} else {
-		int chaos = BSR32(sum) + 1;
+		int chaos = BSR32(sum - 1) + 1;
 		if (chaos > 7) {
 			chaos = 7;
 		}
@@ -452,6 +444,7 @@ void GenerateChaosTable() {
 	cout << endl << "};" << endl;
 }
 #endif // GENERATE_CHAOS_TABLE
+
 
 static const u8 CHAOS_TABLE[512] = {
 	0,1,2,2,3,3,3,3,4,4,4,4,4,4,4,4,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,
@@ -477,6 +470,8 @@ void ImageFilterWriter::chaosEncode(u8 *rgba, int width, int height, ImageMaskWr
 	GenerateChaosTable();
 #endif
 
+	static const int RLE_SYMS = 7;
+
 	u8 *last_chaos = _chaos;
 	CAT_CLR(last_chaos, width * 3 + 3);
 
@@ -485,7 +480,8 @@ void ImageFilterWriter::chaosEncode(u8 *rgba, int width, int height, ImageMaskWr
 
 	vector<u8> test;
 
-	u16 hist[3][16][256] = {0};
+	u16 hist[3][16][256 + RLE_SYMS] = {0};
+	int rle[3][16] = {0};
 
 	for (int y = 0; y < height; ++y) {
 		u8 left_rgb[3] = {0};
@@ -503,28 +499,41 @@ void ImageFilterWriter::chaosEncode(u8 *rgba, int width, int height, ImageMaskWr
 			chaos[0] = CHAOS_TABLE[chaos[0]];
 			chaos[1] = CHAOS_TABLE[chaos[1]];
 			chaos[2] = CHAOS_TABLE[chaos[2]];
-#if 1
+#if 0
 			u16 isum = last_chaos_read[0] + last_chaos_read[-3];
 			chaos[0] += (isum + chaos[0] + (isum >> 1)) >> 2;
-
-			isum = last_chaos_read[1] + last_chaos_read[-2];
-			chaos[1] += (last_chaos_read[1] + last_chaos_read[-2] + chaos[1] + (isum >> 1)) >> 2;
-
-			isum = last_chaos_read[2] + last_chaos_read[-1];
-			chaos[2] += (last_chaos_read[2] + last_chaos_read[-1] + chaos[2] + (isum >> 1)) >> 2;
+			chaos[1] += (last_chaos_read[1] + last_chaos_read[-2] + chaos[1] + (chaos[0] >> 1)) >> 2;
+			chaos[2] += (last_chaos_read[2] + last_chaos_read[-1] + chaos[2] + (chaos[1] >> 1)) >> 2;
 #endif
 			left_rgb[0] = score(now[0]);
 			left_rgb[1] = score(now[1]);
 			left_rgb[2] = score(now[2]);
 			{
-				test.push_back(chaos[0] * 256/16);
-				test.push_back(chaos[0] * 256/16);
-				test.push_back(chaos[0] * 256/16);
+				test.push_back(chaos[0] * 256/8);
+				test.push_back(chaos[0] * 256/8);
+				test.push_back(chaos[0] * 256/8);
 
 				if (!mask.hasRGB(x, y)) {
-					hist[0][chaos[0]][now[0]]++;
-					hist[1][chaos[1]][now[1]]++;
-					hist[2][chaos[2]][now[2]]++;
+					for (int ii = 0; ii < 3; ++ii) {
+						if (now[ii]) {
+							int count = rle[ii][chaos[ii]];
+							if (count) {
+								rle[ii][chaos[ii]] = 0;
+								if (count <= RLE_SYMS) {
+									if (count == 1) {
+										hist[ii][chaos[ii]][0]++;
+									} else {
+										hist[ii][chaos[ii]][254 + count]++;
+									}
+								} else {
+									hist[ii][chaos[ii]][255 + RLE_SYMS]++;
+								}
+							}
+							hist[ii][chaos[ii]][now[ii]]++;
+						} else {
+							rle[ii][chaos[ii]]++;
+						}
+					}
 				}
 			}
 
@@ -537,30 +546,45 @@ void ImageFilterWriter::chaosEncode(u8 *rgba, int width, int height, ImageMaskWr
 		}
 	}
 
-	for (int ii = 0; ii < 256; ++ii) {
-		cout << ii << ": " << hist[0][0][ii] << endl;
+	for (int ii = 0; ii < 3; ++ii) {
+		for (int jj = 0; jj < 16; ++jj) {
+			int count = rle[ii][jj];
+
+			if (count) {
+				if (count <= RLE_SYMS) {
+					if (count == 1) {
+						hist[ii][jj][0]++;
+					} else {
+						hist[ii][jj][254 + count]++;
+					}
+				} else {
+					hist[ii][jj][255 + RLE_SYMS]++;
+				}
+			}
+		}
 	}
 
 	CAT_CLR(last_chaos, width * 3 + 3);
+	CAT_OBJCLR(rle);
 
-	u8 codelens[3][16][256];
+	u8 codelens[3][16][256 + RLE_SYMS];
 
 	for (int ii = 0; ii < 3; ++ii) {
 		for (int jj = 0; jj < 16; ++jj) {
-			u16 codes[256];
+			u16 codes[256 + RLE_SYMS];
 
-			generateHuffmanCodes(hist[ii][jj], codes, codelens[ii][jj]);
+			generateHuffmanCodes(256 + RLE_SYMS, hist[ii][jj], codes, codelens[ii][jj]);
 		}
+	}
+
+	for (int ii = 0; ii < 256 + RLE_SYMS; ++ii) {
+		cout << ii << ": " << (int)codelens[0][0][ii] << endl;
 	}
 
 	last = rgba;
 	now = rgba;
 
-	int bitcount_r = 0;
-	int bitcount_g = 0;
-	int bitcount_b = 0;
-
-	int rle = 0;
+	int bitcount[3] = {0};
 
 	for (int y = 0; y < height; ++y) {
 		u8 left_rgb[3] = {0};
@@ -578,24 +602,38 @@ void ImageFilterWriter::chaosEncode(u8 *rgba, int width, int height, ImageMaskWr
 			chaos[0] = CHAOS_TABLE[chaos[0]];
 			chaos[1] = CHAOS_TABLE[chaos[1]];
 			chaos[2] = CHAOS_TABLE[chaos[2]];
-#if 1
+#if 0
 			u16 isum = last_chaos_read[0] + last_chaos_read[-3];
 			chaos[0] += (isum + chaos[0] + (isum >> 1)) >> 2;
-
-			isum = last_chaos_read[1] + last_chaos_read[-2];
-			chaos[1] += (last_chaos_read[1] + last_chaos_read[-2] + chaos[1] + (isum >> 1)) >> 2;
-
-			isum = last_chaos_read[2] + last_chaos_read[-1];
-			chaos[2] += (last_chaos_read[2] + last_chaos_read[-1] + chaos[2] + (isum >> 1)) >> 2;
+			chaos[1] += (last_chaos_read[1] + last_chaos_read[-2] + chaos[1] + (chaos[0] >> 1)) >> 2;
+			chaos[2] += (last_chaos_read[2] + last_chaos_read[-1] + chaos[2] + (chaos[1] >> 1)) >> 2;
 #endif
 			left_rgb[0] = score(now[0]);
 			left_rgb[1] = score(now[1]);
 			left_rgb[2] = score(now[2]);
 			{
 				if (!mask.hasRGB(x, y)) {
-					bitcount_r += codelens[0][chaos[0]][now[0]];
-					bitcount_g += codelens[1][chaos[1]][now[1]];
-					bitcount_b += codelens[2][chaos[2]][now[2]];
+					for (int ii = 0; ii < 3; ++ii) {
+						if (now[ii]) {
+							int count = rle[ii][chaos[ii]];
+							if (count) {
+								if (count <= RLE_SYMS) {
+									if (count == 1) {
+										bitcount[ii] += codelens[ii][chaos[ii]][0];
+									} else {
+										bitcount[ii] += codelens[ii][chaos[ii]][254 + count];
+									}
+								} else {
+									bitcount[ii] += codelens[ii][chaos[ii]][255 + RLE_SYMS];
+									bitcount[ii] += 4; //approx
+								}
+								rle[ii][chaos[ii]] = 0;
+							}
+							bitcount[ii] += codelens[ii][chaos[ii]][now[ii]];
+						} else {
+							rle[ii][chaos[ii]]++;
+						}
+					}
 				}
 			}
 
@@ -608,9 +646,25 @@ void ImageFilterWriter::chaosEncode(u8 *rgba, int width, int height, ImageMaskWr
 		}
 	}
 
-	CAT_WARN("main") << "Chaos metric R bytes: " << bitcount_r / 8;
-	CAT_WARN("main") << "Chaos metric G bytes: " << bitcount_g / 8;
-	CAT_WARN("main") << "Chaos metric B bytes: " << bitcount_b / 8;
+	for (int ii = 0; ii < 3; ++ii) {
+		for (int jj = 0; jj < 16; ++jj) {
+			int count = rle[ii][jj];
+			if (count <= RLE_SYMS) {
+				if (count == 1) {
+					bitcount[ii] += codelens[ii][jj][0];
+				} else {
+					bitcount[ii] += codelens[ii][jj][254 + count];
+				}
+			} else {
+				bitcount[ii] += codelens[ii][jj][255 + RLE_SYMS];
+				bitcount[ii] += 4; //approx
+			}
+		}
+	}
+
+	CAT_WARN("main") << "Chaos metric R bytes: " << bitcount[0] / 8;
+	CAT_WARN("main") << "Chaos metric G bytes: " << bitcount[1] / 8;
+	CAT_WARN("main") << "Chaos metric B bytes: " << bitcount[2] / 8;
 
 #if 1
 		{
@@ -682,10 +736,10 @@ int ImageFilterWriter::initFromRGBA(u8 *rgba, int width, int height, ImageMaskWr
 
 	u16 c_reds[256], c_greens[256], c_blues[256], c_alphas[256];
 	u8 l_reds[256], l_greens[256], l_blues[256], l_alphas[256];
-	generateHuffmanCodes(freq_reds, c_reds, l_reds);
-	generateHuffmanCodes(freq_greens, c_greens, l_greens);
-	generateHuffmanCodes(freq_blues, c_blues, l_blues);
-	generateHuffmanCodes(freq_alphas, c_alphas, l_alphas);
+	generateHuffmanCodes(256, freq_reds, c_reds, l_reds);
+	generateHuffmanCodes(256, freq_greens, c_greens, l_greens);
+	generateHuffmanCodes(256, freq_blues, c_blues, l_blues);
+	generateHuffmanCodes(256, freq_alphas, c_alphas, l_alphas);
 
 	int bits_reds, bits_greens, bits_blues, bits_alphas;
 	bits_reds = calcBits(lz_reds, l_reds);
