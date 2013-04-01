@@ -9,6 +9,7 @@ namespace cat {
 
 
 static const int FILTER_ZONE_SIZE = 8;
+static const int FILTER_RLE_SYMS = 8;
 
 /*
  * Filter inputs:

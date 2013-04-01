@@ -474,12 +474,162 @@ static const u8 CHAOS_TABLE[512] = {
 	7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,
 };
 
+
+
+
+
+
+class EntropyEncoder {
+	static const int BZ_SYMS = 256 + FILTER_RLE_SYMS;
+	static const int AZ_SYMS = 256;
+
+	u32 histBZ[BZ_SYMS], histAZ[AZ_SYMS];
+	u32 zeroRun;
+	u32 maxBZ, maxAZ;
+
+	u16 codesBZ[BZ_SYMS];
+	u8 codelensBZ[BZ_SYMS];
+
+	u16 codesAZ[AZ_SYMS];
+	u8 codelensAZ[AZ_SYMS];
+
+	void endSymbols() {
+		if (zeroRun > 0) {
+			if (zeroRun < FILTER_RLE_SYMS) {
+				histBZ[255 + zeroRun]++;
+			} else {
+				histBZ[BZ_SYMS - 1]++;
+			}
+
+			zeroRun = 0;
+		}
+	}
+
+	void normalizeFreqs(u32 max_freq, int num_syms, u32 hist[], u16 freqs[]) {
+		static const int MAX_FREQ = 0xffff;
+
+		// Scale to fit in 16-bit frequency counter
+		while (max_freq > MAX_FREQ) {
+			// For each symbol,
+			for (int ii = 0; ii < num_syms; ++ii) {
+				int count = hist[ii];
+
+				// If it exists,
+				if (count) {
+					count >>= 1;
+
+					// Do not let it go to zero if it is actually used
+					if (!count) {
+						count = 1;
+					}
+				}
+			}
+
+			// Update max
+			max_freq >>= 1;
+		}
+
+		// Store resulting scaled histogram
+		for (int ii = 0; ii < num_syms; ++ii) {
+			freqs[ii] = static_cast<u16>( hist[ii] );
+		}
+	}
+
+public:
+	CAT_INLINE EntropyEncoder() {
+		reset();
+	}
+	CAT_INLINE virtual ~EntropyEncoder() {
+	}
+
+	void reset() {
+		CAT_OBJCLR(histBZ);
+		CAT_OBJCLR(histAZ);
+		zeroRun = 0;
+		maxBZ = 0;
+		maxAZ = 0;
+	}
+
+	void push(u8 symbol) {
+		if (symbol == 0) {
+			++zeroRun;
+		} else {
+			if (zeroRun > 0) {
+				if (zeroRun < FILTER_RLE_SYMS) {
+					histBZ[255 + zeroRun]++;
+				} else {
+					histBZ[BZ_SYMS - 1]++;
+				}
+
+				zeroRun = 0;
+				histAZ[symbol]++;
+			} else {
+				histBZ[symbol]++;
+			}
+		}
+	}
+
+	void finalize() {
+		endSymbols();
+
+		u16 freqBZ[BZ_SYMS], freqAZ[AZ_SYMS];
+
+		normalizeFreqs(maxBZ, BZ_SYMS, histBZ, freqBZ);
+		normalizeFreqs(maxAZ, AZ_SYMS, histAZ, freqAZ);
+
+		generateHuffmanCodes(BZ_SYMS, freqBZ, codesBZ, codelensBZ);
+		generateHuffmanCodes(AZ_SYMS, freqAZ, codesAZ, codelensAZ);
+	}
+
+	u32 encode(u8 symbol) {
+		u32 bits = 0;
+
+		if (symbol == 0) {
+			++zeroRun;
+		} else {
+			if (zeroRun > 0) {
+				if (zeroRun < FILTER_RLE_SYMS) {
+					bits = codelensBZ[255 + zeroRun];
+				} else {
+					bits = codelensBZ[BZ_SYMS - 1] + 4; // estimated
+				}
+
+				zeroRun = 0;
+				bits += codelensAZ[symbol];
+			} else {
+				bits += codelensBZ[symbol];
+			}
+		}
+
+		return bits;
+	}
+
+	u32 encodeFinalize() {
+		u32 bits = 0;
+
+		if (zeroRun > 0) {
+			if (zeroRun < FILTER_RLE_SYMS) {
+				bits = codelensBZ[255 + zeroRun];
+			} else {
+				bits = codelensBZ[BZ_SYMS - 1] + 4; // estimated
+			}
+		}
+
+		return bits;
+	}
+};
+
+
+
+
+
+
+
+
 void ImageFilterWriter::chaosEncode(u8 *rgba, int width, int height, ImageMaskWriter &mask) {
 #ifdef GENERATE_CHAOS_TABLE
 	GenerateChaosTable();
 #endif
-
-	static const int RLE_SYMS = 7;
 
 	u8 *last_chaos = _chaos;
 	CAT_CLR(last_chaos, width * 3 + 3);
@@ -489,8 +639,7 @@ void ImageFilterWriter::chaosEncode(u8 *rgba, int width, int height, ImageMaskWr
 
 	vector<u8> test;
 
-	u16 hist[3][16][256 + RLE_SYMS] = {0};
-	int rle[3][16] = {0};
+	EntropyEncoder encoder[3][16];
 
 	for (int y = 0; y < height; ++y) {
 		u8 left_rgb[3] = {0};
@@ -524,24 +673,7 @@ void ImageFilterWriter::chaosEncode(u8 *rgba, int width, int height, ImageMaskWr
 
 				if (!mask.hasRGB(x, y)) {
 					for (int ii = 0; ii < 3; ++ii) {
-						if (now[ii]) {
-							int count = rle[ii][chaos[ii]];
-							if (count) {
-								rle[ii][chaos[ii]] = 0;
-								if (count <= RLE_SYMS) {
-									if (count == 1) {
-										hist[ii][chaos[ii]][0]++;
-									} else {
-										hist[ii][chaos[ii]][254 + count]++;
-									}
-								} else {
-									hist[ii][chaos[ii]][255 + RLE_SYMS]++;
-								}
-							}
-							hist[ii][chaos[ii]][now[ii]]++;
-						} else {
-							rle[ii][chaos[ii]]++;
-						}
+						encoder[ii][chaos[ii]].push(now[ii]);
 					}
 				}
 			}
@@ -555,39 +687,12 @@ void ImageFilterWriter::chaosEncode(u8 *rgba, int width, int height, ImageMaskWr
 		}
 	}
 
-	for (int ii = 0; ii < 3; ++ii) {
-		for (int jj = 0; jj < 16; ++jj) {
-			int count = rle[ii][jj];
-
-			if (count) {
-				if (count <= RLE_SYMS) {
-					if (count == 1) {
-						hist[ii][jj][0]++;
-					} else {
-						hist[ii][jj][254 + count]++;
-					}
-				} else {
-					hist[ii][jj][255 + RLE_SYMS]++;
-				}
-			}
-		}
-	}
-
 	CAT_CLR(last_chaos, width * 3 + 3);
-	CAT_OBJCLR(rle);
-
-	u8 codelens[3][16][256 + RLE_SYMS];
 
 	for (int ii = 0; ii < 3; ++ii) {
 		for (int jj = 0; jj < 16; ++jj) {
-			u16 codes[256 + RLE_SYMS];
-
-			generateHuffmanCodes(256 + RLE_SYMS, hist[ii][jj], codes, codelens[ii][jj]);
+			encoder[ii][jj].finalize();
 		}
-	}
-
-	for (int ii = 0; ii < 256 + RLE_SYMS; ++ii) {
-		cout << ii << ": " << (int)codelens[0][0][ii] << endl;
 	}
 
 	last = rgba;
@@ -623,25 +728,7 @@ void ImageFilterWriter::chaosEncode(u8 *rgba, int width, int height, ImageMaskWr
 			{
 				if (!mask.hasRGB(x, y)) {
 					for (int ii = 0; ii < 3; ++ii) {
-						if (now[ii]) {
-							int count = rle[ii][chaos[ii]];
-							if (count) {
-								if (count <= RLE_SYMS) {
-									if (count == 1) {
-										bitcount[ii] += codelens[ii][chaos[ii]][0];
-									} else {
-										bitcount[ii] += codelens[ii][chaos[ii]][254 + count];
-									}
-								} else {
-									bitcount[ii] += codelens[ii][chaos[ii]][255 + RLE_SYMS];
-									bitcount[ii] += 4; //approx
-								}
-								rle[ii][chaos[ii]] = 0;
-							}
-							bitcount[ii] += codelens[ii][chaos[ii]][now[ii]];
-						} else {
-							rle[ii][chaos[ii]]++;
-						}
+						bitcount[ii] += encoder[ii][chaos[ii]].encode(now[ii]);
 					}
 				}
 			}
@@ -657,17 +744,7 @@ void ImageFilterWriter::chaosEncode(u8 *rgba, int width, int height, ImageMaskWr
 
 	for (int ii = 0; ii < 3; ++ii) {
 		for (int jj = 0; jj < 16; ++jj) {
-			int count = rle[ii][jj];
-			if (count <= RLE_SYMS) {
-				if (count == 1) {
-					bitcount[ii] += codelens[ii][jj][0];
-				} else {
-					bitcount[ii] += codelens[ii][jj][254 + count];
-				}
-			} else {
-				bitcount[ii] += codelens[ii][jj][255 + RLE_SYMS];
-				bitcount[ii] += 4; //approx
-			}
+			bitcount[ii] += encoder[ii][jj].encodeFinalize();
 		}
 	}
 
@@ -714,7 +791,7 @@ int ImageFilterWriter::initFromRGBA(u8 *rgba, int width, int height, ImageMaskWr
 			pixel += 4;
 		}
 	}
-
+/*
 #if 1
 	std::vector<u8> lz_reds, lz_greens, lz_blues, lz_alphas;
 	lz_reds.resize(LZ4_compressBound(static_cast<int>( reds.size() )));
@@ -764,7 +841,7 @@ int ImageFilterWriter::initFromRGBA(u8 *rgba, int width, int height, ImageMaskWr
 	CAT_WARN("test") << "Huffman-encoded A bytes: " << bits_alphas / 8;
 
 	CAT_WARN("test") << "Estimated file size = " << (bits_reds + bits_greens + bits_blues + bits_alphas) / 8 + 6000 + 50000;
-
+*/
 	return WE_OK;
 }
 
