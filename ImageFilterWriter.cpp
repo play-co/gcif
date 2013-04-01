@@ -14,12 +14,21 @@ using namespace std;
 #include <iostream>
 using namespace std;
 
-
 static CAT_INLINE int score(u8 p) {
 	if (p < 128) {
 		return p;
 	} else {
 		return 256 - p;
+	}
+}
+
+static CAT_INLINE int encodeNeg(u8 p) {
+	if (p == 0) {
+		return 0;
+	} else if (p < 128) {
+		return ((p - 1) << 1) | 1;
+	} else {
+		return (256 - p) << 1;
 	}
 }
 
@@ -399,10 +408,10 @@ void ImageFilterWriter::applyFilters(u8 *rgba, int width, int height, ImageMaskW
 						break;
 				}
 
-#if 1
-				p[0] = score(fp[0]);
-				p[1] = score(fp[1]);
-				p[2] = score(fp[2]);
+#if 0
+				p[0] = encodeNeg(fp[0]);
+				p[1] = encodeNeg(fp[1]);
+				p[2] = encodeNeg(fp[2]);
 #else
 				p[0] = fp[0];
 				p[1] = fp[1];
@@ -421,7 +430,7 @@ static int CalculateChaos(int sum) {
 	if (sum <= 0) {
 		return 0;
 	} else {
-		int chaos = BSR32((sum - 1)) + 1;
+		int chaos = BSR32(sum) + 1;
 		if (chaos > 7) {
 			chaos = 7;
 		}
@@ -445,9 +454,9 @@ void GenerateChaosTable() {
 #endif // GENERATE_CHAOS_TABLE
 
 static const u8 CHAOS_TABLE[512] = {
-	0,1,1,2,2,3,3,3,3,4,4,4,4,4,4,4,4,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,
-	5,6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,
-	6,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,
+	0,1,2,2,3,3,3,3,4,4,4,4,4,4,4,4,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,
+	6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,
+	7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,
 	7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,
 	7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,
 	7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,
@@ -485,16 +494,16 @@ void ImageFilterWriter::chaosEncode(u8 *rgba, int width, int height, ImageMaskWr
 		for (int x = 0; x < width; ++x) {
 			u16 chaos[3] = {left_rgb[0], left_rgb[1], left_rgb[2]};
 			if (y > 0) {
-				chaos[0] += last[0];
-				chaos[1] += last[1];
-				chaos[2] += last[2];
+				chaos[0] += score(last[0]);
+				chaos[1] += score(last[1]);
+				chaos[2] += score(last[2]);
 				last += 4;
 			}
 
 			chaos[0] = CHAOS_TABLE[chaos[0]];
 			chaos[1] = CHAOS_TABLE[chaos[1]];
 			chaos[2] = CHAOS_TABLE[chaos[2]];
-#if 0
+#if 1
 			u16 isum = last_chaos_read[0] + last_chaos_read[-3];
 			chaos[0] += (isum + chaos[0] + (isum >> 1)) >> 2;
 
@@ -504,13 +513,13 @@ void ImageFilterWriter::chaosEncode(u8 *rgba, int width, int height, ImageMaskWr
 			isum = last_chaos_read[2] + last_chaos_read[-1];
 			chaos[2] += (last_chaos_read[2] + last_chaos_read[-1] + chaos[2] + (isum >> 1)) >> 2;
 #endif
-			left_rgb[0] = now[0];
-			left_rgb[1] = now[1];
-			left_rgb[2] = now[2];
+			left_rgb[0] = score(now[0]);
+			left_rgb[1] = score(now[1]);
+			left_rgb[2] = score(now[2]);
 			{
-				test.push_back(chaos[1] * 256/16);
-				test.push_back(chaos[1] * 256/16);
-				test.push_back(chaos[1] * 256/16);
+				test.push_back(chaos[0] * 256/16);
+				test.push_back(chaos[0] * 256/16);
+				test.push_back(chaos[0] * 256/16);
 
 				if (!mask.hasRGB(x, y)) {
 					hist[0][chaos[0]][now[0]]++;
@@ -560,16 +569,16 @@ void ImageFilterWriter::chaosEncode(u8 *rgba, int width, int height, ImageMaskWr
 		for (int x = 0; x < width; ++x) {
 			u16 chaos[3] = {left_rgb[0], left_rgb[1], left_rgb[2]};
 			if (y > 0) {
-				chaos[0] += last[0];
-				chaos[1] += last[1];
-				chaos[2] += last[2];
+				chaos[0] += score(last[0]);
+				chaos[1] += score(last[1]);
+				chaos[2] += score(last[2]);
 				last += 4;
 			}
 
 			chaos[0] = CHAOS_TABLE[chaos[0]];
 			chaos[1] = CHAOS_TABLE[chaos[1]];
 			chaos[2] = CHAOS_TABLE[chaos[2]];
-#if 0
+#if 1
 			u16 isum = last_chaos_read[0] + last_chaos_read[-3];
 			chaos[0] += (isum + chaos[0] + (isum >> 1)) >> 2;
 
@@ -579,9 +588,9 @@ void ImageFilterWriter::chaosEncode(u8 *rgba, int width, int height, ImageMaskWr
 			isum = last_chaos_read[2] + last_chaos_read[-1];
 			chaos[2] += (last_chaos_read[2] + last_chaos_read[-1] + chaos[2] + (isum >> 1)) >> 2;
 #endif
-			left_rgb[0] = now[0];
-			left_rgb[1] = now[1];
-			left_rgb[2] = now[2];
+			left_rgb[0] = score(now[0]);
+			left_rgb[1] = score(now[1]);
+			left_rgb[2] = score(now[2]);
 			{
 				if (!mask.hasRGB(x, y)) {
 					bitcount_r += codelens[0][chaos[0]][now[0]];
