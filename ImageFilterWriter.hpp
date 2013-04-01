@@ -51,24 +51,19 @@ enum ColorFilters {
 class ImageFilterWriter {
 	int _w, _h;
 	u16 *_matrix;
-
-	static CAT_INLINE int score(u8 p) {
-		if (p < 128) {
-			return p;
-		} else {
-			return 256 - p;
-		}
-	}
+	u8 *_chaos;
 
 	void clear();
 
 	bool init(int width, int height);
 	void decideFilters(u8 *rgba, int width, int height, ImageMaskWriter &mask);
 	void applyFilters(u8 *rgba, int width, int height, ImageMaskWriter &mask);
+	void chaosEncode(u8 *rgba, int width, int height, ImageMaskWriter &mask);
 
 public:
 	CAT_INLINE ImageFilterWriter() {
 		_matrix = 0;
+		_chaos = 0;
 	}
 	CAT_INLINE virtual ~ImageFilterWriter() {
 		clear();
