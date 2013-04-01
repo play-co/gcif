@@ -21,11 +21,11 @@ enum SpatialFilters {
 	SF_B,			// B
 	SF_C,			// C
 	SF_D,			// D
+	SF_AB,			// (A + B)/2
+	SF_AD,			// (A + D)/2
 	SF_A_BC,		// A + (B - C)/2
 	SF_B_AC,		// B + (A - C)/2
-	SF_AB,			// (A + B)/2
 	SF_ABCD,		// (A + B + C + D + 1)/4
-	SF_AD,			// (A + D)/2
 	SF_ABC_CLAMP,	// A + B - C clamped to [0, 255]
 	SF_PAETH,		// Paeth filter
 	SF_ABC_PAETH,	// If A <= C <= B, A + B - C, else Paeth filter
@@ -34,12 +34,12 @@ enum SpatialFilters {
 };
 
 enum ColorFilters {
-	CF_NOOP,
 	CF_GB_RG,	// g-=b, r-=g
+	CF_BG_RG,	// b-=g, r-=g
+	CF_GR_BG,	// g-=r, b-=g
+	CF_NOOP,
 	CF_GB_RB,	// g-=b, r-=b
 	CF_GR_BR,	// g-=r, b-=r
-	CF_GR_BG,	// g-=r, b-=g
-	CF_BG_RG,	// b-=g, r-=g
 
 	CF_COUNT
 };
@@ -63,7 +63,8 @@ class ImageFilterWriter {
 	void clear();
 
 	bool init(int width, int height);
-	void decideAndApplyFilters(u8 *rgba, int width, int height, ImageMaskWriter &mask);
+	void decideFilters(u8 *rgba, int width, int height, ImageMaskWriter &mask);
+	void applyFilters(u8 *rgba, int width, int height, ImageMaskWriter &mask);
 
 public:
 	CAT_INLINE ImageFilterWriter() {
@@ -71,6 +72,10 @@ public:
 	}
 	CAT_INLINE virtual ~ImageFilterWriter() {
 		clear();
+	}
+
+	CAT_INLINE void setFilter(int x, int y, u16 filter) {
+		_matrix[(x >> 3) + (y >> 3) * _w] = filter;
 	}
 
 	CAT_INLINE u16 getFilter(int x, int y) {

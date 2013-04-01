@@ -40,7 +40,7 @@ bool ImageFilterWriter::init(int width, int height) {
 	return true;
 }
 
-void ImageFilterWriter::decideAndApplyFilters(u8 *rgba, int width, int height, ImageMaskWriter &mask) {
+void ImageFilterWriter::decideFilters(u8 *rgba, int width, int height, ImageMaskWriter &mask) {
 	u16 *filterWriter = _matrix;
 
 	static const int FSZ = 8;
@@ -52,8 +52,8 @@ void ImageFilterWriter::decideAndApplyFilters(u8 *rgba, int width, int height, I
 			// Determine best filter combination to use
 
 			// For each pixel in the 8x8 zone,
-			for (int yy = 0; yy < FSZ; ++yy) {
-				for (int xx = 0; xx < FSZ; ++xx) {
+			for (int yy = FSZ-1; yy >= 0; --yy) {
+				for (int xx = FSZ-1; xx >= 0; --xx) {
 					int px = x + xx, py = y + yy;
 					if (mask.hasRGB(px, py)) {
 						continue;
@@ -70,9 +70,13 @@ void ImageFilterWriter::decideAndApplyFilters(u8 *rgba, int width, int height, I
 						if (px > 0) {
 							if (py > 0) {
 								a = p[plane - 4];
-								c = p[plane - 4 - width];
-								b = p[plane - width];
-								d = p[plane + 4 - width];
+								c = p[plane - 4 - width*4];
+								b = p[plane - width*4];
+								if (px < width-1) {
+									d = p[plane + 4 - width*4];
+								} else {
+									d = 0;
+								}
 							} else {
 								a = p[plane - 4];
 								c = 0;
@@ -83,8 +87,12 @@ void ImageFilterWriter::decideAndApplyFilters(u8 *rgba, int width, int height, I
 							if (py > 0) {
 								a = 0;
 								c = 0;
-								b = p[plane - width];
-								d = p[plane + 4 - width];
+								b = p[plane - width*4];
+								if (px < width-1) {
+									d = p[plane + 4 - width*4];
+								} else {
+									d = 0;
+								}
 							} else {
 								a = 0;
 								c = 0;
@@ -98,11 +106,11 @@ void ImageFilterWriter::decideAndApplyFilters(u8 *rgba, int width, int height, I
 						sfPred[SF_B + plane*SF_COUNT] = b;
 						sfPred[SF_C + plane*SF_COUNT] = c;
 						sfPred[SF_D + plane*SF_COUNT] = d;
+						sfPred[SF_AB + plane*SF_COUNT] = (u8)((a + b) / 2);
+						sfPred[SF_AD + plane*SF_COUNT] = (u8)((a + d) / 2);
 						sfPred[SF_A_BC + plane*SF_COUNT] = (u8)(a + (b - c) / 2);
 						sfPred[SF_B_AC + plane*SF_COUNT] = (u8)(b + (a - c) / 2);
-						sfPred[SF_AB + plane*SF_COUNT] = (u8)((a + b) / 2);
 						sfPred[SF_ABCD + plane*SF_COUNT] = (u8)((a + b + c + d + 1) / 4);
-						sfPred[SF_AD + plane*SF_COUNT] = (u8)((a + d) / 2);
 						int abc = a + b - c;
 						if (abc > 255) abc = 255;
 						else if (abc < 0) abc = 0;
@@ -152,141 +160,192 @@ void ImageFilterWriter::decideAndApplyFilters(u8 *rgba, int width, int height, I
 			// Write it out
 			u8 sf = bestSF % SF_COUNT;
 			u8 cf = bestSF / SF_COUNT;
-			*filterWriter++ = ((u16)sf << 8) | cf;
+			u16 filter = ((u16)sf << 8) | cf;
 
-			cout << (int)cf << " ";
+			setFilter(x, y, filter);
+		}
+	}
+}
 
-			for (int yy = FSZ-1; yy >= 0; --yy) {
-				for (int xx = FSZ-1; xx >= 0; --xx) {
-					int px = x + xx, py = y + yy;
-					u8 *p = &rgba[(px + py * width) * 4];
+void ImageFilterWriter::applyFilters(u8 *rgba, int width, int height, ImageMaskWriter &mask) {
+	u16 *filterWriter = _matrix;
 
-					u8 fp[3];
+	static const int FSZ = 8;
 
-					for (int plane = 0; plane < 3; ++plane) {
-						int a, c, b, d;
+	// For each zone,
+	for (int y = height - 1; y >= 0; --y) {
+		for (int x = width - FSZ; x >= 0; x -= FSZ) {
+			u16 filter = getFilter(x, y);
+			u8 cf = (u8)filter;
+			u8 sf = (u8)(filter >> 8);
 
-						// Grab ABCD
-						if (px > 0) {
-							if (py > 0) {
-								a = p[plane - 4];
-								c = p[plane - 4 - width];
-								b = p[plane - width];
-								d = p[plane + 4 - width];
+			// For each zone pixel,
+			for (int xx = FSZ-1; xx >= 0; --xx) {
+				int px = x + xx, py = y;
+				if (mask.hasRGB(px, py)) {
+					continue;
+				}
+
+				u8 *p = &rgba[(px + py * width) * 4];
+
+				u8 fp[3];
+
+				for (int plane = 0; plane < 3; ++plane) {
+					int a, c, b, d;
+
+					// Grab ABCD
+					if (px > 0) {
+						if (py > 0) {
+							a = p[plane - 4];
+							c = p[plane - 4 - width*4];
+							b = p[plane - width*4];
+							if (px < width-1) {
+								d = p[plane + 4 - width*4];
 							} else {
-								a = p[plane - 4];
-								c = 0;
-								b = 0;
 								d = 0;
 							}
 						} else {
-							if (py > 0) {
-								a = 0;
-								c = 0;
-								b = p[plane - width];
-								d = p[plane + 4 - width];
+							a = p[plane - 4];
+							c = 0;
+							b = 0;
+							d = 0;
+						}
+					} else {
+						if (py > 0) {
+							a = 0;
+							c = 0;
+							b = p[plane - width*4];
+							if (px < width-1) {
+								d = p[plane + 4 - width*4];
 							} else {
-								a = 0;
-								c = 0;
-								b = 0;
 								d = 0;
 							}
+						} else {
+							a = 0;
+							c = 0;
+							b = 0;
+							d = 0;
 						}
-
-						u8 pred;
-
-						switch (sf) {
-							default:
-							case SF_Z:			// 0
-								pred = 0;
-								break;
-							case SF_A:			// A
-								pred = a;
-								break;
-							case SF_B:			// B
-								pred = b;
-								break;
-							case SF_C:			// C
-								pred = c;
-								break;
-							case SF_D:			// D
-								pred = d;
-								break;
-							case SF_A_BC:		// A + (B - C)/2
-								pred = (u8)(a + (b - c) / 2);
-								break;
-							case SF_B_AC:		// B + (A - C)/2
-								pred = (u8)(b + (a - c) / 2);
-								break;
-							case SF_AB:			// (A + B)/2
-								pred = (u8)((a + b) / 2);
-								break;
-							case SF_ABCD:		// (A + B + C + D + 1)/4
-								pred = (u8)((a + b + c + d + 1) / 4);
-								break;
-							case SF_AD:			// (A + D)/2
-								pred = (u8)((a + d) / 2);
-								break;
-							case SF_ABC_CLAMP:	// A + B - C clamped to [0, 255]
-								{
-									int abc = a + b - c;
-									if (abc > 255) abc = 255;
-									else if (abc < 0) abc = 0;
-									pred = (u8)abc;
-								}
-								break;
-							case SF_PAETH:		// Paeth filter
-								{
-									pred = paeth(a, b, c);
-								}
-								break;
-							case SF_ABC_PAETH:	// If A <= C <= B, A + B - C, else Paeth filter
-								{
-									pred = abc_paeth(a, b, c);
-								}
-								break;
-						}
-
-						fp[plane] = p[plane] - pred;
 					}
 
-					switch (cf) {
+					u8 pred;
+
+					switch (sf) {
 						default:
-						case CF_NOOP:
-							// No changes necessary
+						case SF_Z:			// 0
+							pred = 0;
 							break;
-						case CF_GB_RG:
-							fp[0] -= fp[1];
-							fp[1] -= fp[2];
+						case SF_A:			// A
+							pred = a;
 							break;
-						case CF_GB_RB:
-							fp[0] -= fp[2];
-							fp[1] -= fp[2];
+						case SF_B:			// B
+							pred = b;
 							break;
-						case CF_GR_BR:
-							fp[1] -= fp[0];
-							fp[2] -= fp[0];
+						case SF_C:			// C
+							pred = c;
 							break;
-						case CF_GR_BG:
-							fp[2] -= fp[1];
-							fp[1] -= fp[0];
+						case SF_D:			// D
+							pred = d;
 							break;
-						case CF_BG_RG:
-							fp[0] -= fp[1];
-							fp[2] -= fp[1];
+						case SF_AB:			// (A + B)/2
+							pred = (u8)((a + b) / 2);
+							break;
+						case SF_AD:			// (A + D)/2
+							pred = (u8)((a + d) / 2);
+							break;
+						case SF_A_BC:		// A + (B - C)/2
+							pred = (u8)(a + (b - c) / 2);
+							break;
+						case SF_B_AC:		// B + (A - C)/2
+							pred = (u8)(b + (a - c) / 2);
+							break;
+						case SF_ABCD:		// (A + B + C + D + 1)/4
+							pred = (u8)((a + b + c + d + 1) / 4);
+							break;
+						case SF_ABC_CLAMP:	// A + B - C clamped to [0, 255]
+							{
+								int abc = a + b - c;
+								if (abc > 255) abc = 255;
+								else if (abc < 0) abc = 0;
+								pred = (u8)abc;
+							}
+							break;
+						case SF_PAETH:		// Paeth filter
+							{
+								pred = paeth(a, b, c);
+							}
+							break;
+						case SF_ABC_PAETH:	// If A <= C <= B, A + B - C, else Paeth filter
+							{
+								pred = abc_paeth(a, b, c);
+							}
 							break;
 					}
 
-					p[0] = score(fp[0]);
-					p[1] = score(fp[1]);
-					p[2] = score(fp[2]);
+					fp[plane] = p[plane] - pred;
 				}
+
+				switch (cf) {
+					default:
+					case CF_NOOP:
+						// No changes necessary
+						break;
+					case CF_GB_RG:
+						fp[0] -= fp[1];
+						fp[1] -= fp[2];
+						break;
+					case CF_GB_RB:
+						fp[0] -= fp[2];
+						fp[1] -= fp[2];
+						break;
+					case CF_GR_BR:
+						fp[1] -= fp[0];
+						fp[2] -= fp[0];
+						break;
+					case CF_GR_BG:
+						fp[2] -= fp[1];
+						fp[1] -= fp[0];
+						break;
+					case CF_BG_RG:
+						fp[0] -= fp[1];
+						fp[2] -= fp[1];
+						break;
+				}
+
+				p[0] = score(fp[0]);
+				p[1] = score(fp[1]);
+				p[2] = score(fp[2]);
 			}
 
 			//rgba[(x + y * width) * 4] = 255;
 		}
 	}
 }
+/*
+
+int bcif::decide(int x, int y, int col, int **precInfo, int **info, int curFil, int curColFil, int left, int low) {
+	int leftInfo = 0;
+    if (x > 0) {
+		leftInfo = info[col][x - 1];
+    } else {
+		leftInfo = precInfo[col][x];
+    }
+    int lowInfo = precInfo[col][x];
+    int caos = loga2[(mod256(left) + mod256(low)) << 1] + 1;
+    if (caos > 7) {
+		caos = 7;
+    }
+    int caos2 = 0;
+    if (col > 0 ) {
+		caos2 = info[col - 1][x];
+    } else {
+		caos2 = (leftInfo + lowInfo) >> 1;
+    }
+    int curCaos = (((caos << 2) + (leftInfo + lowInfo + caos + caos2)) >> 2);
+    info[col][x] = (curCaos >> 1);
+	return curCaos + (col << 4);
+}
+*/
 
 void collectFreqs(const std::vector<u8> &lz, u16 freqs[256]) {
 	const int NUM_SYMS = 256;
@@ -363,7 +422,8 @@ int ImageFilterWriter::initFromRGBA(u8 *rgba, int width, int height, ImageMaskWr
 		return WE_BAD_DIMS;
 	}
 
-	decideAndApplyFilters(rgba, width, height, mask);
+	decideFilters(rgba, width, height, mask);
+	applyFilters(rgba, width, height, mask);
 
 	vector<u8> reds, greens, blues, alphas;
 
@@ -422,6 +482,8 @@ int ImageFilterWriter::initFromRGBA(u8 *rgba, int width, int height, ImageMaskWr
 	CAT_WARN("test") << "Huffman-encoded G bytes: " << bits_greens / 8;
 	CAT_WARN("test") << "Huffman-encoded B bytes: " << bits_blues / 8;
 	CAT_WARN("test") << "Huffman-encoded A bytes: " << bits_alphas / 8;
+
+	CAT_WARN("test") << "Estimated file size = " << (bits_reds + bits_greens + bits_blues + bits_alphas) / 8 + 6000 + 50000;
 
 	return WE_OK;
 }
