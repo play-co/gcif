@@ -14,6 +14,14 @@ using namespace std;
 #include <iostream>
 using namespace std;
 
+static CAT_INLINE int chaosScore(u8 p) {
+	if (p < 128) {
+		return p;
+	} else {
+		return 256 - p;
+	}
+}
+
 static CAT_INLINE int score(u8 p) {
 	if (p < 128) {
 		return p;
@@ -268,150 +276,151 @@ void ImageFilterWriter::applyFilters(u8 *rgba, int width, int height, ImageMaskW
 
 	// For each zone,
 	for (int y = height - 1; y >= 0; --y) {
-		for (int x = width - FSZ; x >= 0; x -= FSZ) {
+		for (int x = width - 1; x >= 0; --x) {
 			u16 filter = getFilter(x, y);
 			u8 cf = (u8)filter;
 			u8 sf = (u8)(filter >> 8);
+			if (mask.hasRGB(x, y)) {
+				continue;
+			}
 
-			// For each zone pixel,
-			for (int xx = FSZ-1; xx >= 0; --xx) {
-				int px = x + xx, py = y;
-				if (mask.hasRGB(px, py)) {
-					continue;
-				}
+			u8 fp[3];
 
-				u8 *p = &rgba[(px + py * width) * 4];
+			for (int plane = 0; plane < 3; ++plane) {
+				int a, c, b, d;
 
-				u8 fp[3];
-
-				for (int plane = 0; plane < 3; ++plane) {
-					int a, c, b, d;
-
-					// Grab ABCD
-					if (px > 0) {
-						if (py > 0) {
-							a = p[plane - 4];
-							c = p[plane - 4 - width*4];
-							b = p[plane - width*4];
-							if (px < width-1) {
-								d = p[plane + 4 - width*4];
-							} else {
-								d = 0;
-							}
+				// Grab ABCD
+				if (x > 0) {
+					if (y > 0) {
+						a = rgba[((x-1) + y * width)*4 + plane];
+						c = rgba[((x-1) + (y-1) * width)*4 + plane];
+						b = rgba[(x + (y-1) * width)*4 + plane];
+						if (x < width-1) {
+							d = rgba[((x+1) + (y-1) * width)*4 + plane];
 						} else {
-							a = p[plane - 4];
-							c = 0;
-							b = 0;
 							d = 0;
 						}
 					} else {
-						if (py > 0) {
-							a = 0;
-							c = 0;
-							b = p[plane - width*4];
-							if (px < width-1) {
-								d = p[plane + 4 - width*4];
-							} else {
-								d = 0;
-							}
+						a = rgba[((x-1) + y * width)*4 + plane];
+						c = 0;
+						b = 0;
+						d = 0;
+					}
+				} else {
+					if (y > 0) {
+						a = 0;
+						c = 0;
+						b = rgba[(x + (y-1) * width)*4 + plane];
+						if (x < width-1) {
+							d = rgba[((x+1) + (y-1) * width)*4 + plane];
 						} else {
-							a = 0;
-							c = 0;
-							b = 0;
 							d = 0;
 						}
+					} else {
+						a = 0;
+						c = 0;
+						b = 0;
+						d = 0;
 					}
-
-					u8 pred;
-
-					switch (sf) {
-						default:
-						case SF_Z:			// 0
-							pred = 0;
-							break;
-						case SF_A:			// A
-							pred = a;
-							break;
-						case SF_B:			// B
-							pred = b;
-							break;
-						case SF_C:			// C
-							pred = c;
-							break;
-						case SF_D:			// D
-							pred = d;
-							break;
-						case SF_AB:			// (A + B)/2
-							pred = (u8)((a + b) / 2);
-							break;
-						case SF_AD:			// (A + D)/2
-							pred = (u8)((a + d) / 2);
-							break;
-						case SF_A_BC:		// A + (B - C)/2
-							pred = (u8)(a + (b - c) / 2);
-							break;
-						case SF_B_AC:		// B + (A - C)/2
-							pred = (u8)(b + (a - c) / 2);
-							break;
-						case SF_ABCD:		// (A + B + C + D + 1)/4
-							pred = (u8)((a + b + c + d + 1) / 4);
-							break;
-						case SF_ABC_CLAMP:	// A + B - C clamped to [0, 255]
-							{
-								int abc = a + b - c;
-								if (abc > 255) abc = 255;
-								else if (abc < 0) abc = 0;
-								pred = (u8)abc;
-							}
-							break;
-						case SF_PAETH:		// Paeth filter
-							{
-								pred = paeth(a, b, c);
-							}
-							break;
-						case SF_ABC_PAETH:	// If A <= C <= B, A + B - C, else Paeth filter
-							{
-								pred = abc_paeth(a, b, c);
-							}
-							break;
-					}
-
-					fp[plane] = p[plane] - pred;
 				}
 
-				switch (cf) {
+				u8 pred;
+
+				switch (sf) {
 					default:
-					case CF_NOOP:
-						// No changes necessary
+					case SF_Z:			// 0
+						pred = 0;
 						break;
-					case CF_GB_RG:
-						fp[0] -= fp[1];
-						fp[1] -= fp[2];
+					case SF_A:			// A
+						pred = a;
 						break;
-					case CF_GB_RB:
-						fp[0] -= fp[2];
-						fp[1] -= fp[2];
+					case SF_B:			// B
+						pred = b;
 						break;
-					case CF_GR_BR:
-						fp[1] -= fp[0];
-						fp[2] -= fp[0];
+					case SF_C:			// C
+						pred = c;
 						break;
-					case CF_GR_BG:
-						fp[2] -= fp[1];
-						fp[1] -= fp[0];
+					case SF_D:			// D
+						pred = d;
 						break;
-					case CF_BG_RG:
-						fp[0] -= fp[1];
-						fp[2] -= fp[1];
+					case SF_AB:			// (A + B)/2
+						pred = (u8)((a + b) / 2);
+						break;
+					case SF_AD:			// (A + D)/2
+						pred = (u8)((a + d) / 2);
+						break;
+					case SF_A_BC:		// A + (B - C)/2
+						pred = (u8)(a + (b - c) / 2);
+						break;
+					case SF_B_AC:		// B + (A - C)/2
+						pred = (u8)(b + (a - c) / 2);
+						break;
+					case SF_ABCD:		// (A + B + C + D + 1)/4
+						pred = (u8)((a + b + c + d + 1) / 4);
+						break;
+					case SF_ABC_CLAMP:	// A + B - C clamped to [0, 255]
+						{
+							int abc = a + b - c;
+							if (abc > 255) abc = 255;
+							else if (abc < 0) abc = 0;
+							pred = (u8)abc;
+						}
+						break;
+					case SF_PAETH:		// Paeth filter
+						{
+							pred = paeth(a, b, c);
+						}
+						break;
+					case SF_ABC_PAETH:	// If A <= C <= B, A + B - C, else Paeth filter
+						{
+							pred = abc_paeth(a, b, c);
+						}
 						break;
 				}
 
-				p[0] = fp[0];
-				p[1] = fp[1];
-				p[2] = fp[2];
+				fp[plane] = rgba[(x + y * width)*4 + plane] - pred;
 			}
 
-			//rgba[(x + y * width) * 4] = 255;
+			switch (cf) {
+				default:
+				case CF_NOOP:
+					// No changes necessary
+					break;
+				case CF_GB_RG:
+					fp[0] -= fp[1];
+					fp[1] -= fp[2];
+					break;
+				case CF_GB_RB:
+					fp[0] -= fp[2];
+					fp[1] -= fp[2];
+					break;
+				case CF_GR_BR:
+					fp[1] -= fp[0];
+					fp[2] -= fp[0];
+					break;
+				case CF_GR_BG:
+					fp[2] -= fp[1];
+					fp[1] -= fp[0];
+					break;
+				case CF_BG_RG:
+					fp[0] -= fp[1];
+					fp[2] -= fp[1];
+					break;
+			}
+
+			for (int ii = 0; ii < 3; ++ii) {
+#if 1
+				rgba[(x + y * width)*4 + ii] = fp[ii];
+#else
+				rgba[(x + y * width)*4 + ii] = score(fp[ii]) * 16;
+#endif
+			}
+
+			if ((y % FSZ) == 0 && (x % FSZ) == 0) {
+				if (sf == SF_B) {
+					rgba[(x + y * width) * 4] = 255;
+				}
+			}
 		}
 	}
 }
@@ -490,9 +499,9 @@ void ImageFilterWriter::chaosEncode(u8 *rgba, int width, int height, ImageMaskWr
 		for (int x = 0; x < width; ++x) {
 			u16 chaos[3] = {left_rgb[0], left_rgb[1], left_rgb[2]};
 			if (y > 0) {
-				chaos[0] += score(last[0]);
-				chaos[1] += score(last[1]);
-				chaos[2] += score(last[2]);
+				chaos[0] += chaosScore(last[0]);
+				chaos[1] += chaosScore(last[1]);
+				chaos[2] += chaosScore(last[2]);
 				last += 4;
 			}
 
@@ -505,9 +514,9 @@ void ImageFilterWriter::chaosEncode(u8 *rgba, int width, int height, ImageMaskWr
 			chaos[1] += (last_chaos_read[1] + last_chaos_read[-2] + chaos[1] + (chaos[0] >> 1)) >> 2;
 			chaos[2] += (last_chaos_read[2] + last_chaos_read[-1] + chaos[2] + (chaos[1] >> 1)) >> 2;
 #endif
-			left_rgb[0] = score(now[0]);
-			left_rgb[1] = score(now[1]);
-			left_rgb[2] = score(now[2]);
+			left_rgb[0] = chaosScore(now[0]);
+			left_rgb[1] = chaosScore(now[1]);
+			left_rgb[2] = chaosScore(now[2]);
 			{
 				test.push_back(chaos[0] * 256/8);
 				test.push_back(chaos[0] * 256/8);
@@ -593,9 +602,9 @@ void ImageFilterWriter::chaosEncode(u8 *rgba, int width, int height, ImageMaskWr
 		for (int x = 0; x < width; ++x) {
 			u16 chaos[3] = {left_rgb[0], left_rgb[1], left_rgb[2]};
 			if (y > 0) {
-				chaos[0] += score(last[0]);
-				chaos[1] += score(last[1]);
-				chaos[2] += score(last[2]);
+				chaos[0] += chaosScore(last[0]);
+				chaos[1] += chaosScore(last[1]);
+				chaos[2] += chaosScore(last[2]);
 				last += 4;
 			}
 
@@ -608,9 +617,9 @@ void ImageFilterWriter::chaosEncode(u8 *rgba, int width, int height, ImageMaskWr
 			chaos[1] += (last_chaos_read[1] + last_chaos_read[-2] + chaos[1] + (chaos[0] >> 1)) >> 2;
 			chaos[2] += (last_chaos_read[2] + last_chaos_read[-1] + chaos[2] + (chaos[1] >> 1)) >> 2;
 #endif
-			left_rgb[0] = score(now[0]);
-			left_rgb[1] = score(now[1]);
-			left_rgb[2] = score(now[2]);
+			left_rgb[0] = chaosScore(now[0]);
+			left_rgb[1] = chaosScore(now[1]);
+			left_rgb[2] = chaosScore(now[2]);
 			{
 				if (!mask.hasRGB(x, y)) {
 					for (int ii = 0; ii < 3; ++ii) {
@@ -665,6 +674,8 @@ void ImageFilterWriter::chaosEncode(u8 *rgba, int width, int height, ImageMaskWr
 	CAT_WARN("main") << "Chaos metric R bytes: " << bitcount[0] / 8;
 	CAT_WARN("main") << "Chaos metric G bytes: " << bitcount[1] / 8;
 	CAT_WARN("main") << "Chaos metric B bytes: " << bitcount[2] / 8;
+
+	CAT_WARN("main") << "Estimated file size bytes: " << (bitcount[0] + bitcount[1] + bitcount[2]) / 8 + (3*8*100);
 
 #if 1
 		{
