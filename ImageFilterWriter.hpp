@@ -27,22 +27,19 @@ enum SpatialFilters {
 	SF_A,			// A
 	SF_AB,			// (A + B)/2
 	SF_BD,			// (B + D)/2
+	SF_ABC_CLAMP,	// A + B - C clamped to [0, 255]
 	SF_PAETH,		// Paeth filter
 	SF_ABC_PAETH,	// If A <= C <= B, A + B - C, else Paeth filter
 	SF_PL,			// Use ABC to determine if increasing or decreasing
 	SF_PLO,			// Offset PL
-
-	// Less exciting:
-	SF_ABCD,		// (A + B + C + D + 1)/4
-	SF_A_BC,		// A + (B - C)/2
-	SF_B_AC,		// B + (A - C)/2
 	SF_AD,			// (A + D)/2
-	SF_ABC_CLAMP,	// A + B - C clamped to [0, 255]
+	SF_ABCD,		// (A + B + C + D + 1)/4
 
 	SF_COUNT,
 
 	// Disabled filters:
-	// None..
+	SF_A_BC,		// A + (B - C)/2
+	SF_B_AC,		// B + (A - C)/2
 };
 
 enum ColorFilters {

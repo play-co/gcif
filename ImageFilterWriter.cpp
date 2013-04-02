@@ -745,11 +745,15 @@ void ImageFilterWriter::decideFilters(u8 *rgba, int width, int height, ImageMask
 	int compressLevel = 1;
 
 	for (int y = 0; y < height; y += FSZ) {
+		if (y == height / 2) {
+		}
+
 		for (int x = 0; x < width; x += FSZ) {
 
 			// Determine best filter combination to use
 			int bestSF = 0, bestCF = 0;
 
+			// Lower compression level that is a lot faster:
 			if (compressLevel == 0) {
 				int predErrors[SF_COUNT*CF_COUNT] = {0};
 
@@ -790,7 +794,9 @@ void ImageFilterWriter::decideFilters(u8 *rgba, int width, int height, ImageMask
 				// Write it out
 				bestSF = best % SF_COUNT;
 				bestCF = best / SF_COUNT;
-			} else {
+
+			} else { // Higher compression level that uses entropy estimate:
+
 				scores.reset();
 
 				// For each pixel in the 8x8 zone,
