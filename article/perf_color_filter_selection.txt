@@ -1,0 +1,23 @@
+Min score: (fast)
+[Dec 31 16:00] <main> Chaos metric R bytes: 218418
+[Dec 31 16:00] <main> Chaos metric G bytes: 326070
+[Dec 31 16:00] <main> Chaos metric B bytes: 335656
+[Dec 31 16:00] <main> Estimated file size bytes: 882545
+
+Top 8, then entropy: (reasonable)
+[Dec 31 16:00] <main> Chaos metric R bytes: 210115
+[Dec 31 16:00] <main> Chaos metric G bytes: 335593
+[Dec 31 16:00] <main> Chaos metric B bytes: 323988
+[Dec 31 16:00] <main> Estimated file size bytes: 872097
+
+Scored SF, entropy CF: (slowish)
+[Dec 31 16:00] <main> Chaos metric R bytes: 215743
+[Dec 31 16:00] <main> Chaos metric G bytes: 336716
+[Dec 31 16:00] <main> Chaos metric B bytes: 326746
+[Dec 31 16:00] <main> Estimated file size bytes: 881605
+
+All entropy: (slooow)
+[Dec 31 16:00] <main> Chaos metric R bytes: 212009
+[Dec 31 16:00] <main> Chaos metric G bytes: 333289
+[Dec 31 16:00] <main> Chaos metric B bytes: 323098
+[Dec 31 16:00] <main> Estimated file size bytes: 870796

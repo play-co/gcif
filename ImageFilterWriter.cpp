@@ -604,6 +604,126 @@ bool ImageFilterWriter::init(int width, int height) {
 	return true;
 }
 
+
+
+
+
+class FilterScorer {
+public:
+	struct Score {
+		int score;
+		int index;
+	};
+
+protected:
+	Score *_list;
+	int _count;
+
+	CAT_INLINE void swap(int a, int b) {
+		Score temp = _list[a];
+		_list[a] = _list[b];
+		_list[b] = temp;
+	}
+
+	int partitionTop(int left, int right, int pivotIndex) {
+		int pivotValue = _list[pivotIndex].score;
+
+		// Move pivot to end
+		swap(pivotIndex, right);
+
+		int storeIndex = left;
+
+		for (int ii = left; ii < right; ++ii) {
+			if (_list[ii].score < pivotValue) {
+				swap(storeIndex, ii);
+
+				++storeIndex;
+			}
+		}
+
+		// Move pivot to its final place
+		swap(right, storeIndex);
+
+		return storeIndex;
+	}
+
+	void clear() {
+		if (_list) {
+			delete []_list;
+			_list = 0;
+		}
+	}
+
+public:
+	CAT_INLINE FilterScorer() {
+	}
+	CAT_INLINE virtual ~FilterScorer() {
+		clear();
+	}
+
+	void init(int count) {
+		clear();
+
+		_list = new Score[count];
+		_count = count;
+	}
+
+	void reset() {
+		for (int ii = 0, count = _count; ii < count; ++ii) {
+			_list[ii].score = 0;
+			_list[ii].index = ii;
+		}
+	}
+
+	CAT_INLINE void add(int index, int error) {
+		_list[index].score += error;
+	}
+
+	Score *getLowest() {
+		Score *lowest = _list;
+		int lowestScore = lowest->score;
+
+		for (int ii = 1; ii < _count; ++ii) {
+			int score = _list[ii].score;
+
+			if (lowestScore > score) {
+				lowestScore = score;
+				lowest = _list + ii;
+			}
+		}
+
+		return lowest;
+	}
+
+	Score *getTop(int k) {
+		if (k > _count) {
+			k = _count;
+		}
+
+		int pivotIndex = k;
+		int left = 0;
+		int right = _count - 1;
+
+		for (;;) {
+			int pivotNewIndex = partitionTop(left, right, pivotIndex);
+
+			int pivotDist = pivotNewIndex - left + 1;
+			if (pivotDist == k) {
+				return _list;
+			} else if (k < pivotDist) {
+				right = pivotNewIndex - 1;
+			} else {
+				k -= pivotDist;
+				left = pivotNewIndex + 1;
+			}
+		}
+	}
+};
+
+
+
+
+
 void ImageFilterWriter::decideFilters(u8 *rgba, int width, int height, ImageMaskWriter &mask) {
 	u16 *filterWriter = _matrix;
 
@@ -614,11 +734,111 @@ void ImageFilterWriter::decideFilters(u8 *rgba, int width, int height, ImageMask
 	ee[1].clear();
 	ee[2].clear();
 
+	FilterScorer scores;
+	scores.init(SF_COUNT * CF_COUNT);
+
 	for (int y = 0; y < height; y += FSZ) {
 		for (int x = 0; x < width; x += FSZ) {
 
 			// Determine best filter combination to use
 #if 1
+			scores.reset();
+
+			// For each pixel in the 8x8 zone,
+			for (int yy = 0; yy < FSZ; ++yy) {
+				for (int xx = 0; xx < FSZ; ++xx) {
+					int px = x + xx, py = y + yy;
+					if (mask.hasRGB(px, py)) {
+						continue;
+					}
+
+					u8 *p = rgba + (px + py * width) * 4;
+
+					for (int ii = 0; ii < SF_COUNT; ++ii) {
+						const u8 *pred = filterPixel(p, ii, px, py, width);
+
+						for (int jj = 0; jj < CF_COUNT; ++jj) {
+							u8 result[3];
+							filterColor(jj, p, pred, result);
+
+							int error = score(result[0]) + score(result[1]) + score(result[2]);
+
+							scores.add(ii + SF_COUNT*jj, error);
+						}
+					}
+				}
+			}
+
+
+			FilterScorer::Score *lowest = scores.getLowest();
+			int bestSF = 0, bestCF = 0;
+
+			if (lowest->score <= 4) {
+				bestSF = lowest->index % SF_COUNT;
+				bestCF = lowest->index / SF_COUNT;
+			} else {
+				const int TOP_COUNT = 8;
+
+				FilterScorer::Score *top = scores.getTop(TOP_COUNT);
+
+				double bestScore = 0;
+
+				for (int ii = 0; ii < TOP_COUNT; ++ii) {
+					// Write it out
+					u8 sf = top[ii].index % SF_COUNT;
+					u8 cf = top[ii].index / SF_COUNT;
+
+					ee[0].setup();
+					ee[1].setup();
+					ee[2].setup();
+
+					for (int yy = 0; yy < FSZ; ++yy) {
+						for (int xx = 0; xx < FSZ; ++xx) {
+							int px = x + xx, py = y + yy;
+							if (mask.hasRGB(px, py)) {
+								continue;
+							}
+
+							u8 *p = rgba + (px + py * width) * 4;
+							const u8 *pred = filterPixel(p, sf, px, py, width);
+
+							u8 result[3];
+							filterColor(cf, p, pred, result);
+
+							ee[0].push(result[0]);
+							ee[1].push(result[1]);
+							ee[2].push(result[2]);
+						}
+					}
+
+					double score = ee[0].entropy() + ee[1].entropy() + ee[2].entropy();
+					if (ii == 0) {
+						bestScore = score;
+						bestSF = sf;
+						bestCF = cf;
+						ee[0].save();
+						ee[1].save();
+						ee[2].save();
+					} else {
+						if (score < bestScore) {
+							bestSF = sf;
+							bestCF = cf;
+							ee[0].save();
+							ee[1].save();
+							ee[2].save();
+							bestScore = score;
+						}
+					}
+				}
+
+				ee[0].commit();
+				ee[1].commit();
+				ee[2].commit();
+			}
+
+
+
+#elif 0
 			int bestSF = 0;
 			int bestRating = 0;
 			for (int sf = 0; sf < SF_COUNT; ++sf) {
@@ -774,18 +994,18 @@ void ImageFilterWriter::decideFilters(u8 *rgba, int width, int height, ImageMask
 
 			// Find lowest error filter
 			int lowestSum = predErrors[0];
-			int bestSF = 0;
+			int best = 0;
 
 			for (int ii = 1; ii < SF_COUNT*CF_COUNT; ++ii) {
 				if (predErrors[ii] < lowestSum) {
 					lowestSum = predErrors[ii];
-					bestSF = ii;
+					best = ii;
 				}
 			}
 
 			// Write it out
-			u8 bestSF = bestSF % SF_COUNT;
-			u8 bestCF = bestSF / SF_COUNT;
+			u8 bestSF = best % SF_COUNT;
+			u8 bestCF = best / SF_COUNT;
 #endif
 
 			u16 filter = ((u16)bestSF << 8) | bestCF;

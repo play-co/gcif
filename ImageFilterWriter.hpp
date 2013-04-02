@@ -32,14 +32,15 @@ enum SpatialFilters {
 	SF_PL,			// Use ABC to determine if increasing or decreasing
 	SF_PLO,			// Offset PL
 
-	SF_COUNT,
-
-	// Disabled filters:
 	SF_ABCD,		// (A + B + C + D + 1)/4
 	SF_A_BC,		// A + (B - C)/2
 	SF_B_AC,		// B + (A - C)/2
 	SF_AD,			// (A + D)/2
 	SF_ABC_CLAMP,	// A + B - C clamped to [0, 255]
+
+	SF_COUNT,
+
+	// Disabled filters:
 };
 
 enum ColorFilters {
