@@ -113,15 +113,15 @@ static int calcBits(vector<u8> &lz, u8 codelens[256]) {
 static CAT_INLINE u8 predLevel(int a, int b, int c) {
 	if (c >= a && c >= b) {
 		if (a > b) {
-			return a;
-		} else {
 			return b;
+		} else {
+			return a;
 		}
 	} else if (c <= a && c <= b) {
 		if (a > b) {
-			return b;
-		} else {
 			return a;
+		} else {
+			return b;
 		}
 	} else {
 		return b + a - c;
@@ -274,6 +274,23 @@ static const u8 *filterPixel(u8 *p, int sf, int x, int y, int width) {
 			}
 			break;
 
+		case SF_BD:			// (B + D)/2
+			if CAT_LIKELY(y > 0) {
+				fp = fpt;
+				const u8 *b = p - width*4; // B
+				const u8 *src = b; // B
+				if CAT_LIKELY(x < width-1) {
+					src += 4; // D
+				}
+
+				fpt[0] = (b[0] + (u16)src[0]) >> 1;
+				fpt[1] = (b[1] + (u16)src[1]) >> 1;
+				fpt[2] = (b[2] + (u16)src[2]) >> 1;
+			} else if (x > 0) {
+				fp = p - 4; // A
+			}
+			break;
+
 		case SF_A_BC:		// A + (B - C)/2
 			if CAT_LIKELY(x > 0) {
 				const u8 *a = p - 4; // A
@@ -418,6 +435,30 @@ static const u8 *filterPixel(u8 *p, int sf, int x, int y, int width) {
 					fpt[0] = predLevel(a[0], b[0], c[0]);
 					fpt[1] = predLevel(a[1], b[1], c[1]);
 					fpt[2] = predLevel(a[2], b[2], c[2]);
+				} else {
+					fp = a;
+				}
+			} else if (y > 0) {
+				fp = p - width*4; // B
+			}
+			break;
+
+		case SF_PLO:		// Offset PL
+			if CAT_LIKELY(x > 0) {
+				const u8 *a = p - 4; // A
+
+				if CAT_LIKELY(y > 0) {
+					fp = fpt;
+					const u8 *b = p - width*4; // B
+
+					const u8 *src = b; // B
+					if CAT_LIKELY(x < width-1) {
+						src += 4; // D
+					}
+
+					fpt[0] = predLevel(a[0], src[0], b[0]);
+					fpt[1] = predLevel(a[1], src[1], b[1]);
+					fpt[2] = predLevel(a[2], src[2], b[2]);
 				} else {
 					fp = a;
 				}

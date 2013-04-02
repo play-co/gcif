@@ -26,6 +26,7 @@ enum SpatialFilters {
 	SF_D,			// D
 	SF_AB,			// (A + B)/2
 	SF_AD,			// (A + D)/2
+	SF_BD,			// (B + D)/2
 	SF_A_BC,		// A + (B - C)/2
 	SF_B_AC,		// B + (A - C)/2
 	SF_ABCD,		// (A + B + C + D + 1)/4
@@ -33,6 +34,7 @@ enum SpatialFilters {
 	SF_PAETH,		// Paeth filter
 	SF_ABC_PAETH,	// If A <= C <= B, A + B - C, else Paeth filter
 	SF_PL,			// Use ABC to determine if increasing or decreasing
+	SF_PLO,			// Offset PL
 
 	SF_COUNT,
 };
