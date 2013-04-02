@@ -481,22 +481,27 @@ static CAT_INLINE void filterColor(int cf, const u8 *p, const u8 *pred, u8 *out)
 		case CF_NOOP:
 			// No changes necessary
 			break;
+
 		case CF_GB_RG:
 			r -= g;
 			g -= b;
 			break;
+
 		case CF_GB_RB:
 			r -= b;
 			g -= b;
 			break;
+
 		case CF_GR_BR:
 			g -= r;
 			b -= r;
 			break;
+
 		case CF_GR_BG:
 			g -= r;
 			b -= g;
 			break;
+
 		case CF_BG_RG:
 			r -= g;
 			b -= g;
@@ -737,114 +742,58 @@ void ImageFilterWriter::decideFilters(u8 *rgba, int width, int height, ImageMask
 	FilterScorer scores;
 	scores.init(SF_COUNT * CF_COUNT);
 
+	int compressLevel = 1;
+
 	for (int y = 0; y < height; y += FSZ) {
 		for (int x = 0; x < width; x += FSZ) {
 
 			// Determine best filter combination to use
-#if 1
-			scores.reset();
+			int bestSF = 0, bestCF = 0;
 
-			// For each pixel in the 8x8 zone,
-			for (int yy = 0; yy < FSZ; ++yy) {
-				for (int xx = 0; xx < FSZ; ++xx) {
-					int px = x + xx, py = y + yy;
-					if (mask.hasRGB(px, py)) {
-						continue;
-					}
+			if (compressLevel == 0) {
+				int predErrors[SF_COUNT*CF_COUNT] = {0};
 
-					u8 *p = rgba + (px + py * width) * 4;
+				// For each pixel in the 8x8 zone,
+				for (int yy = 0; yy < FSZ; ++yy) {
+					for (int xx = 0; xx < FSZ; ++xx) {
+						int px = x + xx, py = y + yy;
+						if (mask.hasRGB(px, py)) {
+							continue;
+						}
 
-					for (int ii = 0; ii < SF_COUNT; ++ii) {
-						const u8 *pred = filterPixel(p, ii, px, py, width);
+						u8 *p = rgba + (px + py * width) * 4;
 
-						for (int jj = 0; jj < CF_COUNT; ++jj) {
-							u8 result[3];
-							filterColor(jj, p, pred, result);
+						for (int ii = 0; ii < SF_COUNT; ++ii) {
+							const u8 *pred = filterPixel(p, ii, px, py, width);
 
-							int error = score(result[0]) + score(result[1]) + score(result[2]);
+							for (int jj = 0; jj < CF_COUNT; ++jj) {
+								u8 result[3];
+								filterColor(jj, p, pred, result);
 
-							scores.add(ii + SF_COUNT*jj, error);
+								predErrors[ii + SF_COUNT*jj] += score(result[0]) + score(result[1]) + score(result[2]);
+							}
 						}
 					}
 				}
-			}
 
+				// Find lowest error filter
+				int lowestSum = predErrors[0];
+				int best = 0;
 
-			FilterScorer::Score *lowest = scores.getLowest();
-			int bestSF = 0, bestCF = 0;
+				for (int ii = 1; ii < SF_COUNT*CF_COUNT; ++ii) {
+					if (predErrors[ii] < lowestSum) {
+						lowestSum = predErrors[ii];
+						best = ii;
+					}
+				}
 
-			if (lowest->score <= 4) {
-				bestSF = lowest->index % SF_COUNT;
-				bestCF = lowest->index / SF_COUNT;
+				// Write it out
+				bestSF = best % SF_COUNT;
+				bestCF = best / SF_COUNT;
 			} else {
-				const int TOP_COUNT = 8;
+				scores.reset();
 
-				FilterScorer::Score *top = scores.getTop(TOP_COUNT);
-
-				double bestScore = 0;
-
-				for (int ii = 0; ii < TOP_COUNT; ++ii) {
-					// Write it out
-					u8 sf = top[ii].index % SF_COUNT;
-					u8 cf = top[ii].index / SF_COUNT;
-
-					ee[0].setup();
-					ee[1].setup();
-					ee[2].setup();
-
-					for (int yy = 0; yy < FSZ; ++yy) {
-						for (int xx = 0; xx < FSZ; ++xx) {
-							int px = x + xx, py = y + yy;
-							if (mask.hasRGB(px, py)) {
-								continue;
-							}
-
-							u8 *p = rgba + (px + py * width) * 4;
-							const u8 *pred = filterPixel(p, sf, px, py, width);
-
-							u8 result[3];
-							filterColor(cf, p, pred, result);
-
-							ee[0].push(result[0]);
-							ee[1].push(result[1]);
-							ee[2].push(result[2]);
-						}
-					}
-
-					double score = ee[0].entropy() + ee[1].entropy() + ee[2].entropy();
-					if (ii == 0) {
-						bestScore = score;
-						bestSF = sf;
-						bestCF = cf;
-						ee[0].save();
-						ee[1].save();
-						ee[2].save();
-					} else {
-						if (score < bestScore) {
-							bestSF = sf;
-							bestCF = cf;
-							ee[0].save();
-							ee[1].save();
-							ee[2].save();
-							bestScore = score;
-						}
-					}
-				}
-
-				ee[0].commit();
-				ee[1].commit();
-				ee[2].commit();
-			}
-
-
-
-#elif 0
-			int bestSF = 0;
-			int bestRating = 0;
-			for (int sf = 0; sf < SF_COUNT; ++sf) {
-
-				int rating = 0;
-
+				// For each pixel in the 8x8 zone,
 				for (int yy = 0; yy < FSZ; ++yy) {
 					for (int xx = 0; xx < FSZ; ++xx) {
 						int px = x + xx, py = y + yy;
@@ -853,163 +802,90 @@ void ImageFilterWriter::decideFilters(u8 *rgba, int width, int height, ImageMask
 						}
 
 						u8 *p = rgba + (px + py * width) * 4;
-						const u8 *pred = filterPixel(p, sf, px, py, width);
 
-						rating += score(p[0] - pred[0]) + score(p[1] - pred[1]) + score(p[2] - pred[2]);
-					}
-				}
+						for (int ii = 0; ii < SF_COUNT; ++ii) {
+							const u8 *pred = filterPixel(p, ii, px, py, width);
 
-				if (sf == 0) {
-					bestRating = rating;
-				} else {
-					if (rating < bestRating) {
-						bestRating = rating;
-						bestSF = sf;
-					}
-				}
-			}
+							for (int jj = 0; jj < CF_COUNT; ++jj) {
+								u8 result[3];
+								filterColor(jj, p, pred, result);
 
-			int bestCF = 0;
-			double bestScore = 0;
-			for (int cf = 0; cf < CF_COUNT; ++cf) {
-				ee[0].setup();
-				ee[1].setup();
-				ee[2].setup();
+								int error = score(result[0]) + score(result[1]) + score(result[2]);
 
-				for (int yy = 0; yy < FSZ; ++yy) {
-					for (int xx = 0; xx < FSZ; ++xx) {
-						int px = x + xx, py = y + yy;
-						if (mask.hasRGB(px, py)) {
-							continue;
-						}
-
-						u8 *p = rgba + (px + py * width) * 4;
-						const u8 *pred = filterPixel(p, bestSF, px, py, width);
-
-						u8 result[3];
-						filterColor(cf, p, pred, result);
-
-						ee[0].push(result[0]);
-						ee[1].push(result[1]);
-						ee[2].push(result[2]);
-					}
-				}
-
-				double score = ee[0].entropy() + ee[1].entropy() + ee[2].entropy();
-				if (cf == 0) {
-					bestScore = score;
-					ee[0].save();
-					ee[1].save();
-					ee[2].save();
-				} else {
-					if (score < bestScore) {
-						bestCF = cf;
-						ee[0].save();
-						ee[1].save();
-						ee[2].save();
-						bestScore = score;
-					}
-				}
-			}
-
-			ee[0].commit();
-			ee[1].commit();
-			ee[2].commit();
-#elif 1
-			int bestSF = 0, bestCF = 0;
-			double bestScore = 0;
-			for (int sf = 0; sf < SF_COUNT; ++sf) {
-				for (int cf = 0; cf < CF_COUNT; ++cf) {
-
-					ee[0].setup();
-					ee[1].setup();
-					ee[2].setup();
-
-					for (int yy = 0; yy < FSZ; ++yy) {
-						for (int xx = 0; xx < FSZ; ++xx) {
-							int px = x + xx, py = y + yy;
-							if (mask.hasRGB(px, py)) {
-								continue;
+								scores.add(ii + SF_COUNT*jj, error);
 							}
-
-							u8 *p = rgba + (px + py * width) * 4;
-							const u8 *pred = filterPixel(p, sf, px, py, width);
-
-							u8 result[3];
-							filterColor(cf, p, pred, result);
-
-							ee[0].push(result[0]);
-							ee[1].push(result[1]);
-							ee[2].push(result[2]);
 						}
 					}
+				}
 
-					double score = ee[0].entropy() + ee[1].entropy() + ee[2].entropy();
-					if (sf == 0 && cf == 0) {
-						bestScore = score;
-						ee[0].save();
-						ee[1].save();
-						ee[2].save();
-					} else {
-						if (score < bestScore) {
+
+				FilterScorer::Score *lowest = scores.getLowest();
+
+				if (lowest->score <= 4) {
+					bestSF = lowest->index % SF_COUNT;
+					bestCF = lowest->index / SF_COUNT;
+				} else {
+					const int TOP_COUNT = 16;
+
+					FilterScorer::Score *top = scores.getTop(TOP_COUNT);
+
+					double bestScore = 0;
+
+					for (int ii = 0; ii < TOP_COUNT; ++ii) {
+						// Write it out
+						u8 sf = top[ii].index % SF_COUNT;
+						u8 cf = top[ii].index / SF_COUNT;
+
+						ee[0].setup();
+						ee[1].setup();
+						ee[2].setup();
+
+						for (int yy = 0; yy < FSZ; ++yy) {
+							for (int xx = 0; xx < FSZ; ++xx) {
+								int px = x + xx, py = y + yy;
+								if (mask.hasRGB(px, py)) {
+									continue;
+								}
+
+								u8 *p = rgba + (px + py * width) * 4;
+								const u8 *pred = filterPixel(p, sf, px, py, width);
+
+								u8 result[3];
+								filterColor(cf, p, pred, result);
+
+								ee[0].push(result[0]);
+								ee[1].push(result[1]);
+								ee[2].push(result[2]);
+							}
+						}
+
+						double score = ee[0].entropy() + ee[1].entropy() + ee[2].entropy();
+						if (ii == 0) {
+							bestScore = score;
 							bestSF = sf;
 							bestCF = cf;
 							ee[0].save();
 							ee[1].save();
 							ee[2].save();
-							bestScore = score;
+						} else {
+							if (score < bestScore) {
+								bestSF = sf;
+								bestCF = cf;
+								ee[0].save();
+								ee[1].save();
+								ee[2].save();
+								bestScore = score;
+							}
 						}
 					}
+
+					ee[0].commit();
+					ee[1].commit();
+					ee[2].commit();
 				}
 			}
-
-			ee[0].commit();
-			ee[1].commit();
-			ee[2].commit();
-#else
-			int predErrors[SF_COUNT*CF_COUNT] = {0};
-
-			// For each pixel in the 8x8 zone,
-			for (int yy = 0; yy < FSZ; ++yy) {
-				for (int xx = 0; xx < FSZ; ++xx) {
-					int px = x + xx, py = y + yy;
-					if (mask.hasRGB(px, py)) {
-						continue;
-					}
-
-					u8 *p = rgba + (px + py * width) * 4;
-
-					for (int ii = 0; ii < SF_COUNT; ++ii) {
-						const u8 *pred = filterPixel(p, ii, px, py, width);
-
-						for (int jj = 0; jj < CF_COUNT; ++jj) {
-							u8 result[3];
-							filterColor(jj, p, pred, result);
-
-							predErrors[ii + SF_COUNT*jj] += score(result[0]) + score(result[1]) + score(result[2]);
-						}
-					}
-				}
-			}
-
-			// Find lowest error filter
-			int lowestSum = predErrors[0];
-			int best = 0;
-
-			for (int ii = 1; ii < SF_COUNT*CF_COUNT; ++ii) {
-				if (predErrors[ii] < lowestSum) {
-					lowestSum = predErrors[ii];
-					best = ii;
-				}
-			}
-
-			// Write it out
-			u8 bestSF = best % SF_COUNT;
-			u8 bestCF = best / SF_COUNT;
-#endif
 
 			u16 filter = ((u16)bestSF << 8) | bestCF;
-
 			setFilter(x, y, filter);
 		}
 	}
@@ -1034,6 +910,12 @@ void ImageFilterWriter::applyFilters(u8 *rgba, int width, int height, ImageMaskW
 			const u8 *pred = filterPixel(p, sf, x, y, width);
 
 			filterColor(cf, p, pred, p);
+
+#if 0
+			p[0] = score(p[0]);
+			p[1] = score(p[0]);
+			p[2] = score(p[0]);
+#endif
 
 #if 0
 			if ((y % FSZ) == 0 && (x % FSZ) == 0) {
@@ -1096,15 +978,20 @@ static const u8 CHAOS_TABLE[512] = {
 
 
 //#define ADAPTIVE_ZRLE
+#define USE_AZ
 
 
 class EntropyEncoder {
 	static const int BZ_SYMS = 256 + FILTER_RLE_SYMS;
+#ifdef USE_AZ
 	static const int AZ_SYMS = 256;
+#endif
 
-	u32 histBZ[BZ_SYMS], histAZ[AZ_SYMS];
+	u32 histBZ[BZ_SYMS], maxBZ;
+#ifdef USE_AZ
+	u32 histAZ[AZ_SYMS], maxAZ;
+#endif
 	u32 zeroRun;
-	u32 maxBZ, maxAZ;
 
 #ifdef ADAPTIVE_ZRLE
 	u32 zeros, total;
@@ -1114,8 +1001,10 @@ class EntropyEncoder {
 	u16 codesBZ[BZ_SYMS];
 	u8 codelensBZ[BZ_SYMS];
 
+#ifdef USE_AZ
 	u16 codesAZ[AZ_SYMS];
 	u8 codelensAZ[AZ_SYMS];
+#endif
 
 	void endSymbols() {
 		if (zeroRun > 0) {
@@ -1168,10 +1057,12 @@ public:
 
 	void reset() {
 		CAT_OBJCLR(histBZ);
-		CAT_OBJCLR(histAZ);
-		zeroRun = 0;
 		maxBZ = 0;
+#ifdef USE_AZ
+		CAT_OBJCLR(histAZ);
 		maxAZ = 0;
+#endif
+		zeroRun = 0;
 #ifdef ADAPTIVE_ZRLE
 		zeros = 0;
 		total = 0;
@@ -1196,7 +1087,11 @@ public:
 				}
 
 				zeroRun = 0;
+#ifdef USE_AZ
 				histAZ[symbol]++;
+#else
+				histBZ[symbol]++;
+#endif
 			} else {
 				histBZ[symbol]++;
 			}
@@ -1212,7 +1107,10 @@ public:
 
 		endSymbols();
 
-		u16 freqBZ[BZ_SYMS], freqAZ[AZ_SYMS];
+		u16 freqBZ[BZ_SYMS];
+#ifdef USE_AZ
+		u16 freqAZ[AZ_SYMS];
+#endif
 
 #ifdef ADAPTIVE_ZRLE
 		if (zeros * 100 / total >= 15) {
@@ -1233,8 +1131,10 @@ public:
 		}
 #endif
 
+#ifdef USE_AZ
 		normalizeFreqs(maxAZ, AZ_SYMS, histAZ, freqAZ);
 		generateHuffmanCodes(AZ_SYMS, freqAZ, codesAZ, codelensAZ);
+#endif
 	}
 
 	u32 encode(u8 symbol) {
@@ -1254,7 +1154,11 @@ public:
 					}
 
 					zeroRun = 0;
+#ifdef USE_AZ
 					bits += codelensAZ[symbol];
+#else
+					bits += codelensBZ[symbol];
+#endif
 				} else {
 					bits += codelensBZ[symbol];
 				}
@@ -1301,6 +1205,8 @@ void ImageFilterWriter::chaosEncode(u8 *rgba, int width, int height, ImageMaskWr
 	GenerateChaosTable();
 #endif
 
+	int bitcount[3] = {0};
+
 	u8 *last_chaos = _chaos;
 	CAT_CLR(last_chaos, width * 3 + 3);
 
@@ -1310,6 +1216,8 @@ void ImageFilterWriter::chaosEncode(u8 *rgba, int width, int height, ImageMaskWr
 	vector<u8> test;
 
 	EntropyEncoder encoder[3][16];
+
+	vector<u8> rle[3][16];
 
 	for (int y = 0; y < height; ++y) {
 		u8 left_rgb[3] = {0};
@@ -1340,13 +1248,14 @@ void ImageFilterWriter::chaosEncode(u8 *rgba, int width, int height, ImageMaskWr
 			left_rgb[1] = chaosScore(now[1]);
 			left_rgb[2] = chaosScore(now[2]);
 			{
-				test.push_back(chaos[0] * 256/8);
-				test.push_back(chaos[0] * 256/8);
-				test.push_back(chaos[0] * 256/8);
+				test.push_back(chaos[1] * 256/8);
+				test.push_back(chaos[1] * 256/8);
+				test.push_back(chaos[1] * 256/8);
 
 				if (!mask.hasRGB(x, y)) {
 					for (int ii = 0; ii < 3; ++ii) {
 						encoder[ii][chaos[ii]].push(now[ii]);
+						rle[ii][chaos[ii]].push_back(now[ii]);
 					}
 				}
 			}
@@ -1360,18 +1269,16 @@ void ImageFilterWriter::chaosEncode(u8 *rgba, int width, int height, ImageMaskWr
 		}
 	}
 
-	CAT_CLR(last_chaos, width * 3 + 3);
-
 	for (int ii = 0; ii < 3; ++ii) {
 		for (int jj = 0; jj < 16; ++jj) {
 			encoder[ii][jj].finalize();
 		}
 	}
 
+	CAT_CLR(last_chaos, width * 3 + 3);
+
 	last = rgba;
 	now = rgba;
-
-	int bitcount[3] = {0};
 
 	for (int y = 0; y < height; ++y) {
 		u8 left_rgb[3] = {0};
