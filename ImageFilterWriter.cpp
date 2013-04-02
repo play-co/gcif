@@ -110,6 +110,327 @@ static int calcBits(vector<u8> &lz, u8 codelens[256]) {
 }
 
 
+static CAT_INLINE u8 predLevel(int a, int b, int c) {
+	if (c >= a && c >= b) {
+		if (a > b) {
+			return a;
+		} else {
+			return b;
+		}
+	} else if (c <= a && c <= b) {
+		if (a > b) {
+			return b;
+		} else {
+			return a;
+		}
+	} else {
+		return b + a - c;
+	}
+}
+
+static CAT_INLINE u8 abcClamp(int a, int b, int c) {
+	int sum = a + b - c;
+	if (sum < 0) {
+		return 0;
+	} else if (sum > 255) {
+		return 255;
+	} else {
+		return sum;
+	}
+}
+
+static CAT_INLINE u8 predABC(int a, int b, int c) {
+	int abc = a + b - c;
+	if (abc > 255) abc = 255;
+	else if (abc < 0) abc = 0;
+	return abc;
+}
+
+static CAT_INLINE u8 paeth(int a, int b, int c) {
+	// Paeth filter
+	int pabc = a + b - c;
+	int pa = abs(pabc - a);
+	int pb = abs(pabc - b);
+	int pc = abs(pabc - c);
+
+	if (pa <= pb && pa <= pc) {
+		return (u8)a;
+	} else if (pb <= pc) {
+		return (u8)b;
+	} else {
+		return (u8)c;
+	}
+}
+
+static CAT_INLINE u8 abc_paeth(int a, int b, int c) {
+	// Paeth filter with modifications from BCIF
+	int pabc = a + b - c;
+	if (a <= c && c <= b) {
+		return (u8)pabc;
+	}
+
+	int pa = abs(pabc - a);
+	int pb = abs(pabc - b);
+	int pc = abs(pabc - c);
+
+	if (pa <= pb && pa <= pc) {
+		return (u8)a;
+	} else if (pb <= pc) {
+		return (u8)b;
+	} else {
+		return (u8)c;
+	}
+}
+
+static const u8 *filterPixel(u8 *p, int sf, int x, int y, int width) {
+	static const u8 FPZ[3] = {0};
+	static u8 fpt[3]; // not thread-safe
+
+	const u8 *fp = FPZ;
+
+	switch (sf) {
+		default:
+		case SF_Z:			// 0
+			break;
+
+		case SF_A:			// A
+			if CAT_LIKELY(x > 0) {
+				fp = p - 4; // A
+			} else if (y > 0) {
+				fp = p - width*4; // B
+			}
+			break;
+
+		case SF_B:			// B
+			if CAT_LIKELY(y > 0) {
+				fp = p - width*4; // B
+			} else if (x > 0) {
+				fp = p - 4; // A
+			}
+			break;
+
+		case SF_C:			// C
+			if CAT_LIKELY(x > 0) {
+				if CAT_LIKELY(y > 0) {
+					fp = p - width*4 - 4; // C
+				} else {
+					fp = p - 4; // A
+				}
+			} else if (y > 0) {
+				fp = p - width*4; // B
+			}
+			break;
+
+		case SF_D:			// D
+			if CAT_LIKELY(y > 0) {
+				fp = p - width*4; // B
+				if CAT_LIKELY(x < width-1) {
+					fp += 4; // D
+				}
+			} else if (x > 0) {
+				fp = p - 4; // A
+			}
+			break;
+
+		case SF_AB:			// (A + B)/2
+			if CAT_LIKELY(x > 0) {
+				const u8 *a = p - 4; // A
+
+				if CAT_LIKELY(y > 0) {
+					fp = fpt;
+					const u8 *b = p - width*4; // B
+
+					fpt[0] = (a[0] + (u16)b[0]) >> 1;
+					fpt[1] = (a[1] + (u16)b[1]) >> 1;
+					fpt[2] = (a[2] + (u16)b[2]) >> 1;
+				} else {
+					fp = a;
+				}
+			} else if (y > 0) {
+				fp = p - width*4; // B
+			}
+			break;
+
+		case SF_AD:			// (A + D)/2
+			if CAT_LIKELY(y > 0) {
+				if CAT_LIKELY(x > 0) {
+					const u8 *a = p - 4; // A
+
+					fp = fpt;
+					const u8 *src = p - width*4; // B
+					if CAT_LIKELY(x < width-1) {
+						src += 4; // D
+					}
+
+					fpt[0] = (a[0] + (u16)src[0]) >> 1;
+					fpt[1] = (a[1] + (u16)src[1]) >> 1;
+					fpt[2] = (a[2] + (u16)src[2]) >> 1;
+				} else {
+					// Assume image is not really narrow
+					fp = p - width*4 + 4; // D
+				}
+			} else if (x > 0) {
+				fp = p - 4; // A
+			}
+			break;
+
+		case SF_A_BC:		// A + (B - C)/2
+			if CAT_LIKELY(x > 0) {
+				const u8 *a = p - 4; // A
+
+				if CAT_LIKELY(y > 0) {
+					fp = fpt;
+					const u8 *b = p - width*4; // B
+					const u8 *c = b - 4; // C
+
+					fpt[0] = a[0] + (b[0] - (int)c[0]) >> 1;
+					fpt[1] = a[1] + (b[1] - (int)c[1]) >> 1;
+					fpt[2] = a[2] + (b[2] - (int)c[2]) >> 1;
+				} else {
+					fp = a;
+				}
+			} else if (y > 0) {
+				fp = p - width*4; // B
+			}
+			break;
+
+		case SF_B_AC:		// B + (A - C)/2
+			if CAT_LIKELY(x > 0) {
+				const u8 *a = p - 4; // A
+
+				if CAT_LIKELY(y > 0) {
+					fp = fpt;
+					const u8 *b = p - width*4; // B
+					const u8 *c = b - 4; // C
+
+					fpt[0] = b[0] + (a[0] - (int)c[0]) >> 1;
+					fpt[1] = b[1] + (a[1] - (int)c[1]) >> 1;
+					fpt[2] = b[2] + (a[2] - (int)c[2]) >> 1;
+				} else {
+					fp = a;
+				}
+			} else if (y > 0) {
+				fp = p - width*4; // B
+			}
+			break;
+
+		case SF_ABCD:		// (A + B + C + D + 1)/4
+			if CAT_LIKELY(x > 0) {
+				const u8 *a = p - 4; // A
+
+				if CAT_LIKELY(y > 0) {
+					fp = fpt;
+					const u8 *b = p - width*4; // B
+					const u8 *c = b - 4; // C
+
+					const u8 *src = b; // B
+					if CAT_LIKELY(x < width-1) {
+						src += 4; // D
+					}
+
+					fpt[0] = (a[0] + (int)b[0] + c[0] + (int)src[0] + 1) >> 2;
+					fpt[1] = (a[1] + (int)b[1] + c[1] + (int)src[1] + 1) >> 2;
+					fpt[2] = (a[2] + (int)b[2] + c[2] + (int)src[2] + 1) >> 2;
+				} else {
+					fp = a;
+				}
+			} else if (y > 0) {
+				// Assumes image is not really narrow
+				fp = fpt;
+				const u8 *b = p - width*4; // B
+				const u8 *d = b + 4; // D
+
+				fpt[0] = (b[0] + (u16)d[0]) >> 1;
+				fpt[1] = (b[1] + (u16)d[1]) >> 1;
+				fpt[2] = (b[2] + (u16)d[2]) >> 1;
+			}
+			break;
+
+		case SF_ABC_CLAMP:	// A + B - C clamped to [0, 255]
+			if CAT_LIKELY(x > 0) {
+				const u8 *a = p - 4; // A
+
+				if CAT_LIKELY(y > 0) {
+					fp = fpt;
+					const u8 *b = p - width*4; // B
+					const u8 *c = b - 4; // C
+
+					fpt[0] = abcClamp(a[0], b[0], c[0]);
+					fpt[1] = abcClamp(a[1], b[1], c[1]);
+					fpt[2] = abcClamp(a[2], b[2], c[2]);
+				} else {
+					fp = a;
+				}
+			} else if (y > 0) {
+				fp = p - width*4; // B
+			}
+			break;
+
+		case SF_PAETH:		// Paeth filter
+			if CAT_LIKELY(x > 0) {
+				const u8 *a = p - 4; // A
+
+				if CAT_LIKELY(y > 0) {
+					fp = fpt;
+					const u8 *b = p - width*4; // B
+					const u8 *c = b - 4; // C
+
+					fpt[0] = paeth(a[0], b[0], c[0]);
+					fpt[1] = paeth(a[1], b[1], c[1]);
+					fpt[2] = paeth(a[2], b[2], c[2]);
+				} else {
+					fp = a;
+				}
+			} else if (y > 0) {
+				fp = p - width*4; // B
+			}
+			break;
+
+		case SF_ABC_PAETH:	// If A <= C <= B, A + B - C, else Paeth filter
+			if CAT_LIKELY(x > 0) {
+				const u8 *a = p - 4; // A
+
+				if CAT_LIKELY(y > 0) {
+					fp = fpt;
+					const u8 *b = p - width*4; // B
+					const u8 *c = b - 4; // C
+
+					fpt[0] = abc_paeth(a[0], b[0], c[0]);
+					fpt[1] = abc_paeth(a[1], b[1], c[1]);
+					fpt[2] = abc_paeth(a[2], b[2], c[2]);
+				} else {
+					fp = a;
+				}
+			} else if (y > 0) {
+				fp = p - width*4; // B
+			}
+			break;
+
+		case SF_PL:			// Use ABC to determine if increasing or decreasing
+			if CAT_LIKELY(x > 0) {
+				const u8 *a = p - 4; // A
+
+				if CAT_LIKELY(y > 0) {
+					fp = fpt;
+					const u8 *b = p - width*4; // B
+					const u8 *c = b - 4; // C
+
+					fpt[0] = predLevel(a[0], b[0], c[0]);
+					fpt[1] = predLevel(a[1], b[1], c[1]);
+					fpt[2] = predLevel(a[2], b[2], c[2]);
+				} else {
+					fp = a;
+				}
+			} else if (y > 0) {
+				fp = p - width*4; // B
+			}
+			break;
+	}
+
+	return fp;
+}
+
+
 //// ImageFilterWriter
 
 void ImageFilterWriter::clear() {
@@ -147,96 +468,29 @@ void ImageFilterWriter::decideFilters(u8 *rgba, int width, int height, ImageMask
 
 	static const int FSZ = FILTER_ZONE_SIZE;
 
-	for (int y = height - FSZ; y >= 0; y -= FSZ) {
-		for (int x = width - FSZ; x >= 0; x -= FSZ) {
+	for (int y = 0; y < height; y += FSZ) {
+		for (int x = 0; x < width; x += FSZ) {
 			int predErrors[SF_COUNT*CF_COUNT] = {0};
 
 			// Determine best filter combination to use
 
 			// For each pixel in the 8x8 zone,
-			for (int yy = FSZ-1; yy >= 0; --yy) {
-				for (int xx = FSZ-1; xx >= 0; --xx) {
+			for (int yy = 0; yy < FSZ; ++yy) {
+				for (int xx = 0; xx < FSZ; ++xx) {
 					int px = x + xx, py = y + yy;
 					if (mask.hasRGB(px, py)) {
 						continue;
 					}
 
-					u8 *p = &rgba[(px + py * width) * 4];
+					u8 *p = rgba + (x + y * width) * 4;
 
-					// Calculate spatial filter predictions
-					u8 sfPred[SF_COUNT*3];
-					for (int plane = 0; plane < 3; ++plane) {
-						int a, c, b, d;
-
-						// Grab ABCD
-						if (px > 0) {
-							if (py > 0) {
-								a = p[plane - 4];
-								c = p[plane - 4 - width*4];
-								b = p[plane - width*4];
-								if (px < width-1) {
-									d = p[plane + 4 - width*4];
-								} else {
-									d = 0;
-								}
-							} else {
-								a = p[plane - 4];
-								c = 0;
-								b = 0;
-								d = 0;
-							}
-						} else {
-							if (py > 0) {
-								a = 0;
-								c = 0;
-								b = p[plane - width*4];
-								if (px < width-1) {
-									d = p[plane + 4 - width*4];
-								} else {
-									d = 0;
-								}
-							} else {
-								a = 0;
-								c = 0;
-								b = 0;
-								d = 0;
-							}
-						}
-
-						sfPred[SF_Z + plane*SF_COUNT] = 0;
-						sfPred[SF_A + plane*SF_COUNT] = a;
-						sfPred[SF_B + plane*SF_COUNT] = b;
-						sfPred[SF_C + plane*SF_COUNT] = c;
-						sfPred[SF_D + plane*SF_COUNT] = d;
-						sfPred[SF_AB + plane*SF_COUNT] = (u8)((a + b) / 2);
-						sfPred[SF_AD + plane*SF_COUNT] = (u8)((a + d) / 2);
-						sfPred[SF_A_BC + plane*SF_COUNT] = (u8)(a + (b - c) / 2);
-						sfPred[SF_B_AC + plane*SF_COUNT] = (u8)(b + (a - c) / 2);
-						sfPred[SF_ABCD + plane*SF_COUNT] = (u8)((a + b + c + d + 1) / 4);
-						int abc = a + b - c;
-						if (abc > 255) abc = 255;
-						else if (abc < 0) abc = 0;
-						sfPred[SF_ABC_CLAMP + plane*SF_COUNT] = (u8)abc;
-
-						// Paeth filter
-						sfPred[SF_PAETH + plane*SF_COUNT] = paeth(a, b, c);
-
-						// Modified Paeth
-						sfPred[SF_ABC_PAETH + plane*SF_COUNT] = abc_paeth(a, b, c);
-					}
-
-					// Calculate color filter predictions
-					u8 xr = p[0], xg = p[1], xb = p[2];
 					for (int ii = 0; ii < SF_COUNT; ++ii) {
-						// Get predicted RGB
-						u8 pr = sfPred[ii];
-						u8 pg = sfPred[ii + SF_COUNT];
-						u8 pb = sfPred[ii + SF_COUNT*2];
+						const u8 *pred = filterPixel(p, ii, px, py, width);
 
 						// Apply spatial filter
-						u8 r = xr - pr;
-						u8 g = xg - pg;
-						u8 b = xb - pb;
+						u8 r = p[0] - pred[0];
+						u8 g = p[1] - pred[1];
+						u8 b = p[2] - pred[2];
 
 						// Calculate color filter error
 						predErrors[ii + SF_COUNT*CF_NOOP] += score(r) + score(g) + score(b);
@@ -284,102 +538,10 @@ void ImageFilterWriter::applyFilters(u8 *rgba, int width, int height, ImageMaskW
 				continue;
 			}
 
-			u8 fp[3];
+			u8 *p = rgba + (x + y * width) * 4;
+			const u8 *pred = filterPixel(p, sf, x, y, width);
 
-			for (int plane = 0; plane < 3; ++plane) {
-				int a, c, b, d;
-
-				// Grab ABCD
-				if (x > 0) {
-					if (y > 0) {
-						a = rgba[((x-1) + y * width)*4 + plane];
-						c = rgba[((x-1) + (y-1) * width)*4 + plane];
-						b = rgba[(x + (y-1) * width)*4 + plane];
-						if (x < width-1) {
-							d = rgba[((x+1) + (y-1) * width)*4 + plane];
-						} else {
-							d = 0;
-						}
-					} else {
-						a = rgba[((x-1) + y * width)*4 + plane];
-						c = 0;
-						b = 0;
-						d = 0;
-					}
-				} else {
-					if (y > 0) {
-						a = 0;
-						c = 0;
-						b = rgba[(x + (y-1) * width)*4 + plane];
-						if (x < width-1) {
-							d = rgba[((x+1) + (y-1) * width)*4 + plane];
-						} else {
-							d = 0;
-						}
-					} else {
-						a = 0;
-						c = 0;
-						b = 0;
-						d = 0;
-					}
-				}
-
-				u8 pred;
-
-				switch (sf) {
-					default:
-					case SF_Z:			// 0
-						pred = 0;
-						break;
-					case SF_A:			// A
-						pred = a;
-						break;
-					case SF_B:			// B
-						pred = b;
-						break;
-					case SF_C:			// C
-						pred = c;
-						break;
-					case SF_D:			// D
-						pred = d;
-						break;
-					case SF_AB:			// (A + B)/2
-						pred = (u8)((a + b) / 2);
-						break;
-					case SF_AD:			// (A + D)/2
-						pred = (u8)((a + d) / 2);
-						break;
-					case SF_A_BC:		// A + (B - C)/2
-						pred = (u8)(a + (b - c) / 2);
-						break;
-					case SF_B_AC:		// B + (A - C)/2
-						pred = (u8)(b + (a - c) / 2);
-						break;
-					case SF_ABCD:		// (A + B + C + D + 1)/4
-						pred = (u8)((a + b + c + d + 1) / 4);
-						break;
-					case SF_ABC_CLAMP:	// A + B - C clamped to [0, 255]
-						{
-							int abc = a + b - c;
-							if (abc > 255) abc = 255;
-							else if (abc < 0) abc = 0;
-							pred = (u8)abc;
-						}
-						break;
-					case SF_PAETH:		// Paeth filter
-						{
-							pred = paeth(a, b, c);
-						}
-						break;
-					case SF_ABC_PAETH:	// If A <= C <= B, A + B - C, else Paeth filter
-						{
-							pred = abc_paeth(a, b, c);
-						}
-						break;
-				}
-
-				fp[plane] = rgba[(x + y * width)*4 + plane] - pred;
-			}
+			u8 fpt[3] = { p[0] - pred[0], p[1] - pred[1], p[2] - pred[2] };
 
 			switch (cf) {
 				default:
@@ -387,40 +549,42 @@ void ImageFilterWriter::applyFilters(u8 *rgba, int width, int height, ImageMaskW
 					// No changes necessary
 					break;
 				case CF_GB_RG:
-					fp[0] -= fp[1];
-					fp[1] -= fp[2];
+					fpt[0] -= fpt[1];
+					fpt[1] -= fpt[2];
 					break;
 				case CF_GB_RB:
-					fp[0] -= fp[2];
-					fp[1] -= fp[2];
+					fpt[0] -= fpt[2];
+					fpt[1] -= fpt[2];
 					break;
 				case CF_GR_BR:
-					fp[1] -= fp[0];
-					fp[2] -= fp[0];
+					fpt[1] -= fpt[0];
+					fpt[2] -= fpt[0];
 					break;
 				case CF_GR_BG:
-					fp[2] -= fp[1];
-					fp[1] -= fp[0];
+					fpt[2] -= fpt[1];
+					fpt[1] -= fpt[0];
 					break;
 				case CF_BG_RG:
-					fp[0] -= fp[1];
-					fp[2] -= fp[1];
+					fpt[0] -= fpt[1];
+					fpt[2] -= fpt[1];
 					break;
 			}
 
 			for (int ii = 0; ii < 3; ++ii) {
-#if 1
-				rgba[(x + y * width)*4 + ii] = fp[ii];
+#if 0
+				p[ii] = fpt[ii];
 #else
-				rgba[(x + y * width)*4 + ii] = score(fp[ii]) * 16;
+				p[ii] = score(fpt[ii]);
 #endif
 			}
 
+#if 0
 			if ((y % FSZ) == 0 && (x % FSZ) == 0) {
 				if (sf == SF_B) {
 					rgba[(x + y * width) * 4] = 255;
 				}
 			}
+#endif
 		}
 	}
 }

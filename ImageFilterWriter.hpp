@@ -32,8 +32,9 @@ enum SpatialFilters {
 	SF_ABC_CLAMP,	// A + B - C clamped to [0, 255]
 	SF_PAETH,		// Paeth filter
 	SF_ABC_PAETH,	// If A <= C <= B, A + B - C, else Paeth filter
+	SF_PL,			// Use ABC to determine if increasing or decreasing
 
-	SF_COUNT
+	SF_COUNT,
 };
 
 enum ColorFilters {
@@ -78,42 +79,6 @@ public:
 
 	CAT_INLINE u16 getFilter(int x, int y) {
 		return _matrix[(x / FILTER_ZONE_SIZE) + (y / FILTER_ZONE_SIZE) * _w];
-	}
-
-	static CAT_INLINE u8 paeth(int a, int b, int c) {
-		// Paeth filter
-		int pabc = a + b - c;
-		int pa = abs(pabc - a);
-		int pb = abs(pabc - b);
-		int pc = abs(pabc - c);
-
-		if (pa <= pb && pa <= pc) {
-			return (u8)a;
-		} else if (pb <= pc) {
-			return (u8)b;
-		} else {
-			return (u8)c;
-		}
-	}
-
-	static CAT_INLINE u8 abc_paeth(int a, int b, int c) {
-		// Paeth filter with modifications from BCIF
-		int pabc = a + b - c;
-		if (a <= c && c <= b) {
-			return (u8)pabc;
-		}
-
-		int pa = abs(pabc - a);
-		int pb = abs(pabc - b);
-		int pc = abs(pabc - c);
-
-		if (pa <= pb && pa <= pc) {
-			return (u8)a;
-		} else if (pb <= pc) {
-			return (u8)b;
-		} else {
-			return (u8)c;
-		}
 	}
 
 	int initFromRGBA(u8 *rgba, int width, int height, ImageMaskWriter &mask);
