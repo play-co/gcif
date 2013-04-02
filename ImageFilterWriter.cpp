@@ -482,7 +482,7 @@ void ImageFilterWriter::decideFilters(u8 *rgba, int width, int height, ImageMask
 						continue;
 					}
 
-					u8 *p = rgba + (x + y * width) * 4;
+					u8 *p = rgba + (px + py * width) * 4;
 
 					for (int ii = 0; ii < SF_COUNT; ++ii) {
 						const u8 *pred = filterPixel(p, ii, px, py, width);
@@ -506,6 +506,7 @@ void ImageFilterWriter::decideFilters(u8 *rgba, int width, int height, ImageMask
 			// Find lowest error filter
 			int lowestSum = predErrors[0];
 			int bestSF = 0;
+
 			for (int ii = 1; ii < SF_COUNT*CF_COUNT; ++ii) {
 				if (predErrors[ii] < lowestSum) {
 					lowestSum = predErrors[ii];
@@ -571,7 +572,7 @@ void ImageFilterWriter::applyFilters(u8 *rgba, int width, int height, ImageMaskW
 			}
 
 			for (int ii = 0; ii < 3; ++ii) {
-#if 0
+#if 1
 				p[ii] = fpt[ii];
 #else
 				p[ii] = score(fpt[ii]);
@@ -580,9 +581,7 @@ void ImageFilterWriter::applyFilters(u8 *rgba, int width, int height, ImageMaskW
 
 #if 0
 			if ((y % FSZ) == 0 && (x % FSZ) == 0) {
-				if (sf == SF_B) {
-					rgba[(x + y * width) * 4] = 255;
-				}
+				rgba[(x + y * width) * 4] = 255;
 			}
 #endif
 		}
@@ -760,7 +759,7 @@ public:
 		u16 freqBZ[BZ_SYMS], freqAZ[AZ_SYMS];
 
 #ifdef ADAPTIVE_ZRLE
-		if (zeros * 100 / total >= 0) {
+		if (zeros * 100 / total >= 15) {
 			usingZ = true;
 #endif
 
