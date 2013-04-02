@@ -19,24 +19,27 @@ static const int FILTER_RLE_SYMS = 8;
  */
 
 enum SpatialFilters {
+	// In the order they are applied in the case of a tie:
 	SF_Z,			// 0
-	SF_A,			// A
-	SF_B,			// B
-	SF_C,			// C
 	SF_D,			// D
+	SF_C,			// C
+	SF_B,			// B
+	SF_A,			// A
 	SF_AB,			// (A + B)/2
-	SF_AD,			// (A + D)/2
 	SF_BD,			// (B + D)/2
-	SF_A_BC,		// A + (B - C)/2
-	SF_B_AC,		// B + (A - C)/2
-	SF_ABCD,		// (A + B + C + D + 1)/4
-	SF_ABC_CLAMP,	// A + B - C clamped to [0, 255]
 	SF_PAETH,		// Paeth filter
 	SF_ABC_PAETH,	// If A <= C <= B, A + B - C, else Paeth filter
 	SF_PL,			// Use ABC to determine if increasing or decreasing
 	SF_PLO,			// Offset PL
 
 	SF_COUNT,
+
+	// Disabled filters:
+	SF_ABCD,		// (A + B + C + D + 1)/4
+	SF_A_BC,		// A + (B - C)/2
+	SF_B_AC,		// B + (A - C)/2
+	SF_AD,			// (A + D)/2
+	SF_ABC_CLAMP,	// A + B - C clamped to [0, 255]
 };
 
 enum ColorFilters {
