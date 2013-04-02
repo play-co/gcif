@@ -509,6 +509,69 @@ static CAT_INLINE void filterColor(int cf, const u8 *p, const u8 *pred, u8 *out)
 }
 
 
+#include <cmath>
+
+class EntropyEstimator {
+	u32 global[256];
+	u32 globalTotal;
+
+	u8 best[256];
+	u32 bestTotal;
+
+	u8 local[256];
+	u32 localTotal;
+
+public:
+	CAT_INLINE EntropyEstimator() {
+	}
+	CAT_INLINE virtual ~EntropyEstimator() {
+	}
+
+	void clear() {
+		globalTotal = 0;
+		CAT_OBJCLR(global);
+	}
+
+	void setup() {
+		localTotal = 0;
+		CAT_OBJCLR(local);
+	}
+
+	void push(u8 symbol) {
+		local[symbol]++;
+		++localTotal;
+	}
+
+	double entropy() {
+		double total = globalTotal + localTotal;
+		double e = 0;
+		double log2 = log(2.);
+
+		for (int ii = 0; ii < 256; ++ii) {
+			u32 count = global[ii] + local[ii];
+			if (count > 0) {
+				double freq = count / total;
+				e -= freq * log(freq) / log2;
+			}
+		}
+
+		return e;
+	}
+
+	void save() {
+		memcpy(best, local, sizeof(best));
+		bestTotal = localTotal;
+	}
+
+	void commit() {
+		for (int ii = 0; ii < 256; ++ii) {
+			global[ii] += best[ii];
+		}
+		globalTotal += bestTotal;
+	}
+};
+
+
 //// ImageFilterWriter
 
 void ImageFilterWriter::clear() {
@@ -546,11 +609,145 @@ void ImageFilterWriter::decideFilters(u8 *rgba, int width, int height, ImageMask
 
 	static const int FSZ = FILTER_ZONE_SIZE;
 
+	EntropyEstimator ee[3];
+	ee[0].clear();
+	ee[1].clear();
+	ee[2].clear();
+
 	for (int y = 0; y < height; y += FSZ) {
 		for (int x = 0; x < width; x += FSZ) {
-			int predErrors[SF_COUNT*CF_COUNT] = {0};
 
 			// Determine best filter combination to use
+#if 1
+			int bestSF = 0;
+			int bestRating = 0;
+			for (int sf = 0; sf < SF_COUNT; ++sf) {
+
+				int rating = 0;
+
+				for (int yy = 0; yy < FSZ; ++yy) {
+					for (int xx = 0; xx < FSZ; ++xx) {
+						int px = x + xx, py = y + yy;
+						if (mask.hasRGB(px, py)) {
+							continue;
+						}
+
+						u8 *p = rgba + (px + py * width) * 4;
+						const u8 *pred = filterPixel(p, sf, px, py, width);
+
+						rating += score(p[0] - pred[0]) + score(p[1] - pred[1]) + score(p[2] - pred[2]);
+					}
+				}
+
+				if (sf == 0) {
+					bestRating = rating;
+				} else {
+					if (rating < bestRating) {
+						bestRating = rating;
+						bestSF = sf;
+					}
+				}
+			}
+
+			int bestCF = 0;
+			double bestScore = 0;
+			for (int cf = 0; cf < CF_COUNT; ++cf) {
+				ee[0].setup();
+				ee[1].setup();
+				ee[2].setup();
+
+				for (int yy = 0; yy < FSZ; ++yy) {
+					for (int xx = 0; xx < FSZ; ++xx) {
+						int px = x + xx, py = y + yy;
+						if (mask.hasRGB(px, py)) {
+							continue;
+						}
+
+						u8 *p = rgba + (px + py * width) * 4;
+						const u8 *pred = filterPixel(p, bestSF, px, py, width);
+
+						u8 result[3];
+						filterColor(cf, p, pred, result);
+
+						ee[0].push(result[0]);
+						ee[1].push(result[1]);
+						ee[2].push(result[2]);
+					}
+				}
+
+				double score = ee[0].entropy() + ee[1].entropy() + ee[2].entropy();
+				if (cf == 0) {
+					bestScore = score;
+					ee[0].save();
+					ee[1].save();
+					ee[2].save();
+				} else {
+					if (score < bestScore) {
+						bestCF = cf;
+						ee[0].save();
+						ee[1].save();
+						ee[2].save();
+						bestScore = score;
+					}
+				}
+			}
+
+			ee[0].commit();
+			ee[1].commit();
+			ee[2].commit();
+#elif 1
+			int bestSF = 0, bestCF = 0;
+			double bestScore = 0;
+			for (int sf = 0; sf < SF_COUNT; ++sf) {
+				for (int cf = 0; cf < CF_COUNT; ++cf) {
+
+					ee[0].setup();
+					ee[1].setup();
+					ee[2].setup();
+
+					for (int yy = 0; yy < FSZ; ++yy) {
+						for (int xx = 0; xx < FSZ; ++xx) {
+							int px = x + xx, py = y + yy;
+							if (mask.hasRGB(px, py)) {
+								continue;
+							}
+
+							u8 *p = rgba + (px + py * width) * 4;
+							const u8 *pred = filterPixel(p, sf, px, py, width);
+
+							u8 result[3];
+							filterColor(cf, p, pred, result);
+
+							ee[0].push(result[0]);
+							ee[1].push(result[1]);
+							ee[2].push(result[2]);
+						}
+					}
+
+					double score = ee[0].entropy() + ee[1].entropy() + ee[2].entropy();
+					if (sf == 0 && cf == 0) {
+						bestScore = score;
+						ee[0].save();
+						ee[1].save();
+						ee[2].save();
+					} else {
+						if (score < bestScore) {
+							bestSF = sf;
+							bestCF = cf;
+							ee[0].save();
+							ee[1].save();
+							ee[2].save();
+							bestScore = score;
+						}
+					}
+				}
+			}
+
+			ee[0].commit();
+			ee[1].commit();
+			ee[2].commit();
+#else
+			int predErrors[SF_COUNT*CF_COUNT] = {0};
 
 			// For each pixel in the 8x8 zone,
 			for (int yy = 0; yy < FSZ; ++yy) {
@@ -564,11 +761,6 @@ void ImageFilterWriter::decideFilters(u8 *rgba, int width, int height, ImageMask
 
 					for (int ii = 0; ii < SF_COUNT; ++ii) {
 						const u8 *pred = filterPixel(p, ii, px, py, width);
-
-						// Apply spatial filter
-						u8 r = p[0] - pred[0];
-						u8 g = p[1] - pred[1];
-						u8 b = p[2] - pred[2];
 
 						for (int jj = 0; jj < CF_COUNT; ++jj) {
 							u8 result[3];
@@ -592,9 +784,11 @@ void ImageFilterWriter::decideFilters(u8 *rgba, int width, int height, ImageMask
 			}
 
 			// Write it out
-			u8 sf = bestSF % SF_COUNT;
-			u8 cf = bestSF / SF_COUNT;
-			u16 filter = ((u16)sf << 8) | cf;
+			u8 bestSF = bestSF % SF_COUNT;
+			u8 bestCF = bestSF / SF_COUNT;
+#endif
+
+			u16 filter = ((u16)bestSF << 8) | bestCF;
 
 			setFilter(x, y, filter);
 		}
