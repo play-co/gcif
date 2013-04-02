@@ -471,6 +471,43 @@ static const u8 *filterPixel(u8 *p, int sf, int x, int y, int width) {
 	return fp;
 }
 
+static CAT_INLINE void filterColor(int cf, const u8 *p, const u8 *pred, u8 *out) {
+	u8 r = p[0] - pred[0];
+	u8 g = p[1] - pred[1];
+	u8 b = p[2] - pred[2];
+
+	switch (cf) {
+		default:
+		case CF_NOOP:
+			// No changes necessary
+			break;
+		case CF_GB_RG:
+			r -= g;
+			g -= b;
+			break;
+		case CF_GB_RB:
+			r -= b;
+			g -= b;
+			break;
+		case CF_GR_BR:
+			g -= r;
+			b -= r;
+			break;
+		case CF_GR_BG:
+			g -= r;
+			b -= g;
+			break;
+		case CF_BG_RG:
+			r -= g;
+			b -= g;
+			break;
+	}
+
+	out[0] = r;
+	out[1] = g;
+	out[2] = b;
+}
+
 
 //// ImageFilterWriter
 
@@ -533,13 +570,12 @@ void ImageFilterWriter::decideFilters(u8 *rgba, int width, int height, ImageMask
 						u8 g = p[1] - pred[1];
 						u8 b = p[2] - pred[2];
 
-						// Calculate color filter error
-						predErrors[ii + SF_COUNT*CF_NOOP] += score(r) + score(g) + score(b);
-						predErrors[ii + SF_COUNT*CF_GB_RG] += score(r-g) + score(g-b) + score(b);
-						predErrors[ii + SF_COUNT*CF_GB_RB] += score(r-b) + score(g-b) + score(b);
-						predErrors[ii + SF_COUNT*CF_GR_BR] += score(r) + score(g-r) + score(b-r);
-						predErrors[ii + SF_COUNT*CF_GR_BG] += score(r) + score(g-r) + score(b-g);
-						predErrors[ii + SF_COUNT*CF_BG_RG] += score(r-g) + score(g) + score(b-g);
+						for (int jj = 0; jj < CF_COUNT; ++jj) {
+							u8 result[3];
+							filterColor(jj, p, pred, result);
+
+							predErrors[ii + SF_COUNT*jj] += score(result[0]) + score(result[1]) + score(result[2]);
+						}
 					}
 				}
 			}
@@ -583,42 +619,7 @@ void ImageFilterWriter::applyFilters(u8 *rgba, int width, int height, ImageMaskW
 			u8 *p = rgba + (x + y * width) * 4;
 			const u8 *pred = filterPixel(p, sf, x, y, width);
 
-			u8 fpt[3] = { p[0] - pred[0], p[1] - pred[1], p[2] - pred[2] };
-
-			switch (cf) {
-				default:
-				case CF_NOOP:
-					// No changes necessary
-					break;
-				case CF_GB_RG:
-					fpt[0] -= fpt[1];
-					fpt[1] -= fpt[2];
-					break;
-				case CF_GB_RB:
-					fpt[0] -= fpt[2];
-					fpt[1] -= fpt[2];
-					break;
-				case CF_GR_BR:
-					fpt[1] -= fpt[0];
-					fpt[2] -= fpt[0];
-					break;
-				case CF_GR_BG:
-					fpt[2] -= fpt[1];
-					fpt[1] -= fpt[0];
-					break;
-				case CF_BG_RG:
-					fpt[0] -= fpt[1];
-					fpt[2] -= fpt[1];
-					break;
-			}
-
-			for (int ii = 0; ii < 3; ++ii) {
-#if 1
-				p[ii] = fpt[ii];
-#else
-				p[ii] = score(fpt[ii]);
-#endif
-			}
+			filterColor(cf, p, pred, p);
 
 #if 0
 			if ((y % FSZ) == 0 && (x % FSZ) == 0) {

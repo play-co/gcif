@@ -43,14 +43,18 @@ enum SpatialFilters {
 };
 
 enum ColorFilters {
+	// In order of preference:
 	CF_GB_RG,	// g-=b, r-=g
 	CF_BG_RG,	// b-=g, r-=g
 	CF_GR_BG,	// g-=r, b-=g
-	CF_NOOP,
 	CF_GB_RB,	// g-=b, r-=b
 	CF_GR_BR,	// g-=r, b-=r
+	CF_NOOP,
 
-	CF_COUNT
+	CF_COUNT,
+
+	// Disabled filters:
+	// None..
 };
 
 
