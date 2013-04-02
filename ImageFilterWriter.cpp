@@ -476,7 +476,7 @@ static const u8 CHAOS_TABLE[512] = {
 
 
 
-
+//#define ADAPTIVE_ZRLE
 
 
 class EntropyEncoder {
@@ -486,6 +486,11 @@ class EntropyEncoder {
 	u32 histBZ[BZ_SYMS], histAZ[AZ_SYMS];
 	u32 zeroRun;
 	u32 maxBZ, maxAZ;
+
+#ifdef ADAPTIVE_ZRLE
+	u32 zeros, total;
+	bool usingZ;
+#endif
 
 	u16 codesBZ[BZ_SYMS];
 	u8 codelensBZ[BZ_SYMS];
@@ -548,11 +553,21 @@ public:
 		zeroRun = 0;
 		maxBZ = 0;
 		maxAZ = 0;
+#ifdef ADAPTIVE_ZRLE
+		zeros = 0;
+		total = 0;
+#endif
 	}
 
 	void push(u8 symbol) {
+#ifdef ADAPTIVE_ZRLE
+		++total;
+#endif
 		if (symbol == 0) {
 			++zeroRun;
+#ifdef ADAPTIVE_ZRLE
+			++zeros;
+#endif
 		} else {
 			if (zeroRun > 0) {
 				if (zeroRun < FILTER_RLE_SYMS) {
@@ -570,36 +585,66 @@ public:
 	}
 
 	void finalize() {
+#ifdef ADAPTIVE_ZRLE
+		if (total == 0) {
+			return;
+		}
+#endif
+
 		endSymbols();
 
 		u16 freqBZ[BZ_SYMS], freqAZ[AZ_SYMS];
 
-		normalizeFreqs(maxBZ, BZ_SYMS, histBZ, freqBZ);
-		normalizeFreqs(maxAZ, AZ_SYMS, histAZ, freqAZ);
+#ifdef ADAPTIVE_ZRLE
+		if (zeros * 100 / total >= 0) {
+			usingZ = true;
+#endif
 
-		generateHuffmanCodes(BZ_SYMS, freqBZ, codesBZ, codelensBZ);
+			normalizeFreqs(maxBZ, BZ_SYMS, histBZ, freqBZ);
+			generateHuffmanCodes(BZ_SYMS, freqBZ, codesBZ, codelensBZ);
+#ifdef ADAPTIVE_ZRLE
+		} else {
+			usingZ = false;
+
+			histAZ[0] = zeros;
+			u32 maxAZ = 0;
+			for (int ii = 1; ii < AZ_SYMS; ++ii) {
+				histAZ[ii] += histBZ[ii];
+			}
+		}
+#endif
+
+		normalizeFreqs(maxAZ, AZ_SYMS, histAZ, freqAZ);
 		generateHuffmanCodes(AZ_SYMS, freqAZ, codesAZ, codelensAZ);
 	}
 
 	u32 encode(u8 symbol) {
 		u32 bits = 0;
 
-		if (symbol == 0) {
-			++zeroRun;
-		} else {
-			if (zeroRun > 0) {
-				if (zeroRun < FILTER_RLE_SYMS) {
-					bits = codelensBZ[255 + zeroRun];
-				} else {
-					bits = codelensBZ[BZ_SYMS - 1] + 4; // estimated
-				}
-
-				zeroRun = 0;
-				bits += codelensAZ[symbol];
+#ifdef ADAPTIVE_ZRLE
+		if (usingZ) {
+#endif
+			if (symbol == 0) {
+				++zeroRun;
 			} else {
-				bits += codelensBZ[symbol];
+				if (zeroRun > 0) {
+					if (zeroRun < FILTER_RLE_SYMS) {
+						bits = codelensBZ[255 + zeroRun];
+					} else {
+						bits = codelensBZ[BZ_SYMS - 1] + 4; // estimated
+					}
+
+					zeroRun = 0;
+					bits += codelensAZ[symbol];
+				} else {
+					bits += codelensBZ[symbol];
+				}
 			}
+#ifdef ADAPTIVE_ZRLE
+		} else {
+			bits += codelensAZ[symbol];
 		}
+#endif
 
 		return bits;
 	}
@@ -607,13 +652,19 @@ public:
 	u32 encodeFinalize() {
 		u32 bits = 0;
 
-		if (zeroRun > 0) {
-			if (zeroRun < FILTER_RLE_SYMS) {
-				bits = codelensBZ[255 + zeroRun];
-			} else {
-				bits = codelensBZ[BZ_SYMS - 1] + 4; // estimated
+#ifdef ADAPTIVE_ZRLE
+		if (usingZ) {
+#endif
+			if (zeroRun > 0) {
+				if (zeroRun < FILTER_RLE_SYMS) {
+					bits = codelensBZ[255 + zeroRun];
+				} else {
+					bits = codelensBZ[BZ_SYMS - 1] + 4; // estimated
+				}
 			}
+#ifdef ADAPTIVE_ZRLE
 		}
+#endif
 
 		return bits;
 	}
@@ -662,6 +713,9 @@ void ImageFilterWriter::chaosEncode(u8 *rgba, int width, int height, ImageMaskWr
 			chaos[0] += (isum + chaos[0] + (isum >> 1)) >> 2;
 			chaos[1] += (last_chaos_read[1] + last_chaos_read[-2] + chaos[1] + (chaos[0] >> 1)) >> 2;
 			chaos[2] += (last_chaos_read[2] + last_chaos_read[-1] + chaos[2] + (chaos[1] >> 1)) >> 2;
+#else
+			//chaos[1] = (chaos[1] + chaos[0]) >> 1;
+			//chaos[2] = (chaos[2] + chaos[1]) >> 1;
 #endif
 			left_rgb[0] = chaosScore(now[0]);
 			left_rgb[1] = chaosScore(now[1]);
@@ -721,6 +775,9 @@ void ImageFilterWriter::chaosEncode(u8 *rgba, int width, int height, ImageMaskWr
 			chaos[0] += (isum + chaos[0] + (isum >> 1)) >> 2;
 			chaos[1] += (last_chaos_read[1] + last_chaos_read[-2] + chaos[1] + (chaos[0] >> 1)) >> 2;
 			chaos[2] += (last_chaos_read[2] + last_chaos_read[-1] + chaos[2] + (chaos[1] >> 1)) >> 2;
+#else
+			//chaos[1] = (chaos[1] + chaos[0]) >> 1;
+			//chaos[2] = (chaos[2] + chaos[1]) >> 1;
 #endif
 			left_rgb[0] = chaosScore(now[0]);
 			left_rgb[1] = chaosScore(now[1]);
