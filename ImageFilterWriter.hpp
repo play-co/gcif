@@ -12,10 +12,11 @@ static const int FILTER_ZONE_SIZE = 4;
 static const int FILTER_RLE_SYMS = 8;
 
 /*
- * Filter inputs:
+ * Spatial filters from BCIF
  *
- * C B D
- * A ?
+ * Filter inputs:
+ *	C B D
+ *	A ?
  */
 
 enum SpatialFilters {
@@ -40,22 +41,61 @@ enum SpatialFilters {
 	// Disabled filters:
 	SF_A_BC,		// A + (B - C)/2
 	SF_B_AC,		// B + (A - C)/2
+
+	SF_TEST,		// Crazy random test filter
 };
+
+
+/*
+ * Color filters taken directly from this paper by Tilo Strutz
+ * "ADAPTIVE SELECTION OF COLOUR TRANSFORMATIONS FOR REVERSIBLE IMAGE COMPRESSION" (2012)
+ * http://www.eurasip.org/Proceedings/Eusipco/Eusipco2012/Conference/papers/1569551007.pdf
+ */
 
 enum ColorFilters {
 	// In order of preference:
-	CF_GB_RG,	// g-=b, r-=g
-	CF_BG_RG,	// b-=g, r-=g
-	CF_GR_BG,	// g-=r, b-=g
-	CF_GB_RB,	// g-=b, r-=b
-	CF_GR_BR,	// g-=r, b-=r
-	CF_NOOP,
+	CF_YUVr,	// YUVr from JPEG2000
+
+	CF_E2,		// from the Strutz paper
+	CF_E1,		// from the Strutz paper
+	CF_E4,		// from the Strutz paper
+
+	CF_D8,		// from the Strutz paper
+	CF_D9,		// from the Strutz paper
+	CF_D14,		// from the Strutz paper
+
+	CF_D10,		// from the Strutz paper
+	CF_D11,		// from the Strutz paper
+	CF_D12,		// from the Strutz paper
+	CF_D18,		// from the Strutz paper
+
+	CF_YCgCo_R,	// Malvar's YCgCo-R
+
+	CF_A3,		// from the Strutz paper
+
+	CF_LOCO_I,	// recommendation from LOCO-I paper, BCIF, and A2 from Strutz
+
+	CF_RGB,		// Original RGB
+
+	CF_C7,		// from the Strutz paper
+	CF_E5,		// from the Strutz paper
+	CF_E8,		// from the Strutz paper
+	CF_E11,		// from the Strutz paper
+	CF_F1,		// from the Strutz paper
+	CF_F2,		// from the Strutz paper
 
 	CF_COUNT,
 
 	// Disabled filters:
-	// None..
 };
+
+
+// Post-color filter color values:
+struct YUV899 {
+	u8 y;		// 8 bit luminance [0..255]
+	s16 u, v;	// 9 bit chrominance [-255..255]
+};
+
 
 
 //// ImageFilterWriter
@@ -68,6 +108,7 @@ class ImageFilterWriter {
 	void clear();
 
 	bool init(int width, int height);
+	void colorSpace(u8 *rgba, int width, int height, ImageMaskWriter &mask);
 	void decideFilters(u8 *rgba, int width, int height, ImageMaskWriter &mask);
 	void applyFilters(u8 *rgba, int width, int height, ImageMaskWriter &mask);
 	void chaosEncode(u8 *rgba, int width, int height, ImageMaskWriter &mask);
