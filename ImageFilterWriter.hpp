@@ -77,20 +77,20 @@ enum ColorFilters {
 	CF_GR_BG,	// from BCIF
 	CF_BG_RG,	// from BCIF (recommendation from LOCO-I paper)
 
-	CF_RGB,		// Original RGB
+	CF_BGR,		// RGB -> BGR
 
 	CF_COUNT,
 
 	// Disabled filters:
 	// These do not appear to be reversible under YUV888
-	CF_E2,		// from the Strutz paper
 	CF_C7,		// from the Strutz paper
 	CF_E1,		// from the Strutz paper
+	CF_E2,		// from the Strutz paper
 	CF_E4,		// from the Strutz paper
-	CF_A3,		// from the Strutz paper
 	CF_E5,		// from the Strutz paper
 	CF_E8,		// from the Strutz paper
 	CF_E11,		// from the Strutz paper
+	CF_A3,		// from the Strutz paper
 	CF_F1,		// from the Strutz paper
 	CF_F2,		// from the Strutz paper
 };

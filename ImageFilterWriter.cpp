@@ -517,6 +517,19 @@ void convertRGBtoYUV(int cf, const u8 rgb[3], u8 out[3]) {
 			break;
 
 
+		case CF_YCgCo_R:	// Malvar's YCgCo-R
+			{
+				char Co = R - B;
+				int t = B + (Co >> 1);
+				char Cg = G - t;
+				Y = t + (Cg >> 1);
+
+				U = Cg;
+				V = Co;
+			}
+			break;
+
+
 		case CF_E2:		// from the Strutz paper
 			{
 				Y = ((char)G >> 1) + (((char)R + (char)B) >> 2);
@@ -600,19 +613,6 @@ void convertRGBtoYUV(int cf, const u8 rgb[3], u8 out[3]) {
 			break;
 
 
-		case CF_YCgCo_R:	// Malvar's YCgCo-R
-			{
-				char Co = R - B;
-				int t = B + (Co >> 1);
-				char Cg = G - t;
-				Y = t + (Cg >> 1);
-
-				U = Cg;
-				V = Co;
-			}
-			break;
-
-
 		case CF_A3:		// from the Strutz paper
 			{
 				Y = (R + G + B) / 3;
@@ -626,7 +626,7 @@ void convertRGBtoYUV(int cf, const u8 rgb[3], u8 out[3]) {
 			{
 				Y = B;
 				U = G - B;
-				V = R - G;
+				V = G - R;
 			}
 			break;
 
@@ -648,7 +648,7 @@ void convertRGBtoYUV(int cf, const u8 rgb[3], u8 out[3]) {
 
 		case CF_GR_BG:
 			{
-				Y = B - G;
+				Y = G - B;
 				U = G - R;
 				V = R;
 			}
@@ -656,15 +656,15 @@ void convertRGBtoYUV(int cf, const u8 rgb[3], u8 out[3]) {
 
 		case CF_BG_RG:
 			{
-				Y = B - G;
+				Y = G - B;
 				U = G;
-				V = R - G;
+				V = G - R;
 			}
 			break;
 
 
 		default:
-		case CF_RGB:		// Original RGB
+		case CF_BGR:		// RGB -> BGR
 			{
 				Y = B;
 				U = G;
@@ -743,6 +743,20 @@ void convertYUVtoRGB(int cf, const u8 yuv[3], u8 out[3]) {
 				G = Y - (((char)U + (char)V) >> 2);
 				R = V + G;
 				B = U + G;
+			}
+			break;
+
+
+		case CF_YCgCo_R:	// Malvar's YCgCo-R
+			{
+				char Co = V;
+				char Cg = U;
+
+				const int t = Y - (Cg >> 1);
+				G = Cg + t;
+				B = t - (Co >> 1);
+				R = Co + B;
+
 			}
 			break;
 
@@ -926,20 +940,6 @@ void convertYUVtoRGB(int cf, const u8 yuv[3], u8 out[3]) {
 			break;
 
 
-		case CF_YCgCo_R:	// Malvar's YCgCo-R
-			{
-				char Co = V;
-				char Cg = U;
-
-				const int t = Y - (Cg >> 1);
-				G = Cg + t;
-				B = t - (Co >> 1);
-				R = Co + B;
-
-			}
-			break;
-
-
 		case CF_A3:		// from the Strutz paper
 			{
 				G = (Y * 3 - U - V) / 3;
@@ -991,7 +991,7 @@ void convertYUVtoRGB(int cf, const u8 yuv[3], u8 out[3]) {
 
 
 		default:
-		case CF_RGB:		// Original RGB
+		case CF_BGR:		// Original RGB
 			{
 				R = V;
 				G = U;
@@ -1118,8 +1118,8 @@ const char *GetColorFilterString(int cf) {
 		case CF_BG_RG:	// from BCIF (recommendation from LOCO-I paper)
 			 return "BCIF-LOCO-I";
 
-		case CF_RGB:		// Original RGB
-			 return "RGB";
+		case CF_BGR:		// RGB -> BGR
+			 return "BGR";
 
 		case CF_C7:		// from the Strutz paper
 			 return "C7";
