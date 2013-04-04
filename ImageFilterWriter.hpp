@@ -10,6 +10,7 @@ namespace cat {
 
 static const int FILTER_ZONE_SIZE = 4;
 static const int FILTER_RLE_SYMS = 8;
+static const int FILTER_MATCH_FUZZ = 16;
 
 /*
  * Spatial filters from BCIF
@@ -59,14 +60,6 @@ enum ColorFilters {
 	// In order of preference:
 	CF_YUVr,	// YUVr from JPEG2000
 
-	CF_GB_RG,	// from BCIF
-	CF_GB_RB,	// from BCIF
-	CF_GR_BR,	// from BCIF
-	CF_GR_BG,	// from BCIF
-	CF_BG_RG,	// from BCIF (recommendation from LOCO-I paper)
-
-	CF_RGB,		// Original RGB
-
 	CF_YCgCo_R,	// Malvar's YCgCo-R
 
 	CF_D8,		// from the Strutz paper
@@ -78,9 +71,15 @@ enum ColorFilters {
 	CF_D12,		// from the Strutz paper
 	CF_D18,		// from the Strutz paper
 
+	CF_GB_RG,	// from BCIF
+	CF_GB_RB,	// from BCIF
+	CF_GR_BR,	// from BCIF
+	CF_GR_BG,	// from BCIF
+	CF_BG_RG,	// from BCIF (recommendation from LOCO-I paper)
+
+	CF_RGB,		// Original RGB
+
 	CF_COUNT,
-
-
 
 	// Disabled filters:
 	// These do not appear to be reversible under YUV888

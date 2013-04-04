@@ -1549,7 +1549,7 @@ void ImageFilterWriter::decideFilters(u8 *rgba, int width, int height, ImageMask
 					bestSF = lowest->index % SF_COUNT;
 					bestCF = lowest->index / SF_COUNT;
 				} else {
-					const int TOP_COUNT = 16;
+					const int TOP_COUNT = FILTER_MATCH_FUZZ;
 
 					FilterScorer::Score *top = scores.getTop(TOP_COUNT);
 
