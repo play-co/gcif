@@ -104,12 +104,38 @@ class ImageFilterWriter {
 	u16 *_matrix;
 	u8 *_chaos;
 
+	std::vector<u8> _lz;
+
+	u8 *_lz_mask;
+
 	void clear();
 
+	u8 *_rgba;
+	int _width;
+	int _height;
+	ImageMaskWriter *_mask;
+
+	CAT_INLINE bool hasR(int x, int y) {
+		return _lz_mask[(x + y * _width) * 3];
+	}
+
+	CAT_INLINE bool hasG(int x, int y) {
+		return _lz_mask[(x + y * _width) * 3 + 1];
+	}
+
+	CAT_INLINE bool hasB(int x, int y) {
+		return _lz_mask[(x + y * _width) * 3 + 2];
+	}
+
+	CAT_INLINE bool hasPixel(int x, int y) {
+		return hasR(x, y) || hasG(x, y) || hasB(x, y);
+	}
+
 	bool init(int width, int height);
-	void decideFilters(u8 *rgba, int width, int height, ImageMaskWriter &mask);
-	void applyFilters(u8 *rgba, int width, int height, ImageMaskWriter &mask);
-	void chaosEncode(u8 *rgba, int width, int height, ImageMaskWriter &mask);
+	void makeLZmask();
+	void decideFilters();
+	void applyFilters();
+	void chaosEncode();
 
 public:
 	CAT_INLINE ImageFilterWriter() {

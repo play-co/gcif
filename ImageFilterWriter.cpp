@@ -1452,7 +1452,7 @@ public:
 
 
 
-void ImageFilterWriter::decideFilters(u8 *rgba, int width, int height, ImageMaskWriter &mask) {
+void ImageFilterWriter::decideFilters() {
 	u16 *filterWriter = _matrix;
 
 	static const int FSZ = FILTER_ZONE_SIZE;
@@ -1466,8 +1466,9 @@ void ImageFilterWriter::decideFilters(u8 *rgba, int width, int height, ImageMask
 	scores.init(SF_COUNT * CF_COUNT);
 
 	int compressLevel = 1;
+	const int width = _width;
 
-	for (int y = 0; y < height; y += FSZ) {
+	for (int y = 0; y < _height; y += FSZ) {
 		for (int x = 0; x < width; x += FSZ) {
 
 			// Determine best filter combination to use
@@ -1481,11 +1482,14 @@ void ImageFilterWriter::decideFilters(u8 *rgba, int width, int height, ImageMask
 				for (int yy = 0; yy < FSZ; ++yy) {
 					for (int xx = 0; xx < FSZ; ++xx) {
 						int px = x + xx, py = y + yy;
-						if (mask.hasRGB(px, py)) {
+						if (_mask->hasRGB(px, py) ||
+							!hasPixel(px, py)) {
 							continue;
 						}
 
-						u8 *p = rgba + (px + py * width) * 4;
+						// TODO: Try setting pixels to zero that are masked out
+
+						u8 *p = _rgba + (px + py * width) * 4;
 
 						for (int ii = 0; ii < SF_COUNT; ++ii) {
 							const u8 *pred = filterPixel(p, ii, px, py, width);
@@ -1515,11 +1519,12 @@ void ImageFilterWriter::decideFilters(u8 *rgba, int width, int height, ImageMask
 				for (int yy = 0; yy < FSZ; ++yy) {
 					for (int xx = 0; xx < FSZ; ++xx) {
 						int px = x + xx, py = y + yy;
-						if (mask.hasRGB(px, py)) {
+						if (_mask->hasRGB(px, py) ||
+							!hasPixel(px, py)) {
 							continue;
 						}
 
-						u8 *p = rgba + (px + py * width) * 4;
+						u8 *p = _rgba + (px + py * width) * 4;
 
 						for (int ii = 0; ii < SF_COUNT; ++ii) {
 							const u8 *pred = filterPixel(p, ii, px, py, width);
@@ -1567,11 +1572,12 @@ void ImageFilterWriter::decideFilters(u8 *rgba, int width, int height, ImageMask
 						for (int yy = 0; yy < FSZ; ++yy) {
 							for (int xx = 0; xx < FSZ; ++xx) {
 								int px = x + xx, py = y + yy;
-								if (mask.hasRGB(px, py)) {
+								if (_mask->hasRGB(px, py) ||
+									!hasPixel(px, py)) {
 									continue;
 								}
 
-								u8 *p = rgba + (px + py * width) * 4;
+								u8 *p = _rgba + (px + py * width) * 4;
 								const u8 *pred = filterPixel(p, sf, px, py, width);
 
 								u8 sp[3] = {
@@ -1621,22 +1627,24 @@ void ImageFilterWriter::decideFilters(u8 *rgba, int width, int height, ImageMask
 	}
 }
 
-void ImageFilterWriter::applyFilters(u8 *rgba, int width, int height, ImageMaskWriter &mask) {
+void ImageFilterWriter::applyFilters() {
 	u16 *filterWriter = _matrix;
+	const int width = _width;
 
 	static const int FSZ = FILTER_ZONE_SIZE;
 
 	// For each zone,
-	for (int y = height - 1; y >= 0; --y) {
+	for (int y = _height - 1; y >= 0; --y) {
 		for (int x = width - 1; x >= 0; --x) {
 			u16 filter = getFilter(x, y);
 			u8 cf = (u8)filter;
 			u8 sf = (u8)(filter >> 8);
-			if (mask.hasRGB(x, y)) {
+			if (_mask->hasRGB(x, y) ||
+				!hasPixel(x, y)) {
 				continue;
 			}
 
-			u8 *p = rgba + (x + y * width) * 4;
+			u8 *p = _rgba + (x + y * width) * 4;
 			const u8 *pred = filterPixel(p, sf, x, y, width);
 
 			filterColor(cf, p, pred, p);
@@ -1934,24 +1942,25 @@ public:
 
 
 
-void ImageFilterWriter::chaosEncode(u8 *rgba, int width, int height, ImageMaskWriter &mask) {
+void ImageFilterWriter::chaosEncode() {
 #ifdef GENERATE_CHAOS_TABLE
 	GenerateChaosTable();
 #endif
 
 	int bitcount[3] = {0};
+	const int width = _width;
 
 	u8 *last_chaos = _chaos;
 	CAT_CLR(last_chaos, width * 3 + 3);
 
-	u8 *last = rgba;
-	u8 *now = rgba;
+	u8 *last = _rgba;
+	u8 *now = _rgba;
 
 	vector<u8> test;
 
 	EntropyEncoder encoder[3][16];
 
-	for (int y = 0; y < height; ++y) {
+	for (int y = 0; y < _height; ++y) {
 		u8 left_rgb[3] = {0};
 		u8 *last_chaos_read = last_chaos + 3;
 
@@ -1984,9 +1993,11 @@ void ImageFilterWriter::chaosEncode(u8 *rgba, int width, int height, ImageMaskWr
 				test.push_back(chaos[1] * 256/8);
 				test.push_back(chaos[1] * 256/8);
 
-				if (!mask.hasRGB(x, y)) {
+				if (!_mask->hasRGB(x, y)) {
 					for (int ii = 0; ii < 3; ++ii) {
-						encoder[ii][chaos[ii]].push(now[ii]);
+						if (_lz_mask[(x + y * _width) * 3 + ii]) {
+							encoder[ii][chaos[ii]].push(now[ii]);
+						}
 					}
 				}
 			}
@@ -2008,10 +2019,10 @@ void ImageFilterWriter::chaosEncode(u8 *rgba, int width, int height, ImageMaskWr
 
 	CAT_CLR(last_chaos, width * 3 + 3);
 
-	last = rgba;
-	now = rgba;
+	last = _rgba;
+	now = _rgba;
 
-	for (int y = 0; y < height; ++y) {
+	for (int y = 0; y < _height; ++y) {
 		u8 left_rgb[3] = {0};
 		u8 *last_chaos_read = last_chaos + 3;
 
@@ -2040,9 +2051,11 @@ void ImageFilterWriter::chaosEncode(u8 *rgba, int width, int height, ImageMaskWr
 			left_rgb[1] = chaosScore(now[1]);
 			left_rgb[2] = chaosScore(now[2]);
 			{
-				if (!mask.hasRGB(x, y)) {
+				if (!_mask->hasRGB(x, y)) {
 					for (int ii = 0; ii < 3; ++ii) {
-						bitcount[ii] += encoder[ii][chaos[ii]].encode(now[ii]);
+						if (_lz_mask[(x + y * _width) * 3 + ii]) {
+							bitcount[ii] += encoder[ii][chaos[ii]].encode(now[ii]);
+						}
 					}
 				}
 			}
@@ -2074,7 +2087,7 @@ void ImageFilterWriter::chaosEncode(u8 *rgba, int width, int height, ImageMaskWr
 
 			// Convert to image:
 
-			lodepng_encode_file("chaos.png", (const unsigned char*)&test[0], width, height, LCT_RGB, 8);
+			lodepng_encode_file("chaos.png", (const unsigned char*)&test[0], _width, _height, LCT_RGB, 8);
 		}
 #endif
 
@@ -2122,10 +2135,155 @@ void colorSpace(u8 *rgba, int width, int height, ImageMaskWriter &mask) {
 	}
 }
 
+
+
+bool nextPixel(int &x, int &y, int &c, int width, int height) {
+	++c;
+	if (c >= 3) {
+		c = 0;
+		++x;
+		if (x >= width) {
+			x = 0;
+			++y;
+			if (y >= height) {
+				return true;
+			}
+		}
+	}
+
+	return false;
+}
+
+
+
+void ImageFilterWriter::makeLZmask() {
+	const int lz_mask_size = _width * _height * 3;
+	_lz_mask = new u8[lz_mask_size];
+
+	u8 *pixel = _rgba;
+	u8 *writer = _lz_mask;
+	int x, y;
+
+	vector<u8> lz_input;
+
+	for (y = 0; y < _height; ++y) {
+		for (x = 0; x < _width; ++x) {
+			if (!_mask->hasRGB(x, y)) {
+				lz_input.push_back(pixel[0]);
+				lz_input.push_back(pixel[1]);
+				lz_input.push_back(pixel[2]);
+			} else {
+				writer[0] = 0;
+				writer[1] = 0;
+				writer[2] = 0;
+			}
+			writer += 3;
+			pixel += 4;
+		}
+	}
+
+	_lz.resize(LZ4_compressBound(static_cast<int>( lz_input.size() )));
+
+	_lz.resize(LZ4_compressHC((char*)&lz_input[0], (char*)&_lz[0], lz_input.size()));
+
+	const int size = _lz.size();
+
+	int moffset = 0;
+
+	u8 *lzmask = _lz_mask;
+
+	vector<u8> lz_overhead;
+
+	for (int ii = 0; ii < size;) {
+		// Read token
+		u8 token = _lz[ii++];
+		lz_overhead.push_back(token);
+
+		// Read Literal Length
+		int literalLength = token >> 4;
+		if (literalLength == 15) {
+			int s;
+			do {
+				s = _lz[ii++];
+				lz_overhead.push_back(s);
+				literalLength += s;
+			} while (s == 255 && ii < size);
+		}
+
+		// TODO: Not good input checking
+		for (int jj = 0; jj < literalLength; ++jj) {
+			while (_mask->hasRGB((moffset/3) % _width, (moffset/3) / _width)) {
+				moffset += 3;
+			}
+
+			int symbol = _lz[ii++];
+
+			lzmask[moffset++] = 1;
+		}
+
+		if (ii >= size) break;
+
+		// Read match offset
+		u8 offset0 = _lz[ii++];
+		if (ii >= size) break;
+		u8 offset1 = _lz[ii++];
+		if (ii >= size) break;
+		u16 woffset = ((u16)offset1 << 8) | offset0;
+		lz_overhead.push_back(offset0);
+		lz_overhead.push_back(offset1);
+
+		// Read match length
+		int matchLength = token & 15;
+		if (matchLength == 15) {
+			int s;
+			do {
+				s = _lz[ii++];
+				lz_overhead.push_back(s);
+				matchLength += s;
+			} while (s == 255 && ii < size);
+		}
+		matchLength += 4;
+
+		for (int jj = 0; jj < matchLength; ++jj) {
+			while (_mask->hasRGB((moffset/3) % _width, (moffset/3) / _width)) {
+				moffset += 3;
+			}
+
+			lzmask[moffset++] = 0;
+		}
+	}
+
+	cout << endl;
+
+	// NOTE: Do not need this after it works
+	while (moffset < lz_mask_size &&
+		   _mask->hasRGB((moffset/3) % _width, (moffset/3) / _width)) {
+		moffset += 3;
+	}
+
+	u16 freq[256];
+
+	collectFreqs(lz_overhead, freq);
+
+	u16 codes[256];
+	u8 lens[256];
+	generateHuffmanCodes(256, freq, codes, lens);
+
+	int bits_overhead = calcBits(lz_overhead, lens);
+
+	cout << "LZ overhead = " << bits_overhead/8 << endl;
+}
+
+
 int ImageFilterWriter::initFromRGBA(u8 *rgba, int width, int height, ImageMaskWriter &mask) {
 	if (!init(width, height)) {
 		return WE_BAD_DIMS;
 	}
+
+	_width = width;
+	_height = height;
+	_rgba = rgba;
+	_mask = &mask;
 
 #if 0
 	testColorFilters();
@@ -2133,77 +2291,11 @@ int ImageFilterWriter::initFromRGBA(u8 *rgba, int width, int height, ImageMaskWr
 	return 0;
 #endif
 
-	decideFilters(rgba, width, height, mask);
-	applyFilters(rgba, width, height, mask);
-	chaosEncode(rgba, width, height, mask);
+	makeLZmask();
+	decideFilters();
+	applyFilters();
+	chaosEncode();
 
-	vector<u8> reds, greens, blues, alphas;
-
-	u8 *pixel = rgba;
-	for (int y = 0; y < height; ++y) {
-		for (int x = 0; x < width; ++x) {
-			if (pixel[3] != 0) {
-				reds.push_back(pixel[0]);
-				greens.push_back(pixel[1]);
-				blues.push_back(pixel[2]);
-				alphas.push_back(pixel[3]);
-
-				//cout << (int)pixel[3] << " ";
-			}
-			pixel += 4;
-		}
-	}
-/*
-#if 1
-	std::vector<u8> lz_reds, lz_greens, lz_blues, lz_alphas;
-	lz_reds.resize(LZ4_compressBound(static_cast<int>( reds.size() )));
-	lz_greens.resize(LZ4_compressBound(static_cast<int>( greens.size() )));
-	lz_blues.resize(LZ4_compressBound(static_cast<int>( blues.size() )));
-	lz_alphas.resize(LZ4_compressBound(static_cast<int>( alphas.size() )));
-
-	lz_reds.resize(LZ4_compressHC((char*)&reds[0], (char*)&lz_reds[0], reds.size()));
-	lz_greens.resize(LZ4_compressHC((char*)&greens[0], (char*)&lz_greens[0], greens.size()));
-	lz_blues.resize(LZ4_compressHC((char*)&blues[0], (char*)&lz_blues[0], blues.size()));
-	lz_alphas.resize(LZ4_compressHC((char*)&alphas[0], (char*)&lz_alphas[0], alphas.size()));
-#else
-#define lz_reds reds
-#define lz_greens greens
-#define lz_blues blues
-#define lz_alphas alphas
-#endif
-
-	CAT_WARN("test") << "R bytes: " << lz_reds.size();
-	CAT_WARN("test") << "G bytes: " << lz_greens.size();
-	CAT_WARN("test") << "B bytes: " << lz_blues.size();
-	CAT_WARN("test") << "A bytes: " << lz_alphas.size();
-
-	u16 freq_reds[256], freq_greens[256], freq_blues[256], freq_alphas[256];
-
-	collectFreqs(lz_reds, freq_reds);
-	collectFreqs(lz_greens, freq_greens);
-	collectFreqs(lz_blues, freq_blues);
-	collectFreqs(lz_alphas, freq_alphas);
-
-	u16 c_reds[256], c_greens[256], c_blues[256], c_alphas[256];
-	u8 l_reds[256], l_greens[256], l_blues[256], l_alphas[256];
-	generateHuffmanCodes(256, freq_reds, c_reds, l_reds);
-	generateHuffmanCodes(256, freq_greens, c_greens, l_greens);
-	generateHuffmanCodes(256, freq_blues, c_blues, l_blues);
-	generateHuffmanCodes(256, freq_alphas, c_alphas, l_alphas);
-
-	int bits_reds, bits_greens, bits_blues, bits_alphas;
-	bits_reds = calcBits(lz_reds, l_reds);
-	bits_greens = calcBits(lz_greens, l_greens);
-	bits_blues = calcBits(lz_blues, l_blues);
-	bits_alphas = calcBits(lz_alphas, l_alphas);
-
-	CAT_WARN("test") << "Huffman-encoded R bytes: " << bits_reds / 8;
-	CAT_WARN("test") << "Huffman-encoded G bytes: " << bits_greens / 8;
-	CAT_WARN("test") << "Huffman-encoded B bytes: " << bits_blues / 8;
-	CAT_WARN("test") << "Huffman-encoded A bytes: " << bits_alphas / 8;
-
-	CAT_WARN("test") << "Estimated file size = " << (bits_reds + bits_greens + bits_blues + bits_alphas) / 8 + 6000 + 50000;
-*/
 	return WE_OK;
 }
 

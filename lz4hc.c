@@ -158,7 +158,7 @@ typedef struct _U64_S { U64 v; } U64_S;
 //**************************************
 // Constants
 //**************************************
-#define MINMATCH 4
+#define MINMATCH 8
 
 #define DICTIONARY_LOGSIZE 16
 #define MAXD (1<<DICTIONARY_LOGSIZE)
