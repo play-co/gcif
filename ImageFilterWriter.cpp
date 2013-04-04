@@ -32,7 +32,8 @@ static CAT_INLINE int score(u8 p) {
 }
 
 static CAT_INLINE int scoreYUV(YUV899 *yuv) {
-	return (int)yuv->y + abs(yuv->u) + abs(yuv->v);
+	return score(yuv->y) + score((u8)yuv->u) + score((u8)yuv->v);
+	//return (int)yuv->y + abs(yuv->u) + abs(yuv->v);
 }
 
 static CAT_INLINE int wrapNeg(u8 p) {
@@ -505,239 +506,711 @@ void convertRGBtoYUV(int cf, const u8 *rgb, YUV899 *out) {
 	const int R = rgb[0];
 	const int G = rgb[1];
 	const int B = rgb[2];
+	int Y, U, V;
 
 	switch (cf) {
+		case CF_YUVr:	// YUVr from JPEG2000
+			{
+				U = B - G;
+				V = R - G;
+				Y = G + ((char)(U + V) >> 2);
+			}
+			break;
+
+
 		case CF_E2:		// from the Strutz paper
 			{
-				out->y = static_cast<u8>( (G >> 1) + ((R + B) >> 2) );
-				out->u = static_cast<s16>( B - ((R + G) >> 1) );
-				out->v = static_cast<s16>( R - G );
+				Y = (G >> 1) + ((R + B) >> 2);
+				U = B - ((R + G) >> 1);
+				V = R - G;
 			}
 			break;
 
 		case CF_E1:		// from the Strutz paper
 			{
-				out->y = static_cast<u8>( (G >> 1) + ((R + B) >> 2) );
-				out->u = static_cast<s16>( B - ((R + G*3) >> 2) );
-				out->v = static_cast<s16>( R - G );
+				Y = (G >> 1) + ((R + B) >> 2);
+				U = B - ((R + G*3) >> 2);
+				V = R - G;
 			}
 			break;
 
 		case CF_E4:		// from the Strutz paper
 			{
-				out->y = static_cast<u8>( (G >> 1) + ((R + B) >> 2) );
-				out->u = static_cast<s16>( R - ((B + G*3) >> 2) );
-				out->v = static_cast<s16>( B - G );
-			}
-			break;
-
-
-		case CF_YUVr:	// YUVr from JPEG2000
-			{
-				int Ur = B - G;
-				int Vr = R - G;
-
-				out->y = static_cast<u8>( G + ((Ur + Vr) >> 2) );
-				out->u = static_cast<s16>( Ur );
-				out->v = static_cast<s16>( Vr );
+				Y = (G >> 1) + ((R + B) >> 2);
+				U = R - ((B + G*3) >> 2);
+				V = B - G;
 			}
 			break;
 
 
 		case CF_D8:		// from the Strutz paper
 			{
-				out->y = static_cast<u8>( R );
-				out->u = static_cast<s16>( B - ((R + G) >> 1) );
-				out->v = static_cast<s16>( G - R );
+				Y = R;
+				U = B - ((R + G) >> 1);
+				V = G - R;
 			}
 			break;
 
 		case CF_D9:		// from the Strutz paper
 			{
-				out->y = static_cast<u8>( R );
-				out->u = static_cast<s16>( B - ((R + G*3) >> 2) );
-				out->v = static_cast<s16>( G - R );
+				Y = R;
+				U = B - ((R + G*3) >> 2);
+				V = G - R;
 			}
 			break;
 
 		case CF_D14:		// from the Strutz paper
 			{
-				out->y = static_cast<u8>( R );
-				out->u = static_cast<s16>( G - ((R + B) >> 1) );
-				out->v = static_cast<s16>( B - R );
+				Y = R;
+				U = G - ((R + B) >> 1);
+				V = B - R;
 			}
 			break;
 
 
 		case CF_D10:		// from the Strutz paper
 			{
-				out->y = static_cast<u8>( B );
-				out->u = static_cast<s16>( G - ((R + B*3) >> 2) );
-				out->v = static_cast<s16>( R - B );
+				Y = B;
+				U = G - ((R + B*3) >> 2);
+				V = R - B;
 			}
 			break;
 
 		case CF_D11:		// from the Strutz paper
 			{
-				out->y = static_cast<u8>( B );
-				out->u = static_cast<s16>( G - ((R + B) >> 1) );
-				out->v = static_cast<s16>( R - B );
+				Y = B;
+				U = G - ((R + B) >> 1);
+				V = R - B;
 			}
 			break;
 
 		case CF_D12:		// from the Strutz paper
 			{
-				out->y = static_cast<u8>( B );
-				out->u = static_cast<s16>( G - ((R*3 + B) >> 2) );
-				out->v = static_cast<s16>( R - B );
+				Y = B;
+				U = G - ((R*3 + B) >> 2);
+				V = R - B;
 			}
 			break;
 
 		case CF_D18:		// from the Strutz paper
 			{
-				out->y = static_cast<u8>( B );
-				out->u = static_cast<s16>( R - ((G*3 + B) >> 2) );
-				out->v = static_cast<s16>( G - B );
+				Y = B;
+				U = R - ((G*3 + B) >> 2);
+				V = G - B;
 			}
 			break;
 
 
 		case CF_YCgCo_R:	// Malvar's YCgCo-R
 			{
-				int Co = R - B;
+				char Co = R - B;
 				int t = B + (Co >> 1);
-				int Cg = G - t;
+				char Cg = G - t;
+				Y = t + (Cg >> 1);
 
-				out->y = static_cast<u8>( t + (Cg >> 1) );
-				out->u = static_cast<s16>( Co );
-				out->v = static_cast<s16>( Cg );
+				U = Cg;
+				V = Co;
 			}
 			break;
 
 
 		case CF_A3:		// from the Strutz paper
 			{
-				out->y = static_cast<u8>( (R + G + B) / 3 );
-				out->u = static_cast<s16>( B - G );
-				out->v = static_cast<s16>( R - G );
+				Y = (R + G + B) / 3;
+				U = B - G;
+				V = R - G;
 			}
 			break;
 
 
-		case CF_LOCO_I:		// recommendation from LOCO-I paper (also used in BCIF)
+		case CF_GB_RG:
 			{
-				out->y = static_cast<u8>( G );
-				out->u = static_cast<s16>( B - G );
-				out->v = static_cast<s16>( R - G );
+				Y = G;
+				U = G - B;
+				V = R - G;
 			}
 			break;
 
+		case CF_GB_RB:
+			{
+				Y = G - B;
+				U = B;
+				V = R - B;
+			}
+			break;
+
+		case CF_GR_BR:
+			{
+				Y = G - R;
+				U = B - R;
+				V = R;
+			}
+			break;
+
+		case CF_GR_BG:
+			{
+				Y = G - R;
+				U = B - G;
+				V = R;
+			}
+			break;
+
+		case CF_BG_RG:
+			{
+				Y = G;
+				U = B - G;
+				V = R - G;
+			}
+			break;
 
 
 		default:
 		case CF_RGB:		// Original RGB
 			{
-				out->y = G;
-				out->u = B;
-				out->v = R;
+				Y = G;
+				U = B;
+				V = R;
 			}
 			break;
 
 
 		case CF_C7:		// from the Strutz paper
 			{
-				out->y = static_cast<u8>( B );
-				out->u = static_cast<s16>( B - ((R + G) >> 1) );
-				out->v = static_cast<s16>( R - G );
+				Y = B;
+				U = B - ((R + G) >> 1);
+				V = R - G;
 			}
 			break;
 
 		case CF_E5:		// from the Strutz paper
 			{
-				out->y = static_cast<u8>( (G >> 1) + ((R + B) >> 2) );
-				out->u = static_cast<s16>( R - ((G + B) >> 1) );
-				out->v = static_cast<s16>( G - B );
+				Y = (G >> 1) + ((R + B) >> 2);
+				U = R - ((G + B) >> 1);
+				V = G - B;
 			}
 			break;
 
 		case CF_E8:		// from the Strutz paper
 			{
-				out->y = static_cast<u8>( (R >> 1) + ((G + B) >> 2) );
-				out->u = static_cast<s16>( B - ((R + G) >> 1) );
-				out->v = static_cast<s16>( G - R );
+				Y = (R >> 1) + ((G + B) >> 2);
+				U = B - ((R + G) >> 1);
+				V = G - R;
 			}
 			break;
 
 		case CF_E11:		// from the Strutz paper
 			{
-				out->y = static_cast<u8>( (B >> 1) + ((R + G) >> 2) );
-				out->u = static_cast<s16>( G - ((R + B) >> 1) );
-				out->v = static_cast<s16>( R - B );
+				Y = (B >> 1) + ((R + G) >> 2);
+				U = G - ((R + B) >> 1);
+				V = R - B;
 			}
 			break;
 
 		case CF_F1:		// from the Strutz paper
 			{
-				out->y = static_cast<u8>( (R + G + B) / 3 );
-				out->u = static_cast<s16>( B - ((R + 3*G) >> 2) );
-				out->v = static_cast<s16>( R - G );
+				Y = (R + G + B) / 3;
+				U = B - ((R + 3*G) >> 2);
+				V = R - G;
 			}
 			break;
 
 		case CF_F2:		// from the Strutz paper
 			{
-				out->y = static_cast<u8>( (R + G + B) / 3 );
-				out->u = static_cast<s16>( R - ((B + 3*G) >> 2) );
-				out->v = static_cast<s16>( B - G );
+				Y = (R + G + B) / 3;
+				U = R - ((B + 3*G) >> 2);
+				V = B - G;
 			}
 			break;
 	}
+
+	out->y = static_cast<u8>( Y );
+	out->u = static_cast<s16>( U );
+	out->v = static_cast<s16>( V );
 }
+
+
+
+void convertYUVtoRGB(int cf, const YUV899 *yuv, u8 out[3]) {
+	const int Y = yuv->y;
+	const int U = yuv->u;
+	const int V = yuv->v;
+	int R, G, B;
+
+	// 0.625 = 5/8
+	// 0.375 = 3/8
+	// 0.0625 = 1/16
+
+	switch (cf) {
+		case CF_YUVr:	// YUVr from JPEG2000
+			{
+				G = Y - ((char)(U + V) >> 2);
+				R = V + G;
+				B = U + G;
+			}
+			break;
+
+
+		case CF_E2:		// from the Strutz paper
+			{
+				R = Y - U/4 + V*5/8;
+				G = Y - U/4 - V*3/8;
+				B = Y + U*3/4 + V/8;
+			}
+			break;
+
+		case CF_E1:		// from the Strutz paper
+			{
+				/*
+				 * YUV = E1 * RGB
+				 * RGB = Inv(E1) * YUV
+				 *
+				 *  0.25   0.5  0.25
+				 * -0.25 -0.75     1 = E1
+				 *     1    -1     0
+				 *
+				 * E1 = PLU (LU Decomposition)
+				 *
+				 * 0 0 1
+				 * 0 1 0 = P
+				 * 1 0 0
+				 *
+				 * 1         0   0
+				 * -0.25     1   0 = L
+				 *  0.25 -0.75   1
+				 *
+				 * 1 -1 0
+				 * 0 -1 1 = U
+				 * 0 0  1
+				 *
+				 * Inv(E1) = Inv(U) * Inv(L) * Trans(P)
+				 *
+				 * 1 -1 1
+				 * 0 -1 1 = Inv(U)
+				 * 0 0  1
+				 *
+				 * 1          0 0
+				 * 0.25       1 0 = Inv(L)
+				 * -0.0625 0.75 1
+				 *
+				 * Trans(P) = P
+				 *
+				 * RGB = Inv(U) * Inv(L) * Trans(P) * YUV
+				 */
+
+				// x P
+				int py = V;
+				int pu = U;
+				int pv = Y;
+
+				// x Inv(L)
+				int ly = py;
+				int lu = py/4 + pu;
+				int lv = pv + pu*3/4 - py/16;
+
+				// x Inv(U)
+				int uy = ly - lu + lv;
+				int uu = lv - lu;
+				int uv = lv;
+
+				R = uy;
+				G = uu;
+				B = uv;
+			}
+			break;
+
+		case CF_E4:		// from the Strutz paper
+			{
+/*				Y = (G >> 1) + ((R + B) >> 2);
+				U = R - ((B + G*3) >> 2);
+				V = B - G;*/
+			}
+			break;
+
+
+		case CF_D8:		// from the Strutz paper
+			{
+				R = Y;
+				G = V + R;
+				B = U + (((u8)R + (u8)G) >> 1);
+			}
+			break;
+
+		case CF_D9:		// from the Strutz paper
+			{
+				R = Y;
+				G = V + R;
+				B = U + (((u8)R + (u8)G*3) >> 2);
+			}
+			break;
+
+		case CF_D14:		// from the Strutz paper
+			{
+				R = Y;
+				B = V + R;
+				G = U + (((u8)R + (u8)B) >> 1);
+			}
+			break;
+
+
+		case CF_D10:		// from the Strutz paper
+			{
+				B = Y;
+				R = V + B;
+				G = U + (((u8)R + (u8)B*3) >> 2);
+			}
+			break;
+
+		case CF_D11:		// from the Strutz paper
+			{
+				B = Y;
+				R = V + B;
+				G = U + (((u8)R + (u8)B) >> 1);
+			}
+			break;
+
+		case CF_D12:		// from the Strutz paper
+			{
+				B = Y;
+				R = B + V;
+				G = U + (((u8)R*3 + (u8)B) >> 2);
+			}
+			break;
+
+		case CF_D18:		// from the Strutz paper
+			{
+				B = Y;
+				G = V + B;
+				R = U + (((u8)G*3 + (u8)B) >> 2);
+			}
+			break;
+
+
+		case CF_YCgCo_R:	// Malvar's YCgCo-R
+			{
+				const int s = Y - (U >> 1);
+
+				G = U + s;
+				B = s - (V >> 1);
+				R = B + V;
+			}
+			break;
+
+
+		case CF_A3:		// from the Strutz paper
+			{
+				G = (Y * 3 - U - V) / 3;
+				R = V + G;
+				B = U + G;
+			}
+			break;
+
+
+		case CF_GB_RG:
+			{
+				G = Y;
+				R = V + G;
+				B = G - U;
+			}
+			break;
+
+		case CF_GB_RB:
+			{
+				B = U;
+				G = Y + B;
+				R = V + B;
+			}
+			break;
+
+		case CF_GR_BR:
+			{
+				R = V;
+				G = Y + R;
+				B = U + R;
+			}
+			break;
+
+		case CF_GR_BG:
+			{
+				R = V;
+				G = Y + R;
+				B = U + G;
+			}
+			break;
+
+		case CF_BG_RG:
+			{
+				G = Y;
+				B = U + G;
+				R = V + G;
+			}
+			break;
+
+
+		default:
+		case CF_RGB:		// Original RGB
+			{
+				R = V;
+				G = Y;
+				B = U;
+			}
+			break;
+
+
+		case CF_C7:		// from the Strutz paper
+			{
+/*				Y = B;
+				U = B - ((R + G) >> 1);
+				V = R - G;*/
+				/*
+				 * 1,0,0
+				 * Y = 0
+				 * U = 0
+				 * V = 1
+				 */
+
+				B = Y;
+				const int s = (B - U) << 1;
+				R = (s + V + 1) >> 1; 
+				G = R - V;
+			}
+			break;
+
+		case CF_E5:		// from the Strutz paper
+			{
+/*				Y = (G >> 1) + ((R + B) >> 2);
+				U = R - ((G + B) >> 1);
+				V = G - B;*/
+			}
+			break;
+
+		case CF_E8:		// from the Strutz paper
+			{
+/*				Y = (R >> 1) + ((G + B) >> 2);
+				U = B - ((R + G) >> 1);
+				V = G - R;*/
+			}
+			break;
+
+		case CF_E11:		// from the Strutz paper
+			{
+/*				Y = (B >> 1) + ((R + G) >> 2);
+				U = G - ((R + B) >> 1);
+				V = R - B;*/
+			}
+			break;
+
+		case CF_F1:		// from the Strutz paper
+			{
+/*				Y = (R + G + B) / 3;
+				U = B - ((R + 3*G) >> 2);
+				V = R - G;*/
+			}
+			break;
+
+		case CF_F2:		// from the Strutz paper
+			{
+/*				Y = (R + G + B) / 3;
+				U = R - ((B + 3*G) >> 2);
+				V = B - G;*/
+			}
+			break;
+	}
+
+	out[0] = static_cast<u8>( R );
+	out[1] = static_cast<u8>( G );
+	out[2] = static_cast<u8>( B );
+}
+
+
+
+
+const char *GetColorFilterString(int cf) {
+	switch (cf) {
+		case CF_YUVr:	// YUVr from JPEG2000
+			return "YUVr";
+
+		case CF_E2:		// from the Strutz paper
+			 return "E2";
+		case CF_E1:		// from the Strutz paper
+			 return "E1";
+		case CF_E4:		// from the Strutz paper
+			 return "E4";
+
+		case CF_D8:		// from the Strutz paper
+			 return "D8";
+		case CF_D9:		// from the Strutz paper
+			 return "D9";
+		case CF_D14:		// from the Strutz paper
+			 return "D14";
+
+		case CF_D10:		// from the Strutz paper
+			 return "D10";
+		case CF_D11:		// from the Strutz paper
+			 return "D11";
+		case CF_D12:		// from the Strutz paper
+			 return "D12";
+		case CF_D18:		// from the Strutz paper
+			 return "D18";
+
+		case CF_YCgCo_R:	// Malvar's YCgCo-R
+			 return "YCgCo-R";
+
+		case CF_A3:		// from the Strutz paper
+			 return "A3";
+
+		case CF_GB_RG:	// from BCIF
+			 return "BCIF-GB-RG";
+		case CF_GB_RB:	// from BCIF
+			 return "BCIF-GB-RB";
+		case CF_GR_BR:	// from BCIF
+			 return "BCIF-GR-BR";
+		case CF_GR_BG:	// from BCIF
+			 return "BCIF-GR-BG";
+		case CF_BG_RG:	// from BCIF (recommendation from LOCO-I paper)
+			 return "BCIF-LOCO-I";
+
+		case CF_RGB:		// Original RGB
+			 return "RGB";
+
+		case CF_C7:		// from the Strutz paper
+			 return "C7";
+		case CF_E5:		// from the Strutz paper
+			 return "E5";
+		case CF_E8:		// from the Strutz paper
+			 return "E8";
+		case CF_E11:		// from the Strutz paper
+			 return "E11";
+		case CF_F1:		// from the Strutz paper
+			 return "F1";
+		case CF_F2:		// from the Strutz paper
+			 return "F2";
+	}
+
+	return "Uknown";
+}
+
+
+void testColorFilters() {
+	for (int cf = 0; cf < CF_COUNT; ++cf) {
+		for (int r = 0; r < 256; ++r) {
+			for (int g = 0; g < 256; ++g) {
+				for (int b = 0; b < 256; ++b) {
+					YUV899 yuv;
+					u8 rgb[3] = {r, g, b};
+					convertRGBtoYUV(cf, rgb, &yuv);
+					u8 rgb2[3];
+					convertYUVtoRGB(cf, &yuv, rgb2);
+
+					if (rgb2[0] != r || rgb2[1] != g || rgb2[2] != b) {
+						cout << "Color filter " << GetColorFilterString(cf) << " is lossy for " << r << "," << g << "," << b << " -> " << (int)rgb2[0] << "," << (int)rgb2[1] << "," << (int)rgb2[2] << endl;
+						goto nextcf;
+					}
+				}
+			}
+		}
+
+		cout << "Color filter " << GetColorFilterString(cf) << " is reversible with YUV899.  Now trying YUV888..." << endl;
+
+		for (int r = 0; r < 256; ++r) {
+			for (int g = 0; g < 256; ++g) {
+				for (int b = 0; b < 256; ++b) {
+					YUV899 yuv;
+					u8 rgb[3] = {r, g, b};
+					convertRGBtoYUV(cf, rgb, &yuv);
+					yuv.u = (s8)yuv.u;
+					yuv.v = (s8)yuv.v;
+					u8 rgb2[3];
+					convertYUVtoRGB(cf, &yuv, rgb2);
+
+					if (rgb2[0] != r || rgb2[1] != g || rgb2[2] != b) {
+						cout << "Color filter " << GetColorFilterString(cf) << " is lossy for " << r << "," << g << "," << b << " -> " << (int)rgb2[0] << "," << (int)rgb2[1] << "," << (int)rgb2[2] << endl;
+						goto nextcf;
+					}
+				}
+			}
+		}
+
+		cout << "Color filter " << GetColorFilterString(cf) << " is reversible with YUV888!" << endl;
+nextcf:
+		;
+	}
+}
+
+
+
 
 
 
 #include <cmath>
 
 class EntropyEstimator {
-	static const int NUM_SYMS = 512;
+	int _num_syms;
 
-	u32 global[NUM_SYMS];
-	u32 globalTotal;
+	u32 *_global;
+	u32 _globalTotal;
 
-	u8 best[NUM_SYMS];
-	u32 bestTotal;
+	typedef u8 LType;
 
-	u8 local[NUM_SYMS];
-	u32 localTotal;
+	LType *_best;
+	u32 _bestTotal;
+
+	LType *_local;
+	u32 _localTotal;
+
+	void cleanup() {
+		if (_global) {
+			delete []_global;
+			_global = 0;
+		}
+		if (_best) {
+			delete []_best;
+			_best = 0;
+		}
+		if (_local) {
+			delete []_local;
+			_local = 0;
+		}
+	}
 
 public:
 	CAT_INLINE EntropyEstimator() {
+		_global = 0;
+		_best = 0;
+		_local = 0;
 	}
 	CAT_INLINE virtual ~EntropyEstimator() {
+		cleanup();
 	}
 
-	void clear() {
-		globalTotal = 0;
-		CAT_OBJCLR(global);
+	void clear(int num_syms) {
+		cleanup();
+
+		_num_syms = num_syms;
+		_global = new u32[num_syms];
+		_best = new LType[num_syms];
+		_local = new LType[num_syms];
+
+		_globalTotal = 0;
+		CAT_CLR(_global, _num_syms * sizeof(u32));
 	}
 
 	void setup() {
-		localTotal = 0;
-		CAT_OBJCLR(local);
+		_localTotal = 0;
+		CAT_CLR(_local, _num_syms * sizeof(_local[0]));
 	}
 
 	void push(s16 symbol) {
-		local[symbol]++;
-		++localTotal;
+		_local[symbol]++;
+		++_localTotal;
 	}
 
 	double entropy() {
-		double total = globalTotal + localTotal;
+		double total = _globalTotal + _localTotal;
 		double e = 0;
-		double log2 = log(2.);
+		static const double log2 = log(2.);
 
-		for (int ii = 0; ii < NUM_SYMS; ++ii) {
-			u32 count = global[ii] + local[ii];
+		for (int ii = 0, num_syms = _num_syms; ii < num_syms; ++ii) {
+			u32 count = _global[ii] + _local[ii];
 			if (count > 0) {
 				double freq = count / total;
 				e -= freq * log(freq) / log2;
@@ -747,16 +1220,53 @@ public:
 		return e;
 	}
 
+	void drawHistogram(u8 *rgba, int width) {
+		double total = _globalTotal + _localTotal;
+		double e = 0;
+		static const double log2 = log(2.);
+
+		for (int ii = 0, num_syms = _num_syms; ii < num_syms; ++ii) {
+			u32 count = _global[ii] + _local[ii];
+			double freq;
+			if (count > 0) {
+				freq = count / total;
+				e -= freq * log(freq) / log2;
+			} else {
+				freq = 0;
+			}
+
+			int r, g, b;
+			r = 255;
+			g = 0;
+			b = 0;
+
+			if (ii > 127) g = 255;
+			if (ii > 255) b = 255;
+
+			int bar = 200 * freq;
+			for (int jj = 0; jj < bar; ++jj) {
+				rgba[ii * width * 4 + jj * 4] = r;
+				rgba[ii * width * 4 + jj * 4 + 1] = g;
+				rgba[ii * width * 4 + jj * 4 + 2] = b;
+			}
+			for (int jj = bar; jj < 200; ++jj) {
+				rgba[ii * width * 4 + jj * 4] = 0;
+				rgba[ii * width * 4 + jj * 4 + 1] = 0;
+				rgba[ii * width * 4 + jj * 4 + 2] = 0;
+			}
+		}
+	}
+
 	void save() {
-		memcpy(best, local, sizeof(best));
-		bestTotal = localTotal;
+		memcpy(_best, _local, _num_syms * sizeof(_best[0]));
+		_bestTotal = _localTotal;
 	}
 
 	void commit() {
-		for (int ii = 0; ii < NUM_SYMS; ++ii) {
-			global[ii] += best[ii];
+		for (int ii = 0, num_syms = _num_syms; ii < num_syms; ++ii) {
+			_global[ii] += _best[ii];
 		}
-		globalTotal += bestTotal;
+		_globalTotal += _bestTotal;
 	}
 };
 
@@ -918,9 +1428,9 @@ void ImageFilterWriter::decideFilters(u8 *rgba, int width, int height, ImageMask
 	static const int FSZ = FILTER_ZONE_SIZE;
 
 	EntropyEstimator ee[3];
-	ee[0].clear();
-	ee[1].clear();
-	ee[2].clear();
+	ee[0].clear(256);
+	ee[1].clear(256);
+	ee[2].clear(256);
 
 	FilterScorer scores;
 	scores.init(SF_COUNT * CF_COUNT);
@@ -935,7 +1445,7 @@ void ImageFilterWriter::decideFilters(u8 *rgba, int width, int height, ImageMask
 
 			// Lower compression level that is a lot faster:
 			if (compressLevel == 0) {
-				int predErrors[SF_COUNT*CF_COUNT] = {0};
+				scores.reset();
 
 				// For each pixel in the 8x8 zone,
 				for (int yy = 0; yy < FSZ; ++yy) {
@@ -951,29 +1461,28 @@ void ImageFilterWriter::decideFilters(u8 *rgba, int width, int height, ImageMask
 							const u8 *pred = filterPixel(p, ii, px, py, width);
 
 							for (int jj = 0; jj < CF_COUNT; ++jj) {
-								YUV899 yuv;
-								convertRGBtoYUV(jj, pred, &yuv);
+								u8 sp[3] = {
+									p[0] - pred[0],
+									p[1] - pred[1],
+									p[2] - pred[2]
+								};
 
-								predErrors[ii + SF_COUNT*jj] += scoreYUV(&yuv);
+								YUV899 yuv;
+								convertRGBtoYUV(jj, sp, &yuv);
+
+								int error = scoreYUV(&yuv);
+
+								scores.add(ii + jj*SF_COUNT, error);
 							}
 						}
 					}
 				}
 
-				// Find lowest error filter
-				int lowestSum = predErrors[0];
-				int best = 0;
-
-				for (int ii = 1; ii < SF_COUNT*CF_COUNT; ++ii) {
-					if (predErrors[ii] < lowestSum) {
-						lowestSum = predErrors[ii];
-						best = ii;
-					}
-				}
+				FilterScorer::Score *best = scores.getLowest();
 
 				// Write it out
-				bestSF = best % SF_COUNT;
-				bestCF = best / SF_COUNT;
+				bestSF = best->index % SF_COUNT;
+				bestCF = best->index / SF_COUNT;
 
 			} else { // Higher compression level that uses entropy estimate:
 
@@ -993,8 +1502,14 @@ void ImageFilterWriter::decideFilters(u8 *rgba, int width, int height, ImageMask
 							const u8 *pred = filterPixel(p, ii, px, py, width);
 
 							for (int jj = 0; jj < CF_COUNT; ++jj) {
+								u8 sp[3] = {
+									p[0] - pred[0],
+									p[1] - pred[1],
+									p[2] - pred[2]
+								};
+
 								YUV899 yuv;
-								convertRGBtoYUV(jj, pred, &yuv);
+								convertRGBtoYUV(jj, sp, &yuv);
 
 								int error = scoreYUV(&yuv);
 
@@ -1036,12 +1551,18 @@ void ImageFilterWriter::decideFilters(u8 *rgba, int width, int height, ImageMask
 								u8 *p = rgba + (px + py * width) * 4;
 								const u8 *pred = filterPixel(p, sf, px, py, width);
 
+								u8 sp[3] = {
+									p[0] - pred[0],
+									p[1] - pred[1],
+									p[2] - pred[2]
+								};
+
 								YUV899 yuv;
-								convertRGBtoYUV(cf, pred, &yuv);
+								convertRGBtoYUV(cf, sp, &yuv);
 
 								ee[0].push(yuv.y);
-								ee[1].push(yuv.u + 255); // translate from [-255..255] -> [0..510]
-								ee[2].push(yuv.v + 255); // "
+								ee[1].push((u8)yuv.u); // translate from [-255..255] -> [0..510]
+								ee[2].push((u8)yuv.v); // "
 							}
 						}
 
@@ -1092,17 +1613,22 @@ void ImageFilterWriter::applyFilters(u8 *rgba, int width, int height, ImageMaskW
 				continue;
 			}
 
-	//		sf = SF_Z;
-	//		cf = CF_NOOP;
-
 			u8 *p = rgba + (x + y * width) * 4;
 			const u8 *pred = filterPixel(p, sf, x, y, width);
 
-			p[0] = pred[0];
-			p[1] = pred[1];
-			p[2] = pred[2];
+			u8 sp[3] = {
+				p[0] - pred[0],
+				p[1] - pred[1],
+				p[2] - pred[2]
+			};
 
-			// Color filtering is currently done during encoding so we do not have to allocate YUV memory
+			YUV899 yuv;
+
+			convertRGBtoYUV(cf, sp, &yuv);
+
+			p[0] = yuv.y;
+			p[1] = (s8)yuv.u;
+			p[2] = (s8)yuv.v;
 
 #if 0
 			p[0] = p[0];
@@ -1398,43 +1924,9 @@ public:
 
 
 
-bool convert(int r, int g, int b) {
-	char Co = r - b;
-	int t = b + (Co >> 1);
-	char Cg = g - t;
-	char Y = t + (Cg >> 1);
-
-	int s = Y - (Cg >> 1);
-	u8 G = Cg + s;
-	u8 B = s - (Co >> 1);
-	u8 R = B + Co;
-
-	//cout << "(" << r << "," << g << "," << b << ") -> " << (int)Co << ", " << (int)Cg << ", " << (int) Y << endl;
-
-	if (r == R && g == G && b == B) {
-		return true;
-	} else {
-		cout << "Fails for " << r << " , " << g << " , " << b << endl;
-		return false;
-	}
-}
-
-
-
 void ImageFilterWriter::chaosEncode(u8 *rgba, int width, int height, ImageMaskWriter &mask) {
 #ifdef GENERATE_CHAOS_TABLE
 	GenerateChaosTable();
-#endif
-
-#if 1
-	for (int r = 0; r < 256; ++r) {
-		for (int g = 0; g < 256; ++g) {
-			for (int b = 0; b < 256; ++b) {
-				if (!convert(r, g, b))
-					break;
-			}
-		}
-	}
 #endif
 
 	int bitcount[3] = {0};
@@ -1580,76 +2072,42 @@ void ImageFilterWriter::chaosEncode(u8 *rgba, int width, int height, ImageMaskWr
 
 
 
-class EntropyEstimator2 {
-	u32 global[512];
-	u32 globalTotal;
 
-	u8 best[512];
-	u32 bestTotal;
+void colorSpace(u8 *rgba, int width, int height, ImageMaskWriter &mask) {
+	for (int cf = 0; cf < CF_COUNT; ++cf) {
+		EntropyEstimator ee[3];
+		for (int ii = 0; ii < 3; ++ii) {
+			ee[ii].clear(512);
+			ee[ii].setup();
+		}
 
-	u8 local[512];
-	u32 localTotal;
+		u8 *p = rgba;
+		for (int y = 0; y < height; ++y) {
+			for (int x = 0; x < width; ++x) {
+				YUV899 yuv;
+				convertRGBtoYUV(cf, p, &yuv);
 
-public:
-	CAT_INLINE EntropyEstimator2() {
-	}
-	CAT_INLINE virtual ~EntropyEstimator2() {
-	}
+				ee[0].push(yuv.y);
+				ee[1].push(yuv.u + 255);
+				ee[2].push(yuv.v + 255);
 
-	void clear() {
-		globalTotal = 0;
-		CAT_OBJCLR(global);
-	}
-
-	void setup() {
-		localTotal = 0;
-		CAT_OBJCLR(local);
-	}
-
-	void push(int symbol) {
-		local[symbol]++;
-		++localTotal;
-	}
-
-	double entropy() {
-		double total = globalTotal + localTotal;
-		double e = 0;
-		double log2 = log(2.);
-
-		//cout << endl; cout << endl;
-		for (int ii = 0; ii < 512; ++ii) {
-			u32 count = global[ii] + local[ii];
-			//cout << ii << " : " << count << endl;
-			if (count > 0) {
-				double freq = count / total;
-				e -= freq * log(freq) / log2;
+				p += 4;
 			}
 		}
 
-		return e;
-	}
-
-	void save() {
-		memcpy(best, local, sizeof(best));
-		bestTotal = localTotal;
-	}
-
-	void commit() {
-		for (int ii = 0; ii < 512; ++ii) {
-			global[ii] += best[ii];
-		}
-		globalTotal += bestTotal;
-	}
-};
-
-
-
-
-void ImageFilterWriter::colorSpace(u8 *rgba, int width, int height, ImageMaskWriter &mask) {
-	for (int cf = 0; cf < CF_COUNT; ++cf) {
-		EntropyEstimator2 ee[3];
+		double e[3], score = 0;
 		for (int ii = 0; ii < 3; ++ii) {
-			ee[ii].clear();
+			e[ii] = ee[ii].entropy();
+			score += e[ii];
+		}
+
+		cout << "YUV899 Entropy for " << GetColorFilterString(cf) << " = { " << e[0] << ", " << e[1] << ", " << e[2] << " } : SCORE=" << score << endl;
+	}
+
+	for (int cf = 0; cf < CF_COUNT; ++cf) {
+		EntropyEstimator ee[3];
+		for (int ii = 0; ii < 3; ++ii) {
+			ee[ii].clear(256);
 			ee[ii].setup();
 		}
 
@@ -1667,13 +2125,20 @@ void ImageFilterWriter::colorSpace(u8 *rgba, int width, int height, ImageMaskWri
 			}
 		}
 
+		if (cf == CF_YCgCo_R) {
+			ee[0].drawHistogram(rgba, width);
+			ee[1].drawHistogram(rgba + 800, width);
+			ee[2].drawHistogram(rgba + 1600, width);
+			return;
+		}
+
 		double e[3], score = 0;
 		for (int ii = 0; ii < 3; ++ii) {
 			e[ii] = ee[ii].entropy();
 			score += e[ii];
 		}
 
-		cout << "Entropy YUV(" << cf << ") = { " << e[0] << ", " << e[1] << ", " << e[2] << " } : SCORE=" << score << endl;
+		cout << "YUV888 Entropy for " << GetColorFilterString(cf) << " = { " << e[0] << ", " << e[1] << ", " << e[2] << " } : SCORE=" << score << endl;
 	}
 }
 
@@ -1682,7 +2147,12 @@ int ImageFilterWriter::initFromRGBA(u8 *rgba, int width, int height, ImageMaskWr
 		return WE_BAD_DIMS;
 	}
 
+#if 0
+	//testColorFilters();
 	colorSpace(rgba, width, height, mask);
+	return 0;
+#endif
+
 	decideFilters(rgba, width, height, mask);
 	applyFilters(rgba, width, height, mask);
 	chaosEncode(rgba, width, height, mask);

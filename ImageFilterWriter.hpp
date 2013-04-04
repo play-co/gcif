@@ -56,10 +56,6 @@ enum ColorFilters {
 	// In order of preference:
 	CF_YUVr,	// YUVr from JPEG2000
 
-	CF_E2,		// from the Strutz paper
-	CF_E1,		// from the Strutz paper
-	CF_E4,		// from the Strutz paper
-
 	CF_D8,		// from the Strutz paper
 	CF_D9,		// from the Strutz paper
 	CF_D14,		// from the Strutz paper
@@ -71,11 +67,23 @@ enum ColorFilters {
 
 	CF_YCgCo_R,	// Malvar's YCgCo-R
 
-	CF_A3,		// from the Strutz paper
-
-	CF_LOCO_I,	// recommendation from LOCO-I paper, BCIF, and A2 from Strutz
+	CF_GB_RG,	// from BCIF
+	CF_GB_RB,	// from BCIF
+	CF_GR_BR,	// from BCIF
+	CF_GR_BG,	// from BCIF
+	CF_BG_RG,	// from BCIF (recommendation from LOCO-I paper)
 
 	CF_RGB,		// Original RGB
+
+	CF_COUNT,
+
+	// Disabled filters:
+
+	CF_E2,		// from the Strutz paper
+	CF_E1,		// from the Strutz paper
+	CF_E4,		// from the Strutz paper
+
+	CF_A3,		// from the Strutz paper
 
 	CF_C7,		// from the Strutz paper
 	CF_E5,		// from the Strutz paper
@@ -83,10 +91,6 @@ enum ColorFilters {
 	CF_E11,		// from the Strutz paper
 	CF_F1,		// from the Strutz paper
 	CF_F2,		// from the Strutz paper
-
-	CF_COUNT,
-
-	// Disabled filters:
 };
 
 
@@ -108,7 +112,6 @@ class ImageFilterWriter {
 	void clear();
 
 	bool init(int width, int height);
-	void colorSpace(u8 *rgba, int width, int height, ImageMaskWriter &mask);
 	void decideFilters(u8 *rgba, int width, int height, ImageMaskWriter &mask);
 	void applyFilters(u8 *rgba, int width, int height, ImageMaskWriter &mask);
 	void chaosEncode(u8 *rgba, int width, int height, ImageMaskWriter &mask);
