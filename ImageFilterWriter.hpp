@@ -50,10 +50,19 @@ enum SpatialFilters {
  * Color filters taken directly from this paper by Tilo Strutz
  * "ADAPTIVE SELECTION OF COLOUR TRANSFORMATIONS FOR REVERSIBLE IMAGE COMPRESSION" (2012)
  * http://www.eurasip.org/Proceedings/Eusipco/Eusipco2012/Conference/papers/1569551007.pdf
+ *
+ * YUV899 kills compression performance too much so we are using aliased but
+ * reversible YUV888 transforms based on the ones from the paper where possible
  */
 
 enum ColorFilters {
 	// In order of preference:
+	CF_GB_RG,	// from BCIF
+	CF_GB_RB,	// from BCIF
+	CF_GR_BR,	// from BCIF
+	CF_GR_BG,	// from BCIF
+	CF_BG_RG,	// from BCIF (recommendation from LOCO-I paper)
+
 	CF_YUVr,	// YUVr from JPEG2000
 
 	CF_D8,		// from the Strutz paper
@@ -66,12 +75,6 @@ enum ColorFilters {
 	CF_D18,		// from the Strutz paper
 
 	CF_YCgCo_R,	// Malvar's YCgCo-R
-
-	CF_GB_RG,	// from BCIF
-	CF_GB_RB,	// from BCIF
-	CF_GR_BR,	// from BCIF
-	CF_GR_BG,	// from BCIF
-	CF_BG_RG,	// from BCIF (recommendation from LOCO-I paper)
 
 	CF_RGB,		// Original RGB
 
@@ -91,13 +94,6 @@ enum ColorFilters {
 	CF_E11,		// from the Strutz paper
 	CF_F1,		// from the Strutz paper
 	CF_F2,		// from the Strutz paper
-};
-
-
-// Post-color filter color values:
-struct YUV899 {
-	u8 y;		// 8 bit luminance [0..255]
-	s16 u, v;	// 9 bit chrominance [-255..255]
 };
 
 

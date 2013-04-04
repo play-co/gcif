@@ -31,9 +31,8 @@ static CAT_INLINE int score(u8 p) {
 	}
 }
 
-static CAT_INLINE int scoreYUV(YUV899 *yuv) {
-	return score(yuv->y) + score((u8)yuv->u) + score((u8)yuv->v);
-	//return (int)yuv->y + abs(yuv->u) + abs(yuv->v);
+static CAT_INLINE int scoreYUV(u8 *yuv) {
+	return score(yuv[0]) + score(yuv[1]) + score(yuv[2]);
 }
 
 static CAT_INLINE int wrapNeg(u8 p) {
@@ -502,18 +501,18 @@ static const u8 *filterPixel(u8 *p, int sf, int x, int y, int width) {
 
 
 
-void convertRGBtoYUV(int cf, const u8 *rgb, YUV899 *out) {
-	const int R = rgb[0];
-	const int G = rgb[1];
-	const int B = rgb[2];
-	int Y, U, V;
+void convertRGBtoYUV(int cf, const u8 rgb[3], u8 out[3]) {
+	const u8 R = rgb[0];
+	const u8 G = rgb[1];
+	const u8 B = rgb[2];
+	u8 Y, U, V;
 
 	switch (cf) {
 		case CF_YUVr:	// YUVr from JPEG2000
 			{
 				U = B - G;
 				V = R - G;
-				Y = G + ((char)(U + V) >> 2);
+				Y = G + (((char)U + (char)V) >> 2);
 			}
 			break;
 
@@ -723,18 +722,18 @@ void convertRGBtoYUV(int cf, const u8 *rgb, YUV899 *out) {
 			break;
 	}
 
-	out->y = static_cast<u8>( Y );
-	out->u = static_cast<s16>( U );
-	out->v = static_cast<s16>( V );
+	out[0] = Y;
+	out[1] = U;
+	out[2] = V;
 }
 
 
 
-void convertYUVtoRGB(int cf, const YUV899 *yuv, u8 out[3]) {
-	const int Y = yuv->y;
-	const int U = yuv->u;
-	const int V = yuv->v;
-	int R, G, B;
+void convertYUVtoRGB(int cf, const u8 yuv[3], u8 out[3]) {
+	const u8 Y = yuv[0];
+	const u8 U = yuv[1];
+	const u8 V = yuv[2];
+	u8 R, G, B;
 
 	// 0.625 = 5/8
 	// 0.375 = 3/8
@@ -1016,9 +1015,9 @@ void convertYUVtoRGB(int cf, const YUV899 *yuv, u8 out[3]) {
 			break;
 	}
 
-	out[0] = static_cast<u8>( R );
-	out[1] = static_cast<u8>( G );
-	out[2] = static_cast<u8>( B );
+	out[0] = R;
+	out[1] = G;
+	out[2] = B;
 }
 
 
@@ -1095,32 +1094,11 @@ void testColorFilters() {
 		for (int r = 0; r < 256; ++r) {
 			for (int g = 0; g < 256; ++g) {
 				for (int b = 0; b < 256; ++b) {
-					YUV899 yuv;
+					u8 yuv[3];
 					u8 rgb[3] = {r, g, b};
-					convertRGBtoYUV(cf, rgb, &yuv);
+					convertRGBtoYUV(cf, rgb, yuv);
 					u8 rgb2[3];
-					convertYUVtoRGB(cf, &yuv, rgb2);
-
-					if (rgb2[0] != r || rgb2[1] != g || rgb2[2] != b) {
-						cout << "Color filter " << GetColorFilterString(cf) << " is lossy for " << r << "," << g << "," << b << " -> " << (int)rgb2[0] << "," << (int)rgb2[1] << "," << (int)rgb2[2] << endl;
-						goto nextcf;
-					}
-				}
-			}
-		}
-
-		cout << "Color filter " << GetColorFilterString(cf) << " is reversible with YUV899.  Now trying YUV888..." << endl;
-
-		for (int r = 0; r < 256; ++r) {
-			for (int g = 0; g < 256; ++g) {
-				for (int b = 0; b < 256; ++b) {
-					YUV899 yuv;
-					u8 rgb[3] = {r, g, b};
-					convertRGBtoYUV(cf, rgb, &yuv);
-					yuv.u = (s8)yuv.u;
-					yuv.v = (s8)yuv.v;
-					u8 rgb2[3];
-					convertYUVtoRGB(cf, &yuv, rgb2);
+					convertYUVtoRGB(cf, yuv, rgb2);
 
 					if (rgb2[0] != r || rgb2[1] != g || rgb2[2] != b) {
 						cout << "Color filter " << GetColorFilterString(cf) << " is lossy for " << r << "," << g << "," << b << " -> " << (int)rgb2[0] << "," << (int)rgb2[1] << "," << (int)rgb2[2] << endl;
@@ -1436,7 +1414,7 @@ void ImageFilterWriter::decideFilters(u8 *rgba, int width, int height, ImageMask
 	FilterScorer scores;
 	scores.init(SF_COUNT * CF_COUNT);
 
-	int compressLevel = 1;
+	int compressLevel = 0;
 
 	for (int y = 0; y < height; y += FSZ) {
 		for (int x = 0; x < width; x += FSZ) {
@@ -1468,10 +1446,10 @@ void ImageFilterWriter::decideFilters(u8 *rgba, int width, int height, ImageMask
 									p[2] - pred[2]
 								};
 
-								YUV899 yuv;
-								convertRGBtoYUV(jj, sp, &yuv);
+								u8 yuv[3];
+								convertRGBtoYUV(jj, sp, yuv);
 
-								int error = scoreYUV(&yuv);
+								int error = scoreYUV(yuv);
 
 								scores.add(ii + jj*SF_COUNT, error);
 							}
@@ -1509,10 +1487,10 @@ void ImageFilterWriter::decideFilters(u8 *rgba, int width, int height, ImageMask
 									p[2] - pred[2]
 								};
 
-								YUV899 yuv;
-								convertRGBtoYUV(jj, sp, &yuv);
+								u8 yuv[3];
+								convertRGBtoYUV(jj, sp, yuv);
 
-								int error = scoreYUV(&yuv);
+								int error = scoreYUV(yuv);
 
 								scores.add(ii + SF_COUNT*jj, error);
 							}
@@ -1558,12 +1536,12 @@ void ImageFilterWriter::decideFilters(u8 *rgba, int width, int height, ImageMask
 									p[2] - pred[2]
 								};
 
-								YUV899 yuv;
-								convertRGBtoYUV(cf, sp, &yuv);
+								u8 yuv[3];
+								convertRGBtoYUV(cf, sp, yuv);
 
-								ee[0].push(yuv.y);
-								ee[1].push((u8)yuv.u); // translate from [-255..255] -> [0..510]
-								ee[2].push((u8)yuv.v); // "
+								ee[0].push(yuv[0]);
+								ee[1].push(yuv[1]); // translate from [-255..255] -> [0..510]
+								ee[2].push(yuv[2]); // "
 							}
 						}
 
@@ -1623,13 +1601,7 @@ void ImageFilterWriter::applyFilters(u8 *rgba, int width, int height, ImageMaskW
 				p[2] - pred[2]
 			};
 
-			YUV899 yuv;
-
-			convertRGBtoYUV(cf, sp, &yuv);
-
-			p[0] = yuv.y;
-			p[1] = (s8)yuv.u;
-			p[2] = (s8)yuv.v;
+			convertRGBtoYUV(cf, sp, p);
 
 #if 0
 			p[0] = p[0];
@@ -2078,36 +2050,6 @@ void colorSpace(u8 *rgba, int width, int height, ImageMaskWriter &mask) {
 	for (int cf = 0; cf < CF_COUNT; ++cf) {
 		EntropyEstimator<u32> ee[3];
 		for (int ii = 0; ii < 3; ++ii) {
-			ee[ii].clear(512);
-			ee[ii].setup();
-		}
-
-		u8 *p = rgba;
-		for (int y = 0; y < height; ++y) {
-			for (int x = 0; x < width; ++x) {
-				YUV899 yuv;
-				convertRGBtoYUV(cf, p, &yuv);
-
-				ee[0].push(yuv.y);
-				ee[1].push(yuv.u + 255);
-				ee[2].push(yuv.v + 255);
-
-				p += 4;
-			}
-		}
-
-		double e[3], score = 0;
-		for (int ii = 0; ii < 3; ++ii) {
-			e[ii] = ee[ii].entropy();
-			score += e[ii];
-		}
-
-		cout << "YUV899 Entropy for " << GetColorFilterString(cf) << " = { " << e[0] << ", " << e[1] << ", " << e[2] << " } : SCORE=" << score << endl;
-	}
-
-	for (int cf = 0; cf < CF_COUNT; ++cf) {
-		EntropyEstimator<u32> ee[3];
-		for (int ii = 0; ii < 3; ++ii) {
 			ee[ii].clear(256);
 			ee[ii].setup();
 		}
@@ -2115,12 +2057,12 @@ void colorSpace(u8 *rgba, int width, int height, ImageMaskWriter &mask) {
 		u8 *p = rgba;
 		for (int y = 0; y < height; ++y) {
 			for (int x = 0; x < width; ++x) {
-				YUV899 yuv;
-				convertRGBtoYUV(cf, p, &yuv);
+				u8 yuv[3];
+				convertRGBtoYUV(cf, p, yuv);
 
-				ee[0].push(yuv.y);
-				ee[1].push((u8)yuv.u);
-				ee[2].push((u8)yuv.v);
+				ee[0].push(yuv[0]);
+				ee[1].push(yuv[1]);
+				ee[2].push(yuv[2]);
 
 				p += 4;
 			}
