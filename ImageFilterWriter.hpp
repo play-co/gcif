@@ -57,13 +57,17 @@ enum SpatialFilters {
 
 enum ColorFilters {
 	// In order of preference:
+	CF_YUVr,	// YUVr from JPEG2000
+
 	CF_GB_RG,	// from BCIF
 	CF_GB_RB,	// from BCIF
 	CF_GR_BR,	// from BCIF
 	CF_GR_BG,	// from BCIF
 	CF_BG_RG,	// from BCIF (recommendation from LOCO-I paper)
 
-	CF_YUVr,	// YUVr from JPEG2000
+	CF_RGB,		// Original RGB
+
+	CF_YCgCo_R,	// Malvar's YCgCo-R
 
 	CF_D8,		// from the Strutz paper
 	CF_D9,		// from the Strutz paper
@@ -74,21 +78,17 @@ enum ColorFilters {
 	CF_D12,		// from the Strutz paper
 	CF_D18,		// from the Strutz paper
 
-	CF_YCgCo_R,	// Malvar's YCgCo-R
-
-	CF_RGB,		// Original RGB
-
 	CF_COUNT,
 
-	// Disabled filters:
 
+
+	// Disabled filters:
+	// These do not appear to be reversible under YUV888
 	CF_E2,		// from the Strutz paper
+	CF_C7,		// from the Strutz paper
 	CF_E1,		// from the Strutz paper
 	CF_E4,		// from the Strutz paper
-
 	CF_A3,		// from the Strutz paper
-
-	CF_C7,		// from the Strutz paper
 	CF_E5,		// from the Strutz paper
 	CF_E8,		// from the Strutz paper
 	CF_E11,		// from the Strutz paper

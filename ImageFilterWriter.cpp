@@ -519,8 +519,8 @@ void convertRGBtoYUV(int cf, const u8 rgb[3], u8 out[3]) {
 
 		case CF_E2:		// from the Strutz paper
 			{
-				Y = (G >> 1) + ((R + B) >> 2);
-				U = B - ((R + G) >> 1);
+				Y = ((char)G >> 1) + (((char)R + (char)B) >> 2);
+				U = B - (((char)R + (char)G) >> 1);
 				V = R - G;
 			}
 			break;
@@ -624,7 +624,7 @@ void convertRGBtoYUV(int cf, const u8 rgb[3], u8 out[3]) {
 
 		case CF_GB_RG:
 			{
-				Y = G;
+				Y = B;
 				U = G - B;
 				V = R - G;
 			}
@@ -632,32 +632,32 @@ void convertRGBtoYUV(int cf, const u8 rgb[3], u8 out[3]) {
 
 		case CF_GB_RB:
 			{
-				Y = G - B;
-				U = B;
+				Y = B;
+				U = G - B;
 				V = R - B;
 			}
 			break;
 
 		case CF_GR_BR:
 			{
-				Y = G - R;
-				U = B - R;
+				Y = B - R;
+				U = G - R;
 				V = R;
 			}
 			break;
 
 		case CF_GR_BG:
 			{
-				Y = G - R;
-				U = B - G;
+				Y = B - G;
+				U = G - R;
 				V = R;
 			}
 			break;
 
 		case CF_BG_RG:
 			{
-				Y = G;
-				U = B - G;
+				Y = B - G;
+				U = G;
 				V = R - G;
 			}
 			break;
@@ -666,8 +666,8 @@ void convertRGBtoYUV(int cf, const u8 rgb[3], u8 out[3]) {
 		default:
 		case CF_RGB:		// Original RGB
 			{
-				Y = G;
-				U = B;
+				Y = B;
+				U = G;
 				V = R;
 			}
 			break;
@@ -727,8 +727,6 @@ void convertRGBtoYUV(int cf, const u8 rgb[3], u8 out[3]) {
 	out[2] = V;
 }
 
-
-
 void convertYUVtoRGB(int cf, const u8 yuv[3], u8 out[3]) {
 	const u8 Y = yuv[0];
 	const u8 U = yuv[1];
@@ -742,7 +740,7 @@ void convertYUVtoRGB(int cf, const u8 yuv[3], u8 out[3]) {
 	switch (cf) {
 		case CF_YUVr:	// YUVr from JPEG2000
 			{
-				G = Y - ((char)(U + V) >> 2);
+				G = Y - (((char)U + (char)V) >> 2);
 				R = V + G;
 				B = U + G;
 			}
@@ -751,9 +749,51 @@ void convertYUVtoRGB(int cf, const u8 yuv[3], u8 out[3]) {
 
 		case CF_E2:		// from the Strutz paper
 			{
-				R = Y - U/4 + V*5/8;
-				G = Y - U/4 - V*3/8;
-				B = Y + U*3/4 + V/8;
+/*				Y = (G >> 1) + ((R + B) >> 2);
+				U = B - ((R + G) >> 1);
+				V = R - G;*/
+
+				/*
+				 * PLU decomposition:
+				 *
+				 * 0 0 1
+				 * 0 1 0 = P
+				 * 1 0 0
+				 *
+				 *     1     0 0
+				 *  -0.5     1 0 = L
+				 *  0.25 -0.75 1
+				 *
+				 *  1 -1 0
+				 *  0 -1 1 = U
+				 *  0  0 1
+				 *
+				 * Inv(E2) = Inv(U) * Inv(L) * Trans(P)
+				 *
+				 * P = Trans(P) => swap Y an V
+				 *
+				 *     1    0 0
+				 *   0.5    1 0 = Inv(L)
+				 * 0.125 0.75 1
+				 *
+				 * 1 -1 1
+				 * 0 -1 1 = Inv(U)
+				 * 0  0 1
+				 */
+
+				// TODO
+
+				//cout << (int)Y << ", " << (int)U << ", " << (int)V << endl;
+
+				u8 ly = V;
+				u8 lu = (((char)V) >> 1) + U;
+				u8 lv = (((char)V) >> 3) + ((3 * (char)U + 3) >> 2) + Y;
+
+				//cout << (int)ly << ", " << (int)lu << ", " << (int)lv << endl;
+
+				R = ly - lu + lv;
+				G = lv - lu;
+				B = lv;
 			}
 			break;
 
@@ -795,6 +835,8 @@ void convertYUVtoRGB(int cf, const u8 yuv[3], u8 out[3]) {
 				 *
 				 * RGB = Inv(U) * Inv(L) * Trans(P) * YUV
 				 */
+
+				// TODO
 
 				// x P
 				int py = V;
@@ -886,11 +928,14 @@ void convertYUVtoRGB(int cf, const u8 yuv[3], u8 out[3]) {
 
 		case CF_YCgCo_R:	// Malvar's YCgCo-R
 			{
-				const int s = Y - (U >> 1);
+				char Co = V;
+				char Cg = U;
 
-				G = U + s;
-				B = s - (V >> 1);
-				R = B + V;
+				const int t = Y - (Cg >> 1);
+				G = Cg + t;
+				B = t - (Co >> 1);
+				R = Co + B;
+
 			}
 			break;
 
@@ -906,16 +951,16 @@ void convertYUVtoRGB(int cf, const u8 yuv[3], u8 out[3]) {
 
 		case CF_GB_RG:
 			{
-				G = Y;
+				B = Y;
+				G = U + B;
 				R = V + G;
-				B = G - U;
 			}
 			break;
 
 		case CF_GB_RB:
 			{
-				B = U;
-				G = Y + B;
+				B = Y;
+				G = U + B;
 				R = V + B;
 			}
 			break;
@@ -923,23 +968,23 @@ void convertYUVtoRGB(int cf, const u8 yuv[3], u8 out[3]) {
 		case CF_GR_BR:
 			{
 				R = V;
-				G = Y + R;
-				B = U + R;
+				B = Y + R;
+				G = U + R;
 			}
 			break;
 
 		case CF_GR_BG:
 			{
 				R = V;
-				G = Y + R;
-				B = U + G;
+				G = U + R;
+				B = Y + G;
 			}
 			break;
 
 		case CF_BG_RG:
 			{
-				G = Y;
-				B = U + G;
+				G = U;
+				B = Y + G;
 				R = V + G;
 			}
 			break;
@@ -949,8 +994,8 @@ void convertYUVtoRGB(int cf, const u8 yuv[3], u8 out[3]) {
 		case CF_RGB:		// Original RGB
 			{
 				R = V;
-				G = Y;
-				B = U;
+				G = U;
+				B = Y;
 			}
 			break;
 
@@ -960,15 +1005,9 @@ void convertYUVtoRGB(int cf, const u8 yuv[3], u8 out[3]) {
 /*				Y = B;
 				U = B - ((R + G) >> 1);
 				V = R - G;*/
-				/*
-				 * 1,0,0
-				 * Y = 0
-				 * U = 0
-				 * V = 1
-				 */
 
 				B = Y;
-				const int s = (B - U) << 1;
+				const char s = (B - U) << 1;
 				R = (s + V + 1) >> 1; 
 				G = R - V;
 			}
@@ -1020,6 +1059,17 @@ void convertYUVtoRGB(int cf, const u8 yuv[3], u8 out[3]) {
 	out[2] = B;
 }
 
+
+
+static CAT_INLINE void filterColor(int cf, const u8 *p, const u8 *pred, u8 *out) {
+	u8 r = p[0] - pred[0];
+	u8 g = p[1] - pred[1];
+	u8 b = p[2] - pred[2];
+
+	u8 temp[3] = {r, g, b};
+
+	convertRGBtoYUV(cf, temp, out);
+}
 
 
 
@@ -1091,6 +1141,7 @@ const char *GetColorFilterString(int cf) {
 
 void testColorFilters() {
 	for (int cf = 0; cf < CF_COUNT; ++cf) {
+retry:
 		for (int r = 0; r < 256; ++r) {
 			for (int g = 0; g < 256; ++g) {
 				for (int b = 0; b < 256; ++b) {
@@ -1414,7 +1465,7 @@ void ImageFilterWriter::decideFilters(u8 *rgba, int width, int height, ImageMask
 	FilterScorer scores;
 	scores.init(SF_COUNT * CF_COUNT);
 
-	int compressLevel = 0;
+	int compressLevel = 1;
 
 	for (int y = 0; y < height; y += FSZ) {
 		for (int x = 0; x < width; x += FSZ) {
@@ -1440,15 +1491,8 @@ void ImageFilterWriter::decideFilters(u8 *rgba, int width, int height, ImageMask
 							const u8 *pred = filterPixel(p, ii, px, py, width);
 
 							for (int jj = 0; jj < CF_COUNT; ++jj) {
-								u8 sp[3] = {
-									p[0] - pred[0],
-									p[1] - pred[1],
-									p[2] - pred[2]
-								};
-
 								u8 yuv[3];
-								convertRGBtoYUV(jj, sp, yuv);
-
+								filterColor(jj, p, pred, yuv);
 								int error = scoreYUV(yuv);
 
 								scores.add(ii + jj*SF_COUNT, error);
@@ -1540,8 +1584,8 @@ void ImageFilterWriter::decideFilters(u8 *rgba, int width, int height, ImageMask
 								convertRGBtoYUV(cf, sp, yuv);
 
 								ee[0].push(yuv[0]);
-								ee[1].push(yuv[1]); // translate from [-255..255] -> [0..510]
-								ee[2].push(yuv[2]); // "
+								ee[1].push(yuv[1]);
+								ee[2].push(yuv[2]);
 							}
 						}
 
@@ -1595,14 +1639,7 @@ void ImageFilterWriter::applyFilters(u8 *rgba, int width, int height, ImageMaskW
 			u8 *p = rgba + (x + y * width) * 4;
 			const u8 *pred = filterPixel(p, sf, x, y, width);
 
-			u8 sp[3] = {
-				p[0] - pred[0],
-				p[1] - pred[1],
-				p[2] - pred[2]
-			};
-
-			convertRGBtoYUV(cf, sp, p);
-
+			filterColor(cf, p, pred, p);
 #if 0
 			p[0] = p[0];
 			p[1] = p[0];
@@ -2091,7 +2128,7 @@ int ImageFilterWriter::initFromRGBA(u8 *rgba, int width, int height, ImageMaskWr
 	}
 
 #if 0
-	//testColorFilters();
+	testColorFilters();
 	colorSpace(rgba, width, height, mask);
 	return 0;
 #endif
