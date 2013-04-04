@@ -1143,13 +1143,11 @@ nextcf:
 
 #include <cmath>
 
-class EntropyEstimator {
+template<class LType> class EntropyEstimator {
 	int _num_syms;
 
 	u32 *_global;
 	u32 _globalTotal;
-
-	typedef u8 LType;
 
 	LType *_best;
 	u32 _bestTotal;
@@ -1269,6 +1267,9 @@ public:
 		_globalTotal += _bestTotal;
 	}
 };
+
+
+
 
 
 //// ImageFilterWriter
@@ -1427,7 +1428,7 @@ void ImageFilterWriter::decideFilters(u8 *rgba, int width, int height, ImageMask
 
 	static const int FSZ = FILTER_ZONE_SIZE;
 
-	EntropyEstimator ee[3];
+	EntropyEstimator<u8> ee[3];
 	ee[0].clear(256);
 	ee[1].clear(256);
 	ee[2].clear(256);
@@ -2075,7 +2076,7 @@ void ImageFilterWriter::chaosEncode(u8 *rgba, int width, int height, ImageMaskWr
 
 void colorSpace(u8 *rgba, int width, int height, ImageMaskWriter &mask) {
 	for (int cf = 0; cf < CF_COUNT; ++cf) {
-		EntropyEstimator ee[3];
+		EntropyEstimator<u32> ee[3];
 		for (int ii = 0; ii < 3; ++ii) {
 			ee[ii].clear(512);
 			ee[ii].setup();
@@ -2105,7 +2106,7 @@ void colorSpace(u8 *rgba, int width, int height, ImageMaskWriter &mask) {
 	}
 
 	for (int cf = 0; cf < CF_COUNT; ++cf) {
-		EntropyEstimator ee[3];
+		EntropyEstimator<u32> ee[3];
 		for (int ii = 0; ii < 3; ++ii) {
 			ee[ii].clear(256);
 			ee[ii].setup();
