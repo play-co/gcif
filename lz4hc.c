@@ -177,7 +177,7 @@ typedef struct _U64_S { U64 v; } U64_S;
 #define RUN_MASK ((1U<<RUN_BITS)-1)
 
 #define COPYLENGTH 8
-#define LASTLITERALS 5
+#define LASTLITERALS (MINMATCH + 1)
 #define MFLIMIT (COPYLENGTH+MINMATCH)
 #define MINLENGTH (MFLIMIT+1)
 #define OPTIMAL_ML (int)((ML_MASK-1)+MINMATCH)
@@ -230,7 +230,7 @@ typedef struct
 //**************************************
 #define LZ4_WILDCOPY(s,d,e)    do { LZ4_COPYPACKET(s,d) } while (d<e);
 #define LZ4_BLINDCOPY(s,d,l)   { BYTE* e=d+l; LZ4_WILDCOPY(s,d,e); d=e; }
-#define HASH_FUNCTION(i)	   (((i) * 2654435761U) >> ((MINMATCH*8)-HASH_LOG))
+#define HASH_FUNCTION(i)	   (((i) * 2654435761ULL) >> ((MINMATCH*8)-HASH_LOG))
 #define HASH_VALUE(p)		   HASH_FUNCTION(A32(p))
 #define HASH_POINTER(p)		   (HashTable[HASH_VALUE(p)] + base)
 #define DELTANEXT(p)		   chainTable[(size_t)(p) & MAXD_MASK] 
@@ -457,7 +457,7 @@ forceinline static int LZ4HC_InsertAndGetWiderMatch (LZ4HC_Data_Structure* hc4, 
         if (*(startLimit + longest) == *(ref - delta + longest))
         if (A32(ref) == A32(ip))
         {
-#if 1
+#if 0
             const BYTE* reft = ref+MINMATCH;
             const BYTE* ipt = ip+MINMATCH;
             const BYTE* startt = ip;
@@ -588,7 +588,7 @@ _Search2:
         }
 
         // Here, start0==ip
-        if ((start2 - ip) < 3)   // First Match too small : removed
+        if ((start2 - ip) < (MINMATCH - 1))   // First Match too small : removed
         {
             ml = ml2;
             ip = start2;
@@ -617,7 +617,7 @@ _Search3:
         // Now, we have start2 = ip+new_ml, with new_ml = min(ml, OPTIMAL_ML=18)
 
         if (start2 + ml2 < mflimit)
-            ml3 = LZ4HC_InsertAndGetWiderMatch(ctx, start2 + ml2 - 3, start2, matchlimit, ml2, &ref3, &start3);
+            ml3 = LZ4HC_InsertAndGetWiderMatch(ctx, start2 + ml2 - (MINMATCH - 1), start2, matchlimit, ml2, &ref3, &start3);
         else ml3 = ml2;
 
         if (ml3 == ml2) // No better match : 2 sequences to encode

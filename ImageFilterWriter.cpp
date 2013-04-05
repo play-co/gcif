@@ -2186,6 +2186,21 @@ void ImageFilterWriter::makeLZmask() {
 
 	_lz.resize(LZ4_compressHC((char*)&lz_input[0], (char*)&_lz[0], lz_input.size()));
 
+	cout << "LZ bytes = " << _lz.size() << endl;
+
+	vector<u8> test;
+	test.resize(lz_input.size());
+
+	int result = LZ4_uncompress((char*)&_lz[0], (char*)&test[0], test.size());
+	cout << result << endl;
+
+	for (int ii = 0; ii < test.size(); ++ii) {
+		if (test[ii] != lz_input[ii]) {
+			cout << "FAIL at " << ii << endl;
+			break;
+		}
+	}
+
 	const int size = _lz.size();
 
 	int moffset = 0;
@@ -2242,7 +2257,7 @@ void ImageFilterWriter::makeLZmask() {
 				matchLength += s;
 			} while (s == 255 && ii < size);
 		}
-		matchLength += 4;
+		matchLength += 8;
 
 		for (int jj = 0; jj < matchLength; ++jj) {
 			while (_mask->hasRGB((moffset/3) % _width, (moffset/3) / _width)) {
@@ -2259,6 +2274,10 @@ void ImageFilterWriter::makeLZmask() {
 	while (moffset < lz_mask_size &&
 		   _mask->hasRGB((moffset/3) % _width, (moffset/3) / _width)) {
 		moffset += 3;
+	}
+
+	if (moffset != 1024 * 1024 * 3) {
+		cout << ">>> Offset does not match expectation.  There is no way this just worked!" << endl;
 	}
 
 	u16 freq[256];
