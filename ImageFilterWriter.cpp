@@ -203,15 +203,15 @@ static const u8 *filterPixel(u8 *p, int sf, int x, int y, int width) {
 			break;
 
 		case SF_TEST:
-			if CAT_LIKELY(x > 1 && y > 1) {
-				const u8 *c = p - 4 - width*4;
-				const u8 *e = c - 4 - width*4;
+			if CAT_LIKELY(x > 1 && y > 1 && x < width - 2) {
+				const u8 *d = p + 4 - width*4;
+				const u8 *e = d + 4 - width*4;
 				const u8 *a = p - 4;
 				fp = fpt;
 
-				fpt[0] = predTest(e[0], c[0], a[0]);
-				fpt[1] = predTest(e[1], c[1], a[1]);
-				fpt[2] = predTest(e[2], c[2], a[2]);
+				fpt[0] = predTest(e[0], d[0], a[0]);
+				fpt[1] = predTest(e[1], d[1], a[1]);
+				fpt[2] = predTest(e[2], d[2], a[2]);
 			} else {
 				if CAT_LIKELY(x > 0) {
 					fp = p - 4; // A
@@ -664,10 +664,10 @@ void convertRGBtoYUV(int cf, const u8 rgb[3], u8 out[3]) {
 
 
 		default:
-		case CF_BGR:		// RGB -> BGR
+		case CF_B_GR_R:		// A decent default filter
 			{
 				Y = B;
-				U = G;
+				U = G - R;
 				V = R;
 			}
 			break;
@@ -991,10 +991,10 @@ void convertYUVtoRGB(int cf, const u8 yuv[3], u8 out[3]) {
 
 
 		default:
-		case CF_BGR:		// Original RGB
+		case CF_B_GR_R:		// A decent default filter
 			{
 				R = V;
-				G = U;
+				G = U + R;
 				B = Y;
 			}
 			break;
@@ -1118,8 +1118,8 @@ const char *GetColorFilterString(int cf) {
 		case CF_BG_RG:	// from BCIF (recommendation from LOCO-I paper)
 			 return "BCIF-LOCO-I";
 
-		case CF_BGR:		// RGB -> BGR
-			 return "BGR";
+		case CF_B_GR_R:		// RGB -> B, G-R, R
+			 return "B_GR_R";
 
 		case CF_C7:		// from the Strutz paper
 			 return "C7";
@@ -1135,7 +1135,7 @@ const char *GetColorFilterString(int cf) {
 			 return "F2";
 	}
 
-	return "Uknown";
+	return "Unknown";
 }
 
 
@@ -1655,7 +1655,9 @@ void ImageFilterWriter::applyFilters(u8 *rgba, int width, int height, ImageMaskW
 
 #if 0
 			if ((y % FSZ) == 0 && (x % FSZ) == 0) {
-				rgba[(x + y * width) * 4] = 255;
+				rgba[(x + y * width) * 4] = 200;
+				rgba[(x + y * width) * 4 + 1] = 200;
+				rgba[(x + y * width) * 4 + 2] = 200;
 			}
 #endif
 		}
@@ -2133,10 +2135,6 @@ int ImageFilterWriter::initFromRGBA(u8 *rgba, int width, int height, ImageMaskWr
 	return 0;
 #endif
 
-	decideFilters(rgba, width, height, mask);
-	applyFilters(rgba, width, height, mask);
-	chaosEncode(rgba, width, height, mask);
-
 	vector<u8> reds, greens, blues, alphas;
 
 	u8 *pixel = rgba;
@@ -2153,7 +2151,7 @@ int ImageFilterWriter::initFromRGBA(u8 *rgba, int width, int height, ImageMaskWr
 			pixel += 4;
 		}
 	}
-/*
+
 #if 1
 	std::vector<u8> lz_reds, lz_greens, lz_blues, lz_alphas;
 	lz_reds.resize(LZ4_compressBound(static_cast<int>( reds.size() )));
@@ -2203,7 +2201,11 @@ int ImageFilterWriter::initFromRGBA(u8 *rgba, int width, int height, ImageMaskWr
 	CAT_WARN("test") << "Huffman-encoded A bytes: " << bits_alphas / 8;
 
 	CAT_WARN("test") << "Estimated file size = " << (bits_reds + bits_greens + bits_blues + bits_alphas) / 8 + 6000 + 50000;
-*/
+
+	decideFilters(rgba, width, height, mask);
+	applyFilters(rgba, width, height, mask);
+	chaosEncode(rgba, width, height, mask);
+
 	return WE_OK;
 }
 

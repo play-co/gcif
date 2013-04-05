@@ -37,13 +37,13 @@ enum SpatialFilters {
 	SF_AD,			// (A + D)/2
 	SF_ABCD,		// (A + B + C + D + 1)/4
 
+	SF_TEST,		// Crazy random test filter
+
 	SF_COUNT,
 
 	// Disabled filters:
 	SF_A_BC,		// A + (B - C)/2
 	SF_B_AC,		// B + (A - C)/2
-
-	SF_TEST,		// Crazy random test filter
 };
 
 
@@ -77,7 +77,7 @@ enum ColorFilters {
 	CF_GR_BG,	// from BCIF
 	CF_BG_RG,	// from BCIF (recommendation from LOCO-I paper)
 
-	CF_BGR,		// RGB -> BGR
+	CF_B_GR_R,	// A decent default filter
 
 	CF_COUNT,
 
