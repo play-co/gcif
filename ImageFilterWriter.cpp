@@ -2260,7 +2260,7 @@ void ImageFilterWriter::makeLZmask() {
 	}
 
 	if (moffset != 1024 * 1024 * 3) {
-		cout << ">>> Offset does not match expectation.  There is no way this just worked!" << endl;
+		cout << ">>> Offset " << moffset << " does not match expectation " << 1024*1024*3 << ".  There is no way this just worked!" << endl;
 	}
 
 	u16 freq[256];

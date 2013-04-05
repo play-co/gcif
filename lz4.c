@@ -39,7 +39,7 @@
 // Increasing memory usage improves compression ratio
 // Reduced memory usage can improve speed, due to cache effect
 // Default value is 14, for 16KB, which nicely fits into Intel x86 L1 cache
-#define MEMORY_USAGE 18
+#define MEMORY_USAGE 14
 
 // BIG_ENDIAN_NATIVE_BUT_INCOMPATIBLE :
 // This will provide a small boost to performance for big endian cpu, but the resulting compressed stream will be incompatible with little-endian CPU.
@@ -186,14 +186,14 @@ typedef struct _U64_S { U64 v; } U64_S;
 // Increasing this value will make the algorithm search more before declaring a segment "incompressible"
 // This could improve compression a bit, but will be slower on incompressible data
 // The default value (6) is recommended
-#define NOTCOMPRESSIBLE_DETECTIONLEVEL 8
+#define NOTCOMPRESSIBLE_DETECTIONLEVEL 6
 #define SKIPSTRENGTH (NOTCOMPRESSIBLE_DETECTIONLEVEL>2?NOTCOMPRESSIBLE_DETECTIONLEVEL:2)
-#define STACKLIMIT 15
+#define STACKLIMIT 13
 #define HEAPMODE (HASH_LOG>STACKLIMIT)  // Defines if memory is allocated into the stack (local variable), or into the heap (malloc()).
 #define COPYLENGTH 8
 #define LASTLITERALS 5
 #define MFLIMIT (COPYLENGTH+MINMATCH)
-#define MINLENGTH (MFLIMIT+1+4)
+#define MINLENGTH (MFLIMIT+1)
 
 #define MAXD_LOG 16
 #define MAX_DISTANCE ((1 << MAXD_LOG) - 1)
@@ -775,7 +775,7 @@ int LZ4_uncompress(const char* source,
             A32(op) = A32(ref); 
             op += STEPSIZE-MINMATCH; ref -= dec64;
         } else { LZ4_COPYSTEP(ref,op); }
-        cpy = op + length + MINMATCH;
+        cpy = op + length + MINMATCH - STEPSIZE;
 
         if unlikely(cpy>oend-(COPYLENGTH)-(STEPSIZE-MINMATCH))
         {
@@ -881,7 +881,7 @@ int LZ4_uncompress_unknownOutputSize(
             A32(op) = A32(ref); 
             op += STEPSIZE-4; ref -= dec64;
         } else { LZ4_COPYSTEP(ref,op); }
-        cpy = op + length - (STEPSIZE-MINMATCH);
+        cpy = op + length + MINMATCH - STEPSIZE;
 
         if unlikely(cpy>oend-(COPYLENGTH+(STEPSIZE-MINMATCH)))
         {
