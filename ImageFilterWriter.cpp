@@ -2167,7 +2167,7 @@ void ImageFilterWriter::makeLZmask() {
 
 	_lz.resize(LZ4_compressBound(static_cast<int>( lz_input.size() )));
 
-	_lz.resize(LZ4_compress((char*)&lz_input[0], (char*)&_lz[0], lz_input.size()));
+	_lz.resize(LZ4_compressHC((char*)&lz_input[0], (char*)&_lz[0], lz_input.size()));
 
 	cout << "Original data:" << endl;
 	for (int ii = 0; ii < 100; ++ii) {
@@ -2188,7 +2188,7 @@ void ImageFilterWriter::makeLZmask() {
 
 	int result = LZ4_uncompress((char*)&_lz[0], (char*)&test[0], test.size());
 
-	if (result != lz_input.size()) {
+	if (result < 0) {
 		cout << "WARNING: Decompression test failed!  Only recovered " << result << " bytes of " << lz_input.size() << endl;
 	}
 
@@ -2259,7 +2259,7 @@ void ImageFilterWriter::makeLZmask() {
 				matchLength += s;
 			} while (s == 255 && ii < size);
 		}
-		matchLength += 8;
+		matchLength += 4;
 
 		for (int jj = 0; jj < matchLength; ++jj) {
 			while (_mask->hasRGB((moffset/3) % _width, (moffset/3) / _width)) {
