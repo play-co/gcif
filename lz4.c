@@ -174,7 +174,7 @@ typedef struct _U64_S { U64 v; } U64_S;
 //**************************************
 // Constants
 //**************************************
-#define MINMATCH 8
+#define MINMATCH 4
 
 #define HASH_LOG (MEMORY_USAGE-2)
 #define HASHTABLESIZE (1 << HASH_LOG)
@@ -773,11 +773,11 @@ int LZ4_uncompress(const char* source,
             op[3] = ref[3];
             op += 4, ref += 4; ref -= dec32table[op-ref];
             A32(op) = A32(ref); 
-            op += STEPSIZE-MINMATCH; ref -= dec64;
+            op += STEPSIZE-4; ref -= dec64;
         } else { LZ4_COPYSTEP(ref,op); }
-        cpy = op + length + MINMATCH - STEPSIZE;
+        cpy = op + length - (STEPSIZE-4);
 
-        if unlikely(cpy>oend-(COPYLENGTH)-(STEPSIZE-MINMATCH))
+        if unlikely(cpy>oend-(COPYLENGTH)-(STEPSIZE-4))
         {
             if (cpy > oend-LASTLITERALS) goto _output_error;    // Error : last 5 bytes must be literals
             LZ4_SECURECOPY(ref, op, (oend-COPYLENGTH));
@@ -881,9 +881,9 @@ int LZ4_uncompress_unknownOutputSize(
             A32(op) = A32(ref); 
             op += STEPSIZE-4; ref -= dec64;
         } else { LZ4_COPYSTEP(ref,op); }
-        cpy = op + length + MINMATCH - STEPSIZE;
+        cpy = op + length - (STEPSIZE-4);
 
-        if unlikely(cpy>oend-(COPYLENGTH+(STEPSIZE-MINMATCH)))
+        if unlikely(cpy>oend-(COPYLENGTH+(STEPSIZE-4)))
         {
             if (cpy > oend-LASTLITERALS) goto _output_error;    // Error : last 5 bytes must be literals
             LZ4_SECURECOPY(ref, op, (oend-COPYLENGTH));

@@ -2169,20 +2169,39 @@ void ImageFilterWriter::makeLZmask() {
 
 	_lz.resize(LZ4_compress((char*)&lz_input[0], (char*)&_lz[0], lz_input.size()));
 
+	cout << "Original data:" << endl;
+	for (int ii = 0; ii < 100; ++ii) {
+		cout << hex << (int)lz_input[ii] << dec << " ";
+	}
+	cout << endl;
+
+	cout << "LZ stream:" << endl;
+	for (int ii = 0; ii < 100; ++ii) {
+		cout << hex << (int)_lz[ii] << dec << " ";
+	}
+	cout << endl;
+
 	cout << "LZ bytes = " << _lz.size() << endl;
 
 	vector<u8> test;
 	test.resize(lz_input.size());
 
 	int result = LZ4_uncompress((char*)&_lz[0], (char*)&test[0], test.size());
-	cout << result << endl;
+
+	if (result != lz_input.size()) {
+		cout << "WARNING: Decompression test failed!  Only recovered " << result << " bytes of " << lz_input.size() << endl;
+	}
 
 	for (int ii = 0; ii < test.size(); ++ii) {
 		if (test[ii] != lz_input[ii]) {
-			cout << "FAIL at " << ii << endl;
+			for (int jj = 0; jj < test.size(); ++jj) {
+				cout << hex << (int)test[ii] << dec << " ";
+			}
+			cout << "DATA MISMATCH at " << ii << " expected " << hex << (int)lz_input[ii] << dec << endl;
 			break;
 		}
 	}
+
 
 	const int size = _lz.size();
 
