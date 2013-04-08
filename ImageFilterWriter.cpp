@@ -49,50 +49,6 @@ static CAT_INLINE int wrapNeg(u8 p) {
 }
 
 
-static void collectFreqs(const std::vector<u8> &lz, u16 freqs[256]) {
-	const int NUM_SYMS = 256;
-	const int lzSize = static_cast<int>( lz.size() );
-	const int MAX_FREQ = 0xffff;
-
-	int hist[NUM_SYMS] = {0};
-	int max_freq = 0;
-
-	// Perform histogram, and find maximum symbol count
-	for (int ii = 0; ii < lzSize; ++ii) {
-		int count = ++hist[lz[ii]];
-
-		if (max_freq < count) {
-			max_freq = count;
-		}
-	}
-
-	// Scale to fit in 16-bit frequency counter
-	while (max_freq > MAX_FREQ) {
-		// For each symbol,
-		for (int ii = 0; ii < NUM_SYMS; ++ii) {
-			int count = hist[ii];
-
-			// If it exists,
-			if (count) {
-				count >>= 1;
-
-				// Do not let it go to zero if it is actually used
-				if (!count) {
-					count = 1;
-				}
-			}
-		}
-
-		// Update max
-		max_freq >>= 1;
-	}
-
-	// Store resulting scaled histogram
-	for (int ii = 0; ii < NUM_SYMS; ++ii) {
-		freqs[ii] = static_cast<u16>( hist[ii] );
-	}
-}
-
 static int calcBits(vector<u8> &lz, u8 codelens[256]) {
 	int bits = 0;
 
@@ -518,8 +474,6 @@ void ImageFilterWriter::chaosStats() {
 
 	vector<u8> test;
 
-	EntropyEncoder encoder[3][16];
-
 	for (int y = 0; y < _height; ++y) {
 		u8 left_rgb[3] = {0};
 		u8 *last_chaos_read = last_chaos + 3;
@@ -555,8 +509,11 @@ void ImageFilterWriter::chaosStats() {
 
 				if (!_mask->hasRGB(x, y)) {
 					for (int ii = 0; ii < 3; ++ii) {
-						if (_lz_mask[(x + y * _width) * 3 + ii]) {
-							encoder[ii][chaos[ii]].push(now[ii]);
+#ifdef CAT_FILTER_LZ
+						if (_lz_mask[(x + y * _width) * 3 + ii])
+#endif
+						{
+							_encoder[ii][chaos[ii]].push(now[ii]);
 						}
 					}
 				}
@@ -573,88 +530,9 @@ void ImageFilterWriter::chaosStats() {
 
 	for (int ii = 0; ii < 3; ++ii) {
 		for (int jj = 0; jj < 16; ++jj) {
-			encoder[ii][jj].finalize();
+			_encoder[ii][jj].finalize();
 		}
 	}
-
-	CAT_CLR(last_chaos, width * 3 + 3);
-
-	last = _rgba;
-	now = _rgba;
-
-	for (int y = 0; y < _height; ++y) {
-		u8 left_rgb[3] = {0};
-		u8 *last_chaos_read = last_chaos + 3;
-
-		for (int x = 0; x < width; ++x) {
-			u16 chaos[3] = {left_rgb[0], left_rgb[1], left_rgb[2]};
-			if (y > 0) {
-				chaos[0] += chaosScore(last[0]);
-				chaos[1] += chaosScore(last[1]);
-				chaos[2] += chaosScore(last[2]);
-				last += 4;
-			}
-
-			chaos[0] = CHAOS_TABLE[chaos[0]];
-			chaos[1] = CHAOS_TABLE[chaos[1]];
-			chaos[2] = CHAOS_TABLE[chaos[2]];
-#if 0
-			u16 isum = last_chaos_read[0] + last_chaos_read[-3];
-			chaos[0] += (isum + chaos[0] + (isum >> 1)) >> 2;
-			chaos[1] += (last_chaos_read[1] + last_chaos_read[-2] + chaos[1] + (chaos[0] >> 1)) >> 2;
-			chaos[2] += (last_chaos_read[2] + last_chaos_read[-1] + chaos[2] + (chaos[1] >> 1)) >> 2;
-#else
-			//chaos[1] = (chaos[1] + chaos[0]) >> 1;
-			//chaos[2] = (chaos[2] + chaos[1]) >> 1;
-#endif
-			left_rgb[0] = chaosScore(now[0]);
-			left_rgb[1] = chaosScore(now[1]);
-			left_rgb[2] = chaosScore(now[2]);
-			{
-				if (!_mask->hasRGB(x, y)) {
-					for (int ii = 0; ii < 3; ++ii) {
-						if (_lz_mask[(x + y * _width) * 3 + ii]) {
-							bitcount[ii] += encoder[ii][chaos[ii]].encode(now[ii]);
-						}
-					}
-				}
-			}
-
-			last_chaos_read[0] = chaos[0] >> 1;
-			last_chaos_read[1] = chaos[1] >> 1;
-			last_chaos_read[2] = chaos[2] >> 1;
-			last_chaos_read += 3;
-
-			now += 4;
-		}
-	}
-#if 0
-	for (int ii = 0; ii < 3; ++ii) {
-		for (int jj = 0; jj < 16; ++jj) {
-			bitcount[ii] += encoder[ii][jj].encodeFinalize();
-		}
-	}
-
-	CAT_WARN("main") << "Chaos metric R bytes: " << bitcount[0] / 8;
-	CAT_WARN("main") << "Chaos metric G bytes: " << bitcount[1] / 8;
-	CAT_WARN("main") << "Chaos metric B bytes: " << bitcount[2] / 8;
-
-#ifdef CAT_FILTER_LZ
-	CAT_WARN("main") << "Estimated file size bytes: " << (bitcount[0] + bitcount[1] + bitcount[2] + Stats.lz_huff_bits) / 8 + ((3*8 + 1)*100);
-#else
-	CAT_WARN("main") << "Estimated file size bytes: " << (bitcount[0] + bitcount[1] + bitcount[2]) / 8 + (3*8*100);
-#endif
-#endif
-
-#if 0
-		{
-			CAT_WARN("main") << "Writing delta image file";
-
-			// Convert to image:
-
-			lodepng_encode_file("chaos.png", (const unsigned char*)&test[0], _width, _height, LCT_RGB, 8);
-		}
-#endif
 
 }
 
@@ -1032,6 +910,105 @@ void ImageFilterWriter::writeFilters(ImageWriter &writer) {
 }
 
 void ImageFilterWriter::writeChaos(ImageWriter &writer) {
+	const int width = _width;
+
+	u8 *last_chaos = _chaos;
+	CAT_CLR(last_chaos, width * 3 + 3);
+
+	u8 *last = _rgba;
+	u8 *now = _rgba;
+
+#ifdef CAT_COLLECT_STATS
+	int bitcount[3] = {0};
+#endif
+
+	for (int y = 0; y < _height; ++y) {
+		u8 left_rgb[3] = {0};
+		u8 *last_chaos_read = last_chaos + 3;
+
+		for (int x = 0; x < width; ++x) {
+			u16 chaos[3] = {left_rgb[0], left_rgb[1], left_rgb[2]};
+			if (y > 0) {
+				chaos[0] += chaosScore(last[0]);
+				chaos[1] += chaosScore(last[1]);
+				chaos[2] += chaosScore(last[2]);
+				last += 4;
+			}
+
+			chaos[0] = CHAOS_TABLE[chaos[0]];
+			chaos[1] = CHAOS_TABLE[chaos[1]];
+			chaos[2] = CHAOS_TABLE[chaos[2]];
+#if 0
+			u16 isum = last_chaos_read[0] + last_chaos_read[-3];
+			chaos[0] += (isum + chaos[0] + (isum >> 1)) >> 2;
+			chaos[1] += (last_chaos_read[1] + last_chaos_read[-2] + chaos[1] + (chaos[0] >> 1)) >> 2;
+			chaos[2] += (last_chaos_read[2] + last_chaos_read[-1] + chaos[2] + (chaos[1] >> 1)) >> 2;
+#else
+			//chaos[1] = (chaos[1] + chaos[0]) >> 1;
+			//chaos[2] = (chaos[2] + chaos[1]) >> 1;
+#endif
+			left_rgb[0] = chaosScore(now[0]);
+			left_rgb[1] = chaosScore(now[1]);
+			left_rgb[2] = chaosScore(now[2]);
+			{
+				if (!_mask->hasRGB(x, y)) {
+					for (int ii = 0; ii < 3; ++ii) {
+#ifdef CAT_FILTER_LZ
+						if (_lz_mask[(x + y * _width) * 3 + ii])
+#endif
+						{
+							int bits = _encoder[ii][chaos[ii]].encode(now[ii], writer);
+#ifdef CAT_COLLECT_STATS
+							bitcount[ii] += bits;
+#endif
+						}
+					}
+				}
+			}
+
+			last_chaos_read[0] = chaos[0] >> 1;
+			last_chaos_read[1] = chaos[1] >> 1;
+			last_chaos_read[2] = chaos[2] >> 1;
+			last_chaos_read += 3;
+
+			now += 4;
+		}
+	}
+
+#ifdef CAT_COLLECT_STATS
+	for (int ii = 0; ii < 3; ++ii) {
+		Stats.rgb_bits[ii] = bitcount[ii];
+	}
+#endif
+
+#if 0
+	for (int ii = 0; ii < 3; ++ii) {
+		for (int jj = 0; jj < 16; ++jj) {
+			bitcount[ii] += encoder[ii][jj].encodeFinalize();
+		}
+	}
+
+	CAT_WARN("main") << "Chaos metric R bytes: " << bitcount[0] / 8;
+	CAT_WARN("main") << "Chaos metric G bytes: " << bitcount[1] / 8;
+	CAT_WARN("main") << "Chaos metric B bytes: " << bitcount[2] / 8;
+
+#ifdef CAT_FILTER_LZ
+	CAT_WARN("main") << "Estimated file size bytes: " << (bitcount[0] + bitcount[1] + bitcount[2] + Stats.lz_huff_bits) / 8 + ((3*8 + 1)*100);
+#else
+	CAT_WARN("main") << "Estimated file size bytes: " << (bitcount[0] + bitcount[1] + bitcount[2]) / 8 + (3*8*100);
+#endif
+#endif
+
+#if 0
+		{
+			CAT_WARN("main") << "Writing delta image file";
+
+			// Convert to image:
+
+			lodepng_encode_file("chaos.png", (const unsigned char*)&test[0], _width, _height, LCT_RGB, 8);
+		}
+#endif
+
 }
 
 void ImageFilterWriter::write(ImageWriter &writer) {
@@ -1054,4 +1031,6 @@ bool ImageFilterWriter::dumpStats() {
 
 	return true;
 }
+
+#endif
 

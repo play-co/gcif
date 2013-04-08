@@ -23,9 +23,11 @@ class ImageFilterWriter {
 	u16 *_matrix;
 	u8 *_chaos;
 
+#ifdef CAT_FILTER_LZ
 	std::vector<u8> _lz;
 
 	u8 *_lz_mask;
+#endif
 
 	void clear();
 
@@ -79,15 +81,8 @@ public:
 		int filter_bytes[2], filter_pivot[2], filter_table_bits[2];
 		int filter_compressed_bits[2];
 
-		int rleBytes, lzBytes;
-
-		double filterUsec, rleUsec, lzUsec, histogramUsec;
-		double generateTableUsec, tableEncodeUsec, dataEncodeUsec;
-		double overallUsec;
-
-		int originalDataBytes, compressedDataBytes;
-
-		double compressionRatio;
+		// RGB data
+		int rgb_bits[3];
 	} Stats;
 #endif // CAT_COLLECT_STATS
 

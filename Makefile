@@ -20,7 +20,7 @@ gcif_objects = gcif.o lodepng.o Log.o Mutex.o Clock.o Thread.o
 gcif_objects += EndianNeutral.o lz4.o lz4hc.o HuffmanDecoder.o HuffmanEncoder.o
 gcif_objects += MappedFile.o SystemInfo.o MurmurHash3.o ImageWriter.o
 gcif_objects += ImageReader.o ImageMaskWriter.o ImageMaskReader.o
-gcif_objects += ImageFilterWriter.o
+gcif_objects += ImageFilterWriter.o EntropyEncoder.o FilterScorer.o Filters.o
 
 
 # Applications
@@ -87,6 +87,15 @@ ImageMaskWriter.o : ImageMaskWriter.cpp
 
 ImageFilterWriter.o : ImageFilterWriter.cpp
 	$(CCPP) $(CPFLAGS) -c ImageFilterWriter.cpp
+
+EntropyEncoder.o : EntropyEncoder.cpp
+	$(CCPP) $(CPFLAGS) -c EntropyEncoder.cpp
+
+FilterScorer.o : FilterScorer.cpp
+	$(CCPP) $(CPFLAGS) -c FilterScorer.cpp
+
+Filters.o : Filters.cpp
+	$(CCPP) $(CPFLAGS) -c Filters.cpp
 
 
 # Clean target

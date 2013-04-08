@@ -47,11 +47,6 @@ public:
 
 		imageMaskWriter.write(writer);
 
-		if ((err = writer.finalizeAndWrite(outfile))) {
-			CAT_WARN("main") << "Unable to finalize and write image mask: " << ImageWriter::ErrorString(err);
-			return err;
-		}
-
 		imageMaskWriter.dumpStats();
 
 		ImageFilterWriter imageFilterWriter;
@@ -60,12 +55,14 @@ public:
 			return err;
 		}
 
-		if ((err = imageFilterWriter.write(writer))) {
-			CAT_WARN("main") << "Unable to write filter data: " << ImageWriter::ErrorString(err);
-			return err;
-		}
+		imageFilterWriter.write(writer);
 
 		imageFilterWriter.dumpStats();
+
+		if ((err = writer.finalizeAndWrite(outfile))) {
+			CAT_WARN("main") << "Unable to finalize and write image mask: " << ImageWriter::ErrorString(err);
+			return err;
+		}
 
 #if 1
 		{
