@@ -443,14 +443,12 @@ bool ImageMaskReader::decodeLZ(HuffmanDecoder &decoder, ImageReader &reader) {
 int ImageMaskReader::init(const ImageInfo *info) {
 	clear();
 
-	const int FSZ = FILTER_ZONE_SIZE;
-
-	if (info->width % FSZ != 0 || info->height % FSZ != 0) {
+	if ((info->width & FILTER_ZONE_SIZE_MASK) || (info->height &FILTER_ZONE_SIZE_MASK)) {
 		return RE_BAD_DIMS;
 	}
 
-	int maskWidth = info->width / FSZ;
-	int maskHeight = info->height / FSZ;
+	int maskWidth = info->width >> FILTER_ZONE_SIZE_SHIFT;
+	int maskHeight = info->height >> FILTER_ZONE_SIZE_SHIFT;
 
 	_stride = (maskWidth + 31) >> 5;
 	_width = maskWidth;

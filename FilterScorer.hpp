@@ -31,6 +31,7 @@ protected:
 
 public:
 	CAT_INLINE FilterScorer() {
+		_list = 0;
 	}
 	CAT_INLINE virtual ~FilterScorer() {
 		clear();

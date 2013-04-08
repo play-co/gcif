@@ -17,6 +17,13 @@ using namespace std;
 #include "lz4hc.h"
 
 
+#define DUMP_FILTER_OUTPUT
+
+#ifdef DUMP_FILTER_OUTPUT
+#include "lodepng.h"
+#endif // DUMP_FILTER_OUTPUT
+
+
 //// ImageMaskWriter
 
 void ImageMaskWriter::applyFilter() {
@@ -50,9 +57,8 @@ void ImageMaskWriter::applyFilter() {
 		writer[jj] = now ^ ((now >> 1) | cb);
 		cb = now << 31;
 	}
-}
 
-#if 0
+#ifdef DUMP_FILTER_OUTPUT
 		{
 			CAT_WARN("main") << "Writing delta image file";
 
@@ -61,9 +67,9 @@ void ImageMaskWriter::applyFilter() {
 			vector<unsigned char> output;
 			u8 bits = 0, bitCount = 0;
 
-			for (int ii = 0; ii < height; ++ii) {
-				for (int jj = 0; jj < width; ++jj) {
-					u32 set = (buffer[ii * bufferStride + jj / 32] >> (31 - (jj & 31))) & 1;
+			for (int ii = 0; ii < _height; ++ii) {
+				for (int jj = 0; jj < _width; ++jj) {
+					u32 set = (_filtered[ii * _stride + jj / 32] >> (31 - (jj & 31))) & 1;
 					bits <<= 1;
 					bits |= set;
 					if (++bitCount >= 8) {
@@ -74,9 +80,10 @@ void ImageMaskWriter::applyFilter() {
 				}
 			}
 
-			lodepng_encode_file("delta.png", (const unsigned char*)&output[0], width, height, LCT_GREY, 1);
+			lodepng_encode_file("delta.png", (const unsigned char*)&output[0], _width, _height, LCT_GREY, 1);
 		}
-#endif
+#endif // DUMP_FILTER_OUTPUT
+}
 
 void ImageMaskWriter::clear() {
 	if (_mask) {
@@ -123,13 +130,11 @@ int ImageMaskWriter::initFromRGBA(u8 *rgba, int width, int height) {
 	// For each block,
 	const u8 *alpha = (const u8*)&rgba[0] + 3;
 	for (int y = 0; y < _height; ++y) {
-		const u8 *row = alpha;
 		u32 bits = 0;
 		int filled = 0;
 
-		for (int x = 0; x < _stride; ++x) {
-			const u8 *col = row;
-
+		const u8 *col = alpha; 
+		for (int x = 0; x < _width; ++x) {
 			// For each block pixel,
 			u32 on = 1;
 			for (int ii = 0; ii < FILTER_ZONE_SIZE; ++ii) {
@@ -162,7 +167,7 @@ int ImageMaskWriter::initFromRGBA(u8 *rgba, int width, int height) {
 			*writer++ = bits;
 		}
 
-		row += width * 4 * FILTER_ZONE_SIZE;
+		alpha += width * 4 * FILTER_ZONE_SIZE;
 	}
 
 #if 0
@@ -234,6 +239,32 @@ int ImageMaskWriter::initFromRGBA(u8 *rgba, int width, int height) {
 
 		rgba += width * 4;
 	}
+
+#ifdef DUMP_FILTER_OUTPUT
+		{
+			CAT_WARN("main") << "Writing mask image file";
+
+			// Convert to image:
+
+			vector<unsigned char> output;
+			u8 bits = 0, bitCount = 0;
+
+			for (int ii = 0; ii < _height; ++ii) {
+				for (int jj = 0; jj < _width; ++jj) {
+					u32 set = (_mask[ii * _stride + jj / 32] >> (31 - (jj & 31))) & 1;
+					bits <<= 1;
+					bits |= set;
+					if (++bitCount >= 8) {
+						output.push_back(bits);
+						bits = 0;
+						bitCount = 0;
+					}
+				}
+			}
+
+			lodepng_encode_file("mask.png", (const unsigned char*)&output[0], _width, _height, LCT_GREY, 1);
+		}
+#endif // DUMP_FILTER_OUTPUT
 
 	return WE_OK;
 }
