@@ -387,6 +387,50 @@ bool huffman::generate_codes(u32 num_syms, const u8 *pCodesizes, u16 *pCodes) {
 	return true;
 }
 
+void collectFreqs(const std::vector<u8> &lz, u16 freqs[256]) {
+	const int NUM_SYMS = 256;
+	const int lzSize = static_cast<int>( lz.size() );
+	const int MAX_FREQ = 0xffff;
+
+	int hist[NUM_SYMS] = {0};
+	int max_freq = 0;
+
+	// Perform histogram, and find maximum symbol count
+	for (int ii = 0; ii < lzSize; ++ii) {
+		int count = ++hist[lz[ii]];
+
+		if (max_freq < count) {
+			max_freq = count;
+		}
+	}
+
+	// Scale to fit in 16-bit frequency counter
+	while (max_freq > MAX_FREQ) {
+		// For each symbol,
+		for (int ii = 0; ii < NUM_SYMS; ++ii) {
+			int count = hist[ii];
+
+			// If it exists,
+			if (count) {
+				count >>= 1;
+
+				// Do not let it go to zero if it is actually used
+				if (!count) {
+					count = 1;
+				}
+			}
+		}
+
+		// Update max
+		max_freq >>= 1;
+	}
+
+	// Store resulting scaled histogram
+	for (int ii = 0; ii < NUM_SYMS; ++ii) {
+		freqs[ii] = static_cast<u16>( hist[ii] );
+	}
+}
+
 void generateHuffmanCodes(int num_syms, u16 freqs[], u16 codes[], u8 codelens[]) {
 	huffman::huffman_work_tables state;
 	u32 max_code_size, total_freq;

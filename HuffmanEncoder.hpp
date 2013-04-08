@@ -2,6 +2,7 @@
 #define CAT_HUFFMAN_ENCODER_H
 
 #include "Platform.hpp"
+#include <vector>
 
 /*
  * This was all adapted from the LZHAM project
@@ -69,6 +70,7 @@ bool generate_codes(u32 num_syms, const u8 *pCodesizes, u16 *pCodes);
 } // namespace huffman
 
 
+void collectFreqs(const std::vector<u8> &lz, u16 freqs[256]);
 void generateHuffmanCodes(int num_syms, u16 freqs[], u16 codes[], u8 codelens[]);
 
 

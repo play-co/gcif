@@ -916,7 +916,100 @@ int ImageFilterWriter::initFromRGBA(u8 *rgba, int width, int height, ImageMaskWr
 	return WE_OK;
 }
 
+void ImageFilterWriter::writeFilterHuffmanTable(u8 codelens[256], ImageWriter &writer, int stats_index) {
+	vector<unsigned char> huffTable;
+
+	// Calculate sum of codelens
+	u32 sum = codelens[0];
+	for (int ii = 1; ii < 256; ++ii) {
+		sum += codelens[ii];
+	}
+
+	// Find K shift
+	sum >>= 8;
+	u32 shift = sum > 0 ? BSR32(sum) : 0;
+	u32 shiftMask = (1 << shift) - 1;
+
+	writer.writeBits(shift, 3);
+
+#ifdef CAT_COLLECT_STATS
+	Stats.filter_pivot[stats_index] = shift;
+	u32 table_bits = 0;
+#endif // CAT_COLLECT_STATS
+
+	// For each symbol,
+	for (int ii = 0; ii < huffTable.size(); ++ii) {
+		int symbol = huffTable[ii];
+		int q = symbol >> shift;
+
+		if CAT_UNLIKELY(q > 31) {
+			for (int ii = 0; ii < q; ++ii) {
+				writer.writeBit(1);
+#ifdef CAT_COLLECT_STATS
+				++table_bits;
+#endif // CAT_COLLECT_STATS
+			}
+			writer.writeBit(0);
+#ifdef CAT_COLLECT_STATS
+			++table_bits;
+#endif // CAT_COLLECT_STATS
+		} else {
+			writer.writeBits((0x7fffffff >> (31 - q)) << 1, q + 1);
+#ifdef CAT_COLLECT_STATS
+			table_bits += q + 1;
+#endif // CAT_COLLECT_STATS
+		}
+
+		if (shift > 0) {
+			writer.writeBits(symbol & shiftMask, shift);
+#ifdef CAT_COLLECT_STATS
+			table_bits += shift;
+#endif // CAT_COLLECT_STATS
+		}
+	}
+
+#ifdef CAT_COLLECT_STATS
+	Stats.filter_table_bits[stats_index] = table_bits;
+#endif // CAT_COLLECT_STATS
+}
+
 void ImageFilterWriter::writeFilters(ImageWriter &writer) {
+	static const int FSZ = FILTER_ZONE_SIZE;
+
+	vector<u8> data[2];
+
+	// For each zone,
+	for (int y = 0, height = _height; y < height; y += FSZ) {
+		for (int x = 0, width = _width; x < width; x += FSZ*2) {
+			// Encode SF and CF separately and combine consecutive filters
+			// together for the smallest representation
+			u16 filter0 = getFilter(x, y);
+			u8 cf0 = (u8)filter0;
+			u8 sf0 = (u8)(filter0 >> 8);
+			u16 filter1 = getFilter(x + FSZ, y);
+			u8 cf1 = (u8)filter1;
+			u8 sf1 = (u8)(filter1 >> 8);
+
+			data[0].push_back((sf1 << 4) | sf0);
+			data[1].push_back((cf1 << 4) | cf0);
+		}
+	}
+
+	for (int ii = 0; ii < 2; ++ii) {
+#ifdef CAT_COLLECT_STATS
+		Stats.filter_bytes[ii] = (int)data[ii].size();
+#endif
+
+		u16 freq[256];
+
+		collectFreqs(data[ii], freq);
+
+		u16 codes[256];
+		u8 lens[256];
+		generateHuffmanCodes(256, freq, codes, lens);
+
+		writeFilterHuffmanTable(lens, writer, ii);
+	}
 }
 
 void ImageFilterWriter::writeChaos(ImageWriter &writer) {

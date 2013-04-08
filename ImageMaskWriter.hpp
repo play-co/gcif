@@ -23,8 +23,6 @@ class ImageMaskWriter {
 	void applyFilter();
 	void performRLE(std::vector<u8> &rle);
 	void performLZ(const std::vector<u8> &rle, std::vector<u8> &lz);
-	void collectFreqs(const std::vector<u8> &lz, u16 freqs[256]);
-	void generateHuffmanCodes(u16 freqs[256], u16 codes[256], u8 codelens[256]);
 	void writeHuffmanTable(u8 codelens[256], ImageWriter &writer);
 	void writeEncodedLZ(const std::vector<u8> &lz, u16 codes[256], u8 codelens[256], ImageWriter &writer);
 
