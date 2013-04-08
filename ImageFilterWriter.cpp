@@ -187,8 +187,30 @@ static CAT_INLINE u8 abc_paeth(int a, int b, int c) {
 	}
 }
 
-static CAT_INLINE u8 predTest(int e, int c, int a) {
-	return c + (c - e);
+u8 leftSel(int f, int c, int a) {
+	if (abs(f - c) < abs(f - a)) {
+		return c;
+	} else {
+		return a;
+	}
+}
+
+u8 threeSel(int f, int c, int b, int d) {
+	int dc = abs(f - c);
+	int db = abs(f - b);
+	int dd = abs(f - d);
+
+	if (dc < db) {
+		if (dc < dd) {
+			return c;
+		}
+	} else {
+		if (db < dd) {
+			return b;
+		}
+	}
+
+	return d;
 }
 
 static const u8 *filterPixel(u8 *p, int sf, int x, int y, int width) {
@@ -202,16 +224,34 @@ static const u8 *filterPixel(u8 *p, int sf, int x, int y, int width) {
 		case SF_Z:			// 0
 			break;
 
-		case SF_TEST:
+		case SF_PICK_LEFT:
 			if CAT_LIKELY(x > 1 && y > 1 && x < width - 2) {
-				const u8 *d = p + 4 - width*4;
-				const u8 *e = d + 4 - width*4;
 				const u8 *a = p - 4;
+				const u8 *c = a - width*4;
+				const u8 *f = c - 4;
 				fp = fpt;
 
-				fpt[0] = predTest(e[0], d[0], a[0]);
-				fpt[1] = predTest(e[1], d[1], a[1]);
-				fpt[2] = predTest(e[2], d[2], a[2]);
+				fpt[0] = leftSel(f[0], c[0], a[0]);
+				fpt[1] = leftSel(f[1], c[1], a[1]);
+				fpt[2] = leftSel(f[2], c[2], a[2]);
+			} else {
+				if CAT_LIKELY(x > 0) {
+					fp = p - 4; // A
+				} else if (y > 0) {
+					fp = p - width*4; // B
+				}
+			}
+			break;
+
+		case SF_PRED_UR:
+			if CAT_LIKELY(y > 1 && x < width - 2) {
+				const u8 *d = p + 4 - width*4;
+				const u8 *e = d + 4 - width*4;
+				fp = fpt;
+
+				fpt[0] = d[0] * 2 - e[0];
+				fpt[1] = d[1] * 2 - e[1];
+				fpt[2] = d[2] * 2 - e[2];
 			} else {
 				if CAT_LIKELY(x > 0) {
 					fp = p - 4; // A
@@ -522,8 +562,21 @@ void convertRGBtoYUV(int cf, const u8 rgb[3], u8 out[3]) {
 				char Co = R - B;
 				int t = B + (Co >> 1);
 				char Cg = G - t;
-				Y = t + (Cg >> 1);
 
+				Y = t + (Cg >> 1);
+				U = Cg;
+				V = Co;
+			}
+			break;
+
+
+		case CF_E2_R:		// derived from E2 and YCgCo-R
+			{
+				char Co = R - G;
+				int t = G + (Co >> 1);
+				char Cg = B - t;
+
+				Y = t + (Cg >> 1);
 				U = Cg;
 				V = Co;
 			}
@@ -751,15 +804,25 @@ void convertYUVtoRGB(int cf, const u8 yuv[3], u8 out[3]) {
 			{
 				char Co = V;
 				char Cg = U;
-
 				const int t = Y - (Cg >> 1);
+
 				G = Cg + t;
 				B = t - (Co >> 1);
 				R = Co + B;
-
 			}
 			break;
 
+		case CF_E2_R:		// Derived from E2 and YCgCo-R
+			{
+				char Co = V;
+				char Cg = U;
+				const int t = Y - (Cg >> 1);
+
+				B = Cg + t;
+				G = t - (Co >> 1);
+				R = Co + G;
+			}
+			break;
 
 		case CF_E2:		// from the Strutz paper
 			{
@@ -953,7 +1016,7 @@ void convertYUVtoRGB(int cf, const u8 yuv[3], u8 out[3]) {
 			{
 				B = Y;
 				G = U + B;
-				R = V + G;
+				R = G - V;
 			}
 			break;
 
@@ -977,15 +1040,15 @@ void convertYUVtoRGB(int cf, const u8 yuv[3], u8 out[3]) {
 			{
 				R = V;
 				G = U + R;
-				B = Y + G;
+				B = G - Y;
 			}
 			break;
 
 		case CF_BG_RG:
 			{
 				G = U;
-				B = Y + G;
-				R = V + G;
+				B = G - Y;
+				R = G - V;
 			}
 			break;
 
@@ -1078,6 +1141,9 @@ const char *GetColorFilterString(int cf) {
 		case CF_YUVr:	// YUVr from JPEG2000
 			return "YUVr";
 
+		case CF_E2_R:	// derived from E2 and YCgCo-R
+			 return "E2-R";
+
 		case CF_E2:		// from the Strutz paper
 			 return "E2";
 		case CF_E1:		// from the Strutz paper
@@ -1116,7 +1182,7 @@ const char *GetColorFilterString(int cf) {
 		case CF_GR_BG:	// from BCIF
 			 return "BCIF-GR-BG";
 		case CF_BG_RG:	// from BCIF (recommendation from LOCO-I paper)
-			 return "BCIF-LOCO-I";
+			 return "BCIF-BG-RG";
 
 		case CF_B_GR_R:		// RGB -> B, G-R, R
 			 return "B_GR_R";
@@ -1482,8 +1548,11 @@ void ImageFilterWriter::decideFilters() {
 				for (int yy = 0; yy < FSZ; ++yy) {
 					for (int xx = 0; xx < FSZ; ++xx) {
 						int px = x + xx, py = y + yy;
-						if (_mask->hasRGB(px, py) ||
-							!hasPixel(px, py)) {
+						if (_mask->hasRGB(px, py)
+#ifdef CAT_FILTER_LZ
+							|| !hasPixel(px, py)
+#endif
+							) {
 							continue;
 						}
 
@@ -1519,8 +1588,11 @@ void ImageFilterWriter::decideFilters() {
 				for (int yy = 0; yy < FSZ; ++yy) {
 					for (int xx = 0; xx < FSZ; ++xx) {
 						int px = x + xx, py = y + yy;
-						if (_mask->hasRGB(px, py) ||
-							!hasPixel(px, py)) {
+						if (_mask->hasRGB(px, py)
+#ifdef CAT_FILTER_LZ
+							|| !hasPixel(px, py)
+#endif
+						   ) {
 							continue;
 						}
 
@@ -1572,8 +1644,11 @@ void ImageFilterWriter::decideFilters() {
 						for (int yy = 0; yy < FSZ; ++yy) {
 							for (int xx = 0; xx < FSZ; ++xx) {
 								int px = x + xx, py = y + yy;
-								if (_mask->hasRGB(px, py) ||
-									!hasPixel(px, py)) {
+								if (_mask->hasRGB(px, py)
+#ifdef CAT_FILTER_LZ
+										|| !hasPixel(px, py)
+#endif
+								   ) {
 									continue;
 								}
 
@@ -1633,14 +1708,18 @@ void ImageFilterWriter::applyFilters() {
 
 	static const int FSZ = FILTER_ZONE_SIZE;
 
+	vector<u8> sf_data, cf_data;
+
+	u8 sf_past = 0, cf_past = 0;
+	bool writeFlag = false;
+
 	// For each zone,
 	for (int y = _height - 1; y >= 0; --y) {
 		for (int x = width - 1; x >= 0; --x) {
 			u16 filter = getFilter(x, y);
 			u8 cf = (u8)filter;
 			u8 sf = (u8)(filter >> 8);
-			if (_mask->hasRGB(x, y) ||
-				!hasPixel(x, y)) {
+			if (_mask->hasRGB(x, y)) {
 				continue;
 			}
 
@@ -1648,6 +1727,23 @@ void ImageFilterWriter::applyFilters() {
 			const u8 *pred = filterPixel(p, sf, x, y, width);
 
 			filterColor(cf, p, pred, p);
+
+			if (y % FILTER_ZONE_SIZE == 0 &&
+				x % FILTER_ZONE_SIZE == 0) {
+#if 0
+				sf_data.push_back(sf);
+				cf_data.push_back(cf);
+#else
+				if (writeFlag) {
+					sf_data.push_back((sf << 4) | sf_past);
+					cf_data.push_back((cf << 4) | cf_past);
+				}
+				sf_past = sf;
+				cf_past = cf;
+				writeFlag = !writeFlag;
+#endif
+			}
+
 #if 0
 			p[0] = p[0];
 			p[1] = p[0];
@@ -1669,6 +1765,50 @@ void ImageFilterWriter::applyFilters() {
 			}
 #endif
 		}
+	}
+
+	cout << "SF data bytes = " << sf_data.size() / 2 << endl;
+	cout << "CF data bytes = " << cf_data.size() / 2 << endl;
+
+#if 1
+	vector<u8> lz_sf, lz_cf;
+
+	lz_sf.resize(LZ4_compressBound(static_cast<int>( sf_data.size() )));
+	lz_sf.resize(LZ4_compressHC((char*)&sf_data[0], (char*)&lz_sf[0], sf_data.size()));
+
+	lz_cf.resize(LZ4_compressBound(static_cast<int>( cf_data.size() )));
+	lz_cf.resize(LZ4_compressHC((char*)&cf_data[0], (char*)&lz_cf[0], cf_data.size()));
+
+	cout << "LZ SF data bytes = " << lz_sf.size() << endl;
+	cout << "LZ CF data bytes = " << lz_cf.size() << endl;
+#endif
+
+	{
+		u16 freq[256];
+
+		collectFreqs(sf_data, freq);
+
+		u16 codes[256];
+		u8 lens[256];
+		generateHuffmanCodes(256, freq, codes, lens);
+
+		int bits_overhead = calcBits(sf_data, lens);
+
+		cout << "Huffman LZ SF bytes = " << bits_overhead / 8 << endl;
+	}
+
+	{
+		u16 freq[256];
+
+		collectFreqs(cf_data, freq);
+
+		u16 codes[256];
+		u8 lens[256];
+		generateHuffmanCodes(256, freq, codes, lens);
+
+		int bits_overhead = calcBits(cf_data, lens);
+
+		cout << "Huffman LZ CF bytes = " << bits_overhead / 8 << endl;
 	}
 }
 
@@ -2081,7 +2221,12 @@ void ImageFilterWriter::chaosEncode() {
 	CAT_WARN("main") << "Chaos metric G bytes: " << bitcount[1] / 8;
 	CAT_WARN("main") << "Chaos metric B bytes: " << bitcount[2] / 8;
 
-	CAT_WARN("main") << "Estimated file size bytes: " << (bitcount[0] + bitcount[1] + bitcount[2]) / 8 + (3*8*100);
+#ifdef CAT_FILTER_LZ
+	CAT_WARN("main") << "Estimated file size bytes: " << (bitcount[0] + bitcount[1] + bitcount[2] + Stats.lz_huff_bits) / 8 + ((3*8 + 1)*100);
+#else
+	CAT_WARN("main") << "Estimated file size bytes: " << (bitcount[0] + bitcount[1] + bitcount[2]) / 8 + ((3*8 + 1)*100);
+#endif
+
 
 #if 1
 		{
@@ -2097,6 +2242,7 @@ void ImageFilterWriter::chaosEncode() {
 
 
 
+#if 0
 
 void colorSpace(u8 *rgba, int width, int height, ImageMaskWriter &mask) {
 	for (int cf = 0; cf < CF_COUNT; ++cf) {
@@ -2119,14 +2265,14 @@ void colorSpace(u8 *rgba, int width, int height, ImageMaskWriter &mask) {
 				p += 4;
 			}
 		}
-
+/*
 		if (cf == CF_YCgCo_R) {
 			ee[0].drawHistogram(rgba, width);
 			ee[1].drawHistogram(rgba + 800, width);
 			ee[2].drawHistogram(rgba + 1600, width);
 			return;
 		}
-
+*/
 		double e[3], score = 0;
 		for (int ii = 0; ii < 3; ++ii) {
 			e[ii] = ee[ii].entropy();
@@ -2136,10 +2282,15 @@ void colorSpace(u8 *rgba, int width, int height, ImageMaskWriter &mask) {
 		cout << "YUV888 Entropy for " << GetColorFilterString(cf) << " = { " << e[0] << ", " << e[1] << ", " << e[2] << " } : SCORE=" << score << endl;
 	}
 }
+#endif
 
 
+
+#ifdef CAT_FILTER_LZ
 
 void ImageFilterWriter::makeLZmask() {
+	static const int MINMATCH = 20;
+
 	const int lz_mask_size = _width * _height * 3;
 	_lz_mask = new u8[lz_mask_size];
 
@@ -2167,8 +2318,9 @@ void ImageFilterWriter::makeLZmask() {
 
 	_lz.resize(LZ4_compressBound(static_cast<int>( lz_input.size() )));
 
-	_lz.resize(LZ4_compressHC((char*)&lz_input[0], (char*)&_lz[0], lz_input.size()));
+	_lz.resize(LZ4_compressHCMinMatch((char*)&lz_input[0], (char*)&_lz[0], lz_input.size(), MINMATCH));
 
+#if 0
 	cout << "Original data:" << endl;
 	for (int ii = 0; ii < 100; ++ii) {
 		cout << hex << (int)lz_input[ii] << dec << " ";
@@ -2194,14 +2346,14 @@ void ImageFilterWriter::makeLZmask() {
 
 	for (int ii = 0; ii < test.size(); ++ii) {
 		if (test[ii] != lz_input[ii]) {
-			for (int jj = 0; jj < test.size(); ++jj) {
-				cout << hex << (int)test[ii] << dec << " ";
-			}
+//			for (int jj = 0; jj < test.size(); ++jj) {
+//				cout << hex << (int)test[ii] << dec << " ";
+//			}
 			cout << "DATA MISMATCH at " << ii << " expected " << hex << (int)lz_input[ii] << dec << endl;
 			break;
 		}
 	}
-
+#endif
 
 	const int size = _lz.size();
 
@@ -2211,10 +2363,16 @@ void ImageFilterWriter::makeLZmask() {
 
 	vector<u8> lz_overhead;
 
+	int lit_len_ov = 0;
+	int token_ov = 0;
+	int match_len_ov = 0;
+	int offset_ov = 0;
+
 	for (int ii = 0; ii < size;) {
 		// Read token
 		u8 token = _lz[ii++];
 		lz_overhead.push_back(token);
+		++token_ov;
 
 		// Read Literal Length
 		int literalLength = token >> 4;
@@ -2224,6 +2382,7 @@ void ImageFilterWriter::makeLZmask() {
 				s = _lz[ii++];
 				lz_overhead.push_back(s);
 				literalLength += s;
+				++lit_len_ov;
 			} while (s == 255 && ii < size);
 		}
 
@@ -2248,6 +2407,7 @@ void ImageFilterWriter::makeLZmask() {
 		u16 woffset = ((u16)offset1 << 8) | offset0;
 		lz_overhead.push_back(offset0);
 		lz_overhead.push_back(offset1);
+		offset_ov += 2;
 
 		// Read match length
 		int matchLength = token & 15;
@@ -2257,9 +2417,10 @@ void ImageFilterWriter::makeLZmask() {
 				s = _lz[ii++];
 				lz_overhead.push_back(s);
 				matchLength += s;
+				++match_len_ov;
 			} while (s == 255 && ii < size);
 		}
-		matchLength += 4;
+		matchLength += MINMATCH;
 
 		for (int jj = 0; jj < matchLength; ++jj) {
 			while (_mask->hasRGB((moffset/3) % _width, (moffset/3) / _width)) {
@@ -2271,6 +2432,17 @@ void ImageFilterWriter::makeLZmask() {
 	}
 
 	cout << endl;
+
+	Stats.lz_lit_len_ov = lit_len_ov;
+	Stats.lz_token_ov = token_ov;
+	Stats.lz_match_len_ov = match_len_ov;
+	Stats.lz_offset_ov = offset_ov;
+	Stats.lz_overall_ov = (int)lz_overhead.size();
+
+	cout << "Literal length overhead = " << lit_len_ov << endl;
+	cout << "Token overhead = " << token_ov << endl;
+	cout << "Match length overhead = " << match_len_ov << endl;
+	cout << "Offset overhead = " << offset_ov << endl;
 
 	// NOTE: Do not need this after it works
 	while (moffset < lz_mask_size &&
@@ -2291,10 +2463,14 @@ void ImageFilterWriter::makeLZmask() {
 	generateHuffmanCodes(256, freq, codes, lens);
 
 	int bits_overhead = calcBits(lz_overhead, lens);
+	Stats.lz_huff_bits = bits_overhead;
+	Stats.lz_huff_bits = 0;
 
 	cout << "LZ overhead = " << bits_overhead/8 << endl;
 }
 
+
+#endif
 
 int ImageFilterWriter::initFromRGBA(u8 *rgba, int width, int height, ImageMaskWriter &mask) {
 	if (!init(width, height)) {
@@ -2312,7 +2488,9 @@ int ImageFilterWriter::initFromRGBA(u8 *rgba, int width, int height, ImageMaskWr
 	return 0;
 #endif
 
+#ifdef CAT_FILTER_LZ
 	makeLZmask();
+#endif
 	decideFilters();
 	applyFilters();
 	chaosEncode();

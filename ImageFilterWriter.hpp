@@ -10,14 +10,15 @@ namespace cat {
 
 static const int FILTER_ZONE_SIZE = 4;
 static const int FILTER_RLE_SYMS = 8;
-static const int FILTER_MATCH_FUZZ = 16;
+static const int FILTER_MATCH_FUZZ = 20;
 
 /*
  * Spatial filters from BCIF
  *
  * Filter inputs:
- *	C B D
- *	A ?
+ *         E
+ * F C B D
+ *   A ?
  */
 
 enum SpatialFilters {
@@ -34,10 +35,12 @@ enum SpatialFilters {
 	SF_ABC_PAETH,	// If A <= C <= B, A + B - C, else Paeth filter
 	SF_PL,			// Use ABC to determine if increasing or decreasing
 	SF_PLO,			// Offset PL
-	SF_AD,			// (A + D)/2
 	SF_ABCD,		// (A + B + C + D + 1)/4
 
-	SF_TEST,		// Crazy random test filter
+	SF_PICK_LEFT,	// Pick A or C based on which is closer to F
+	SF_PRED_UR,		// Predict gradient continues from E to D to current
+
+	SF_AD,			// (A + D)/2
 
 	SF_COUNT,
 
@@ -57,35 +60,30 @@ enum SpatialFilters {
  */
 
 enum ColorFilters {
-	// In order of preference:
-	CF_YUVr,	// YUVr from JPEG2000
-
-	CF_YCgCo_R,	// Malvar's YCgCo-R
-
-	CF_D8,		// from the Strutz paper
-	CF_D9,		// from the Strutz paper
-	CF_D14,		// from the Strutz paper
-
-	CF_D10,		// from the Strutz paper
-	CF_D11,		// from the Strutz paper
-	CF_D12,		// from the Strutz paper
-	CF_D18,		// from the Strutz paper
-
+	// In order of preference (based on entropy scores from test images):
 	CF_GB_RG,	// from BCIF
-	CF_GB_RB,	// from BCIF
-	CF_GR_BR,	// from BCIF
 	CF_GR_BG,	// from BCIF
+	CF_YUVr,	// YUVr from JPEG2000
+	CF_D9,		// from the Strutz paper
+	CF_D12,		// from the Strutz paper
+	CF_D8,		// from the Strutz paper
+	CF_E2_R,	// Derived from E2 and YCgCo-R
 	CF_BG_RG,	// from BCIF (recommendation from LOCO-I paper)
-
+	CF_GR_BR,	// from BCIF
+	CF_D18,		// from the Strutz paper
 	CF_B_GR_R,	// A decent default filter
-
+	CF_D11,		// from the Strutz paper
+	CF_D14,		// from the Strutz paper
+	CF_D10,		// from the Strutz paper
+	CF_YCgCo_R,	// Malvar's YCgCo-R
+	CF_GB_RB,	// from BCIF
 	CF_COUNT,
 
 	// Disabled filters:
 	// These do not appear to be reversible under YUV888
 	CF_C7,		// from the Strutz paper
-	CF_E1,		// from the Strutz paper
 	CF_E2,		// from the Strutz paper
+	CF_E1,		// from the Strutz paper
 	CF_E4,		// from the Strutz paper
 	CF_E5,		// from the Strutz paper
 	CF_E8,		// from the Strutz paper
@@ -95,6 +93,8 @@ enum ColorFilters {
 	CF_F2,		// from the Strutz paper
 };
 
+
+//#define CAT_FILTER_LZ
 
 
 //// ImageFilterWriter
@@ -115,6 +115,7 @@ class ImageFilterWriter {
 	int _height;
 	ImageMaskWriter *_mask;
 
+#ifdef CAT_FILTER_LZ
 	CAT_INLINE bool hasR(int x, int y) {
 		return _lz_mask[(x + y * _width) * 3];
 	}
@@ -130,12 +131,35 @@ class ImageFilterWriter {
 	CAT_INLINE bool hasPixel(int x, int y) {
 		return hasR(x, y) || hasG(x, y) || hasB(x, y);
 	}
+#endif
 
 	bool init(int width, int height);
+#ifdef CAT_FILTER_LZ
 	void makeLZmask();
+#endif
 	void decideFilters();
 	void applyFilters();
 	void chaosEncode();
+
+#ifdef CAT_COLLECT_STATS
+public:
+	struct _Stats {
+#ifdef CAT_FILTER_LZ
+		u32 lz_lit_len_ov, lz_token_ov, lz_offset_ov, lz_match_len_ov, lz_overall_ov;
+		u32 lz_huff_bits;
+#endif
+
+		int rleBytes, lzBytes;
+
+		double filterUsec, rleUsec, lzUsec, histogramUsec;
+		double generateTableUsec, tableEncodeUsec, dataEncodeUsec;
+		double overallUsec;
+
+		int originalDataBytes, compressedDataBytes;
+
+		double compressionRatio;
+	} Stats;
+#endif // CAT_COLLECT_STATS
 
 public:
 	CAT_INLINE ImageFilterWriter() {

@@ -40,6 +40,7 @@ extern "C" {
 
 
 int LZ4_compressHC (const char* source, char* dest, int isize);
+int LZ4_compressHCMinMatch (const char* source, char* dest, int isize, int minmatch);
 
 /*
 LZ4_compressHC :

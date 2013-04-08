@@ -497,7 +497,32 @@ _endCount:
 }
 
 
-forceinline static int LZ4_encodeSequence(const BYTE** ip, BYTE** op, const BYTE** anchor, int ml, const BYTE* ref)
+static BYTE *limited_anchor = 0;
+
+static int REAL_MINMATCH = 10;
+
+static void LZ4_finishSequence(BYTE *iend, BYTE *anchor, BYTE **dop) {
+	if (limited_anchor != 0) {
+		anchor = limited_anchor;
+		limited_anchor = 0;
+	}
+
+	BYTE *op = *dop;
+
+    // Encode Last Literals
+    {
+        int lastRun = (int)(iend - anchor);
+        if (lastRun>=(int)RUN_MASK) { *op++=(RUN_MASK<<ML_BITS); lastRun-=RUN_MASK; for(; lastRun > 254 ; lastRun-=255) *op++ = 255; *op++ = (BYTE) lastRun; } 
+        else *op++ = (lastRun<<ML_BITS);
+        memcpy(op, anchor, iend - anchor);
+        op += iend-anchor;
+    }
+
+	*dop = op;
+}
+
+
+forceinline static int LZ4_encodeSequenceInt(const BYTE** ip, BYTE** op, const BYTE** anchor, int ml, const BYTE* ref)
 {
     int length, len; 
     BYTE* token;
@@ -515,17 +540,34 @@ forceinline static int LZ4_encodeSequence(const BYTE** ip, BYTE** op, const BYTE
     LZ4_WRITE_LITTLEENDIAN_16(*op,(U16)(*ip-ref));
 
     // Encode MatchLength
-    len = (int)(ml-MINMATCH);
+    len = (int)(ml-REAL_MINMATCH);
     if (len>=(int)ML_MASK) { *token+=ML_MASK; len-=ML_MASK; for(; len > 509 ; len-=510) { *(*op)++ = 255; *(*op)++ = 255; } if (len > 254) { len-=255; *(*op)++ = 255; } *(*op)++ = (BYTE)len; } 
     else *token += len;	
-
-    // Prepare next loop
-    *ip += ml;
-    *anchor = *ip; 
 
     return 0;
 }
 
+
+forceinline static int LZ4_encodeSequence(const BYTE** ip, BYTE** op, const BYTE** anchor, int ml, const BYTE* ref)
+{
+	if (ml < REAL_MINMATCH) {
+		if (limited_anchor == 0) {
+			limited_anchor = *anchor;
+		}
+	} else {
+		if (limited_anchor == 0) {
+			LZ4_encodeSequenceInt(ip, op, anchor, ml, ref);
+		} else {
+			LZ4_encodeSequenceInt(ip, op, &limited_anchor, ml, ref);
+			limited_anchor = 0;
+		}
+	}
+
+	*ip += ml;
+	*anchor = *ip;
+
+    return 0;
+}
 
 //****************************
 // Compression CODE
@@ -702,24 +744,19 @@ _Search3:
 
     }
 
-    // Encode Last Literals
-    {
-        int lastRun = (int)(iend - anchor);
-        if (lastRun>=(int)RUN_MASK) { *op++=(RUN_MASK<<ML_BITS); lastRun-=RUN_MASK; for(; lastRun > 254 ; lastRun-=255) *op++ = 255; *op++ = (BYTE) lastRun; } 
-        else *op++ = (lastRun<<ML_BITS);
-        memcpy(op, anchor, iend - anchor);
-        op += iend-anchor;
-    } 
+	LZ4_finishSequence(iend, anchor, &op);
 
     // End
     return (int) (((char*)op)-dest);
 }
 
 
-int LZ4_compressHC(const char* source, 
+int LZ4_compressHCMinMatch(const char* source, 
                  char* dest,
-                 int isize)
+                 int isize, int minmatch)
 {
+	REAL_MINMATCH = minmatch;
+
     void* ctx = LZ4HC_Create((const BYTE*)source);
     int result = LZ4_compressHCCtx(ctx, source, dest, isize);
     LZ4HC_Free (&ctx);
@@ -727,4 +764,9 @@ int LZ4_compressHC(const char* source,
     return result;
 }
 
-
+int LZ4_compressHC(const char* source, 
+                 char* dest,
+                 int isize)
+{
+	return LZ4_compressHCMinMatch(source, dest, isize, MINMATCH);
+}
