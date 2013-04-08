@@ -6,11 +6,11 @@
 #include "ImageMaskWriter.hpp"
 #include "EntropyEncoder.hpp"
 #include "FilterScorer.hpp"
+#include "Filters.hpp"
 
 namespace cat {
 
 
-static const int FILTER_ZONE_SIZE = 4;
 static const int FILTER_MATCH_FUZZ = 20;
 
 //#define CAT_FILTER_LZ
@@ -56,7 +56,7 @@ class ImageFilterWriter {
 	}
 #endif
 
-	bool init(int width, int height);
+	int init(int width, int height);
 #ifdef CAT_FILTER_LZ
 	void makeLZmask();
 #endif
@@ -96,11 +96,15 @@ public:
 	}
 
 	CAT_INLINE void setFilter(int x, int y, u16 filter) {
-		_matrix[(x / FILTER_ZONE_SIZE) + (y / FILTER_ZONE_SIZE) * _w] = filter;
+		const int filterX = x >> FILTER_ZONE_SIZE_SHIFT;
+		const int filterY = y >> FILTER_ZONE_SIZE_SHIFT;
+		_matrix[filterX + filterY * _w] = filter;
 	}
 
 	CAT_INLINE u16 getFilter(int x, int y) {
-		return _matrix[(x / FILTER_ZONE_SIZE) + (y / FILTER_ZONE_SIZE) * _w];
+		const int filterX = x >> FILTER_ZONE_SIZE_SHIFT;
+		const int filterY = y >> FILTER_ZONE_SIZE_SHIFT;
+		return _matrix[filterX + filterY * _w];
 	}
 
 	int initFromRGBA(u8 *rgba, int width, int height, ImageMaskWriter &mask);

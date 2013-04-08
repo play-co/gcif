@@ -2,6 +2,7 @@
 #include "EndianNeutral.hpp"
 #include "BitMath.hpp"
 #include "HuffmanDecoder.hpp"
+#include "Filters.hpp"
 
 #ifdef CAT_COLLECT_STATS
 #include "Log.hpp"
@@ -439,13 +440,23 @@ bool ImageMaskReader::decodeLZ(HuffmanDecoder &decoder, ImageReader &reader) {
 	return true;
 }
 
-bool ImageMaskReader::init(const ImageInfo *info) {
+int ImageMaskReader::init(const ImageInfo *info) {
 	clear();
 
-	_stride = (info->width + 31) >> 5;
-	_width = info->width;
-	_height = info->height;
+	const int FSZ = FILTER_ZONE_SIZE;
 
+	if (info->width % FSZ != 0 || info->height % FSZ != 0) {
+		return RE_BAD_DIMS;
+	}
+
+	int maskWidth = info->width / FSZ;
+	int maskHeight = info->height / FSZ;
+
+	_stride = (maskWidth + 31) >> 5;
+	_width = maskWidth;
+	_height = maskHeight;
+
+	// TODO: Reuse these buffers
 	_mask = new u32[_stride * _height];
 	_row = _mask;
 
@@ -460,7 +471,7 @@ bool ImageMaskReader::init(const ImageInfo *info) {
 	_bitOn = true;
 	_writeRow = 0;
 
-	return true;
+	return RE_OK;
 }
 
 int ImageMaskReader::read(ImageReader &reader) {
@@ -473,8 +484,10 @@ int ImageMaskReader::read(ImageReader &reader) {
 	double t0 = m_clock->usec();
 #endif // CAT_COLLECT_STATS
 
-	if (!init(reader.getImageInfo())) {
-		return RE_MASK_INIT;
+	int err;
+
+	if ((err = init(reader.getImageInfo()))) {
+		return err;
 	}
 
 #ifdef CAT_COLLECT_STATS

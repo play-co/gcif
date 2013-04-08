@@ -3,6 +3,7 @@
 
 #include "Platform.hpp"
 #include "ImageWriter.hpp"
+#include "Filters.hpp"
 
 #include <vector>
 
@@ -59,8 +60,10 @@ public:
 	void write(ImageWriter &writer);
 
 	CAT_INLINE bool hasRGB(int x, int y) {
-		const u32 word = _mask[(x >> 5) + y * _stride];
-		return (word << (x & 31)) >> 31;
+		const int maskX = x >> FILTER_ZONE_SIZE_SHIFT;
+		const int maskY = y >> FILTER_ZONE_SIZE_SHIFT;
+		const u32 word = _mask[(maskX >> 5) + maskY * _stride];
+		return (word << (maskX & 31)) >> 31;
 	}
 
 #ifdef CAT_COLLECT_STATS

@@ -88,15 +88,15 @@ void ImageFilterWriter::clear() {
 	}
 }
 
-bool ImageFilterWriter::init(int width, int height) {
+int ImageFilterWriter::init(int width, int height) {
 	clear();
 
 	if (width < FILTER_ZONE_SIZE || height < FILTER_ZONE_SIZE) {
-		return false;
+		return WE_BAD_DIMS;
 	}
 
-	if ((width % FILTER_ZONE_SIZE) != 0 || (height % FILTER_ZONE_SIZE) != 0) {
-		return false;
+	if ((width & FILTER_ZONE_SIZE_MASK) || (height & FILTER_ZONE_SIZE_MASK)) {
+		return WE_BAD_DIMS;
 	}
 
 	_w = width / FILTER_ZONE_SIZE;
@@ -104,13 +104,11 @@ bool ImageFilterWriter::init(int width, int height) {
 	_matrix = new u16[_w * _h];
 	_chaos = new u8[width * 3 + 3];
 
-	return true;
+	return WE_OK;
 }
 
 void ImageFilterWriter::decideFilters() {
 	u16 *filterWriter = _matrix;
-
-	static const int FSZ = FILTER_ZONE_SIZE;
 
 	EntropyEstimator<u8> ee[3];
 	ee[0].clear(256);
@@ -123,8 +121,8 @@ void ImageFilterWriter::decideFilters() {
 	int compressLevel = 1;
 	const int width = _width;
 
-	for (int y = 0; y < _height; y += FSZ) {
-		for (int x = 0; x < width; x += FSZ) {
+	for (int y = 0; y < _height; y += FILTER_ZONE_SIZE) {
+		for (int x = 0; x < width; x += FILTER_ZONE_SIZE) {
 
 			// Determine best filter combination to use
 			int bestSF = 0, bestCF = 0;
@@ -134,8 +132,8 @@ void ImageFilterWriter::decideFilters() {
 				scores.reset();
 
 				// For each pixel in the 8x8 zone,
-				for (int yy = 0; yy < FSZ; ++yy) {
-					for (int xx = 0; xx < FSZ; ++xx) {
+				for (int yy = 0; yy < FILTER_ZONE_SIZE; ++yy) {
+					for (int xx = 0; xx < FILTER_ZONE_SIZE; ++xx) {
 						int px = x + xx, py = y + yy;
 						if (_mask->hasRGB(px, py)
 #ifdef CAT_FILTER_LZ
@@ -174,8 +172,8 @@ void ImageFilterWriter::decideFilters() {
 				scores.reset();
 
 				// For each pixel in the 8x8 zone,
-				for (int yy = 0; yy < FSZ; ++yy) {
-					for (int xx = 0; xx < FSZ; ++xx) {
+				for (int yy = 0; yy < FILTER_ZONE_SIZE; ++yy) {
+					for (int xx = 0; xx < FILTER_ZONE_SIZE; ++xx) {
 						int px = x + xx, py = y + yy;
 						if (_mask->hasRGB(px, py)
 #ifdef CAT_FILTER_LZ
@@ -230,8 +228,8 @@ void ImageFilterWriter::decideFilters() {
 						ee[1].setup();
 						ee[2].setup();
 
-						for (int yy = 0; yy < FSZ; ++yy) {
-							for (int xx = 0; xx < FSZ; ++xx) {
+						for (int yy = 0; yy < FILTER_ZONE_SIZE; ++yy) {
+							for (int xx = 0; xx < FILTER_ZONE_SIZE; ++xx) {
 								int px = x + xx, py = y + yy;
 								if (_mask->hasRGB(px, py)
 #ifdef CAT_FILTER_LZ
@@ -295,8 +293,6 @@ void ImageFilterWriter::applyFilters() {
 	u16 *filterWriter = _matrix;
 	const int width = _width;
 
-	static const int FSZ = FILTER_ZONE_SIZE;
-
 	vector<u8> sf_data, cf_data;
 
 	u8 sf_past = 0, cf_past = 0;
@@ -347,7 +343,7 @@ void ImageFilterWriter::applyFilters() {
 
 
 #if 0
-			if ((y % FSZ) == 0 && (x % FSZ) == 0) {
+			if (!(y & FILTER_ZONE_SIZE_MASK) && !(x & FILTER_ZONE_SIZE_MASK)) {
 				rgba[(x + y * width) * 4] = 200;
 				rgba[(x + y * width) * 4 + 1] = 200;
 				rgba[(x + y * width) * 4 + 2] = 200;
@@ -769,8 +765,10 @@ void ImageFilterWriter::makeLZmask() {
 #endif
 
 int ImageFilterWriter::initFromRGBA(u8 *rgba, int width, int height, ImageMaskWriter &mask) {
-	if (!init(width, height)) {
-		return WE_BAD_DIMS;
+	int err;
+
+	if ((err = init(width, height))) {
+		return err;
 	}
 
 	_width = width;
@@ -853,25 +851,37 @@ void ImageFilterWriter::writeFilterHuffmanTable(u8 codelens[256], ImageWriter &w
 }
 
 void ImageFilterWriter::writeFilters(ImageWriter &writer) {
-	static const int FSZ = FILTER_ZONE_SIZE;
-
 	vector<u8> data[2];
 
+	bool writing = false;
+	u8 sf_last = 0, cf_last = 0;
+
 	// For each zone,
-	for (int y = 0, height = _height; y < height; y += FSZ) {
-		for (int x = 0, width = _width; x < width; x += FSZ*2) {
+	for (int y = 0, height = _height; y < height; y += FILTER_ZONE_SIZE) {
+		for (int x = 0, width = _width; x < width; x += FILTER_ZONE_SIZE) {
 			// Encode SF and CF separately and combine consecutive filters
 			// together for the smallest representation
-			u16 filter0 = getFilter(x, y);
-			u8 cf0 = (u8)filter0;
-			u8 sf0 = (u8)(filter0 >> 8);
-			u16 filter1 = getFilter(x + FSZ, y);
-			u8 cf1 = (u8)filter1;
-			u8 sf1 = (u8)(filter1 >> 8);
+			if (!_mask->hasRGB(x, y)) {
+				u16 filter = getFilter(x, y);
+				u8 cf = (u8)filter;
+				u8 sf = (u8)(filter >> 8);
 
-			data[0].push_back((sf1 << 4) | sf0);
-			data[1].push_back((cf1 << 4) | cf0);
+				if (writing) {
+					data[0].push_back((sf << 4) | sf_last);
+					data[1].push_back((cf << 4) | cf_last);
+				} else {
+					sf_last = sf;
+					cf_last = cf;
+				}
+
+				writing = !writing;
+			}
 		}
+	}
+
+	if (writing) {
+		data[0].push_back(sf_last);
+		data[1].push_back(cf_last);
 	}
 
 	for (int ii = 0; ii < 2; ++ii) {

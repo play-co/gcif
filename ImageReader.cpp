@@ -13,8 +13,8 @@ const char *ImageReader::ErrorString(int err) {
 			return "File header is bad";
 		case RE_BAD_DATA:	// File data is bad
 			return "File data is bad";
-		case RE_MASK_INIT:	// Mask init failed
-			return "Mask init failed";
+		case RE_BAD_DIMS:	// Bad image dimensions
+			return "Bad image dimensions";
 		case RE_MASK_CODES:	// Mask codelen read failed
 			return "Mask codelen read failed";
 		case RE_MASK_DECI:	// Mask decode init failed

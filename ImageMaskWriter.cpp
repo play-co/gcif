@@ -3,6 +3,7 @@
 #include "BitMath.hpp"
 #include "HuffmanEncoder.hpp"
 #include "HuffmanDecoder.hpp"
+#include "Filters.hpp"
 
 #ifdef CAT_COLLECT_STATS
 #include "Log.hpp"
@@ -94,13 +95,20 @@ int ImageMaskWriter::initFromRGBA(u8 *rgba, int width, int height) {
 		return WE_BAD_DIMS;
 	}
 
+	if ((width & FILTER_ZONE_SIZE_MASK) || (height & FILTER_ZONE_SIZE_MASK)) {
+		return WE_BAD_DIMS;
+	}
+
 	clear();
 
+	int maskWidth = width >> FILTER_ZONE_SIZE_SHIFT;
+	int maskHeight = height >> FILTER_ZONE_SIZE_SHIFT;
+
 	// Init mask bitmatrix
-	_width = width;
-	_stride = (width + 31) >> 5;
-	_size = height * _stride;
-	_height = height;
+	_width = maskWidth;
+	_stride = (maskWidth + 31) >> 5;
+	_size = maskHeight * _stride;
+	_height = maskHeight;
 	_mask = new u32[_size];
 	_filtered = new u32[_size];
 
@@ -111,6 +119,53 @@ int ImageMaskWriter::initFromRGBA(u8 *rgba, int width, int height) {
 	u32 *writer = _mask;
 
 	// Set from full-transparent alpha:
+
+	// For each block,
+	const u8 *alpha = (const u8*)&rgba[0] + 3;
+	for (int y = 0; y < _height; ++y) {
+		const u8 *row = alpha;
+		u32 bits = 0;
+		int filled = 0;
+
+		for (int x = 0; x < _stride; ++x) {
+			const u8 *col = row;
+
+			// For each block pixel,
+			u32 on = 1;
+			for (int ii = 0; ii < FILTER_ZONE_SIZE; ++ii) {
+				const u8 *pixel = col;
+
+				for (int jj = 0; jj < FILTER_ZONE_SIZE; ++jj) {
+					if (pixel[jj * 4]) {
+						on = 0;
+						ii = FILTER_ZONE_SIZE;
+						break;
+					}
+				}
+
+				pixel += width * 4;
+			}
+
+			bits <<= 1;
+			bits |= on;
+
+			if (++filled >= 32) {
+				*writer++ = bits;
+				filled = 0;
+				bits = 0;
+			}
+
+			col += FILTER_ZONE_SIZE * 4;
+		}
+
+		if (filled > 0) {
+			*writer++ = bits;
+		}
+
+		row += width * 4 * FILTER_ZONE_SIZE;
+	}
+
+#if 0
 
 	const unsigned char *alpha = (const unsigned char*)&rgba[0] + 3;
 	for (int y = 0; y < height; ++y) {
@@ -163,6 +218,8 @@ int ImageMaskWriter::initFromRGBA(u8 *rgba, int width, int height) {
 			*writer++ = bits;
 		}
 	}
+
+#endif
 
 	// Clear RGB data from fully-transparent pixels
 

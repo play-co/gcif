@@ -8,6 +8,10 @@ namespace cat {
 
 //#define TEST_COLOR_FILTERS
 
+static const int FILTER_ZONE_SIZE = 4; // 4x4 blocks
+static const int FILTER_ZONE_SIZE_SHIFT = 2; // FZS = 2^^n
+static const int FILTER_ZONE_SIZE_MASK = FILTER_ZONE_SIZE - 1;
+
 
 //// Spatial Filters
 
