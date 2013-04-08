@@ -124,7 +124,10 @@ void ImageFilterWriter::decideFilters() {
 			int bestSF = 0, bestCF = 0;
 
 			// If filter zone has RGB data,
-			if (!_mask->hasRGB(x, y)) {
+#ifdef LOWRES_MASK
+			if (!_mask->hasRGB(x, y))
+#endif
+			{
 				// Lower compression level that is a lot faster:
 				if (compressLevel == 0) {
 					scores.reset();
@@ -133,6 +136,11 @@ void ImageFilterWriter::decideFilters() {
 					for (int yy = 0; yy < FILTER_ZONE_SIZE; ++yy) {
 						for (int xx = 0; xx < FILTER_ZONE_SIZE; ++xx) {
 							int px = x + xx, py = y + yy;
+#ifndef LOWRES_MASK
+							if (_mask->hasRGB(px, py)) {
+								continue;
+							}
+#endif
 #ifdef CAT_FILTER_LZ
 							if (!hasPixel(px, py)) {
 								continue;
@@ -169,13 +177,16 @@ void ImageFilterWriter::decideFilters() {
 					for (int yy = 0; yy < FILTER_ZONE_SIZE; ++yy) {
 						for (int xx = 0; xx < FILTER_ZONE_SIZE; ++xx) {
 							int px = x + xx, py = y + yy;
-							if (_mask->hasRGB(px, py)
-#ifdef CAT_FILTER_LZ
-									|| !hasPixel(px, py)
-#endif
-							   ) {
+#ifndef LOWRES_MASK
+							if (_mask->hasRGB(px, py)) {
 								continue;
 							}
+#endif
+#ifdef CAT_FILTER_LZ
+							if (!hasPixel(px, py)) {
+								continue;
+							}
+#endif
 
 							u8 *p = _rgba + (px + py * width) * 4;
 
@@ -225,13 +236,16 @@ void ImageFilterWriter::decideFilters() {
 							for (int yy = 0; yy < FILTER_ZONE_SIZE; ++yy) {
 								for (int xx = 0; xx < FILTER_ZONE_SIZE; ++xx) {
 									int px = x + xx, py = y + yy;
-									if (_mask->hasRGB(px, py)
-#ifdef CAT_FILTER_LZ
-											|| !hasPixel(px, py)
-#endif
-									   ) {
+#ifndef LOWRES_MASK
+									if (_mask->hasRGB(px, py)) {
 										continue;
 									}
+#endif
+#ifdef CAT_FILTER_LZ
+									if (!hasPixel(px, py)) {
+										continue;
+									}
+#endif
 
 									u8 *p = _rgba + (px + py * width) * 4;
 									const u8 *pred = spatialFilterPixel(p, sf, px, py, width);
@@ -767,7 +781,24 @@ void ImageFilterWriter::writeFilters(ImageWriter &writer) {
 		for (int x = 0, width = _width; x < width; x += FILTER_ZONE_SIZE) {
 			// Encode SF and CF separately and combine consecutive filters
 			// together for the smallest representation
-			if (!_mask->hasRGB(x, y)) {
+#ifdef LOWRES_MASK
+			if (!_mask->hasRGB(x, y))
+#else
+			bool on = false;
+
+			for (int ii = 0; ii < FILTER_ZONE_SIZE; ++ii) {
+				for (int jj = 0; jj < FILTER_ZONE_SIZE; ++jj) {
+					if (!_mask->hasRGB(x + ii, y + jj)) {
+						on = true;
+						ii = FILTER_ZONE_SIZE;
+						break;
+					}
+				}
+			}
+
+			if (on)
+#endif
+			{
 				u16 filter = getFilter(x, y);
 				u8 cf = (u8)filter;
 				u8 sf = (u8)(filter >> 8);

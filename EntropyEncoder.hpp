@@ -8,9 +8,11 @@ namespace cat {
 
 
 //#define ADAPTIVE_ZRLE
+#define ADAPTIVE_ZRLE_THRESH 10 /* percent */
+
 #define USE_AZ /* After-Zero Context (Pseudo-Order-1) */
 
-static const int FILTER_RLE_SYMS = 8; // Number of symbols set apart for zRLE
+static const int FILTER_RLE_SYMS = 128; // Number of symbols set apart for zRLE
 
 
 //// EntropyEncoder

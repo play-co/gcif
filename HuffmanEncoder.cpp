@@ -433,7 +433,7 @@ void cat::collectFreqs(int num_syms, const std::vector<u8> &lz, u16 freqs[]) {
 void cat::collectArrayFreqs(int num_syms, int data_size, u8 data[], u16 freqs[]) {
 	const int MAX_FREQ = 0xffff;
 
-	int hist[256] = {0};
+	int hist[cHuffmanMaxSupportedSyms] = {0};
 	int max_freq = 0;
 
 	// Perform histogram, and find maximum symbol count

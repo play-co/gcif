@@ -105,7 +105,7 @@ void EntropyEncoder::finalize() {
 #endif
 
 #ifdef ADAPTIVE_ZRLE
-	if (zeros * 100 / total >= 15) {
+	if (zeros * 100 / total >= ADAPTIVE_ZRLE_THRESH) {
 		usingZ = true;
 #endif
 
@@ -155,8 +155,8 @@ u32 EntropyEncoder::encode(u8 symbol, ImageWriter &writer) {
 		}
 #ifdef ADAPTIVE_ZRLE
 	} else {
-		writer.writeBits(codesBZ[symbol], codelensBZ[symbol]);
-		bits += codelensBZ[symbol];
+		writer.writeBits(codesAZ[symbol], codelensAZ[symbol]);
+		bits += codelensAZ[symbol];
 	}
 #endif
 
