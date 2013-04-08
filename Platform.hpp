@@ -657,6 +657,13 @@ template<typename T> CAT_INLINE T Bound(const T &minimum, const T &maximum, cons
 	return x;
 }
 
+// Absolute Value
+template<typename T> CAT_INLINE T AbsVal(const T &x)
+{
+	return x < 0 ? -x : x;
+}
+
+
 
 //// Miscellaneous bitwise macros ////
 
