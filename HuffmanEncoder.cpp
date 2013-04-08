@@ -387,3 +387,16 @@ bool huffman::generate_codes(u32 num_syms, const u8 *pCodesizes, u16 *pCodes) {
 	return true;
 }
 
+void generateHuffmanCodes(int num_syms, u16 freqs[], u16 codes[], u8 codelens[]) {
+	huffman::huffman_work_tables state;
+	u32 max_code_size, total_freq;
+
+	huffman::generate_huffman_codes(&state, num_syms, freqs, codelens, max_code_size, total_freq);
+
+	if (max_code_size > HuffmanDecoder::MAX_CODE_SIZE) {
+		huffman::limit_max_code_size(num_syms, codelens, HuffmanDecoder::MAX_CODE_SIZE);
+	}
+
+	huffman::generate_codes(num_syms, codelens, codes);
+}
+

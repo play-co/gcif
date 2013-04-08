@@ -34,6 +34,7 @@ namespace cat {
 
 namespace huffman {
 
+
 static const u32 cHuffmanMaxSupportedSyms = 512;
 
 struct sym_freq
@@ -56,6 +57,8 @@ struct huffman_work_tables {
 };
 
 
+//// Huffman functions from LZHAM
+
 bool generate_huffman_codes(huffman_work_tables *state, u32 num_syms, const u16 *pFreq, u8 *pCodesizes, u32 &max_code_size, u32 &total_freq_ret);
 
 bool limit_max_code_size(u32 num_syms, u8 *pCodesizes, u32 max_code_size);
@@ -64,6 +67,10 @@ bool generate_codes(u32 num_syms, const u8 *pCodesizes, u16 *pCodes);
 
 
 } // namespace huffman
+
+
+void generateHuffmanCodes(int num_syms, u16 freqs[], u16 codes[], u8 codelens[]);
+
 
 } // namespace cat
 

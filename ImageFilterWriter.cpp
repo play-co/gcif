@@ -90,19 +90,6 @@ static void collectFreqs(const std::vector<u8> &lz, u16 freqs[256]) {
 	}
 }
 
-static void generateHuffmanCodes(int num_syms, u16 freqs[], u16 codes[], u8 codelens[]) {
-	huffman::huffman_work_tables state;
-	u32 max_code_size, total_freq;
-
-	huffman::generate_huffman_codes(&state, num_syms, freqs, codelens, max_code_size, total_freq);
-
-	if (max_code_size > HuffmanDecoder::MAX_CODE_SIZE) {
-		huffman::limit_max_code_size(num_syms, codelens, HuffmanDecoder::MAX_CODE_SIZE);
-	}
-
-	huffman::generate_codes(num_syms, codelens, codes);
-}
-
 static int calcBits(vector<u8> &lz, u8 codelens[256]) {
 	int bits = 0;
 
@@ -1767,10 +1754,10 @@ void ImageFilterWriter::applyFilters() {
 		}
 	}
 
-	cout << "SF data bytes = " << sf_data.size() / 2 << endl;
-	cout << "CF data bytes = " << cf_data.size() / 2 << endl;
+	cout << "SF data bytes = " << sf_data.size() << endl;
+	cout << "CF data bytes = " << cf_data.size() << endl;
 
-#if 1
+#if 0
 	vector<u8> lz_sf, lz_cf;
 
 	lz_sf.resize(LZ4_compressBound(static_cast<int>( sf_data.size() )));
@@ -1781,34 +1768,37 @@ void ImageFilterWriter::applyFilters() {
 
 	cout << "LZ SF data bytes = " << lz_sf.size() << endl;
 	cout << "LZ CF data bytes = " << lz_cf.size() << endl;
+#else
+#define lz_sf sf_data
+#define lz_cf cf_data
 #endif
 
 	{
 		u16 freq[256];
 
-		collectFreqs(sf_data, freq);
+		collectFreqs(lz_sf, freq);
 
 		u16 codes[256];
 		u8 lens[256];
 		generateHuffmanCodes(256, freq, codes, lens);
 
-		int bits_overhead = calcBits(sf_data, lens);
+		int bits_overhead = calcBits(lz_sf, lens);
 
-		cout << "Huffman LZ SF bytes = " << bits_overhead / 8 << endl;
+		cout << "Compressed SF bytes = " << bits_overhead / 8 << endl;
 	}
 
 	{
 		u16 freq[256];
 
-		collectFreqs(cf_data, freq);
+		collectFreqs(lz_cf, freq);
 
 		u16 codes[256];
 		u8 lens[256];
 		generateHuffmanCodes(256, freq, codes, lens);
 
-		int bits_overhead = calcBits(cf_data, lens);
+		int bits_overhead = calcBits(lz_cf, lens);
 
-		cout << "Huffman LZ CF bytes = " << bits_overhead / 8 << endl;
+		cout << "Compressed CF bytes = " << bits_overhead / 8 << endl;
 	}
 }
 
@@ -1863,228 +1853,10 @@ static const u8 CHAOS_TABLE[512] = {
 
 
 
-//#define ADAPTIVE_ZRLE
-#define USE_AZ
-
-
-class EntropyEncoder {
-	static const int BZ_SYMS = 256 + FILTER_RLE_SYMS;
-#ifdef USE_AZ
-	static const int AZ_SYMS = 256;
-#endif
-
-	u32 histBZ[BZ_SYMS], maxBZ;
-#ifdef USE_AZ
-	u32 histAZ[AZ_SYMS], maxAZ;
-#endif
-	u32 zeroRun;
-
-#ifdef ADAPTIVE_ZRLE
-	u32 zeros, total;
-	bool usingZ;
-#endif
-
-	u16 codesBZ[BZ_SYMS];
-	u8 codelensBZ[BZ_SYMS];
-
-#ifdef USE_AZ
-	u16 codesAZ[AZ_SYMS];
-	u8 codelensAZ[AZ_SYMS];
-#endif
-
-	void endSymbols() {
-		if (zeroRun > 0) {
-			if (zeroRun < FILTER_RLE_SYMS) {
-				histBZ[255 + zeroRun]++;
-			} else {
-				histBZ[BZ_SYMS - 1]++;
-			}
-
-			zeroRun = 0;
-		}
-	}
-
-	void normalizeFreqs(u32 max_freq, int num_syms, u32 hist[], u16 freqs[]) {
-		static const int MAX_FREQ = 0xffff;
-
-		// Scale to fit in 16-bit frequency counter
-		while (max_freq > MAX_FREQ) {
-			// For each symbol,
-			for (int ii = 0; ii < num_syms; ++ii) {
-				int count = hist[ii];
-
-				// If it exists,
-				if (count) {
-					count >>= 1;
-
-					// Do not let it go to zero if it is actually used
-					if (!count) {
-						count = 1;
-					}
-				}
-			}
-
-			// Update max
-			max_freq >>= 1;
-		}
-
-		// Store resulting scaled histogram
-		for (int ii = 0; ii < num_syms; ++ii) {
-			freqs[ii] = static_cast<u16>( hist[ii] );
-		}
-	}
-
-public:
-	CAT_INLINE EntropyEncoder() {
-		reset();
-	}
-	CAT_INLINE virtual ~EntropyEncoder() {
-	}
-
-	void reset() {
-		CAT_OBJCLR(histBZ);
-		maxBZ = 0;
-#ifdef USE_AZ
-		CAT_OBJCLR(histAZ);
-		maxAZ = 0;
-#endif
-		zeroRun = 0;
-#ifdef ADAPTIVE_ZRLE
-		zeros = 0;
-		total = 0;
-#endif
-	}
-
-	void push(u8 symbol) {
-#ifdef ADAPTIVE_ZRLE
-		++total;
-#endif
-		if (symbol == 0) {
-			++zeroRun;
-#ifdef ADAPTIVE_ZRLE
-			++zeros;
-#endif
-		} else {
-			if (zeroRun > 0) {
-				if (zeroRun < FILTER_RLE_SYMS) {
-					histBZ[255 + zeroRun]++;
-				} else {
-					histBZ[BZ_SYMS - 1]++;
-				}
-
-				zeroRun = 0;
-#ifdef USE_AZ
-				histAZ[symbol]++;
-#else
-				histBZ[symbol]++;
-#endif
-			} else {
-				histBZ[symbol]++;
-			}
-		}
-	}
-
-	void finalize() {
-#ifdef ADAPTIVE_ZRLE
-		if (total == 0) {
-			return;
-		}
-#endif
-
-		endSymbols();
-
-		u16 freqBZ[BZ_SYMS];
-#ifdef USE_AZ
-		u16 freqAZ[AZ_SYMS];
-#endif
-
-#ifdef ADAPTIVE_ZRLE
-		if (zeros * 100 / total >= 15) {
-			usingZ = true;
-#endif
-
-			normalizeFreqs(maxBZ, BZ_SYMS, histBZ, freqBZ);
-			generateHuffmanCodes(BZ_SYMS, freqBZ, codesBZ, codelensBZ);
-#ifdef ADAPTIVE_ZRLE
-		} else {
-			usingZ = false;
-
-			histAZ[0] = zeros;
-			u32 maxAZ = 0;
-			for (int ii = 1; ii < AZ_SYMS; ++ii) {
-				histAZ[ii] += histBZ[ii];
-			}
-		}
-#endif
-
-#ifdef USE_AZ
-		normalizeFreqs(maxAZ, AZ_SYMS, histAZ, freqAZ);
-		generateHuffmanCodes(AZ_SYMS, freqAZ, codesAZ, codelensAZ);
-#endif
-	}
-
-	u32 encode(u8 symbol) {
-		u32 bits = 0;
-
-#ifdef ADAPTIVE_ZRLE
-		if (usingZ) {
-#endif
-			if (symbol == 0) {
-				++zeroRun;
-			} else {
-				if (zeroRun > 0) {
-					if (zeroRun < FILTER_RLE_SYMS) {
-						bits = codelensBZ[255 + zeroRun];
-					} else {
-						bits = codelensBZ[BZ_SYMS - 1] + 4; // estimated
-					}
-
-					zeroRun = 0;
-#ifdef USE_AZ
-					bits += codelensAZ[symbol];
-#else
-					bits += codelensBZ[symbol];
-#endif
-				} else {
-					bits += codelensBZ[symbol];
-				}
-			}
-#ifdef ADAPTIVE_ZRLE
-		} else {
-			bits += codelensAZ[symbol];
-		}
-#endif
-
-		return bits;
-	}
-
-	u32 encodeFinalize() {
-		u32 bits = 0;
-
-#ifdef ADAPTIVE_ZRLE
-		if (usingZ) {
-#endif
-			if (zeroRun > 0) {
-				if (zeroRun < FILTER_RLE_SYMS) {
-					bits = codelensBZ[255 + zeroRun];
-				} else {
-					bits = codelensBZ[BZ_SYMS - 1] + 4; // estimated
-				}
-			}
-#ifdef ADAPTIVE_ZRLE
-		}
-#endif
-
-		return bits;
-	}
-};
 
 
 
-
-
-
-void ImageFilterWriter::chaosEncode() {
+void ImageFilterWriter::chaosStats() {
 #ifdef GENERATE_CHAOS_TABLE
 	GenerateChaosTable();
 #endif
@@ -2210,7 +1982,7 @@ void ImageFilterWriter::chaosEncode() {
 			now += 4;
 		}
 	}
-
+#if 0
 	for (int ii = 0; ii < 3; ++ii) {
 		for (int jj = 0; jj < 16; ++jj) {
 			bitcount[ii] += encoder[ii][jj].encodeFinalize();
@@ -2224,11 +1996,11 @@ void ImageFilterWriter::chaosEncode() {
 #ifdef CAT_FILTER_LZ
 	CAT_WARN("main") << "Estimated file size bytes: " << (bitcount[0] + bitcount[1] + bitcount[2] + Stats.lz_huff_bits) / 8 + ((3*8 + 1)*100);
 #else
-	CAT_WARN("main") << "Estimated file size bytes: " << (bitcount[0] + bitcount[1] + bitcount[2]) / 8 + ((3*8 + 1)*100);
+	CAT_WARN("main") << "Estimated file size bytes: " << (bitcount[0] + bitcount[1] + bitcount[2]) / 8 + (3*8*100);
+#endif
 #endif
 
-
-#if 1
+#if 0
 		{
 			CAT_WARN("main") << "Writing delta image file";
 
@@ -2493,8 +2265,20 @@ int ImageFilterWriter::initFromRGBA(u8 *rgba, int width, int height, ImageMaskWr
 #endif
 	decideFilters();
 	applyFilters();
-	chaosEncode();
+
+	chaosStats();
 
 	return WE_OK;
+}
+
+void ImageFilterWriter::writeFilters(ImageWriter &writer) {
+}
+
+void ImageFilterWriter::writeChaos(ImageWriter &writer) {
+}
+
+void ImageFilterWriter::write(ImageWriter &writer) {
+	writeFilters(writer);
+	writeChaos(writer);
 }
 

@@ -56,7 +56,12 @@ public:
 
 		ImageFilterWriter imageFilterWriter;
 		if ((err = imageFilterWriter.initFromRGBA(&image[0], width, height, imageMaskWriter))) {
-			CAT_WARN("main") << "Unable to generate image mask: " << ImageWriter::ErrorString(err);
+			CAT_WARN("main") << "Unable to initialize filter writer: " << ImageWriter::ErrorString(err);
+			return err;
+		}
+
+		if ((err = imageFilterWriter.write(writer))) {
+			CAT_WARN("main") << "Unable to write filter data: " << ImageWriter::ErrorString(err);
 			return err;
 		}
 
