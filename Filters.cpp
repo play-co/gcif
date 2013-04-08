@@ -102,7 +102,7 @@ u8 threeSel(int f, int c, int b, int d) {
 	return d;
 }
 
-const u8 *filterPixel(u8 *p, int sf, int x, int y, int width) {
+const u8 *cat::spatialFilterPixel(u8 *p, int sf, int x, int y, int width) {
 	static const u8 FPZ[3] = {0};
 	static u8 fpt[3]; // not thread-safe
 
@@ -432,7 +432,7 @@ const u8 *filterPixel(u8 *p, int sf, int x, int y, int width) {
 
 //// Color Filters
 
-void convertRGBtoYUV(int cf, const u8 rgb[3], u8 out[3]) {
+void cat::convertRGBtoYUV(int cf, const u8 rgb[3], u8 out[3]) {
 	const u8 R = rgb[0];
 	const u8 G = rgb[1];
 	const u8 B = rgb[2];
@@ -671,7 +671,7 @@ void convertRGBtoYUV(int cf, const u8 rgb[3], u8 out[3]) {
 	out[2] = V;
 }
 
-void convertYUVtoRGB(int cf, const u8 yuv[3], u8 out[3]) {
+void cat::convertYUVtoRGB(int cf, const u8 yuv[3], u8 out[3]) {
 	const u8 Y = yuv[0];
 	const u8 U = yuv[1];
 	const u8 V = yuv[2];

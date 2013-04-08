@@ -148,7 +148,7 @@ void ImageFilterWriter::decideFilters() {
 						u8 *p = _rgba + (px + py * width) * 4;
 
 						for (int ii = 0; ii < SF_COUNT; ++ii) {
-							const u8 *pred = filterPixel(p, ii, px, py, width);
+							const u8 *pred = spatialFilterPixel(p, ii, px, py, width);
 
 							for (int jj = 0; jj < CF_COUNT; ++jj) {
 								u8 yuv[3];
@@ -186,7 +186,7 @@ void ImageFilterWriter::decideFilters() {
 						u8 *p = _rgba + (px + py * width) * 4;
 
 						for (int ii = 0; ii < SF_COUNT; ++ii) {
-							const u8 *pred = filterPixel(p, ii, px, py, width);
+							const u8 *pred = spatialFilterPixel(p, ii, px, py, width);
 
 							for (int jj = 0; jj < CF_COUNT; ++jj) {
 								u8 sp[3] = {
@@ -240,7 +240,7 @@ void ImageFilterWriter::decideFilters() {
 								}
 
 								u8 *p = _rgba + (px + py * width) * 4;
-								const u8 *pred = filterPixel(p, sf, px, py, width);
+								const u8 *pred = spatialFilterPixel(p, sf, px, py, width);
 
 								u8 sp[3] = {
 									p[0] - pred[0],
@@ -309,7 +309,7 @@ void ImageFilterWriter::applyFilters() {
 			}
 
 			u8 *p = _rgba + (x + y * width) * 4;
-			const u8 *pred = filterPixel(p, sf, x, y, width);
+			const u8 *pred = spatialFilterPixel(p, sf, x, y, width);
 
 			filterColor(cf, p, pred, p);
 

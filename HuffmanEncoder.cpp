@@ -387,7 +387,7 @@ bool huffman::generate_codes(u32 num_syms, const u8 *pCodesizes, u16 *pCodes) {
 	return true;
 }
 
-void collectFreqs(const std::vector<u8> &lz, u16 freqs[256]) {
+void cat::collectFreqs(const std::vector<u8> &lz, u16 freqs[256]) {
 	const int NUM_SYMS = 256;
 	const int lzSize = static_cast<int>( lz.size() );
 	const int MAX_FREQ = 0xffff;
@@ -431,7 +431,7 @@ void collectFreqs(const std::vector<u8> &lz, u16 freqs[256]) {
 	}
 }
 
-void generateHuffmanCodes(int num_syms, u16 freqs[], u16 codes[], u8 codelens[]) {
+void cat::generateHuffmanCodes(int num_syms, u16 freqs[], u16 codes[], u8 codelens[]) {
 	huffman::huffman_work_tables state;
 	u32 max_code_size, total_freq;
 

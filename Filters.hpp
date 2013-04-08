@@ -53,7 +53,7 @@ enum SpatialFilters {
 };
 
 
-const u8 *filterPixel(u8 *p, int sf, int x, int y, int width);
+const u8 *spatialFilterPixel(u8 *p, int sf, int x, int y, int width);
 
 
 //// Color Filters
