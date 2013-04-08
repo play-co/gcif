@@ -77,6 +77,7 @@ public:
 
 		// For these SF = 0, CF = 1
 		int filter_bytes[2], filter_pivot[2], filter_table_bits[2];
+		int filter_compressed_bits[2];
 
 		int rleBytes, lzBytes;
 
@@ -109,6 +110,15 @@ public:
 
 	int initFromRGBA(u8 *rgba, int width, int height, ImageMaskWriter &mask);
 	void write(ImageWriter &writer);
+
+#ifdef CAT_COLLECT_STATS
+	bool dumpStats();
+#else
+	CAT_INLINE bool dumpStats() {
+		// Not implemented
+		return false;
+	}
+#endif
 };
 
 

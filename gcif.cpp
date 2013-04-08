@@ -65,6 +65,8 @@ public:
 			return err;
 		}
 
+		imageFilterWriter.dumpStats();
+
 #if 1
 		{
 			CAT_WARN("main") << "Writing post-filter image file";

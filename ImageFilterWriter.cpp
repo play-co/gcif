@@ -2,6 +2,7 @@
 #include "BitMath.hpp"
 #include "Filters.hpp"
 #include "EntropyEstimator.hpp"
+#include "Log.hpp"
 using namespace cat;
 
 #include <vector>
@@ -998,6 +999,7 @@ void ImageFilterWriter::writeFilters(ImageWriter &writer) {
 	for (int ii = 0; ii < 2; ++ii) {
 #ifdef CAT_COLLECT_STATS
 		Stats.filter_bytes[ii] = (int)data[ii].size();
+		int bitcount = 0;
 #endif
 
 		u16 freq[256];
@@ -1009,6 +1011,23 @@ void ImageFilterWriter::writeFilters(ImageWriter &writer) {
 		generateHuffmanCodes(256, freq, codes, lens);
 
 		writeFilterHuffmanTable(lens, writer, ii);
+
+		for (int jj = 0, len = (int)data[ii].size(); jj < len; ++jj) {
+			u8 symbol = data[ii][jj];
+
+			u8 bits = lens[symbol];
+			u16 code = codes[symbol];
+
+			writer.writeBits(code, bits);
+
+#ifdef CAT_COLLECT_STATS
+			bitcount += bits;
+#endif
+		}
+
+#ifdef CAT_COLLECT_STATS
+		Stats.filter_compressed_bits[ii] = bitcount;
+#endif
 	}
 }
 
@@ -1018,5 +1037,21 @@ void ImageFilterWriter::writeChaos(ImageWriter &writer) {
 void ImageFilterWriter::write(ImageWriter &writer) {
 	writeFilters(writer);
 	writeChaos(writer);
+}
+
+#ifdef CAT_COLLECT_STATS
+
+bool ImageFilterWriter::dumpStats() {
+	CAT_INFO("stats") << "(RGB Compress) Spatial Filter Table Pivot : " <<  Stats.filter_pivot[0] << " bits";
+	CAT_INFO("stats") << "(RGB Compress) Spatial Filter Table Size : " <<  Stats.filter_table_bits[0] << " bits";
+	CAT_INFO("stats") << "(RGB Compress) Spatial Filter Raw Size : " <<  Stats.filter_bytes[0] << " bytes";
+	CAT_INFO("stats") << "(RGB Compress) Spatial Filter Compressed Size : " <<  Stats.filter_compressed_bits[0] << " bits (" << Stats.filter_compressed_bits[1]/8 << " bytes)";
+
+	CAT_INFO("stats") << "(RGB Compress) Color Filter Table Pivot : " <<  Stats.filter_pivot[1] << " bits";
+	CAT_INFO("stats") << "(RGB Compress) Color Filter Table Size : " <<  Stats.filter_table_bits[1] << " bits";
+	CAT_INFO("stats") << "(RGB Compress) Color Filter Raw Size : " <<  Stats.filter_bytes[1] << " bytes";
+	CAT_INFO("stats") << "(RGB Compress) Color Filter Compressed Size : " <<  Stats.filter_compressed_bits[1] << " bits (" << Stats.filter_compressed_bits[1]/8 << " bytes)";
+
+	return true;
 }
 
