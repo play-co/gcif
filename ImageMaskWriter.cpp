@@ -98,7 +98,7 @@ void ImageMaskWriter::clear() {
 
 int ImageMaskWriter::initFromRGBA(u8 *rgba, int width, int height) {
 
-	if (!rgba || width <= 0 || height <= 0) {
+	if (!rgba || width < FILTER_ZONE_SIZE || height < FILTER_ZONE_SIZE) {
 		return WE_BAD_DIMS;
 	}
 
@@ -108,8 +108,13 @@ int ImageMaskWriter::initFromRGBA(u8 *rgba, int width, int height) {
 
 	clear();
 
-	int maskWidth = width >> FILTER_ZONE_SIZE_SHIFT;
-	int maskHeight = height >> FILTER_ZONE_SIZE_SHIFT;
+#ifdef LOWRES_MASK
+	const int maskWidth = width >> FILTER_ZONE_SIZE_SHIFT;
+	const int maskHeight = height >> FILTER_ZONE_SIZE_SHIFT;
+#else
+	const int maskWidth = width;
+	const int maskHeight = height;
+#endif
 
 	// Init mask bitmatrix
 	_width = maskWidth;
@@ -127,6 +132,8 @@ int ImageMaskWriter::initFromRGBA(u8 *rgba, int width, int height) {
 
 	// Set from full-transparent alpha:
 
+#ifdef LOWRES_MASK
+
 	// For each block,
 	const u8 *alpha = (const u8*)&rgba[0] + 3;
 	for (int y = 0; y < _height; ++y) {
@@ -137,9 +144,9 @@ int ImageMaskWriter::initFromRGBA(u8 *rgba, int width, int height) {
 		for (int x = 0; x < _width; ++x) {
 			// For each block pixel,
 			u32 on = 1;
-			for (int ii = 0; ii < FILTER_ZONE_SIZE; ++ii) {
-				const u8 *pixel = col;
 
+			const u8 *pixel = col;
+			for (int ii = 0; ii < FILTER_ZONE_SIZE; ++ii) {
 				for (int jj = 0; jj < FILTER_ZONE_SIZE; ++jj) {
 					if (pixel[jj * 4]) {
 						on = 0;
@@ -170,7 +177,7 @@ int ImageMaskWriter::initFromRGBA(u8 *rgba, int width, int height) {
 		alpha += width * 4 * FILTER_ZONE_SIZE;
 	}
 
-#if 0
+#else
 
 	const unsigned char *alpha = (const unsigned char*)&rgba[0] + 3;
 	for (int y = 0; y < height; ++y) {
@@ -483,7 +490,7 @@ void ImageMaskWriter::write(ImageWriter &writer) {
 #endif // CAT_COLLECT_STATS
 
 	u16 freqs[256];
-	collectFreqs(lz, freqs);
+	collectFreqs(256, lz, freqs);
 
 #ifdef CAT_COLLECT_STATS
 	double t4 = clock->usec();

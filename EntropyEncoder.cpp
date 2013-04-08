@@ -139,27 +139,54 @@ u32 EntropyEncoder::encode(u8 symbol, ImageWriter &writer) {
 			++zeroRun;
 		} else {
 			if (zeroRun > 0) {
-				if (zeroRun < FILTER_RLE_SYMS) {
-					bits = codelensBZ[255 + zeroRun];
-				} else {
-					bits = codelensBZ[BZ_SYMS - 1] + 4; // estimated
-				}
-
+				bits = writeZeroRun(zeroRun, writer);
 				zeroRun = 0;
 #ifdef USE_AZ
+				writer.writeBits(codesAZ[symbol], codelensAZ[symbol]);
 				bits += codelensAZ[symbol];
 #else
+				writer.writeBits(codesBZ[symbol], codelensBZ[symbol]);
 				bits += codelensBZ[symbol];
 #endif
 			} else {
+				writer.writeBits(codesBZ[symbol], codelensBZ[symbol]);
 				bits += codelensBZ[symbol];
 			}
 		}
 #ifdef ADAPTIVE_ZRLE
 	} else {
-		bits += codelensAZ[symbol];
+		writer.writeBits(codesBZ[symbol], codelensBZ[symbol]);
+		bits += codelensBZ[symbol];
 	}
 #endif
+
+	return bits;
+}
+
+int EntropyEncoder::writeZeroRun(int run, ImageWriter &writer) {
+	int bits, zsym;
+	bool rider = false;
+
+	if (run < FILTER_RLE_SYMS) {
+		zsym = 255 + run;
+	} else {
+		zsym = BZ_SYMS - 1;
+		rider = true;
+	}
+
+	writer.writeBits(codesBZ[zsym], codelensBZ[zsym]);
+	bits = codelensBZ[zsym];
+
+	if (rider) {
+		while (run >= 255) {
+			writer.writeBits(255, 8);
+			bits += 8;
+			run -= 255;
+		}
+
+		writer.writeBits(run, 8);
+		bits += 8;
+	}
 
 	return bits;
 }
@@ -171,11 +198,8 @@ u32 EntropyEncoder::encodeFinalize(ImageWriter &writer) {
 	if (usingZ) {
 #endif
 		if (zeroRun > 0) {
-			if (zeroRun < FILTER_RLE_SYMS) {
-				bits = codelensBZ[255 + zeroRun];
-			} else {
-				bits = codelensBZ[BZ_SYMS - 1] + 4; // estimated
-			}
+			bits = writeZeroRun(zeroRun, writer);
+			zeroRun = 0;
 		}
 #ifdef ADAPTIVE_ZRLE
 	}

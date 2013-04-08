@@ -387,12 +387,11 @@ bool huffman::generate_codes(u32 num_syms, const u8 *pCodesizes, u16 *pCodes) {
 	return true;
 }
 
-void cat::collectFreqs(const std::vector<u8> &lz, u16 freqs[256]) {
-	const int NUM_SYMS = 256;
+void cat::collectFreqs(int num_syms, const std::vector<u8> &lz, u16 freqs[]) {
 	const int lzSize = static_cast<int>( lz.size() );
 	const int MAX_FREQ = 0xffff;
 
-	int hist[NUM_SYMS] = {0};
+	int hist[256] = {0};
 	int max_freq = 0;
 
 	// Perform histogram, and find maximum symbol count
@@ -407,7 +406,7 @@ void cat::collectFreqs(const std::vector<u8> &lz, u16 freqs[256]) {
 	// Scale to fit in 16-bit frequency counter
 	while (max_freq > MAX_FREQ) {
 		// For each symbol,
-		for (int ii = 0; ii < NUM_SYMS; ++ii) {
+		for (int ii = 0; ii < num_syms; ++ii) {
 			int count = hist[ii];
 
 			// If it exists,
@@ -426,7 +425,49 @@ void cat::collectFreqs(const std::vector<u8> &lz, u16 freqs[256]) {
 	}
 
 	// Store resulting scaled histogram
-	for (int ii = 0; ii < NUM_SYMS; ++ii) {
+	for (int ii = 0; ii < num_syms; ++ii) {
+		freqs[ii] = static_cast<u16>( hist[ii] );
+	}
+}
+
+void cat::collectArrayFreqs(int num_syms, int data_size, u8 data[], u16 freqs[]) {
+	const int MAX_FREQ = 0xffff;
+
+	int hist[256] = {0};
+	int max_freq = 0;
+
+	// Perform histogram, and find maximum symbol count
+	for (int ii = 0; ii < data_size; ++ii) {
+		int count = ++hist[data[ii]];
+
+		if (max_freq < count) {
+			max_freq = count;
+		}
+	}
+
+	// Scale to fit in 16-bit frequency counter
+	while (max_freq > MAX_FREQ) {
+		// For each symbol,
+		for (int ii = 0; ii < num_syms; ++ii) {
+			int count = hist[ii];
+
+			// If it exists,
+			if (count) {
+				count >>= 1;
+
+				// Do not let it go to zero if it is actually used
+				if (!count) {
+					count = 1;
+				}
+			}
+		}
+
+		// Update max
+		max_freq >>= 1;
+	}
+
+	// Store resulting scaled histogram
+	for (int ii = 0; ii < num_syms; ++ii) {
 		freqs[ii] = static_cast<u16>( hist[ii] );
 	}
 }

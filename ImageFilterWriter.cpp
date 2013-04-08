@@ -71,10 +71,6 @@ static void filterColor(int cf, const u8 *p, const u8 *pred, u8 *out) {
 }
 
 
-
-
-
-
 //// ImageFilterWriter
 
 void ImageFilterWriter::clear() {
@@ -99,8 +95,8 @@ int ImageFilterWriter::init(int width, int height) {
 		return WE_BAD_DIMS;
 	}
 
-	_w = width / FILTER_ZONE_SIZE;
-	_h = height / FILTER_ZONE_SIZE;
+	_w = width >> FILTER_ZONE_SIZE_SHIFT;
+	_h = height >> FILTER_ZONE_SIZE_SHIFT;
 	_matrix = new u16[_w * _h];
 	_chaos = new u8[width * 3 + 3];
 
@@ -127,159 +123,158 @@ void ImageFilterWriter::decideFilters() {
 			// Determine best filter combination to use
 			int bestSF = 0, bestCF = 0;
 
-			// Lower compression level that is a lot faster:
-			if (compressLevel == 0) {
-				scores.reset();
+			// If filter zone has RGB data,
+			if (!_mask->hasRGB(x, y)) {
+				// Lower compression level that is a lot faster:
+				if (compressLevel == 0) {
+					scores.reset();
 
-				// For each pixel in the 8x8 zone,
-				for (int yy = 0; yy < FILTER_ZONE_SIZE; ++yy) {
-					for (int xx = 0; xx < FILTER_ZONE_SIZE; ++xx) {
-						int px = x + xx, py = y + yy;
-						if (_mask->hasRGB(px, py)
+					// For each pixel in the 8x8 zone,
+					for (int yy = 0; yy < FILTER_ZONE_SIZE; ++yy) {
+						for (int xx = 0; xx < FILTER_ZONE_SIZE; ++xx) {
+							int px = x + xx, py = y + yy;
 #ifdef CAT_FILTER_LZ
-							|| !hasPixel(px, py)
-#endif
-							) {
-							continue;
-						}
-
-						// TODO: Try setting pixels to zero that are masked out
-
-						u8 *p = _rgba + (px + py * width) * 4;
-
-						for (int ii = 0; ii < SF_COUNT; ++ii) {
-							const u8 *pred = spatialFilterPixel(p, ii, px, py, width);
-
-							for (int jj = 0; jj < CF_COUNT; ++jj) {
-								u8 yuv[3];
-								filterColor(jj, p, pred, yuv);
-								int error = scoreYUV(yuv);
-
-								scores.add(ii + jj*SF_COUNT, error);
+							if (!hasPixel(px, py)) {
+								continue;
 							}
-						}
-					}
-				}
-
-				FilterScorer::Score *best = scores.getLowest();
-
-				// Write it out
-				bestSF = best->index % SF_COUNT;
-				bestCF = best->index / SF_COUNT;
-
-			} else { // Higher compression level that uses entropy estimate:
-
-				scores.reset();
-
-				// For each pixel in the 8x8 zone,
-				for (int yy = 0; yy < FILTER_ZONE_SIZE; ++yy) {
-					for (int xx = 0; xx < FILTER_ZONE_SIZE; ++xx) {
-						int px = x + xx, py = y + yy;
-						if (_mask->hasRGB(px, py)
-#ifdef CAT_FILTER_LZ
-							|| !hasPixel(px, py)
 #endif
-						   ) {
-							continue;
-						}
 
-						u8 *p = _rgba + (px + py * width) * 4;
+							u8 *p = _rgba + (px + py * width) * 4;
 
-						for (int ii = 0; ii < SF_COUNT; ++ii) {
-							const u8 *pred = spatialFilterPixel(p, ii, px, py, width);
+							for (int ii = 0; ii < SF_COUNT; ++ii) {
+								const u8 *pred = spatialFilterPixel(p, ii, px, py, width);
 
-							for (int jj = 0; jj < CF_COUNT; ++jj) {
-								u8 sp[3] = {
-									p[0] - pred[0],
-									p[1] - pred[1],
-									p[2] - pred[2]
-								};
+								for (int jj = 0; jj < CF_COUNT; ++jj) {
+									u8 yuv[3];
+									filterColor(jj, p, pred, yuv);
+									int error = scoreYUV(yuv);
 
-								u8 yuv[3];
-								convertRGBtoYUV(jj, sp, yuv);
-
-								int error = scoreYUV(yuv);
-
-								scores.add(ii + SF_COUNT*jj, error);
-							}
-						}
-					}
-				}
-
-
-				FilterScorer::Score *lowest = scores.getLowest();
-
-				if (lowest->score <= 4) {
-					bestSF = lowest->index % SF_COUNT;
-					bestCF = lowest->index / SF_COUNT;
-				} else {
-					const int TOP_COUNT = FILTER_MATCH_FUZZ;
-
-					FilterScorer::Score *top = scores.getTop(TOP_COUNT);
-
-					double bestScore = 0;
-
-					for (int ii = 0; ii < TOP_COUNT; ++ii) {
-						// Write it out
-						u8 sf = top[ii].index % SF_COUNT;
-						u8 cf = top[ii].index / SF_COUNT;
-
-						ee[0].setup();
-						ee[1].setup();
-						ee[2].setup();
-
-						for (int yy = 0; yy < FILTER_ZONE_SIZE; ++yy) {
-							for (int xx = 0; xx < FILTER_ZONE_SIZE; ++xx) {
-								int px = x + xx, py = y + yy;
-								if (_mask->hasRGB(px, py)
-#ifdef CAT_FILTER_LZ
-										|| !hasPixel(px, py)
-#endif
-								   ) {
-									continue;
+									scores.add(ii + jj*SF_COUNT, error);
 								}
-
-								u8 *p = _rgba + (px + py * width) * 4;
-								const u8 *pred = spatialFilterPixel(p, sf, px, py, width);
-
-								u8 sp[3] = {
-									p[0] - pred[0],
-									p[1] - pred[1],
-									p[2] - pred[2]
-								};
-
-								u8 yuv[3];
-								convertRGBtoYUV(cf, sp, yuv);
-
-								ee[0].push(yuv[0]);
-								ee[1].push(yuv[1]);
-								ee[2].push(yuv[2]);
 							}
 						}
+					}
 
-						double score = ee[0].entropy() + ee[1].entropy() + ee[2].entropy();
-						if (ii == 0) {
-							bestScore = score;
-							bestSF = sf;
-							bestCF = cf;
-							ee[0].save();
-							ee[1].save();
-							ee[2].save();
-						} else {
-							if (score < bestScore) {
+					FilterScorer::Score *best = scores.getLowest();
+
+					// Write it out
+					bestSF = best->index % SF_COUNT;
+					bestCF = best->index / SF_COUNT;
+
+				} else { // Higher compression level that uses entropy estimate:
+
+					scores.reset();
+
+					// For each pixel in the 8x8 zone,
+					for (int yy = 0; yy < FILTER_ZONE_SIZE; ++yy) {
+						for (int xx = 0; xx < FILTER_ZONE_SIZE; ++xx) {
+							int px = x + xx, py = y + yy;
+							if (_mask->hasRGB(px, py)
+#ifdef CAT_FILTER_LZ
+									|| !hasPixel(px, py)
+#endif
+							   ) {
+								continue;
+							}
+
+							u8 *p = _rgba + (px + py * width) * 4;
+
+							for (int ii = 0; ii < SF_COUNT; ++ii) {
+								const u8 *pred = spatialFilterPixel(p, ii, px, py, width);
+
+								for (int jj = 0; jj < CF_COUNT; ++jj) {
+									u8 sp[3] = {
+										p[0] - pred[0],
+										p[1] - pred[1],
+										p[2] - pred[2]
+									};
+
+									u8 yuv[3];
+									convertRGBtoYUV(jj, sp, yuv);
+
+									int error = scoreYUV(yuv);
+
+									scores.add(ii + SF_COUNT*jj, error);
+								}
+							}
+						}
+					}
+
+
+					FilterScorer::Score *lowest = scores.getLowest();
+
+					if (lowest->score <= 4) {
+						bestSF = lowest->index % SF_COUNT;
+						bestCF = lowest->index / SF_COUNT;
+					} else {
+						const int TOP_COUNT = FILTER_MATCH_FUZZ;
+
+						FilterScorer::Score *top = scores.getTop(TOP_COUNT);
+
+						double bestScore = 0;
+
+						for (int ii = 0; ii < TOP_COUNT; ++ii) {
+							// Write it out
+							u8 sf = top[ii].index % SF_COUNT;
+							u8 cf = top[ii].index / SF_COUNT;
+
+							ee[0].setup();
+							ee[1].setup();
+							ee[2].setup();
+
+							for (int yy = 0; yy < FILTER_ZONE_SIZE; ++yy) {
+								for (int xx = 0; xx < FILTER_ZONE_SIZE; ++xx) {
+									int px = x + xx, py = y + yy;
+									if (_mask->hasRGB(px, py)
+#ifdef CAT_FILTER_LZ
+											|| !hasPixel(px, py)
+#endif
+									   ) {
+										continue;
+									}
+
+									u8 *p = _rgba + (px + py * width) * 4;
+									const u8 *pred = spatialFilterPixel(p, sf, px, py, width);
+
+									u8 sp[3] = {
+										p[0] - pred[0],
+										p[1] - pred[1],
+										p[2] - pred[2]
+									};
+
+									u8 yuv[3];
+									convertRGBtoYUV(cf, sp, yuv);
+
+									ee[0].push(yuv[0]);
+									ee[1].push(yuv[1]);
+									ee[2].push(yuv[2]);
+								}
+							}
+
+							double score = ee[0].entropy() + ee[1].entropy() + ee[2].entropy();
+							if (ii == 0) {
+								bestScore = score;
 								bestSF = sf;
 								bestCF = cf;
 								ee[0].save();
 								ee[1].save();
 								ee[2].save();
-								bestScore = score;
+							} else {
+								if (score < bestScore) {
+									bestSF = sf;
+									bestCF = cf;
+									ee[0].save();
+									ee[1].save();
+									ee[2].save();
+									bestScore = score;
+								}
 							}
 						}
-					}
 
-					ee[0].commit();
-					ee[1].commit();
-					ee[2].commit();
+						ee[0].commit();
+						ee[1].commit();
+						ee[2].commit();
+					}
 				}
 			}
 
@@ -292,11 +287,6 @@ void ImageFilterWriter::decideFilters() {
 void ImageFilterWriter::applyFilters() {
 	u16 *filterWriter = _matrix;
 	const int width = _width;
-
-	vector<u8> sf_data, cf_data;
-
-	u8 sf_past = 0, cf_past = 0;
-	bool writeFlag = false;
 
 	// For each zone,
 	for (int y = _height - 1; y >= 0; --y) {
@@ -312,22 +302,6 @@ void ImageFilterWriter::applyFilters() {
 			const u8 *pred = spatialFilterPixel(p, sf, x, y, width);
 
 			filterColor(cf, p, pred, p);
-
-			if (y % FILTER_ZONE_SIZE == 0 &&
-				x % FILTER_ZONE_SIZE == 0) {
-#if 0
-				sf_data.push_back(sf);
-				cf_data.push_back(cf);
-#else
-				if (writeFlag) {
-					sf_data.push_back((sf << 4) | sf_past);
-					cf_data.push_back((cf << 4) | cf_past);
-				}
-				sf_past = sf;
-				cf_past = cf;
-				writeFlag = !writeFlag;
-#endif
-			}
 
 #if 0
 			p[0] = p[0];
@@ -350,53 +324,6 @@ void ImageFilterWriter::applyFilters() {
 			}
 #endif
 		}
-	}
-
-	cout << "SF data bytes = " << sf_data.size() << endl;
-	cout << "CF data bytes = " << cf_data.size() << endl;
-
-#if 0
-	vector<u8> lz_sf, lz_cf;
-
-	lz_sf.resize(LZ4_compressBound(static_cast<int>( sf_data.size() )));
-	lz_sf.resize(LZ4_compressHC((char*)&sf_data[0], (char*)&lz_sf[0], sf_data.size()));
-
-	lz_cf.resize(LZ4_compressBound(static_cast<int>( cf_data.size() )));
-	lz_cf.resize(LZ4_compressHC((char*)&cf_data[0], (char*)&lz_cf[0], cf_data.size()));
-
-	cout << "LZ SF data bytes = " << lz_sf.size() << endl;
-	cout << "LZ CF data bytes = " << lz_cf.size() << endl;
-#else
-#define lz_sf sf_data
-#define lz_cf cf_data
-#endif
-
-	{
-		u16 freq[256];
-
-		collectFreqs(lz_sf, freq);
-
-		u16 codes[256];
-		u8 lens[256];
-		generateHuffmanCodes(256, freq, codes, lens);
-
-		int bits_overhead = calcBits(lz_sf, lens);
-
-		cout << "Compressed SF bytes = " << bits_overhead / 8 << endl;
-	}
-
-	{
-		u16 freq[256];
-
-		collectFreqs(lz_cf, freq);
-
-		u16 codes[256];
-		u8 lens[256];
-		generateHuffmanCodes(256, freq, codes, lens);
-
-		int bits_overhead = calcBits(lz_cf, lens);
-
-		cout << "Compressed CF bytes = " << bits_overhead / 8 << endl;
 	}
 }
 
@@ -462,8 +389,10 @@ void ImageFilterWriter::chaosStats() {
 	int bitcount[3] = {0};
 	const int width = _width;
 
+#ifdef FUZZY_CHAOS
 	u8 *last_chaos = _chaos;
 	CAT_CLR(last_chaos, width * 3 + 3);
+#endif
 
 	u8 *last = _rgba;
 	u8 *now = _rgba;
@@ -472,7 +401,9 @@ void ImageFilterWriter::chaosStats() {
 
 	for (int y = 0; y < _height; ++y) {
 		u8 left_rgb[3] = {0};
+#ifdef FUZZY_CHAOS
 		u8 *last_chaos_read = last_chaos + 3;
+#endif
 
 		for (int x = 0; x < width; ++x) {
 			u16 chaos[3] = {left_rgb[0], left_rgb[1], left_rgb[2]};
@@ -486,7 +417,7 @@ void ImageFilterWriter::chaosStats() {
 			chaos[0] = CHAOS_TABLE[chaos[0]];
 			chaos[1] = CHAOS_TABLE[chaos[1]];
 			chaos[2] = CHAOS_TABLE[chaos[2]];
-#if 0
+#ifdef FUZZY_CHAOS
 			u16 isum = last_chaos_read[0] + last_chaos_read[-3];
 			chaos[0] += (isum + chaos[0] + (isum >> 1)) >> 2;
 			chaos[1] += (last_chaos_read[1] + last_chaos_read[-2] + chaos[1] + (chaos[0] >> 1)) >> 2;
@@ -515,17 +446,19 @@ void ImageFilterWriter::chaosStats() {
 				}
 			}
 
+#ifdef FUZZY_CHAOS
 			last_chaos_read[0] = (chaos[0] + 1) >> 1;
 			last_chaos_read[1] = (chaos[1] + 1) >> 1;
 			last_chaos_read[2] = (chaos[2] + 1) >> 1;
 			last_chaos_read += 3;
+#endif
 
 			now += 4;
 		}
 	}
 
 	for (int ii = 0; ii < 3; ++ii) {
-		for (int jj = 0; jj < 16; ++jj) {
+		for (int jj = 0; jj < CHAOS_LEVELS; ++jj) {
 			_encoder[ii][jj].finalize();
 		}
 	}
@@ -748,7 +681,7 @@ void ImageFilterWriter::makeLZmask() {
 
 	u16 freq[256];
 
-	collectFreqs(lz_overhead, freq);
+	collectFreqs(256, lz_overhead, freq);
 
 	u16 codes[256];
 	u8 lens[256];
@@ -794,59 +727,32 @@ int ImageFilterWriter::initFromRGBA(u8 *rgba, int width, int height, ImageMaskWr
 }
 
 void ImageFilterWriter::writeFilterHuffmanTable(u8 codelens[256], ImageWriter &writer, int stats_index) {
-	vector<unsigned char> huffTable;
-
-	// Calculate sum of codelens
-	u32 sum = codelens[0];
-	for (int ii = 1; ii < 256; ++ii) {
-		sum += codelens[ii];
-	}
-
-	// Find K shift
-	sum >>= 8;
-	u32 shift = sum > 0 ? BSR32(sum) : 0;
-	u32 shiftMask = (1 << shift) - 1;
-
-	writer.writeBits(shift, 3);
+	const int HUFF_TABLE_SIZE = 256;
 
 #ifdef CAT_COLLECT_STATS
-	Stats.filter_pivot[stats_index] = shift;
-	u32 table_bits = 0;
-#endif // CAT_COLLECT_STATS
+	int bitcount = 0;
+#endif
 
-	// For each symbol,
-	for (int ii = 0; ii < huffTable.size(); ++ii) {
-		int symbol = huffTable[ii];
-		int q = symbol >> shift;
+	// Write huffman table for huffman table
+	for (int ii = 0; ii < HUFF_TABLE_SIZE; ++ii) {
+		u8 len = codelens[ii];
 
-		if CAT_UNLIKELY(q > 31) {
-			for (int ii = 0; ii < q; ++ii) {
-				writer.writeBit(1);
+		while (len >= 15) {
+			writer.writeBits(15, 4);
+			len -= 15;
 #ifdef CAT_COLLECT_STATS
-				++table_bits;
-#endif // CAT_COLLECT_STATS
-			}
-			writer.writeBit(0);
-#ifdef CAT_COLLECT_STATS
-			++table_bits;
-#endif // CAT_COLLECT_STATS
-		} else {
-			writer.writeBits((0x7fffffff >> (31 - q)) << 1, q + 1);
-#ifdef CAT_COLLECT_STATS
-			table_bits += q + 1;
-#endif // CAT_COLLECT_STATS
+			bitcount += 4;
+#endif
 		}
 
-		if (shift > 0) {
-			writer.writeBits(symbol & shiftMask, shift);
+		writer.writeBits(len, 4);
 #ifdef CAT_COLLECT_STATS
-			table_bits += shift;
-#endif // CAT_COLLECT_STATS
-		}
+		bitcount += 4;
+#endif
 	}
 
 #ifdef CAT_COLLECT_STATS
-	Stats.filter_table_bits[stats_index] = table_bits;
+	Stats.filter_table_bits[stats_index] = bitcount;
 #endif // CAT_COLLECT_STATS
 }
 
@@ -892,7 +798,7 @@ void ImageFilterWriter::writeFilters(ImageWriter &writer) {
 
 		u16 freq[256];
 
-		collectFreqs(data[ii], freq);
+		collectFreqs(256, data[ii], freq);
 
 		u16 codes[256];
 		u8 lens[256];
@@ -985,16 +891,10 @@ void ImageFilterWriter::writeChaos(ImageWriter &writer) {
 		}
 	}
 
-#ifdef CAT_COLLECT_STATS
+#if 1
 	for (int ii = 0; ii < 3; ++ii) {
-		Stats.rgb_bits[ii] = bitcount[ii];
-	}
-#endif
-
-#if 0
-	for (int ii = 0; ii < 3; ++ii) {
-		for (int jj = 0; jj < 16; ++jj) {
-			bitcount[ii] += encoder[ii][jj].encodeFinalize();
+		for (int jj = 0; jj < CHAOS_LEVELS; ++jj) {
+			bitcount[ii] += _encoder[ii][jj].encodeFinalize(writer);
 		}
 	}
 
@@ -1019,6 +919,11 @@ void ImageFilterWriter::writeChaos(ImageWriter &writer) {
 		}
 #endif
 
+#ifdef CAT_COLLECT_STATS
+	for (int ii = 0; ii < 3; ++ii) {
+		Stats.rgb_bits[ii] = bitcount[ii];
+	}
+#endif
 }
 
 void ImageFilterWriter::write(ImageWriter &writer) {
@@ -1029,15 +934,17 @@ void ImageFilterWriter::write(ImageWriter &writer) {
 #ifdef CAT_COLLECT_STATS
 
 bool ImageFilterWriter::dumpStats() {
-	CAT_INFO("stats") << "(RGB Compress) Spatial Filter Table Pivot : " <<  Stats.filter_pivot[0] << " bits";
-	CAT_INFO("stats") << "(RGB Compress) Spatial Filter Table Size : " <<  Stats.filter_table_bits[0] << " bits";
+	CAT_INFO("stats") << "(RGB Compress) Spatial Filter Table Size : " <<  Stats.filter_table_bits[0] << " bits (" << Stats.filter_table_bits[0]/8 << " bytes)";
 	CAT_INFO("stats") << "(RGB Compress) Spatial Filter Raw Size : " <<  Stats.filter_bytes[0] << " bytes";
-	CAT_INFO("stats") << "(RGB Compress) Spatial Filter Compressed Size : " <<  Stats.filter_compressed_bits[0] << " bits (" << Stats.filter_compressed_bits[1]/8 << " bytes)";
+	CAT_INFO("stats") << "(RGB Compress) Spatial Filter Compressed Size : " <<  Stats.filter_compressed_bits[0] << " bits (" << Stats.filter_compressed_bits[0]/8 << " bytes)";
 
-	CAT_INFO("stats") << "(RGB Compress) Color Filter Table Pivot : " <<  Stats.filter_pivot[1] << " bits";
-	CAT_INFO("stats") << "(RGB Compress) Color Filter Table Size : " <<  Stats.filter_table_bits[1] << " bits";
+	CAT_INFO("stats") << "(RGB Compress) Color Filter Table Size : " <<  Stats.filter_table_bits[1] << " bits (" << Stats.filter_table_bits[1]/8 << " bytes)";
 	CAT_INFO("stats") << "(RGB Compress) Color Filter Raw Size : " <<  Stats.filter_bytes[1] << " bytes";
 	CAT_INFO("stats") << "(RGB Compress) Color Filter Compressed Size : " <<  Stats.filter_compressed_bits[1] << " bits (" << Stats.filter_compressed_bits[1]/8 << " bytes)";
+
+	CAT_INFO("stats") << "(RGB Compress) Y-Channel Compressed Size : " <<  Stats.rgb_bits[0] << " bits (" << Stats.rgb_bits[0]/8 << " bytes)";
+	CAT_INFO("stats") << "(RGB Compress) U-Channel Compressed Size : " <<  Stats.rgb_bits[1] << " bits (" << Stats.rgb_bits[1]/8 << " bytes)";
+	CAT_INFO("stats") << "(RGB Compress) V-Channel Compressed Size : " <<  Stats.rgb_bits[2] << " bits (" << Stats.rgb_bits[2]/8 << " bytes)";
 
 	return true;
 }

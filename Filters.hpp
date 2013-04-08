@@ -6,7 +6,8 @@
 namespace cat {
 
 
-//#define TEST_COLOR_FILTERS
+//#define TEST_COLOR_FILTERS /* Verify color filters are reversible unit test */
+//#define LOWRES_MASK /* Use zone sized granularity for fully-transparent alpha mask */
 
 static const int FILTER_ZONE_SIZE = 4; // 4x4 blocks
 static const int FILTER_ZONE_SIZE_SHIFT = 2; // FZS = 2^^n

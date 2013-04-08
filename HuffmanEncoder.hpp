@@ -70,7 +70,8 @@ bool generate_codes(u32 num_syms, const u8 *pCodesizes, u16 *pCodes);
 } // namespace huffman
 
 
-void collectFreqs(const std::vector<u8> &lz, u16 freqs[256]);
+void collectArrayFreqs(int num_syms, int data_size, u8 data[], u16 freqs[]);
+void collectFreqs(int num_syms, const std::vector<u8> &lz, u16 freqs[]);
 void generateHuffmanCodes(int num_syms, u16 freqs[], u16 codes[], u8 codelens[]);
 
 

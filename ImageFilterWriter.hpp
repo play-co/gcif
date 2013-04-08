@@ -13,8 +13,16 @@ namespace cat {
 
 static const int FILTER_MATCH_FUZZ = 20;
 
+//#define FUZZY_CHAOS
+
 //#define CAT_FILTER_LZ
 
+
+#ifdef FUZZY_CHAOS
+static const int CHAOS_LEVELS = 16;
+#else
+static const int CHAOS_LEVELS = 8;
+#endif
 
 //// ImageFilterWriter
 
@@ -36,7 +44,7 @@ class ImageFilterWriter {
 	int _height;
 	ImageMaskWriter *_mask;
 
-	EntropyEncoder _encoder[3][16];
+	EntropyEncoder _encoder[3][CHAOS_LEVELS];
 
 #ifdef CAT_FILTER_LZ
 	CAT_INLINE bool hasR(int x, int y) {
@@ -78,7 +86,7 @@ public:
 #endif
 
 		// For these SF = 0, CF = 1
-		int filter_bytes[2], filter_pivot[2], filter_table_bits[2];
+		int filter_bytes[2], filter_table_bits[2];
 		int filter_compressed_bits[2];
 
 		// RGB data
