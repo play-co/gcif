@@ -683,8 +683,6 @@ void ImageFilterWriter::makeLZmask() {
 		u8 offset1 = lz[ii++];
 		int offset = ((u16)offset1 << 8) | offset0;
 
-		offset += deficit;
-
 		// Read match length
 		matchLength = token & 15;
 		if (matchLength == 15) {
@@ -699,6 +697,7 @@ void ImageFilterWriter::makeLZmask() {
 		}
 		matchLength += LZ_MINMATCH;
 		matchLength -= deficit;
+		//offset += deficit;
 
 		if (matchLength % 3 != 0) {
 			deficit = matchLength % 3;
@@ -723,21 +722,27 @@ void ImageFilterWriter::makeLZmask() {
 				int dx = doff % _width;
 				int dy = doff / _width;
 
-				if (_rgba[(dx + dy*_width)*4 + 0] !=
+				int boff = offset % 3;
+				int coff = 0;
+				if (boff) {
+					coff = 3 - boff;
+				}
+
+				if (_rgba[(dx + dy*_width - (boff + 2)/3)*4 + (coff + 0)%3] !=
 						_rgba[(sx + sy*_width)*4 + 0]) {
-					cout << "r";
+					cout << "LZ found a bogus match!" << endl;
 				} else {
 					//cout << ".";
 				}
-				if (_rgba[(dx + dy*_width)*4 + 1] !=
+				if (_rgba[(dx + dy*_width - (boff + 1)/3)*4 + (coff + 1)%3] !=
 						_rgba[(sx + sy*_width)*4 + 1]) {
-					cout << "g";
+					cout << "LZ found a bogus match!" << endl;
 				} else {
 					//cout << ".";
 				}
-				if (_rgba[(dx + dy*_width)*4 + 2] !=
+				if (_rgba[(dx + dy*_width - (boff + 0)/3)*4 + (coff + 2)%3] !=
 						_rgba[(sx + sy*_width)*4 + 2]) {
-					cout << "b";
+					cout << "LZ found a bogus match!" << endl;
 				} else {
 					//cout << ".";
 				}
