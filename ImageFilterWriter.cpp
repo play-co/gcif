@@ -803,6 +803,9 @@ void ImageFilterWriter::writeFilters(ImageWriter &writer) {
 void ImageFilterWriter::writeChaos(ImageWriter &writer) {
 #ifdef CAT_COLLECT_STATS
 	int overhead_bits = 0;
+#ifdef CAT_FILTER_LZ
+	int lz_overhead_bits = 0;
+#endif
 	int bitcount[3] = {0};
 #endif
 
@@ -822,6 +825,65 @@ void ImageFilterWriter::writeChaos(ImageWriter &writer) {
 
 	u8 *last = _rgba;
 	u8 *now = _rgba;
+
+#ifdef CAT_FILTER_LZ
+	const int lz_size = (int)_lz.size();
+	u8 *lz = &_lz[0];
+	u8 *lz_end = lz + lz_size;
+
+	for (;;) {
+		// Read token
+		u8 token = *lz++;
+		if CAT_UNLIKELY(lz >= lz_end) {
+			goto lz_done;
+		}
+		writer.writeBits(lz_token_codes[token], lz_token_lens[token]);
+
+		// Read literal length
+		int literalLength = token >> 4;
+		if (literalLength == 15) {
+			int s;
+			do {
+				s = *lz++;
+				writer.writeBits(lz_muck_codes[s], lz_muck_lens[s]);
+				literalLength += s;
+			} while (s == 255 && CAT_LIKELY(lz < lz_end));
+		}
+
+		// TODO: Encode next literalLength literals
+
+		// Read match offset
+		u8 offset0 = *lz++;
+		if CAT_UNLIKELY(lz >= lz_end) {
+			goto lz_done;
+		}
+		u8 offset1 = *lz++;
+		if CAT_UNLIKELY(lz >= lz_end) {
+			goto lz_done;
+		}
+		u16 woffset = ((u16)offset1 << 8) | offset0;
+		writer.writeBits(lz_muck_codes[offset0], lz_muck_lens[offset0]);
+		writer.writeBits(lz_muck_codes[offset1], lz_muck_lens[offset1]);
+
+		// Read match length
+		int matchLength = token & 15;
+		if (matchLength == 15) {
+			int s;
+			do {
+				s = *lz++;
+				writer.writeBits(lz_muck_codes[s], lz_muck_lens[s]);
+				matchLength += s;
+			} while (s == 255 && CAT_LIKELY(lz < lz_end));
+		}
+		matchLength += LZ_MINMATCH;
+
+		// No need to do anything here during encode
+	}
+
+lz_done:
+	;
+
+#else // !CAT_FILTER_LZ
 
 	for (int y = 0; y < _height; ++y) {
 		u8 left_rgb[3] = {0};
@@ -852,7 +914,7 @@ void ImageFilterWriter::writeChaos(ImageWriter &writer) {
 			chaos[0] = CHAOS_TABLE[chaos[0]];
 			chaos[1] = CHAOS_TABLE[chaos[1]];
 			chaos[2] = CHAOS_TABLE[chaos[2]];
-#if 0
+#ifdef FUZZY_CHAOS
 			u16 isum = last_chaos_read[0] + last_chaos_read[-3];
 			chaos[0] += (isum + chaos[0] + (isum >> 1)) >> 2;
 			chaos[1] += (last_chaos_read[1] + last_chaos_read[-2] + chaos[1] + (chaos[0] >> 1)) >> 2;
@@ -889,6 +951,8 @@ void ImageFilterWriter::writeChaos(ImageWriter &writer) {
 		}
 	}
 
+#endif // CAT_FILTER_LZ
+
 #ifdef CAT_COLLECT_STATS
 	for (int ii = 0; ii < 3; ++ii) {
 		Stats.rgb_bits[ii] = bitcount[ii];
@@ -912,7 +976,6 @@ void ImageFilterWriter::write(ImageWriter &writer) {
 	}
 	total += Stats.chaos_overhead_bits;
 #ifdef CAT_FILTER_LZ
-	Stats.lz_huff_bits = 0;
 	total += Stats.lz_huff_bits;
 #endif
 	Stats.total_bits = total;
