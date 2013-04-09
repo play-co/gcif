@@ -567,8 +567,6 @@ void ImageFilterWriter::makeLZmask() {
 	const int size = lz.size();
 	int ii = 0, literalLength = 0, matchLength = 0;
 
-	vector<u8> lz_tokens, lz_muck;
-
 	for (;;) {
 		// Read token
 		if (ii >= size) {
@@ -692,7 +690,7 @@ void ImageFilterWriter::makeLZmask() {
 		if (matchLength >= 15) {
 			matchLength -= 15;
 			while (matchLength >= 255) {
-				lz_muck.push_back(255);
+				_lz_muck.push_back(255);
 				matchLength -= 255;
 			}
 			_lz_muck.push_back(matchLength);
@@ -702,8 +700,8 @@ void ImageFilterWriter::makeLZmask() {
 out_of_data:
 
 #ifdef CAT_COLLECT_STATS
-	Stats.lz_token_ov = (int)lz_tokens.size();
-	Stats.lz_other_ov = (int)lz_muck.size();
+	Stats.lz_token_ov = (int)_lz_tokens.size();
+	Stats.lz_other_ov = (int)_lz_muck.size();
 #endif
 
 #if 1
@@ -719,10 +717,10 @@ out_of_data:
 
 	u16 freq[256];
 
-	collectFreqs(256, lz_tokens, freq);
+	collectFreqs(256, _lz_tokens, freq);
 	generateHuffmanCodes(256, freq, lz_token_codes, lz_token_lens);
 
-	collectFreqs(256, lz_muck, freq);
+	collectFreqs(256, _lz_muck, freq);
 	generateHuffmanCodes(256, freq, lz_muck_codes, lz_muck_lens);
 }
 
