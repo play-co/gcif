@@ -3,6 +3,7 @@
 
 #include "Platform.hpp"
 #include "ImageWriter.hpp"
+#include <vector>
 
 namespace cat {
 
@@ -11,6 +12,10 @@ namespace cat {
 #define ADAPTIVE_ZRLE_THRESH 10 /* percent */
 
 #define USE_AZ /* After-Zero Context (Pseudo-Order-1) */
+
+//#define FALLBACK_CHAOS_OVERHEAD
+//#define GOLOMB_CHAOS_OVERHEAD
+// Default is Huffman-encoded Huffman tables
 
 static const int FILTER_RLE_SYMS = 128; // Number of symbols set apart for zRLE
 
@@ -29,6 +34,9 @@ class EntropyEncoder {
 #endif
 	u32 zeroRun;
 
+	std::vector<int> runList;
+	int runListReadIndex;
+
 #ifdef ADAPTIVE_ZRLE
 	u32 zeros, total;
 	bool usingZ;
@@ -42,10 +50,12 @@ class EntropyEncoder {
 	u8 codelensAZ[AZ_SYMS];
 #endif
 
+	void reset();
+
 	void endSymbols();
 	void normalizeFreqs(u32 max_freq, int num_syms, u32 hist[], u16 freqs[]);
+
 	int writeZeroRun(int run, ImageWriter &writer);
-	void reset();
 
 public:
 	CAT_INLINE EntropyEncoder() {
@@ -57,6 +67,7 @@ public:
 	void push(u8 symbol);
 	void finalize();
 
+	u32 writeOverhead(ImageWriter &writer);
 	u32 encode(u8 symbol, ImageWriter &writer);
 	u32 encodeFinalize(ImageWriter &writer);
 };

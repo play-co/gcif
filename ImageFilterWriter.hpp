@@ -89,8 +89,12 @@ public:
 		int filter_bytes[2], filter_table_bits[2];
 		int filter_compressed_bits[2];
 
+		int chaos_overhead_bits;
+
 		// RGB data
 		int rgb_bits[3];
+
+		int total_bits;
 	} Stats;
 #endif // CAT_COLLECT_STATS
 

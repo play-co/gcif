@@ -400,7 +400,7 @@ void ImageMaskWriter::writeHuffmanTable(u8 codelens[256], ImageWriter &writer) {
 
 #ifdef CAT_COLLECT_STATS
 	Stats.pivot = shift;
-	u32 table_bits = 0;
+	u32 table_bits = 3;
 #endif // CAT_COLLECT_STATS
 
 	// For each symbol,

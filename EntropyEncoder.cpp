@@ -1,21 +1,14 @@
 #include "EntropyEncoder.hpp"
+#include "HuffmanDecoder.hpp"
 #include "HuffmanEncoder.hpp"
+#include "BitMath.hpp"
 using namespace cat;
+
+#include <vector>
+using namespace std;
 
 
 //// EntropyEncoder
-
-void EntropyEncoder::endSymbols() {
-	if (zeroRun > 0) {
-		if (zeroRun < FILTER_RLE_SYMS) {
-			histBZ[255 + zeroRun]++;
-		} else {
-			histBZ[BZ_SYMS - 1]++;
-		}
-
-		zeroRun = 0;
-	}
-}
 
 void EntropyEncoder::normalizeFreqs(u32 max_freq, int num_syms, u32 hist[], u16 freqs[]) {
 	static const int MAX_FREQ = 0xffff;
@@ -55,6 +48,7 @@ void EntropyEncoder::reset() {
 	maxAZ = 0;
 #endif
 	zeroRun = 0;
+	runList.clear();
 #ifdef ADAPTIVE_ZRLE
 	zeros = 0;
 	total = 0;
@@ -78,6 +72,7 @@ void EntropyEncoder::push(u8 symbol) {
 				histBZ[BZ_SYMS - 1]++;
 			}
 
+			runList.push_back(zeroRun);
 			zeroRun = 0;
 #ifdef USE_AZ
 			histAZ[symbol]++;
@@ -87,6 +82,20 @@ void EntropyEncoder::push(u8 symbol) {
 		} else {
 			histBZ[symbol]++;
 		}
+	}
+}
+
+void EntropyEncoder::endSymbols() {
+	if (zeroRun > 0) {
+		runList.push_back(zeroRun);
+
+		if (zeroRun < FILTER_RLE_SYMS) {
+			histBZ[255 + zeroRun]++;
+		} else {
+			histBZ[BZ_SYMS - 1]++;
+		}
+
+		zeroRun = 0;
 	}
 }
 
@@ -127,6 +136,171 @@ void EntropyEncoder::finalize() {
 	normalizeFreqs(maxAZ, AZ_SYMS, histAZ, freqAZ);
 	generateHuffmanCodes(AZ_SYMS, freqAZ, codesAZ, codelensAZ);
 #endif
+
+	runListReadIndex = 0;
+}
+
+
+#ifdef FALLBACK_CHAOS_OVERHEAD
+
+#include <iostream>
+using namespace std;
+
+static u32 writeHuffmanTable(int num_syms, u8 codelens[], ImageWriter &writer) {
+	u32 bitcount = 0;
+
+	for (int ii = 1; ii < num_syms; ++ii) {
+		u8 len = codelens[ii];
+
+		cout << (int)len << " ";
+
+		while (len >= 15) {
+			writer.writeBits(15, 4);
+			len -= 15;
+			bitcount += 4;
+		}
+
+		writer.writeBits(len, 4);
+		bitcount += 4;
+	}
+
+	cout << endl << endl;
+
+	return bitcount;
+}
+
+#elif defined(GOLOMB_CHAOS_OVERHEAD)
+
+static u32 writeHuffmanTable(int num_syms, u8 codelens[], ImageWriter &writer) {
+	vector<u8> huffTable;
+
+	// Delta-encode the Huffman codelen table
+	int lag0 = 3;
+	u32 sum = 0;
+
+	static const u32 LEN_MOD = HuffmanDecoder::MAX_CODE_SIZE + 1;
+
+	// Skip symbol 0 (never sent)
+	for (int ii = 1; ii < num_syms; ++ii) {
+		u8 symbol = ii;
+		u8 codelen = codelens[symbol];
+
+		u32 delta = (codelen - lag0) % LEN_MOD;
+		lag0 = codelen;
+
+		huffTable.push_back(delta);
+		sum += delta;
+	}
+
+	// Find K shift
+	sum >>= 8;
+	u32 shift = sum > 0 ? BSR32(sum) : 0;
+	u32 shiftMask = (1 << shift) - 1;
+
+	writer.writeBits(shift, 3);
+
+	u32 table_bits = 3;
+
+	// For each symbol,
+	for (int ii = 0; ii < huffTable.size(); ++ii) {
+		int symbol = huffTable[ii];
+		int q = symbol >> shift;
+
+		if CAT_UNLIKELY(q > 31) {
+			for (int ii = 0; ii < q; ++ii) {
+				writer.writeBit(1);
+				++table_bits;
+			}
+			writer.writeBit(0);
+			++table_bits;
+		} else {
+			writer.writeBits((0x7fffffff >> (31 - q)) << 1, q + 1);
+			table_bits += q + 1;
+		}
+
+		if (shift > 0) {
+			writer.writeBits(symbol & shiftMask, shift);
+			table_bits += shift;
+		}
+	}
+
+	return table_bits;
+}
+
+#else
+
+static u32 writeHuffmanTable(int num_syms, u8 codelens[], ImageWriter &writer) {
+	u32 bitcount = 0;
+
+	vector<u8> huffTable;
+
+	// Delta-encode the Huffman codelen table
+	u32 lag0 = 3;
+	u32 sum = 0;
+
+	static const u32 LEN_MOD = HuffmanDecoder::MAX_CODE_SIZE + 1;
+
+	// Skip symbol 0 (never sent)
+	for (int ii = 1; ii < num_syms; ++ii) {
+		u8 symbol = ii;
+		u8 codelen = codelens[symbol];
+
+		u32 delta = (codelen - lag0) % LEN_MOD;
+		lag0 = codelen;
+
+		huffTable.push_back(delta);
+		sum += delta;
+	}
+
+	const int delta_syms = LEN_MOD;
+	u16 freqs[delta_syms];
+
+	collectFreqs(delta_syms, huffTable, freqs);
+
+	u16 delta_codes[delta_syms];
+	u8 delta_codelens[delta_syms];
+
+	generateHuffmanCodes(delta_syms, freqs, delta_codes, delta_codelens);
+
+	// Write huffman table's huffman table
+	for (int ii = 0; ii < delta_syms; ++ii) {
+		u8 len = delta_codelens[ii];
+
+		while (len >= 15) {
+			writer.writeBits(15, 4);
+			len -= 15;
+			bitcount += 4;
+		}
+
+		writer.writeBits(len, 4);
+		bitcount += 4;
+	}
+
+	// Write huffman table
+	for (int ii = 0; ii < huffTable.size(); ++ii) {
+		u8 delta = huffTable[ii];
+
+		u16 code = delta_codes[delta];
+		u8 codelen = delta_codelens[delta];
+
+		writer.writeBits(code, codelen);
+		bitcount += codelen;
+	}
+
+	return bitcount;
+}
+
+#endif
+
+
+u32 EntropyEncoder::writeOverhead(ImageWriter &writer) {
+	u32 bitcount = writeHuffmanTable(BZ_SYMS, codelensBZ, writer);
+
+#ifdef USE_AZ
+	bitcount += writeHuffmanTable(AZ_SYMS, codelensAZ, writer);
+#endif
+
+	return bitcount;
 }
 
 u32 EntropyEncoder::encode(u8 symbol, ImageWriter &writer) {
@@ -136,10 +310,13 @@ u32 EntropyEncoder::encode(u8 symbol, ImageWriter &writer) {
 	if (usingZ) {
 #endif
 		if (symbol == 0) {
+			if (zeroRun == 0) {
+				int runLength = runList[runListReadIndex++];
+				bits += writeZeroRun(runLength, writer);
+			}
 			++zeroRun;
 		} else {
 			if (zeroRun > 0) {
-				bits = writeZeroRun(zeroRun, writer);
 				zeroRun = 0;
 #ifdef USE_AZ
 				writer.writeBits(codesAZ[symbol], codelensAZ[symbol]);
@@ -192,19 +369,7 @@ int EntropyEncoder::writeZeroRun(int run, ImageWriter &writer) {
 }
 
 u32 EntropyEncoder::encodeFinalize(ImageWriter &writer) {
-	u32 bits = 0;
-
-#ifdef ADAPTIVE_ZRLE
-	if (usingZ) {
-#endif
-		if (zeroRun > 0) {
-			bits = writeZeroRun(zeroRun, writer);
-			zeroRun = 0;
-		}
-#ifdef ADAPTIVE_ZRLE
-	}
-#endif
-
-	return bits;
+	// Zeroes are written up front so no need for a finalize step
+	return 0;
 }
 

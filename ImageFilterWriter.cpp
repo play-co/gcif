@@ -341,6 +341,8 @@ void ImageFilterWriter::applyFilters() {
 	}
 }
 
+
+
 //#define GENERATE_CHAOS_TABLE
 #ifdef GENERATE_CHAOS_TABLE
 static int CalculateChaos(int sum) {
@@ -747,7 +749,6 @@ void ImageFilterWriter::writeFilterHuffmanTable(u8 codelens[256], ImageWriter &w
 	int bitcount = 0;
 #endif
 
-	// Write huffman table for huffman table
 	for (int ii = 0; ii < HUFF_TABLE_SIZE; ++ii) {
 		u8 len = codelens[ii];
 
@@ -857,6 +858,20 @@ void ImageFilterWriter::writeFilters(ImageWriter &writer) {
 }
 
 void ImageFilterWriter::writeChaos(ImageWriter &writer) {
+#ifdef CAT_COLLECT_STATS
+	int overhead_bits = 0;
+	int bitcount[3] = {0};
+#endif
+
+	for (int ii = 0; ii < 3; ++ii) {
+		for (int jj = 0; jj < CHAOS_LEVELS; ++jj) {
+			int bits = _encoder[ii][jj].writeOverhead(writer);
+#ifdef CAT_COLLECT_STATS
+			overhead_bits += bits;
+#endif
+		}
+	}
+
 	const int width = _width;
 
 	u8 *last_chaos = _chaos;
@@ -864,10 +879,6 @@ void ImageFilterWriter::writeChaos(ImageWriter &writer) {
 
 	u8 *last = _rgba;
 	u8 *now = _rgba;
-
-#ifdef CAT_COLLECT_STATS
-	int bitcount[3] = {0};
-#endif
 
 	for (int y = 0; y < _height; ++y) {
 		u8 left_rgb[3] = {0};
@@ -922,44 +933,30 @@ void ImageFilterWriter::writeChaos(ImageWriter &writer) {
 		}
 	}
 
-#if 1
-	for (int ii = 0; ii < 3; ++ii) {
-		for (int jj = 0; jj < CHAOS_LEVELS; ++jj) {
-			bitcount[ii] += _encoder[ii][jj].encodeFinalize(writer);
-		}
-	}
-
-	CAT_WARN("main") << "Chaos metric R bytes: " << bitcount[0] / 8;
-	CAT_WARN("main") << "Chaos metric G bytes: " << bitcount[1] / 8;
-	CAT_WARN("main") << "Chaos metric B bytes: " << bitcount[2] / 8;
-
-#ifdef CAT_FILTER_LZ
-	CAT_WARN("main") << "Estimated file size bytes: " << (bitcount[0] + bitcount[1] + bitcount[2] + Stats.lz_huff_bits) / 8 + ((3*8 + 1)*100);
-#else
-	CAT_WARN("main") << "Estimated file size bytes: " << (bitcount[0] + bitcount[1] + bitcount[2]) / 8 + (3*8*100);
-#endif
-#endif
-
-#if 0
-		{
-			CAT_WARN("main") << "Writing delta image file";
-
-			// Convert to image:
-
-			lodepng_encode_file("chaos.png", (const unsigned char*)&test[0], _width, _height, LCT_RGB, 8);
-		}
-#endif
-
 #ifdef CAT_COLLECT_STATS
 	for (int ii = 0; ii < 3; ++ii) {
 		Stats.rgb_bits[ii] = bitcount[ii];
 	}
+	Stats.chaos_overhead_bits = overhead_bits;
 #endif
 }
 
 void ImageFilterWriter::write(ImageWriter &writer) {
 	writeFilters(writer);
 	writeChaos(writer);
+
+#ifdef CAT_COLLECT_STATS
+	int total = 0;
+	for (int ii = 0; ii < 2; ++ii) {
+		total += Stats.filter_table_bits[ii];
+		total += Stats.filter_compressed_bits[ii];
+	}
+	for (int ii = 0; ii < 3; ++ii) {
+		total += Stats.rgb_bits[ii];
+	}
+	total += Stats.chaos_overhead_bits;
+	Stats.total_bits = total;
+#endif
 }
 
 #ifdef CAT_COLLECT_STATS
@@ -976,6 +973,9 @@ bool ImageFilterWriter::dumpStats() {
 	CAT_INFO("stats") << "(RGB Compress) Y-Channel Compressed Size : " <<  Stats.rgb_bits[0] << " bits (" << Stats.rgb_bits[0]/8 << " bytes)";
 	CAT_INFO("stats") << "(RGB Compress) U-Channel Compressed Size : " <<  Stats.rgb_bits[1] << " bits (" << Stats.rgb_bits[1]/8 << " bytes)";
 	CAT_INFO("stats") << "(RGB Compress) V-Channel Compressed Size : " <<  Stats.rgb_bits[2] << " bits (" << Stats.rgb_bits[2]/8 << " bytes)";
+
+	CAT_INFO("stats") << "(RGB Compress) YUV Overhead Size : " << Stats.chaos_overhead_bits << " bits (" << Stats.chaos_overhead_bits/8 << " bytes)";
+	CAT_INFO("stats") << "(RGB Compress) Total size : " << Stats.total_bits << " bits (" << Stats.total_bits/8 << " bytes)";
 
 	return true;
 }
