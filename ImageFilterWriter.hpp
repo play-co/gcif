@@ -11,13 +11,12 @@
 namespace cat {
 
 
-static const int FILTER_MATCH_FUZZ = 20;
-
 //#define FUZZY_CHAOS
+#define CAT_FILTER_LZ
 
-//#define CAT_FILTER_LZ
 
-
+static const int LZ_MINMATCH = 12;
+static const int FILTER_MATCH_FUZZ = 20;
 #ifdef FUZZY_CHAOS
 static const int CHAOS_LEVELS = 16;
 #else
@@ -31,12 +30,6 @@ class ImageFilterWriter {
 	u16 *_matrix;
 	u8 *_chaos;
 
-#ifdef CAT_FILTER_LZ
-	std::vector<u8> _lz;
-
-	u8 *_lz_mask;
-#endif
-
 	void clear();
 
 	u8 *_rgba;
@@ -47,6 +40,15 @@ class ImageFilterWriter {
 	EntropyEncoder _encoder[3][CHAOS_LEVELS];
 
 #ifdef CAT_FILTER_LZ
+	u16 lz_token_codes[256];
+	u8 lz_token_lens[256];
+
+	u16 lz_muck_codes[256];
+	u8 lz_muck_lens[256];
+
+	std::vector<u8> _lz;
+	u8 *_lz_mask;
+
 	CAT_INLINE bool hasR(int x, int y) {
 		return _lz_mask[(x + y * _width) * 3];
 	}
@@ -62,12 +64,11 @@ class ImageFilterWriter {
 	CAT_INLINE bool hasPixel(int x, int y) {
 		return hasR(x, y) || hasG(x, y) || hasB(x, y);
 	}
+
+	void makeLZmask();
 #endif
 
 	int init(int width, int height);
-#ifdef CAT_FILTER_LZ
-	void makeLZmask();
-#endif
 	void decideFilters();
 	void applyFilters();
 	void chaosStats();
@@ -81,8 +82,7 @@ class ImageFilterWriter {
 public:
 	struct _Stats {
 #ifdef CAT_FILTER_LZ
-		u32 lz_lit_len_ov, lz_token_ov, lz_offset_ov, lz_match_len_ov, lz_overall_ov;
-		u32 lz_huff_bits;
+		int lz_token_ov, lz_other_ov, lz_huff_bits;
 #endif
 
 		// For these SF = 0, CF = 1

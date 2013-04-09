@@ -530,8 +530,6 @@ void colorSpace(u8 *rgba, int width, int height, ImageMaskWriter &mask) {
 #ifdef CAT_FILTER_LZ
 
 void ImageFilterWriter::makeLZmask() {
-	static const int MINMATCH = 20;
-
 	const int lz_mask_size = _width * _height * 3;
 	_lz_mask = new u8[lz_mask_size];
 
@@ -547,10 +545,6 @@ void ImageFilterWriter::makeLZmask() {
 				lz_input.push_back(pixel[0]);
 				lz_input.push_back(pixel[1]);
 				lz_input.push_back(pixel[2]);
-			} else {
-				writer[0] = 0;
-				writer[1] = 0;
-				writer[2] = 0;
 			}
 			writer += 3;
 			pixel += 4;
@@ -559,42 +553,7 @@ void ImageFilterWriter::makeLZmask() {
 
 	_lz.resize(LZ4_compressBound(static_cast<int>( lz_input.size() )));
 
-	_lz.resize(LZ4_compressHCMinMatch((char*)&lz_input[0], (char*)&_lz[0], lz_input.size(), MINMATCH));
-
-#if 0
-	cout << "Original data:" << endl;
-	for (int ii = 0; ii < 100; ++ii) {
-		cout << hex << (int)lz_input[ii] << dec << " ";
-	}
-	cout << endl;
-
-	cout << "LZ stream:" << endl;
-	for (int ii = 0; ii < 100; ++ii) {
-		cout << hex << (int)_lz[ii] << dec << " ";
-	}
-	cout << endl;
-
-	cout << "LZ bytes = " << _lz.size() << endl;
-
-	vector<u8> test;
-	test.resize(lz_input.size());
-
-	int result = LZ4_uncompress((char*)&_lz[0], (char*)&test[0], test.size());
-
-	if (result < 0) {
-		cout << "WARNING: Decompression test failed!  Only recovered " << result << " bytes of " << lz_input.size() << endl;
-	}
-
-	for (int ii = 0; ii < test.size(); ++ii) {
-		if (test[ii] != lz_input[ii]) {
-//			for (int jj = 0; jj < test.size(); ++jj) {
-//				cout << hex << (int)test[ii] << dec << " ";
-//			}
-			cout << "DATA MISMATCH at " << ii << " expected " << hex << (int)lz_input[ii] << dec << endl;
-			break;
-		}
-	}
-#endif
+	_lz.resize(LZ4_compressHCMinMatch((char*)&lz_input[0], (char*)&_lz[0], lz_input.size(), LZ_MINMATCH));
 
 	const int size = _lz.size();
 
@@ -602,18 +561,12 @@ void ImageFilterWriter::makeLZmask() {
 
 	u8 *lzmask = _lz_mask;
 
-	vector<u8> lz_overhead;
-
-	int lit_len_ov = 0;
-	int token_ov = 0;
-	int match_len_ov = 0;
-	int offset_ov = 0;
+	vector<u8> lz_tokens, lz_muck;
 
 	for (int ii = 0; ii < size;) {
 		// Read token
 		u8 token = _lz[ii++];
-		lz_overhead.push_back(token);
-		++token_ov;
+		lz_tokens.push_back(token);
 
 		// Read Literal Length
 		int literalLength = token >> 4;
@@ -621,9 +574,8 @@ void ImageFilterWriter::makeLZmask() {
 			int s;
 			do {
 				s = _lz[ii++];
-				lz_overhead.push_back(s);
+				lz_muck.push_back(s);
 				literalLength += s;
-				++lit_len_ov;
 			} while (s == 255 && ii < size);
 		}
 
@@ -646,22 +598,21 @@ void ImageFilterWriter::makeLZmask() {
 		u8 offset1 = _lz[ii++];
 		if (ii >= size) break;
 		u16 woffset = ((u16)offset1 << 8) | offset0;
-		lz_overhead.push_back(offset0);
-		lz_overhead.push_back(offset1);
-		offset_ov += 2;
+		lz_muck.push_back(offset0);
+		lz_muck.push_back(offset1);
 
 		// Read match length
 		int matchLength = token & 15;
+		//lz_token_lo.push_back(matchLength);
 		if (matchLength == 15) {
 			int s;
 			do {
 				s = _lz[ii++];
-				lz_overhead.push_back(s);
+				lz_muck.push_back(s);
 				matchLength += s;
-				++match_len_ov;
 			} while (s == 255 && ii < size);
 		}
-		matchLength += MINMATCH;
+		matchLength += LZ_MINMATCH;
 
 		for (int jj = 0; jj < matchLength; ++jj) {
 			while (_mask->hasRGB((moffset/3) % _width, (moffset/3) / _width)) {
@@ -672,18 +623,10 @@ void ImageFilterWriter::makeLZmask() {
 		}
 	}
 
-	cout << endl;
-
-	Stats.lz_lit_len_ov = lit_len_ov;
-	Stats.lz_token_ov = token_ov;
-	Stats.lz_match_len_ov = match_len_ov;
-	Stats.lz_offset_ov = offset_ov;
-	Stats.lz_overall_ov = (int)lz_overhead.size();
-
-	cout << "Literal length overhead = " << lit_len_ov << endl;
-	cout << "Token overhead = " << token_ov << endl;
-	cout << "Match length overhead = " << match_len_ov << endl;
-	cout << "Offset overhead = " << offset_ov << endl;
+#ifdef CAT_COLLECT_STATS
+	Stats.lz_token_ov = (int)lz_tokens.size();
+	Stats.lz_other_ov = (int)lz_muck.size();
+#endif
 
 	// NOTE: Do not need this after it works
 	while (moffset < lz_mask_size &&
@@ -697,19 +640,12 @@ void ImageFilterWriter::makeLZmask() {
 
 	u16 freq[256];
 
-	collectFreqs(256, lz_overhead, freq);
+	collectFreqs(256, lz_tokens, freq);
+	generateHuffmanCodes(256, freq, lz_token_codes, lz_token_lens);
 
-	u16 codes[256];
-	u8 lens[256];
-	generateHuffmanCodes(256, freq, codes, lens);
-
-	int bits_overhead = calcBits(lz_overhead, lens);
-	Stats.lz_huff_bits = bits_overhead;
-	Stats.lz_huff_bits = 0;
-
-	cout << "LZ overhead = " << bits_overhead/8 << endl;
+	collectFreqs(256, lz_muck, freq);
+	generateHuffmanCodes(256, freq, lz_muck_codes, lz_muck_lens);
 }
-
 
 #endif
 
@@ -955,7 +891,11 @@ void ImageFilterWriter::write(ImageWriter &writer) {
 		total += Stats.rgb_bits[ii];
 	}
 	total += Stats.chaos_overhead_bits;
+#ifdef CAT_FILTER_LZ
+	total += Stats.lz_huff_bits;
+#endif
 	Stats.total_bits = total;
+
 #endif
 }
 
@@ -969,6 +909,10 @@ bool ImageFilterWriter::dumpStats() {
 	CAT_INFO("stats") << "(RGB Compress) Color Filter Table Size : " <<  Stats.filter_table_bits[1] << " bits (" << Stats.filter_table_bits[1]/8 << " bytes)";
 	CAT_INFO("stats") << "(RGB Compress) Color Filter Raw Size : " <<  Stats.filter_bytes[1] << " bytes";
 	CAT_INFO("stats") << "(RGB Compress) Color Filter Compressed Size : " <<  Stats.filter_compressed_bits[1] << " bits (" << Stats.filter_compressed_bits[1]/8 << " bytes)";
+
+#ifdef CAT_FILTER_LZ
+	CAT_INFO("stats") << "(RGB Compress) LZ Overhead Size : " << Stats.lz_huff_bits << " bits (" << Stats.lz_huff_bits/8 << " bytes)";
+#endif
 
 	CAT_INFO("stats") << "(RGB Compress) Y-Channel Compressed Size : " <<  Stats.rgb_bits[0] << " bits (" << Stats.rgb_bits[0]/8 << " bytes)";
 	CAT_INFO("stats") << "(RGB Compress) U-Channel Compressed Size : " <<  Stats.rgb_bits[1] << " bits (" << Stats.rgb_bits[1]/8 << " bytes)";
