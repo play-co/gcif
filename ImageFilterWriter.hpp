@@ -13,6 +13,7 @@ namespace cat {
 
 //#define FUZZY_CHAOS
 #define CAT_FILTER_LZ
+//#define CHAOS_CARE_LZ
 
 
 static const int LZ_MINMATCH = 12;

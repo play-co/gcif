@@ -413,8 +413,6 @@ void ImageFilterWriter::chaosStats() {
 	u8 *last = _rgba;
 	u8 *now = _rgba;
 
-	vector<u8> test;
-
 	for (int y = 0; y < _height; ++y) {
 		u8 left_rgb[3] = {0};
 #ifdef FUZZY_CHAOS
@@ -422,11 +420,24 @@ void ImageFilterWriter::chaosStats() {
 #endif
 
 		for (int x = 0; x < width; ++x) {
-			u16 chaos[3] = {left_rgb[0], left_rgb[1], left_rgb[2]};
+			u16 chaos[3] = { 0, 0, 0 };
+#ifdef CHAOS_CARE_LZ
+			if (x <= 0 || hasPixel(x - 1, y))
+#endif
+			{
+				chaos[0] += left_rgb[0];
+				chaos[1] += left_rgb[1];
+				chaos[2] += left_rgb[2];
+			}
 			if (y > 0) {
-				chaos[0] += chaosScore(last[0]);
-				chaos[1] += chaosScore(last[1]);
-				chaos[2] += chaosScore(last[2]);
+#ifdef CHAOS_CARE_LZ
+				if (hasPixel(x, y - 1))
+#endif
+				{
+					chaos[0] += chaosScore(last[0]);
+					chaos[1] += chaosScore(last[1]);
+					chaos[2] += chaosScore(last[2]);
+				}
 				last += 4;
 			}
 
@@ -446,10 +457,6 @@ void ImageFilterWriter::chaosStats() {
 			left_rgb[1] = chaosScore(now[1]);
 			left_rgb[2] = chaosScore(now[2]);
 			{
-				test.push_back(chaos[1] * 256/8);
-				test.push_back(chaos[1] * 256/8);
-				test.push_back(chaos[1] * 256/8);
-
 				if (!_mask->hasRGB(x, y)) {
 					for (int ii = 0; ii < 3; ++ii) {
 #ifdef CAT_FILTER_LZ
@@ -478,7 +485,6 @@ void ImageFilterWriter::chaosStats() {
 			_encoder[ii][jj].finalize();
 		}
 	}
-
 }
 
 
@@ -670,6 +676,7 @@ int ImageFilterWriter::initFromRGBA(u8 *rgba, int width, int height, ImageMaskWr
 #ifdef CAT_FILTER_LZ
 	makeLZmask();
 #endif
+
 	decideFilters();
 	applyFilters();
 
@@ -821,11 +828,24 @@ void ImageFilterWriter::writeChaos(ImageWriter &writer) {
 		u8 *last_chaos_read = last_chaos + 3;
 
 		for (int x = 0; x < width; ++x) {
-			u16 chaos[3] = {left_rgb[0], left_rgb[1], left_rgb[2]};
+			u16 chaos[3] = { 0, 0, 0 };
+#ifdef CHAOS_CARE_LZ
+			if (x <= 0 || hasPixel(x - 1, y))
+#endif
+			{
+				chaos[0] += left_rgb[0];
+				chaos[1] += left_rgb[1];
+				chaos[2] += left_rgb[2];
+			}
 			if (y > 0) {
-				chaos[0] += chaosScore(last[0]);
-				chaos[1] += chaosScore(last[1]);
-				chaos[2] += chaosScore(last[2]);
+#ifdef CHAOS_CARE_LZ
+				if (hasPixel(x, y - 1))
+#endif
+				{
+					chaos[0] += chaosScore(last[0]);
+					chaos[1] += chaosScore(last[1]);
+					chaos[2] += chaosScore(last[2]);
+				}
 				last += 4;
 			}
 
@@ -892,6 +912,7 @@ void ImageFilterWriter::write(ImageWriter &writer) {
 	}
 	total += Stats.chaos_overhead_bits;
 #ifdef CAT_FILTER_LZ
+	Stats.lz_huff_bits = 0;
 	total += Stats.lz_huff_bits;
 #endif
 	Stats.total_bits = total;
