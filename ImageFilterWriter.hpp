@@ -18,6 +18,7 @@ namespace cat {
 
 static const int LZ_MINMATCH = 12; // Multiple of 3
 static const int FILTER_MATCH_FUZZ = 20;
+static const int COMPRESS_LEVEL = 0;
 #ifdef FUZZY_CHAOS
 static const int CHAOS_LEVELS = 16;
 #else

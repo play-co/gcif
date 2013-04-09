@@ -114,7 +114,7 @@ void ImageFilterWriter::decideFilters() {
 	FilterScorer scores;
 	scores.init(SF_COUNT * CF_COUNT);
 
-	int compressLevel = 1;
+	int compressLevel = COMPRESS_LEVEL;
 	const int width = _width;
 
 	for (int y = 0; y < _height; y += FILTER_ZONE_SIZE) {
@@ -648,6 +648,7 @@ void ImageFilterWriter::makeLZmask() {
 				literalLength += s;
 			} while (s == 255);
 		}
+		ii += literalLength;
 		literalLength += deficit;
 
 		if (literalLength % 3 != 0) {
@@ -711,6 +712,34 @@ void ImageFilterWriter::makeLZmask() {
 				lzmask[poff++] = 0;
 				if (poff >= 1024 * 1024) {
 					goto out_of_data;
+				}
+			}
+
+			//if (poff < 1024*3)
+			{
+				int sx = poff % _width;
+				int sy = poff / _width;
+				int doff = poff - offset / 3;
+				int dx = doff % _width;
+				int dy = doff / _width;
+
+				if (_rgba[(dx + dy*_width)*4 + 0] !=
+						_rgba[(sx + sy*_width)*4 + 0]) {
+					cout << "r";
+				} else {
+					//cout << ".";
+				}
+				if (_rgba[(dx + dy*_width)*4 + 1] !=
+						_rgba[(sx + sy*_width)*4 + 1]) {
+					cout << "g";
+				} else {
+					//cout << ".";
+				}
+				if (_rgba[(dx + dy*_width)*4 + 2] !=
+						_rgba[(sx + sy*_width)*4 + 2]) {
+					cout << "b";
+				} else {
+					//cout << ".";
 				}
 			}
 
@@ -1047,7 +1076,9 @@ bool ImageFilterWriter::writeChaos(ImageWriter &writer) {
 			{
 				if (!_mask->hasRGB(x, y)) {
 #ifdef CAT_FILTER_LZ
-					if (literalLength-- > 0) {
+					if (matchLength > 0) {
+						--matchLength;
+					} else if (literalLength-- > 0) {
 #endif
 						for (int ii = 0; ii < 3; ++ii) {
 							int bits = _encoder[ii][chaos[ii]].encode(now[ii], writer);
@@ -1056,7 +1087,7 @@ bool ImageFilterWriter::writeChaos(ImageWriter &writer) {
 #endif
 						}
 #ifdef CAT_FILTER_LZ
-					} else if (matchLength-- <= 0) {
+					} else {
 						// Write more LZ control symbols here:
 
 						// Read match offset
