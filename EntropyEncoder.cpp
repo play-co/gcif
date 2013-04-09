@@ -311,8 +311,10 @@ u32 EntropyEncoder::encode(u8 symbol, ImageWriter &writer) {
 #endif
 		if (symbol == 0) {
 			if (zeroRun == 0) {
-				int runLength = runList[runListReadIndex++];
-				bits += writeZeroRun(runLength, writer);
+				if (runListReadIndex < runList.size()) {
+					int runLength = runList[runListReadIndex++];
+					bits += writeZeroRun(runLength, writer);
+				}
 			}
 			++zeroRun;
 		} else {
@@ -341,6 +343,10 @@ u32 EntropyEncoder::encode(u8 symbol, ImageWriter &writer) {
 }
 
 int EntropyEncoder::writeZeroRun(int run, ImageWriter &writer) {
+	if (run < 0) {
+		return 0;
+	}
+
 	int bits, zsym;
 	bool rider = false;
 

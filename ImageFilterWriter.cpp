@@ -316,7 +316,6 @@ void ImageFilterWriter::applyFilters() {
 			const u8 *pred = spatialFilterPixel(p, sf, x, y, width);
 
 			filterColor(cf, p, pred, p);
-
 #if 0
 			p[0] = p[0];
 			p[1] = p[0];
@@ -331,7 +330,6 @@ void ImageFilterWriter::applyFilters() {
 
 
 #if 0
-			if (!(y & FILTER_ZONE_SIZE_MASK) && !(x & FILTER_ZONE_SIZE_MASK)) {
 				rgba[(x + y * width) * 4] = 200;
 				rgba[(x + y * width) * 4 + 1] = 200;
 				rgba[(x + y * width) * 4 + 2] = 200;
@@ -567,6 +565,70 @@ void ImageFilterWriter::makeLZmask() {
 	const int size = lz.size();
 	int ii = 0, literalLength = 0, matchLength = 0;
 
+#if 0
+
+	for (;;) {
+		// Read token
+		if (ii >= size) {
+			break;
+		}
+		u8 token = lz[ii++];
+
+		// Read Literal Length
+		literalLength = token >> 4;
+		if (literalLength == 15) {
+			int s;
+			do {
+				if (ii >= size) {
+					break;
+				}
+				s = lz[ii++];
+				literalLength += s;
+			} while (s == 255);
+		}
+
+		for (int jj = 0; jj < literalLength; ++jj) {
+			lzmask[poff++/3] = 1;
+			if (poff >= 1024*1024*3) {
+				goto out_of_data;
+			}
+		}
+
+		// Read match offset
+		if (ii >= size) {
+			break;
+		}
+		u8 offset0 = lz[ii++];
+		if (ii >= size) {
+			break;
+		}
+		u8 offset1 = lz[ii++];
+		int offset = ((u16)offset1 << 8) | offset0;
+
+		// Read match length
+		matchLength = token & 15;
+		if (matchLength == 15) {
+			int s;
+			do {
+				if (ii >= size) {
+					break;
+				}
+				s = lz[ii++];
+				matchLength += s;
+			} while (s == 255);
+		}
+		matchLength += LZ_MINMATCH;
+
+		for (int jj = 0; jj < matchLength; ++jj) {
+			lzmask[poff++/3] = 0;
+			if (poff >= 1024*1024*3) {
+				goto out_of_data;
+			}
+		}
+	}
+
+#endif
+
 	for (;;) {
 		// Read token
 		if (ii >= size) {
@@ -604,6 +666,9 @@ void ImageFilterWriter::makeLZmask() {
 			}
 
 			lzmask[poff++] = 1;
+			if (poff >= 1024 * 1024) {
+				goto out_of_data;
+			}
 		}
 
 		// Read match offset
@@ -650,11 +715,14 @@ void ImageFilterWriter::makeLZmask() {
 			}
 
 			lzmask[poff++] = 0;
+			if (poff >= 1024 * 1024) {
+				goto out_of_data;
+			}
 		}
 
 		// Rescale
 		literalLength /= 3;
-		matchLength -= LZ_MINMATCH;
+		matchLength -= LZ_MINMATCH - 3;
 		matchLength /= 3;
 		offset /= 3;
 
@@ -697,6 +765,10 @@ void ImageFilterWriter::makeLZmask() {
 		}
 	}
 
+	while (poff < 1024 * 1024 && _mask->hasRGB(poff % _width, poff / _width)) {
+		lzmask[poff++] = 0;
+	}
+
 out_of_data:
 
 #ifdef CAT_COLLECT_STATS
@@ -705,11 +777,6 @@ out_of_data:
 #endif
 
 #if 1
-	// NOTE: Do not need this after it works
-	while (poff < 1024*1024 && _mask->hasRGB(poff % _width, poff / _width)) {
-		++poff;
-	}
-
 	if (poff != 1024 * 1024) {
 		cout << ">>> Offset " << poff << " does not match expectation " << 1024*1024 << ".  There is no way this just worked!" << endl;
 	}
@@ -1025,7 +1092,7 @@ bool ImageFilterWriter::writeChaos(ImageWriter &writer) {
 								matchLength += s;
 							} while (s == 255);
 						}
-						matchLength += LZ_MINMATCH / 3;
+						matchLength += LZ_MINMATCH / 3 + 1;
 
 						// Read token
 						if CAT_UNLIKELY(lz_tokens >= lz_tokens_end) {
