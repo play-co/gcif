@@ -16,7 +16,7 @@ namespace cat {
 //#define CHAOS_CARE_LZ
 
 
-static const int LZ_MINMATCH = 12;
+static const int LZ_MINMATCH = 12; // Multiple of 3
 static const int FILTER_MATCH_FUZZ = 20;
 #ifdef FUZZY_CHAOS
 static const int CHAOS_LEVELS = 16;
@@ -47,23 +47,11 @@ class ImageFilterWriter {
 	u16 lz_muck_codes[256];
 	u8 lz_muck_lens[256];
 
-	std::vector<u8> _lz;
+	std::vector<u8> _lz_tokens, _lz_muck;
 	u8 *_lz_mask;
 
-	CAT_INLINE bool hasR(int x, int y) {
-		return _lz_mask[(x + y * _width) * 3];
-	}
-
-	CAT_INLINE bool hasG(int x, int y) {
-		return _lz_mask[(x + y * _width) * 3 + 1];
-	}
-
-	CAT_INLINE bool hasB(int x, int y) {
-		return _lz_mask[(x + y * _width) * 3 + 2];
-	}
-
 	CAT_INLINE bool hasPixel(int x, int y) {
-		return hasR(x, y) || hasG(x, y) || hasB(x, y);
+		return _lz_mask[x + y * _width];
 	}
 
 	void makeLZmask();
@@ -77,7 +65,7 @@ class ImageFilterWriter {
 	void writeFilterHuffmanTable(u8 codelens[256], ImageWriter &writer, int stats_index);
 
 	void writeFilters(ImageWriter &writer);
-	void writeChaos(ImageWriter &writer);
+	bool writeChaos(ImageWriter &writer);
 
 #ifdef CAT_COLLECT_STATS
 public:

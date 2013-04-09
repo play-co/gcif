@@ -457,14 +457,13 @@ void ImageFilterWriter::chaosStats() {
 			left_rgb[1] = chaosScore(now[1]);
 			left_rgb[2] = chaosScore(now[2]);
 			{
-				if (!_mask->hasRGB(x, y)) {
-					for (int ii = 0; ii < 3; ++ii) {
+				if (!_mask->hasRGB(x, y)
 #ifdef CAT_FILTER_LZ
-						if (_lz_mask[(x + y * _width) * 3 + ii])
+						&& hasPixel(x, y)
 #endif
-						{
-							_encoder[ii][chaos[ii]].push(now[ii]);
-						}
+						) {
+					for (int ii = 0; ii < 3; ++ii) {
+						_encoder[ii][chaos[ii]].push(now[ii]);
 					}
 				}
 			}
@@ -536,11 +535,10 @@ void colorSpace(u8 *rgba, int width, int height, ImageMaskWriter &mask) {
 #ifdef CAT_FILTER_LZ
 
 void ImageFilterWriter::makeLZmask() {
-	const int lz_mask_size = _width * _height * 3;
+	const int lz_mask_size = _width * _height;
 	_lz_mask = new u8[lz_mask_size];
 
 	u8 *pixel = _rgba;
-	u8 *writer = _lz_mask;
 	int x, y;
 
 	vector<u8> lz_input;
@@ -552,80 +550,148 @@ void ImageFilterWriter::makeLZmask() {
 				lz_input.push_back(pixel[1]);
 				lz_input.push_back(pixel[2]);
 			}
-			writer += 3;
 			pixel += 4;
 		}
 	}
 
-	_lz.resize(LZ4_compressBound(static_cast<int>( lz_input.size() )));
+	vector<u8> lz;
+	lz.resize(LZ4_compressBound(static_cast<int>( lz_input.size() )));
 
-	_lz.resize(LZ4_compressHCMinMatch((char*)&lz_input[0], (char*)&_lz[0], lz_input.size(), LZ_MINMATCH));
+	lz.resize(LZ4_compressHCMinMatch((char*)&lz_input[0], (char*)&lz[0], lz_input.size(), LZ_MINMATCH));
 
-	const int size = _lz.size();
+	// Align the LZ results
 
-	int moffset = 0;
-
+	vector<u8> lz_aligned;
 	u8 *lzmask = _lz_mask;
+	int poff = 0, deficit = 0;
+	const int size = lz.size();
+	int ii = 0, literalLength = 0, matchLength = 0;
 
 	vector<u8> lz_tokens, lz_muck;
 
-	for (int ii = 0; ii < size;) {
+	for (;;) {
 		// Read token
-		u8 token = _lz[ii++];
-		lz_tokens.push_back(token);
+		if (ii >= size) {
+			break;
+		}
+		u8 token = lz[ii++];
 
 		// Read Literal Length
-		int literalLength = token >> 4;
+		literalLength = token >> 4;
 		if (literalLength == 15) {
 			int s;
 			do {
-				s = _lz[ii++];
-				lz_muck.push_back(s);
+				if (ii >= size) {
+					break;
+				}
+				s = lz[ii++];
 				literalLength += s;
-			} while (s == 255 && ii < size);
+			} while (s == 255);
+		}
+		literalLength += deficit;
+
+		if (literalLength % 3 != 0) {
+			deficit = 3 - (literalLength % 3);
+			literalLength += deficit;
+		} else {
+			deficit = 0;
 		}
 
-		// TODO: Not good input checking
-		for (int jj = 0; jj < literalLength; ++jj) {
-			while (_mask->hasRGB((moffset/3) % _width, (moffset/3) / _width)) {
-				moffset += 3;
+		for (int jj = 0; jj < literalLength; jj += 3) {
+			while (_mask->hasRGB(poff % _width, poff / _width)) {
+				lzmask[poff++] = 0;
 			}
 
-			int symbol = _lz[ii++];
-
-			lzmask[moffset++] = 1;
+			lzmask[poff++] = 1;
 		}
 
-		if (ii >= size) break;
-
 		// Read match offset
-		u8 offset0 = _lz[ii++];
-		if (ii >= size) break;
-		u8 offset1 = _lz[ii++];
-		if (ii >= size) break;
-		u16 woffset = ((u16)offset1 << 8) | offset0;
-		lz_muck.push_back(offset0);
-		lz_muck.push_back(offset1);
+		if (ii >= size) {
+			break;
+		}
+		u8 offset0 = lz[ii++];
+		if (ii >= size) {
+			break;
+		}
+		u8 offset1 = lz[ii++];
+		int offset = ((u16)offset1 << 8) | offset0;
+
+		offset += deficit;
 
 		// Read match length
-		int matchLength = token & 15;
-		//lz_token_lo.push_back(matchLength);
+		matchLength = token & 15;
 		if (matchLength == 15) {
 			int s;
 			do {
-				s = _lz[ii++];
-				lz_muck.push_back(s);
+				if (ii >= size) {
+					break;
+				}
+				s = lz[ii++];
 				matchLength += s;
-			} while (s == 255 && ii < size);
+			} while (s == 255);
 		}
 		matchLength += LZ_MINMATCH;
+		matchLength -= deficit;
 
-		for (int jj = 0; jj < matchLength; ++jj) {
-			while (_mask->hasRGB((moffset/3) % _width, (moffset/3) / _width)) {
-				moffset += 3;
+		if (matchLength % 3 != 0) {
+			deficit = matchLength % 3;
+			matchLength -= deficit;
+		} else {
+			deficit = 0;
+		}
+
+		for (int jj = 0; jj < matchLength; jj += 3) {
+			while (_mask->hasRGB(poff % _width, poff / _width)) {
+				lzmask[poff++] = 0;
 			}
 
-			lzmask[moffset++] = 0;
+			lzmask[poff++] = 0;
+		}
+
+		cout << literalLength << " ";
+
+		// Rescale
+		literalLength /= 3;
+		matchLength -= LZ_MINMATCH;
+		matchLength /= 3;
+		offset /= 3;
+
+		token = 0;
+
+		if (literalLength >= 15) {
+			token |= 15 << 4;
+		} else {
+			token |= literalLength << 4;
+		}
+		if (matchLength >= 15) {
+			token |= 15;
+		} else {
+			token |= matchLength;
+		}
+
+		_lz_tokens.push_back(token);
+
+		if (literalLength >= 15) {
+			literalLength -= 15;
+			while (literalLength >= 255) {
+				_lz_muck.push_back(255);
+				literalLength -= 255;
+			}
+			_lz_muck.push_back(literalLength);
+		}
+
+		offset0 = (u8)offset;
+		offset1 = (u8)(offset >> 8);
+		_lz_muck.push_back(offset0);
+		_lz_muck.push_back(offset1);
+
+		if (matchLength >= 15) {
+			matchLength -= 15;
+			while (matchLength >= 255) {
+				lz_muck.push_back(255);
+				matchLength -= 255;
+			}
+			_lz_muck.push_back(matchLength);
 		}
 	}
 
@@ -634,15 +700,16 @@ void ImageFilterWriter::makeLZmask() {
 	Stats.lz_other_ov = (int)lz_muck.size();
 #endif
 
+#if 1
 	// NOTE: Do not need this after it works
-	while (moffset < lz_mask_size &&
-		   _mask->hasRGB((moffset/3) % _width, (moffset/3) / _width)) {
-		moffset += 3;
+	while (poff < 1024*1024 && _mask->hasRGB(poff % _width, poff / _width)) {
+		++poff;
 	}
 
-	if (moffset != 1024 * 1024 * 3) {
-		cout << ">>> Offset " << moffset << " does not match expectation " << 1024*1024*3 << ".  There is no way this just worked!" << endl;
+	if (poff != 1024 * 1024) {
+		cout << ">>> Offset " << poff << " does not match expectation " << 1024*1024 << ".  There is no way this just worked!" << endl;
 	}
+#endif
 
 	u16 freq[256];
 
@@ -800,7 +867,7 @@ void ImageFilterWriter::writeFilters(ImageWriter &writer) {
 	}
 }
 
-void ImageFilterWriter::writeChaos(ImageWriter &writer) {
+bool ImageFilterWriter::writeChaos(ImageWriter &writer) {
 #ifdef CAT_COLLECT_STATS
 	int overhead_bits = 0;
 #ifdef CAT_FILTER_LZ
@@ -827,63 +894,43 @@ void ImageFilterWriter::writeChaos(ImageWriter &writer) {
 	u8 *now = _rgba;
 
 #ifdef CAT_FILTER_LZ
-	const int lz_size = (int)_lz.size();
-	u8 *lz = &_lz[0];
-	u8 *lz_end = lz + lz_size;
+	const int lz_tokens_size = (int)_lz_tokens.size();
+	const u8 *lz_tokens = &_lz_tokens[0];
+	const u8 *lz_tokens_end = lz_tokens + lz_tokens_size;
 
-	for (;;) {
-		// Read token
-		u8 token = *lz++;
-		if CAT_UNLIKELY(lz >= lz_end) {
-			goto lz_done;
-		}
-		writer.writeBits(lz_token_codes[token], lz_token_lens[token]);
+	const int lz_muck_size = (int)_lz_muck.size();
+	const u8 *lz_muck = &_lz_muck[0];
+	const u8 *lz_muck_end = lz_muck + lz_muck_size;
 
-		// Read literal length
-		int literalLength = token >> 4;
-		if (literalLength == 15) {
-			int s;
-			do {
-				s = *lz++;
-				writer.writeBits(lz_muck_codes[s], lz_muck_lens[s]);
-				literalLength += s;
-			} while (s == 255 && CAT_LIKELY(lz < lz_end));
-		}
+	// Read token
+	if CAT_UNLIKELY(lz_tokens >= lz_tokens_end) {
+		return false;
+	}
+	u8 token = *lz_tokens++;
+	writer.writeBits(lz_token_codes[token], lz_token_lens[token]);
+#ifdef CAT_COLLECT_STATS
+	lz_overhead_bits += lz_token_lens[token];
+#endif
 
-		// TODO: Encode next literalLength literals
-
-		// Read match offset
-		u8 offset0 = *lz++;
-		if CAT_UNLIKELY(lz >= lz_end) {
-			goto lz_done;
-		}
-		u8 offset1 = *lz++;
-		if CAT_UNLIKELY(lz >= lz_end) {
-			goto lz_done;
-		}
-		u16 woffset = ((u16)offset1 << 8) | offset0;
-		writer.writeBits(lz_muck_codes[offset0], lz_muck_lens[offset0]);
-		writer.writeBits(lz_muck_codes[offset1], lz_muck_lens[offset1]);
-
-		// Read match length
-		int matchLength = token & 15;
-		if (matchLength == 15) {
-			int s;
-			do {
-				s = *lz++;
-				writer.writeBits(lz_muck_codes[s], lz_muck_lens[s]);
-				matchLength += s;
-			} while (s == 255 && CAT_LIKELY(lz < lz_end));
-		}
-		matchLength += LZ_MINMATCH;
-
-		// No need to do anything here during encode
+	// Read literal length
+	int literalLength = token >> 4;
+	if (literalLength == 15) {
+		int s;
+		do {
+			if CAT_UNLIKELY(lz_muck >= lz_muck_end) {
+				return false;
+			}
+			s = *lz_muck++;
+			writer.writeBits(lz_muck_codes[s], lz_muck_lens[s]);
+#ifdef CAT_COLLECT_STATS
+			lz_overhead_bits += lz_muck_lens[s];
+#endif
+			literalLength += s;
+		} while (s == 255);
 	}
 
-lz_done:
-	;
-
-#else // !CAT_FILTER_LZ
+	int matchLength = 0;
+#endif
 
 	for (int y = 0; y < _height; ++y) {
 		u8 left_rgb[3] = {0};
@@ -930,14 +977,79 @@ lz_done:
 				if (!_mask->hasRGB(x, y)) {
 					for (int ii = 0; ii < 3; ++ii) {
 #ifdef CAT_FILTER_LZ
-						if (_lz_mask[(x + y * _width) * 3 + ii])
+						if (literalLength-- > 0) {
 #endif
-						{
 							int bits = _encoder[ii][chaos[ii]].encode(now[ii], writer);
 #ifdef CAT_COLLECT_STATS
 							bitcount[ii] += bits;
 #endif
+#ifdef CAT_FILTER_LZ
+						} else if (matchLength-- <= 0) {
+							// Write more LZ control symbols here:
+
+							// Read match offset
+							if CAT_UNLIKELY(lz_muck >= lz_muck_end) {
+								return false;
+							}
+							u8 offset0 = *lz_muck++;
+							if CAT_UNLIKELY(lz_muck >= lz_muck_end) {
+								return false;
+							}
+							u8 offset1 = *lz_muck++;
+							u16 woffset = ((u16)offset1 << 8) | offset0;
+							writer.writeBits(lz_muck_codes[offset0], lz_muck_lens[offset0]);
+							writer.writeBits(lz_muck_codes[offset1], lz_muck_lens[offset1]);
+#ifdef CAT_COLLECT_STATS
+							lz_overhead_bits += lz_muck_lens[offset0];
+							lz_overhead_bits += lz_muck_lens[offset1];
+#endif
+
+							// Read match length
+							matchLength = token & 15;
+							if (matchLength == 15) {
+								int s;
+								do {
+									if CAT_UNLIKELY(lz_muck >= lz_muck_end) {
+										return false;
+									}
+									s = *lz_muck++;
+									writer.writeBits(lz_muck_codes[s], lz_muck_lens[s]);
+#ifdef CAT_COLLECT_STATS
+									lz_overhead_bits += lz_muck_lens[s];
+#endif
+									matchLength += s;
+								} while (s == 255);
+							}
+							matchLength += LZ_MINMATCH;
+
+							// Read token
+							if CAT_UNLIKELY(lz_tokens >= lz_tokens_end) {
+								return false;
+							}
+							token = *lz_tokens++;
+							writer.writeBits(lz_token_codes[token], lz_token_lens[token]);
+#ifdef CAT_COLLECT_STATS
+							lz_overhead_bits += lz_token_lens[token];
+#endif
+
+							// Read literal length
+							literalLength = token >> 4;
+							if (literalLength == 15) {
+								int s;
+								do {
+									if CAT_UNLIKELY(lz_muck >= lz_muck_end) {
+										return false;
+									}
+									s = *lz_muck++;
+									writer.writeBits(lz_muck_codes[s], lz_muck_lens[s]);
+#ifdef CAT_COLLECT_STATS
+									lz_overhead_bits += lz_muck_lens[s];
+#endif
+									literalLength += s;
+								} while (s == 255);
+							}
 						}
+#endif
 					}
 				}
 			}
@@ -951,19 +1063,23 @@ lz_done:
 		}
 	}
 
-#endif // CAT_FILTER_LZ
-
 #ifdef CAT_COLLECT_STATS
 	for (int ii = 0; ii < 3; ++ii) {
 		Stats.rgb_bits[ii] = bitcount[ii];
 	}
 	Stats.chaos_overhead_bits = overhead_bits;
+	Stats.lz_huff_bits = lz_overhead_bits;
 #endif
+
+	return true;
 }
 
 void ImageFilterWriter::write(ImageWriter &writer) {
 	writeFilters(writer);
-	writeChaos(writer);
+
+	if (!writeChaos(writer)) {
+		cout << "WTF MAN" << endl;
+	}
 
 #ifdef CAT_COLLECT_STATS
 	int total = 0;
