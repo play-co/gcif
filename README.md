@@ -48,7 +48,7 @@ only the fastest compression primitives: Filtering, LZ, and static Huffman.
 BCIF does filtering and static Huffman coding, but left out LZ, which we feel
 is a mistake since LZ is great for representing repeated data patterns, which
 can be encoded byte-wise, reducing the number of Huffman symbols to decode.
-In our tests so far, adding an LZ step improves compression ratio and speed.
+In our tests, adding an LZ step improves compression ratio and decomp speed.
 
 BCIF is also not designed for an alpha channel, and our games require alpha
 for sprite-sheets.  Furthermore, our images tend to have a lot of
@@ -92,55 +92,104 @@ the Huffman symbols for each LZ output byte are written out.
 Pixels that are fully-transparent are skipped over during encoding/decoding.
 
 
-### Step 1. Filtering
+### Step 1. 2D LZ
 
-Spatial and color filters are applied to the input data in 8x8 pixel blocks as
+A custom 2D LZ77 algorithm is run to find repeated rectangular regions in the
+image.  A rolling hash is used to do initial lookups on 4x4 regions, which is
+the minimum size allowed for a match.  Hash collisions are checked, and then
+matches are expanded.
+
+If the resulting matches are accepted, they exclude further matches from
+overlapping with them.  This approach gets RLE for free.  Each rectangular
+region takes 10 bytes to represent, which is then compressed with Huffman
+encoding and written to the file.
+
+
+### Step 2. Filtering
+
+Spatial and color filters are applied to the input data in 4x4 pixel blocks as
 in BCIF.  The pair of filters that best estimate each block are chosen, as
 measured by the L1 norm of the resulting pixel color component values, with 0
 and 255 being the best result, and numbers around 128 being the worst.
 
+The two filters are spatial and color.  The spatial filters are:
+
+~~~
+ Filter inputs:
+         E
+ F C B D
+   A ?
+
+	// In the order they are applied in the case of a tie:
+	SF_Z,			// 0
+	SF_D,			// D
+	SF_C,			// C
+	SF_B,			// B
+	SF_A,			// A
+	SF_AB,			// (A + B)/2
+	SF_BD,			// (B + D)/2
+	SF_ABC_CLAMP,	// A + B - C clamped to [0, 255]
+	SF_PAETH,		// Paeth filter
+	SF_ABC_PAETH,	// If A <= C <= B, A + B - C, else Paeth filter
+	SF_PL,			// Use ABC to determine if increasing or decreasing
+	SF_PLO,			// Offset PL
+	SF_ABCD,		// (A + B + C + D + 1)/4
+
+	SF_PICK_LEFT,	// Pick A or C based on which is closer to F
+	SF_PRED_UR,		// Predict gradient continues from E to D to current
+
+	SF_AD,			// (A + D)/2
+~~~
+
+And the color filters are:
+
+~~~
+	// In order of preference (based on entropy scores from test images):
+	CF_GB_RG,	// from BCIF
+	CF_GR_BG,	// from BCIF
+	CF_YUVr,	// YUVr from JPEG2000
+	CF_D9,		// from the Strutz paper
+	CF_D12,		// from the Strutz paper
+	CF_D8,		// from the Strutz paper
+	CF_E2_R,	// Derived from E2 and YCgCo-R
+	CF_BG_RG,	// from BCIF (recommendation from LOCO-I paper)
+	CF_GR_BR,	// from BCIF
+	CF_D18,		// from the Strutz paper
+	CF_B_GR_R,	// A decent default filter
+	CF_D11,		// from the Strutz paper
+	CF_D14,		// from the Strutz paper
+	CF_D10,		// from the Strutz paper
+	CF_YCgCo_R,	// Malvar's YCgCo-R
+	CF_GB_RB,	// from BCIF
+~~~
+
 This generates encoded pixels and a filter description.  The filter description
-is compressed with LZ and Huffman codes then written to the file.
+is compressed with Huffman encoding and written to the file.
 
 
-### Step 2. Huffman Encoding
+### Step 3. Chaos Context Encoding
 
 For each RGB plane, the BCIF "chaos" metric is used to sort each remaining
 filtered pixel into one of 8 bins.  Symbol statistics are collected for each
 bin and each RGB plane.
 
 
-### Step 3. LZ
-
-Now that the length of each symbol is known in bits, LZ can be run on each RGB
-plane with knowledge of the trade-offs between matching and bit-wise literal
-copies.  This encoding changes the symbol statistics.
-
-
 ### Step 4. Interleaved Encoding
 
-Finally the LZ-encoded data is written out.  Since the decoder will be in lock-
-step with the encoder, RGB bits may be ommitted during each write.
-
-##### LZ modifications
-
-Since the LZ4 decoding is more just "in spirit" of the original decoder we have
-decided to change the LZ4 encoding format.
-
-LZ4 additive literal decoding scheme is not ideal because it results in larger
-files and requires more EOF checks since it cannot be unrolled on the decoder.
-
-Our LZ4 encoded block uses the high bit of the literal length field bytes to
-indicate that more bytes are part of the length field, instead of 255.
-
-It may also be interesting to increase the max LZ match offset from -65535 to
-a higher number of bits, since for 1024x1024 images, this restricts its look-
-back to just 64 scanlines.
-
+Then each pixel is iterated over and alpha-masked or LZ-masked pixels are
+omitted.  The pixels are Huffman encoded based on color plane and chaos metric.
 
 
 What works right now
 ====================
+
+The latest version has what may be a fully working compressor, which gives you
+a good idea about the compression ratios achieved by the codec.
+
+The grayscale alpha channel is currently not compressed and needs to be done.
+
+The decompressor is a work in progress and the final version may compress a
+little better or worse than this one.
 
 Currently, 1-bit alpha channel compression works, which is a major advance we
 are pushing over BCIF for the final version of the codec.  You can try it out
