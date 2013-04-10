@@ -88,15 +88,17 @@ protected:
 	bool expandMatch(u16 &sx, u16 &sy, u16 &dx, u16 &dy, u16 &w, u16 &h);
 	u32 score(int x, int y, int w, int h);
 	void add(int unused, u16 sx, u16 sy, u16 dx, u16 dy, u16 w, u16 h);
-	bool match();
+	int match();
 
 #ifdef CAT_COLLECT_STATS
 	struct _Stats {
 		u32 covered, collisions, initial_matches;
 		double covered_percent;
 
-		u32 bytes_saved, bytes_overhead;
+		u32 bytes_saved, bytes_overhead, bytes_overhead_uncompressed;
 		double compression_ratio;
+
+		u32 huff_bits;
 	} Stats;
 #endif
 
@@ -110,7 +112,7 @@ public:
 		clear();
 	}
 
-	bool initFromRGBA(const u8 *rgba, int width, int height);
+	int initFromRGBA(const u8 *rgba, int width, int height);
 
 	CAT_INLINE u32 visited(int x, int y) {
 		int off = x + y * _width;

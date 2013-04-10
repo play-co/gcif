@@ -1,5 +1,6 @@
 #include "ImageLZWriter.hpp"
 #include "EndianNeutral.hpp"
+#include "HuffmanEncoder.hpp"
 #include "Log.hpp"
 using namespace cat;
 
@@ -34,11 +35,11 @@ static CAT_INLINE u32 hashPixel(u32 key) {
 	return key;
 }
 
-bool ImageLZWriter::initFromRGBA(const u8 *rgba, int width, int height) {
+int ImageLZWriter::initFromRGBA(const u8 *rgba, int width, int height) {
 	clear();
 
 	if (width % ZONE || height % ZONE) {
-		return false;
+		return WE_BAD_DIMS;
 	}
 
 	_rgba = rgba;
@@ -230,9 +231,9 @@ void ImageLZWriter::add(int unused, u16 sx, u16 sy, u16 dx, u16 dy, u16 w, u16 h
 	Stats.covered += unused;
 }
 
-bool ImageLZWriter::match() {
+int ImageLZWriter::match() {
 	if (!_rgba) {
-		return false;
+		return WE_BUG;
 	}
 
 	const u8 *rgba = _rgba;
@@ -297,16 +298,138 @@ bool ImageLZWriter::match() {
 		} while (++x <= xend);
 	}
 
-	return true;
+	return WE_OK;
 }
 
 void ImageLZWriter::write(ImageWriter &writer) {
-	writer.writeBits(16, _exact_matches.size());
+	int match_count = (int)_exact_matches.size();
 
 #ifdef CAT_COLLECT_STATS
-	Stats.covered_percent = Stats.covered / (double)(_width * _height);
+	u32 bitcount = 16;
+	Stats.bytes_overhead_uncompressed = match_count * 10;
+#endif
+
+	writer.writeBits(16, match_count);
+
+	// Collect frequency statistics
+	u16 last_dx = 0, last_dy = 0;
+	u16 freqs[256];
+	FreqHistogram<256> hist;
+
+	for (int ii = 0; ii < match_count; ++ii) {
+		Match *m = &_exact_matches[ii];
+
+		u16 edy = (m->dy - last_dy);
+		u16 edx = m->dx;
+		if (edy == 0) {
+			edx -= last_dx;
+		}
+
+		hist.add((u8)m->sx);
+		hist.add((u8)(m->sx >> 8));
+		hist.add((u8)m->sy);
+		hist.add((u8)(m->sy >> 8));
+		hist.add((u8)edx);
+		hist.add((u8)(edx >> 8));
+		hist.add((u8)edy);
+		hist.add((u8)(edy >> 8));
+		hist.add(m->w);
+		hist.add(m->h);
+
+		last_dx = m->dx;
+		last_dy = m->dy;
+	}
+
+	u16 codes[256];
+	u8 codelens[256];
+	hist.generateHuffman(codes, codelens);
+
+	for (int ii = 0; ii < 256; ++ii) {
+		u8 len = codelens[ii];
+
+		while (len >= 15) {
+			writer.writeBits(15, 4);
+			len -= 15;
+#ifdef CAT_COLLECT_STATS
+			bitcount += 4;
+#endif
+		}
+
+		writer.writeBits(len, 4);
+#ifdef CAT_COLLECT_STATS
+		bitcount += 4;
+#endif
+	}
+
+	for (int ii = 0; ii < match_count; ++ii) {
+		Match *m = &_exact_matches[ii];
+
+		u16 edy = (m->dy - last_dy);
+		u16 edx = m->dx;
+		if (edy == 0) {
+			edx -= last_dx;
+		}
+
+		u8 sym = (u8)m->sx;
+		writer.writeBits(codes[sym], codelens[sym]);
+#ifdef CAT_COLLECT_STATS
+		bitcount += codelens[sym];
+#endif
+		sym = (u8)(m->sx >> 8);
+		writer.writeBits(codes[sym], codelens[sym]);
+#ifdef CAT_COLLECT_STATS
+		bitcount += codelens[sym];
+#endif
+		sym = (u8)m->sy;
+		writer.writeBits(codes[sym], codelens[sym]);
+#ifdef CAT_COLLECT_STATS
+		bitcount += codelens[sym];
+#endif
+		sym = (u8)(m->sy >> 8);
+		writer.writeBits(codes[sym], codelens[sym]);
+#ifdef CAT_COLLECT_STATS
+		bitcount += codelens[sym];
+#endif
+		sym = (u8)edx;
+		writer.writeBits(codes[sym], codelens[sym]);
+#ifdef CAT_COLLECT_STATS
+		bitcount += codelens[sym];
+#endif
+		sym = (u8)(edx >> 8);
+		writer.writeBits(codes[sym], codelens[sym]);
+#ifdef CAT_COLLECT_STATS
+		bitcount += codelens[sym];
+#endif
+		sym = (u8)edy;
+		writer.writeBits(codes[sym], codelens[sym]);
+#ifdef CAT_COLLECT_STATS
+		bitcount += codelens[sym];
+#endif
+		sym = (u8)(edy >> 8);
+		writer.writeBits(codes[sym], codelens[sym]);
+#ifdef CAT_COLLECT_STATS
+		bitcount += codelens[sym];
+#endif
+		sym = m->w;
+		writer.writeBits(codes[sym], codelens[sym]);
+#ifdef CAT_COLLECT_STATS
+		bitcount += codelens[sym];
+#endif
+		sym = m->h;
+		writer.writeBits(codes[sym], codelens[sym]);
+#ifdef CAT_COLLECT_STATS
+		bitcount += codelens[sym];
+#endif
+
+		last_dx = m->dx;
+		last_dy = m->dy;
+	}
+
+#ifdef CAT_COLLECT_STATS
+	Stats.huff_bits = bitcount;
+	Stats.covered_percent = Stats.covered * 100. / (double)(_width * _height);
 	Stats.bytes_saved = Stats.covered * 3;
-	Stats.bytes_overhead = _exact_matches.size() * 10;
+	Stats.bytes_overhead = bitcount / 8;
 	Stats.compression_ratio = Stats.bytes_saved / (double)Stats.bytes_overhead;
 #endif
 }
@@ -318,7 +441,8 @@ bool ImageLZWriter::dumpStats() {
 	CAT_INFO("stats") << "(LZ Compress) Initial collisions : " << Stats.collisions;
 	CAT_INFO("stats") << "(LZ Compress) Matched amount : " << Stats.covered_percent << "% of file is redundant";
 	CAT_INFO("stats") << "(LZ Compress) Bytes saved : " << Stats.bytes_saved << " bytes";
-	CAT_INFO("stats") << "(LZ Compress) Bytes overhead : " << Stats.bytes_overhead << " bytes to transmit";
+	CAT_INFO("stats") << "(LZ Compress) Raw overhead : " << Stats.bytes_overhead_uncompressed << " bytes before compression";
+	CAT_INFO("stats") << "(LZ Compress) Compressed overhead : " << Stats.bytes_overhead << " bytes to transmit";
 	CAT_INFO("stats") << "(LZ Compress) Compression ratio : " << Stats.compression_ratio << ":1";
 
 	return true;

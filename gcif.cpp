@@ -51,7 +51,7 @@ public:
 
 		ImageLZWriter imageLZWriter;
 		if ((err = imageLZWriter.initFromRGBA(&image[0], width, height))) {
-			CAT_WARN("main") << "Unable to initialize filter writer: " << ImageWriter::ErrorString(err);
+			CAT_WARN("main") << "Unable to initialize LZ compressor: " << ImageWriter::ErrorString(err);
 			return err;
 		}
 
@@ -60,7 +60,7 @@ public:
 
 		ImageCMWriter imageCMWriter;
 		if ((err = imageCMWriter.initFromRGBA(&image[0], width, height, imageMaskWriter, imageLZWriter))) {
-			CAT_WARN("main") << "Unable to initialize filter writer: " << ImageWriter::ErrorString(err);
+			CAT_WARN("main") << "Unable to initialize CM compressor: " << ImageWriter::ErrorString(err);
 			return err;
 		}
 

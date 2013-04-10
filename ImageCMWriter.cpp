@@ -311,6 +311,13 @@ void ImageCMWriter::applyFilters() {
 			const u8 *pred = spatialFilterPixel(p, sf, x, y, width);
 
 			filterColor(cf, p, pred, p);
+
+			if (_lz->visited(x, y)) {
+				p[0] = 255;
+				p[1] = 0;
+				p[2] = 0;
+			}
+
 #if 0
 			p[0] = p[0];
 			p[1] = p[0];

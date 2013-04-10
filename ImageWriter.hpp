@@ -15,6 +15,7 @@ enum WriteErrors {
 
 	WE_BAD_DIMS,	// Image dimensions are invalid
 	WE_FILE,		// Unable to access file
+	WE_BUG,			// Bug detected in compressor
 
 	WE_COUNT
 };

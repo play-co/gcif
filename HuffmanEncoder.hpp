@@ -70,9 +70,40 @@ bool generate_codes(u32 num_syms, const u8 *pCodesizes, u16 *pCodes);
 } // namespace huffman
 
 
+void normalizeFreqs(u32 max_freq, int num_syms, u32 hist[], u16 freqs[]);
 void collectArrayFreqs(int num_syms, int data_size, u8 data[], u16 freqs[]);
 void collectFreqs(int num_syms, const std::vector<u8> &lz, u16 freqs[]);
 void generateHuffmanCodes(int num_syms, u16 freqs[], u16 codes[], u8 codelens[]);
+
+
+// Convenience class
+template<int NUM_SYMS> class FreqHistogram {
+	u32 hist[NUM_SYMS];
+	u32 max_freq;
+
+public:
+	CAT_INLINE FreqHistogram() {
+		CAT_OBJCLR(hist);
+		max_freq = 0;
+	}
+
+	CAT_INLINE void add(u32 symbol) {
+		u32 freq = ++hist[symbol];
+		if (freq > max_freq) {
+			max_freq = freq;
+		}
+	}
+
+	CAT_INLINE void normalize(u16 freqs[NUM_SYMS]) {
+		normalizeFreqs(max_freq, NUM_SYMS, hist, freqs);
+	}
+
+	CAT_INLINE void generateHuffman(u16 codes[], u8 codelens[]) {
+		u16 freqs[NUM_SYMS];
+		normalizeFreqs(max_freq, NUM_SYMS, hist, freqs);
+		generateHuffmanCodes(NUM_SYMS, freqs, codes, codelens);
+	}
+};
 
 
 } // namespace cat

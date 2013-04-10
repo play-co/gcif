@@ -430,20 +430,8 @@ void cat::collectFreqs(int num_syms, const std::vector<u8> &lz, u16 freqs[]) {
 	}
 }
 
-void cat::collectArrayFreqs(int num_syms, int data_size, u8 data[], u16 freqs[]) {
-	const int MAX_FREQ = 0xffff;
-
-	int hist[cHuffmanMaxSupportedSyms] = {0};
-	int max_freq = 0;
-
-	// Perform histogram, and find maximum symbol count
-	for (int ii = 0; ii < data_size; ++ii) {
-		int count = ++hist[data[ii]];
-
-		if (max_freq < count) {
-			max_freq = count;
-		}
-	}
+void cat::normalizeFreqs(u32 max_freq, int num_syms, u32 hist[], u16 freqs[]) {
+	static const int MAX_FREQ = 0xffff;
 
 	// Scale to fit in 16-bit frequency counter
 	while (max_freq > MAX_FREQ) {
@@ -470,6 +458,24 @@ void cat::collectArrayFreqs(int num_syms, int data_size, u8 data[], u16 freqs[])
 	for (int ii = 0; ii < num_syms; ++ii) {
 		freqs[ii] = static_cast<u16>( hist[ii] );
 	}
+}
+
+void cat::collectArrayFreqs(int num_syms, int data_size, u8 data[], u16 freqs[]) {
+	const int MAX_FREQ = 0xffff;
+
+	u32 hist[cHuffmanMaxSupportedSyms] = {0};
+	int max_freq = 0;
+
+	// Perform histogram, and find maximum symbol count
+	for (int ii = 0; ii < data_size; ++ii) {
+		int count = ++hist[data[ii]];
+
+		if (max_freq < count) {
+			max_freq = count;
+		}
+	}
+
+	normalizeFreqs(max_freq, num_syms, hist, freqs);
 }
 
 void cat::generateHuffmanCodes(int num_syms, u16 freqs[], u16 codes[], u8 codelens[]) {

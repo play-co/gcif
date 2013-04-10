@@ -53,7 +53,6 @@ class EntropyEncoder {
 	void reset();
 
 	void endSymbols();
-	void normalizeFreqs(u32 max_freq, int num_syms, u32 hist[], u16 freqs[]);
 
 	int writeZeroRun(int run, ImageWriter &writer);
 

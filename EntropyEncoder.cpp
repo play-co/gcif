@@ -10,36 +10,6 @@ using namespace std;
 
 //// EntropyEncoder
 
-void EntropyEncoder::normalizeFreqs(u32 max_freq, int num_syms, u32 hist[], u16 freqs[]) {
-	static const int MAX_FREQ = 0xffff;
-
-	// Scale to fit in 16-bit frequency counter
-	while (max_freq > MAX_FREQ) {
-		// For each symbol,
-		for (int ii = 0; ii < num_syms; ++ii) {
-			int count = hist[ii];
-
-			// If it exists,
-			if (count) {
-				count >>= 1;
-
-				// Do not let it go to zero if it is actually used
-				if (!count) {
-					count = 1;
-				}
-			}
-		}
-
-		// Update max
-		max_freq >>= 1;
-	}
-
-	// Store resulting scaled histogram
-	for (int ii = 0; ii < num_syms; ++ii) {
-		freqs[ii] = static_cast<u16>( hist[ii] );
-	}
-}
-
 void EntropyEncoder::reset() {
 	CAT_OBJCLR(histBZ);
 	maxBZ = 0;
@@ -143,16 +113,11 @@ void EntropyEncoder::finalize() {
 
 #ifdef FALLBACK_CHAOS_OVERHEAD
 
-#include <iostream>
-using namespace std;
-
 static u32 writeHuffmanTable(int num_syms, u8 codelens[], ImageWriter &writer) {
 	u32 bitcount = 0;
 
 	for (int ii = 1; ii < num_syms; ++ii) {
 		u8 len = codelens[ii];
-
-		cout << (int)len << " ";
 
 		while (len >= 15) {
 			writer.writeBits(15, 4);
@@ -163,8 +128,6 @@ static u32 writeHuffmanTable(int num_syms, u8 codelens[], ImageWriter &writer) {
 		writer.writeBits(len, 4);
 		bitcount += 4;
 	}
-
-	cout << endl << endl;
 
 	return bitcount;
 }
