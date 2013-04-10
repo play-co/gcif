@@ -57,11 +57,16 @@ bool ImageLZWriter::initWithRGBA(const u8 *rgba, int width, int height) {
 	return true;
 }
 
-static bool checkMatch(const u8 *rgba, int width, u16 x, u16 y, u16 mx, u16 my) {
-	static const int ZONE = ImageLZWriter::ZONE;
+bool ImageLZWriter::checkMatch(u16 x, u16 y, u16 mx, u16 my) {
+	const u8 *rgba = _rgba;
+	const int width = _width;
 
 	for (int ii = 0; ii < ZONE; ++ii) {
 		for (int jj = 0; jj < ZONE; ++jj) {
+			if (visited(x + ii, y + jj)) {
+				return false;
+			}
+
 			u32 *p = (u32*)&rgba[((x + ii) + (y + jj) * width)*4];
 			u32 *mp = (u32*)&rgba[((mx + ii) + (my + jj) * width)*4];
 
@@ -75,12 +80,18 @@ static bool checkMatch(const u8 *rgba, int width, u16 x, u16 y, u16 mx, u16 my) 
 	return true;
 }
 
-static bool expandMatch(const u8 *rgba, int width, int height, u16 &sx, u16 &sy, u16 &dx, u16 &dy, u16 &w, u16 &h) {
-	static const int MAX_MATCH_SIZE = ImageLZWriter::MAX_MATCH_SIZE;
+bool ImageLZWriter::expandMatch(u16 &sx, u16 &sy, u16 &dx, u16 &dy, u16 &w, u16 &h) {
+	const u8 *rgba = _rgba;
+	const int width = _width;
+	const int height = _height;
 
 	// Try expanding to the right
 	while (w + 1 <= MAX_MATCH_SIZE && sx + w < width && dx + w < width) {
 		for (int jj = 0; jj < h; ++jj) {
+			if (visited(dx + w, dy + jj)) {
+				goto try_down;
+			}
+
 			u32 *sp = (u32*)&rgba[((sx + w) + (sy + jj) * width)*4];
 			u32 *dp = (u32*)&rgba[((dx + w) + (dy + jj) * width)*4];
 
@@ -98,6 +109,10 @@ static bool expandMatch(const u8 *rgba, int width, int height, u16 &sx, u16 &sy,
 try_down:
 	while (h + 1 <= MAX_MATCH_SIZE && sy + h < height && dy + h < height) {
 		for (int jj = 0; jj < w; ++jj) {
+			if (visited(dx + jj, dy + h)) {
+				goto try_left;
+			}
+
 			u32 *sp = (u32*)&rgba[((sx + jj) + (sy + h) * width)*4];
 			u32 *dp = (u32*)&rgba[((dx + jj) + (dy + h) * width)*4];
 
@@ -115,6 +130,10 @@ try_down:
 try_left:
 	while (w + 1 <= MAX_MATCH_SIZE && sx >= 1 && dx >= 1) {
 		for (int jj = 0; jj < h; ++jj) {
+			if (visited(dx - 1, dy + jj)) {
+				goto try_up;
+			}
+
 			u32 *sp = (u32*)&rgba[((sx - 1) + (sy + jj) * width)*4];
 			u32 *dp = (u32*)&rgba[((dx - 1) + (dy + jj) * width)*4];
 
@@ -134,6 +153,10 @@ try_left:
 try_up:
 	while (h + 1 <= MAX_MATCH_SIZE && sy >= 1 && dy >= 1) {
 		for (int jj = 0; jj < w; ++jj) {
+			if (visited(dx + jj, dy - 1)) {
+				return true;
+			}
+
 			u32 *sp = (u32*)&rgba[((sx + jj) + (sy - 1) * width)*4];
 			u32 *dp = (u32*)&rgba[((dx + jj) + (dy - 1) * width)*4];
 
@@ -187,7 +210,7 @@ void ImageLZWriter::add(int unused, u16 sx, u16 sy, u16 dx, u16 dy, u16 w, u16 h
 
 	_exact_matches.push_back(m);
 
-	//cout << sx << "," << sy << " -> " << dx << "," << dy << " [" << w << "," << h << "] unused=" << unused << endl;
+	cout << sx << "," << sy << " -> " << dx << "," << dy << " [" << w << "," << h << "] unused=" << unused << endl;
 
 	_covered += unused;
 }
@@ -223,14 +246,14 @@ bool ImageLZWriter::match() {
 				u16 sx = (u16)(match >> 16);
 				u16 sy = (u16)match;
 
-				if (checkMatch(rgba, width, sx, sy, x, y)) {
+				if (checkMatch(sx, sy, x, y)) {
 					++_initial_matches;
 
 					// Determine source and destination in decoder order
 					u16 dx = x, dy = y, w = ZONE, h = ZONE;
 
 					// See how far the match can be expanded
-					expandMatch(rgba, width, _height, sx, sy, dx, dy, w, h);
+					expandMatch(sx, sy, dx, dy, w, h);
 
 					int unused = score(dx, dy, w, h);
 					if (unused >= MIN_SCORE) {

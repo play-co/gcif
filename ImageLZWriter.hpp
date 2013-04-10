@@ -80,6 +80,8 @@ protected:
 	u32 _covered, _collisions, _initial_matches;
 
 	void clear();
+	bool checkMatch(u16 x, u16 y, u16 mx, u16 my);	
+	bool expandMatch(u16 &sx, u16 &sy, u16 &dx, u16 &dy, u16 &w, u16 &h);
 	u32 score(int x, int y, int w, int h);
 	void add(int unused, u16 sx, u16 sy, u16 dx, u16 dy, u16 w, u16 h);
 
