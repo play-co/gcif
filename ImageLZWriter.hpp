@@ -41,7 +41,7 @@ namespace cat {
 class ImageLZWriter {
 public:
 	static const int ZONE = 4;
-	static const int TABLE_BITS = 17;
+	static const int TABLE_BITS = 18;
 	static const int TABLE_SIZE = 1 << TABLE_BITS;
 	static const u32 TABLE_MASK = TABLE_SIZE - 1;
 	static const u32 TABLE_NULL = 0xffffffff;

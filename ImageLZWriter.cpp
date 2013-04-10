@@ -157,12 +157,15 @@ u32 ImageLZWriter::score(int x, int y, int w, int h) {
 
 	for (int ii = 0; ii < w; ++ii) {
 		for (int jj = 0; jj < h; ++jj) {
+			if (visited(x + ii, y + jj)) {
+				return 0;
+			}
 			u32 *p = (u32*)&_rgba[((x + ii) + (y + jj) * _width)*4];
 			u32 pv = getLE(*p) << 8;
 			if (pv == 0) {
-				sum += 1 ^ visited(x + ii, y + jj);
+				sum += 1;
 			} else {
-				sum += (1 ^ visited(x + ii, y + jj)) * ZERO_COEFF;
+				sum += ZERO_COEFF;
 			}
 		}
 	}
@@ -184,7 +187,7 @@ void ImageLZWriter::add(int unused, u16 sx, u16 sy, u16 dx, u16 dy, u16 w, u16 h
 
 	_exact_matches.push_back(m);
 
-	cout << sx << "," << sy << " -> " << dx << "," << dy << " [" << w << "," << h << "] unused=" << unused << endl;
+	//cout << sx << "," << sy << " -> " << dx << "," << dy << " [" << w << "," << h << "] unused=" << unused << endl;
 
 	_covered += unused;
 }
@@ -217,42 +220,24 @@ bool ImageLZWriter::match() {
 		do {
 			u32 match = _table[hash & TABLE_MASK];
 			if (match != TABLE_NULL) {
-				u16 mx = (u16)(match >> 16);
-				u16 my = (u16)match;
+				u16 sx = (u16)(match >> 16);
+				u16 sy = (u16)match;
 
-				if (mx != x && my != y) {
+				if (checkMatch(rgba, width, sx, sy, x, y)) {
+					++_initial_matches;
 
-					if (checkMatch(rgba, width, x, y, mx, my)) {
-						++_initial_matches;
+					// Determine source and destination in decoder order
+					u16 dx = x, dy = y, w = ZONE, h = ZONE;
 
-						// Determine source and destination in decoder order
-						u16 sx = x, sy = y, dx = mx, dy = my, w = ZONE, h = ZONE;
-						if (my > y) {
-						} else if (my == y) {
-							if (mx > x) {
-							} else {
-								sx = mx;
-								sy = my;
-								dx = x;
-								dy = y;
-							}
-						} else {
-							sx = mx;
-							sy = my;
-							dx = x;
-							dy = y;
-						}
+					// See how far the match can be expanded
+					expandMatch(rgba, width, _height, sx, sy, dx, dy, w, h);
 
-						// See how far the match can be expanded
-						expandMatch(rgba, width, _height, sx, sy, dx, dy, w, h);
-
-						int unused = score(dx, dy, w, h);
-						if (unused >= MIN_SCORE) {
-							add(unused, sx, sy, dx, dy, w, h);
-						}
-					} else {
-						++_collisions;
+					int unused = score(dx, dy, w, h);
+					if (unused >= MIN_SCORE) {
+						add(unused, sx, sy, dx, dy, w, h);
 					}
+				} else {
+					++_collisions;
 				}
 			}
 
