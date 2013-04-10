@@ -317,21 +317,12 @@ void ImageCMWriter::applyFilters() {
 				p[0] = 255;
 				p[1] = 0;
 				p[2] = 0;
+			} else {
+				p[0] = score(p[0]);
+				p[1] = score(p[1]);
+				p[2] = score(p[2]);
 			}
 #endif
-
-#if 0
-			p[0] = p[0];
-			p[1] = p[0];
-			p[2] = p[0];
-#endif
-
-#if 0
-			p[0] = score(p[0]);
-			p[1] = score(p[1]);
-			p[2] = score(p[2]);
-#endif
-
 
 #if 0
 				rgba[(x + y * width) * 4] = 200;
@@ -592,7 +583,7 @@ void ImageCMWriter::writeFilters(ImageWriter &writer) {
 
 			for (int ii = 0; ii < FILTER_ZONE_SIZE; ++ii) {
 				for (int jj = 0; jj < FILTER_ZONE_SIZE; ++jj) {
-					if (!_mask->hasRGB(x + ii, y + jj)) {
+					if (!_lz->visited(x + ii, y + jj) && !_mask->hasRGB(x + ii, y + jj)) {
 						on = true;
 						ii = FILTER_ZONE_SIZE;
 						break;
@@ -716,18 +707,17 @@ bool ImageCMWriter::writeChaos(ImageWriter &writer) {
 			left_rgb[0] = chaosScore(now[0]);
 			left_rgb[1] = chaosScore(now[1]);
 			left_rgb[2] = chaosScore(now[2]);
-			{
-				if (!_lz->visited(x, y) && !_mask->hasRGB(x, y)) {
-					for (int ii = 0; ii < 3; ++ii) {
-						int bits = _encoder[ii][chaos[ii]].encode(now[ii], writer);
+
+			if (!_lz->visited(x, y) && !_mask->hasRGB(x, y)) {
+				for (int ii = 0; ii < 3; ++ii) {
+					int bits = _encoder[ii][chaos[ii]].encode(now[ii], writer);
 #ifdef CAT_COLLECT_STATS
-						bitcount[ii] += bits;
-#endif
-					}
-#ifdef CAT_COLLECT_STATS
-					chaos_count++;
+					bitcount[ii] += bits;
 #endif
 				}
+#ifdef CAT_COLLECT_STATS
+				chaos_count++;
+#endif
 			}
 
 			last_chaos_read[0] = chaos[0] >> 1;

@@ -228,7 +228,7 @@ void ImageLZWriter::add(int unused, u16 sx, u16 sy, u16 dx, u16 dy, u16 w, u16 h
 
 	_exact_matches.push_back(m);
 
-	Stats.covered += unused;
+	Stats.covered += w * h;
 }
 
 int ImageLZWriter::match() {
