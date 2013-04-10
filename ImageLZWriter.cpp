@@ -258,24 +258,29 @@ bool ImageLZWriter::match() {
 			}
 		}
 
+		// For each column,
 		u16 x = 0, xend = width - ZONE;
 		do {
+			// If a previous zone had this hash,
 			u32 match = _table[hash & TABLE_MASK];
 			if (match != TABLE_NULL) {
+				// Lookup the location for the potential match
 				u16 sx = (u16)(match >> 16);
 				u16 sy = (u16)match;
 
+				// If the match was genuine,
 				if (checkMatch(sx, sy, x, y)) {
 					++_initial_matches;
 
-					// Determine source and destination in decoder order
 					u16 dx = x, dy = y, w = ZONE, h = ZONE;
 
 					// See how far the match can be expanded
 					expandMatch(sx, sy, dx, dy, w, h);
 
+					// If the match scores well,
 					int unused = score(dx, dy, w, h);
 					if (unused >= MIN_SCORE) {
+						// Accept it
 						add(unused, sx, sy, dx, dy, w, h);
 					}
 				} else {
@@ -283,8 +288,10 @@ bool ImageLZWriter::match() {
 				}
 			}
 
+			// Insert this zone into the hash table
 			_table[hash & TABLE_MASK] = ((u32)x << 16) | y;
 
+			// Roll the hash to the next zone one pixel over
 			for (int jj = 0; jj < ZONE; ++jj) {
 				u32 *lp = (u32*)&rgba[(x + (y + jj) * width)*4];
 				hash -= hashPixel(getLE(*lp));
