@@ -20,6 +20,7 @@ enum ReaderErrors {
 	RE_MASK_CODES,	// Mask codelen read failed
 	RE_MASK_DECI,	// Mask decode init failed
 	RE_MASK_LZ,		// Mask LZ decode failed
+	RE_LZ_CODES,	// LZ codelen read failed
 
 	RE_COUNT
 };

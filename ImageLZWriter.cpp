@@ -1,6 +1,7 @@
 #include "ImageLZWriter.hpp"
 #include "EndianNeutral.hpp"
 #include "HuffmanEncoder.hpp"
+#include "ImageLZReader.hpp"
 #include "Log.hpp"
 using namespace cat;
 
@@ -279,6 +280,11 @@ int ImageLZWriter::match() {
 					if (unused >= MIN_SCORE) {
 						// Accept it
 						add(unused, sx, sy, dx, dy, w, h);
+
+						if (_exact_matches.size() >= ImageLZReader::MAX_ZONE_COUNT) {
+							CAT_WARN("lz") << "WARNING: Ran out of LZ zones so compression is not optimal.  Maybe we should allow more?  Please report this warning.";
+							break;
+						}
 					}
 				} else {
 					++Stats.collisions;
@@ -310,6 +316,12 @@ void ImageLZWriter::write(ImageWriter &writer) {
 #endif
 
 	writer.writeBits(16, match_count);
+
+	// If no matches to record,
+	if (match_count <= 0) {
+		// Just stop here
+		return;
+	}
 
 	// Collect frequency statistics
 	u16 last_dx = 0, last_dy = 0;

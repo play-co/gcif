@@ -7,8 +7,7 @@
 #include <vector>
 
 /*
- * Game Closure's custom image LZ
- * or "Please help me I have lost control of my life to this project."
+ * Game Closure 2D LZ (GC-2D-LZ) Compression
  *
  * It finds repeated blocks of pixels in the original RGB raster so that later
  * instances of those blocks can be encoded.
@@ -78,7 +77,7 @@ protected:
 	struct Match {
 		u16 sx, sy;
 		u16 dx, dy;
-		u8 w, h;
+		u8 w, h; // 0 = ZONE, 1 = ZONE+1, ...
 	};
 
 	std::vector<Match> _exact_matches;
