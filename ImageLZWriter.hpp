@@ -32,6 +32,14 @@
  *
  * The result is a set of pixel source/dest x,y coordinates (32+32 bits) and a
  * width/height (8+8 bits) for 10 bytes of overhead per match.
+ *
+ * As an interesting side-note this algorithm provides 2D RLE for free by
+ * producing output like this:
+ * 22,0 -> 23,0 [4,22] unused=85
+ *
+ * Note that the source and destination rectangles overlap.  In the transmitted
+ * data, only the first literal pixel column is emitted, and then the remaining
+ * 21 columns are copied across.  Slick!
  */
 
 namespace cat {
