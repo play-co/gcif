@@ -74,10 +74,6 @@ protected:
 		int off = x + y * _width;
 		_visited[off >> 5] |= 1 << (off & 31);
 	}
-	CAT_INLINE u32 visited(int x, int y) {
-		int off = x + y * _width;
-		return (_visited[off >> 5] >> (off & 31)) & 1;
-	}
 
 	struct Match {
 		u16 sx, sy;
@@ -115,6 +111,11 @@ public:
 	}
 
 	bool initFromRGBA(const u8 *rgba, int width, int height);
+
+	CAT_INLINE u32 visited(int x, int y) {
+		int off = x + y * _width;
+		return (_visited[off >> 5] >> (off & 31)) & 1;
+	}
 
 	void write(ImageWriter &writer);
 #ifdef CAT_COLLECT_STATS

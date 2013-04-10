@@ -4,6 +4,7 @@
 #include "Platform.hpp"
 #include "ImageWriter.hpp"
 #include "ImageMaskWriter.hpp"
+#include "ImageLZWriter.hpp"
 #include "EntropyEncoder.hpp"
 #include "FilterScorer.hpp"
 #include "Filters.hpp"
@@ -12,13 +13,10 @@ namespace cat {
 
 
 //#define FUZZY_CHAOS
-//#define CAT_FILTER_LZ
-//#define CHAOS_CARE_LZ
 
 
-static const int LZ_MINMATCH = 12; // Multiple of 3
-static const int FILTER_MATCH_FUZZ = 20;
-static const int COMPRESS_LEVEL = 1;
+static const int FILTER_SELECT_FUZZ = 20;
+static const int COMPRESS_LEVEL = 0;
 #ifdef FUZZY_CHAOS
 static const int CHAOS_LEVELS = 16;
 #else
@@ -38,25 +36,9 @@ class ImageFilterWriter {
 	int _width;
 	int _height;
 	ImageMaskWriter *_mask;
+	ImageLZWriter *_lz;
 
 	EntropyEncoder _encoder[3][CHAOS_LEVELS];
-
-#ifdef CAT_FILTER_LZ
-	u16 lz_token_codes[256];
-	u8 lz_token_lens[256];
-
-	u16 lz_muck_codes[256];
-	u8 lz_muck_lens[256];
-
-	std::vector<u8> _lz_tokens, _lz_muck;
-	u8 *_lz_mask;
-
-	CAT_INLINE bool hasPixel(int x, int y) {
-		return _lz_mask[x + y * _width];
-	}
-
-	void makeLZmask();
-#endif
 
 	int init(int width, int height);
 	void decideFilters();
@@ -71,10 +53,6 @@ class ImageFilterWriter {
 #ifdef CAT_COLLECT_STATS
 public:
 	struct _Stats {
-#ifdef CAT_FILTER_LZ
-		int lz_token_ov, lz_other_ov, lz_huff_bits;
-#endif
-
 		// For these SF = 0, CF = 1
 		int filter_bytes[2], filter_table_bits[2];
 		int filter_compressed_bits[2];
@@ -109,7 +87,7 @@ public:
 		return _matrix[filterX + filterY * _w];
 	}
 
-	int initFromRGBA(u8 *rgba, int width, int height, ImageMaskWriter &mask);
+	int initFromRGBA(u8 *rgba, int width, int height, ImageMaskWriter &mask, ImageLZWriter &lz);
 	void write(ImageWriter &writer);
 
 #ifdef CAT_COLLECT_STATS
