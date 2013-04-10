@@ -753,6 +753,12 @@ void ImageFilterWriter::makeLZmask() {
 			}
 		}
 
+		if (poff/_width <= 2) {
+		   cout << "ORIG:" << literalLength/3 << " ";
+		   cout << offset << " ";
+		   cout << matchLength/3 << endl;
+		}
+
 		// Rescale
 		literalLength /= 3;
 		matchLength -= LZ_MINMATCH - 3;
@@ -1084,26 +1090,30 @@ bool ImageFilterWriter::writeChaos(ImageWriter &writer) {
 #ifdef CAT_FILTER_LZ
 					if (matchLength > 0) {
 						if (hasPixel(x, y)) {
-							if (y <= 2) {
-								cout << "M" << x << "," << y << "  ";
-							}
+							cout << "ENCODER FELL OFF OF THE MASK" << endl;
 						}
 						--matchLength;
 					} else {
-						if (!hasPixel(x, y)) {
-							if (y <= 2) {
-								cout << "L" << x << "," << y << "  ";
+						int deficit = 0;
+						if (literalLength <= 0) {
+							deficit = 1;
+						} else {
+							--literalLength;
+
+							if (!hasPixel(x, y)) {
+								cout << "ENCODER FELL OFF OF THE MASK" << endl;
 							}
-						}
 #endif
-						for (int ii = 0; ii < 3; ++ii) {
-							int bits = _encoder[ii][chaos[ii]].encode(now[ii], writer);
+							for (int ii = 0; ii < 3; ++ii) {
+								int bits = _encoder[ii][chaos[ii]].encode(now[ii], writer);
 #ifdef CAT_COLLECT_STATS
-							bitcount[ii] += bits;
+								bitcount[ii] += bits;
 #endif
-						}
+							}
 #ifdef CAT_FILTER_LZ
-						if (--literalLength <= 0) {
+						}
+
+						if (literalLength <= 0) {
 							// Write more LZ control symbols here:
 
 							// Read match offset
@@ -1145,6 +1155,7 @@ bool ImageFilterWriter::writeChaos(ImageWriter &writer) {
 								} while (s == 255);
 							}
 							matchLength += (LZ_MINMATCH - 3) / 3;
+							matchLength -= deficit;
 						
 							if (y <= 2) {
 							   cout << ll << " ";
