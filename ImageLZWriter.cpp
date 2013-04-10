@@ -54,21 +54,6 @@ bool ImageLZWriter::initWithRGBA(const u8 *rgba, int width, int height) {
 	_visited = new u32[visited_size];
 	memset(_visited, 0, visited_size * sizeof(u32));
 
-	for (int y = height - ZONE; y >= 0; y -= ZONE) {
-		for (int x = width - ZONE; x >= 0; x -= ZONE) {
-			u32 hash = 0;
-
-			for (int ii = 0; ii < ZONE; ++ii) {
-				for (int jj = 0; jj < ZONE; ++jj) {
-					u32 *p = (u32*)&rgba[((x + ii) + (y + jj) * width)*4];
-					hash += hashPixel(getLE(*p));
-				}
-			}
-
-			_table[hash & TABLE_MASK] = (x << 16) | y;
-		}
-	}
-
 	return true;
 }
 
@@ -197,7 +182,7 @@ void ImageLZWriter::add(int unused, u16 sx, u16 sy, u16 dx, u16 dy, u16 w, u16 h
 		sx, sy, dx, dy, w - ZONE, h - ZONE
 	};
 
-	_matches.push_back(m);
+	_exact_matches.push_back(m);
 
 	cout << sx << "," << sy << " -> " << dx << "," << dy << " [" << w << "," << h << "] unused=" << unused << endl;
 
@@ -271,6 +256,8 @@ bool ImageLZWriter::match() {
 				}
 			}
 
+			_table[hash & TABLE_MASK] = ((u32)x << 16) | y;
+
 			for (int jj = 0; jj < ZONE; ++jj) {
 				u32 *lp = (u32*)&rgba[(x + (y + jj) * width)*4];
 				hash -= hashPixel(getLE(*lp));
@@ -283,7 +270,7 @@ bool ImageLZWriter::match() {
 	cout << _initial_matches << " initial matches" << endl;
 	cout << _collisions << " initial collisions" << endl;
 	cout << _covered << " covered / " << width * _height << endl;
-	cout << _matches.size() * 10 << " bytes overhead / " << _covered * 3 << " bytes saved" << endl;
+	cout << _exact_matches.size() * 10 << " bytes overhead / " << _covered * 3 << " bytes saved" << endl;
 
 	return true;
 }

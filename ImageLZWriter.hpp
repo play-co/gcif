@@ -75,7 +75,8 @@ protected:
 		u8 w, h;
 	};
 
-	std::vector<Match> _matches;
+	std::vector<Match> _exact_matches;
+	std::vector<Match> _fuzzy_matches;
 	u32 _covered, _collisions, _initial_matches;
 
 	void clear();
