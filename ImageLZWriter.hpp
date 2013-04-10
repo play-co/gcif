@@ -3,6 +3,8 @@
 
 #include "Platform.hpp"
 
+#include <vector>
+
 /*
  * Game Closure's custom image LZ
  * or "Please help me I have lost control of my life to this project."
@@ -36,20 +38,43 @@ namespace cat {
 
 
 class ImageLZWriter {
-	u8 *_rgba;
+public:
+	static const int ZONE = 8;
+	static const int TABLE_BITS = 16;
+	static const int TABLE_SIZE = 1 << TABLE_BITS;
+	static const u32 TABLE_MASK = TABLE_SIZE - 1;
+	static const u32 TABLE_NULL = 0xffffffff;
+
+protected:
+	const u8 *_rgba;
 	int _width, _height;
+
+	// Value is 16-bit x, y coordinates
+	u32 *_table;
+	int _table_size;
+
+	struct Match {
+		u16 sx, sy;
+		u16 dx, dy;
+		u8 w, h;
+	};
+
+	std::vector<Match> _matches;
 
 	void clear();
 
 public:
 	CAT_INLINE ImageLZWriter() {
 		_rgba = 0;
+		_table = 0;
 	}
 	virtual CAT_INLINE ~ImageLZWriter() {
 		clear();
 	}
 
-	bool initWithRGBA(u8 *rgba, int width, int height);
+	bool initWithRGBA(const u8 *rgba, int width, int height);
+
+	bool match();
 };
 
 

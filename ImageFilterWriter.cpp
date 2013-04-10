@@ -3,6 +3,7 @@
 #include "Filters.hpp"
 #include "EntropyEstimator.hpp"
 #include "Log.hpp"
+#include "ImageLZWriter.hpp"
 using namespace cat;
 
 #include <vector>
@@ -881,6 +882,10 @@ int ImageFilterWriter::initFromRGBA(u8 *rgba, int width, int height, ImageMaskWr
 	if ((err = init(width, height))) {
 		return err;
 	}
+
+	ImageLZWriter lzw;
+	lzw.initWithRGBA(rgba, width, height);
+	lzw.match();
 
 	_width = width;
 	_height = height;
