@@ -12,13 +12,13 @@ namespace cat {
 
 
 //#define FUZZY_CHAOS
-#define CAT_FILTER_LZ
+//#define CAT_FILTER_LZ
 //#define CHAOS_CARE_LZ
 
 
-static const int LZ_MINMATCH = 12; // Multiple of 3
+static const int LZ_MINMATCH = 15; // Multiple of 3
 static const int FILTER_MATCH_FUZZ = 20;
-static const int COMPRESS_LEVEL = 0;
+static const int COMPRESS_LEVEL = 1;
 #ifdef FUZZY_CHAOS
 static const int CHAOS_LEVELS = 16;
 #else
