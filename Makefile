@@ -21,6 +21,7 @@ gcif_objects += EndianNeutral.o lz4.o lz4hc.o HuffmanDecoder.o HuffmanEncoder.o
 gcif_objects += MappedFile.o SystemInfo.o MurmurHash3.o ImageWriter.o
 gcif_objects += ImageReader.o ImageMaskWriter.o ImageMaskReader.o
 gcif_objects += ImageFilterWriter.o EntropyEncoder.o FilterScorer.o Filters.o
+gcif_objects += ImageLZWriter.o
 
 
 # Applications
@@ -96,6 +97,9 @@ FilterScorer.o : FilterScorer.cpp
 
 Filters.o : Filters.cpp
 	$(CCPP) $(CPFLAGS) -c Filters.cpp
+
+ImageLZWriter.o : ImageLZWriter.cpp
+	$(CCPP) $(CPFLAGS) -c ImageLZWriter.cpp
 
 
 # Clean target

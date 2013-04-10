@@ -42,10 +42,10 @@ class ImageLZWriter {
 	void clear();
 
 public:
-	ImageLZWriter() {
+	CAT_INLINE ImageLZWriter() {
 		_rgba = 0;
 	}
-	virtual ~ImageLZWriter() {
+	virtual CAT_INLINE ~ImageLZWriter() {
 		clear();
 	}
 
