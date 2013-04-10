@@ -9,13 +9,30 @@
 #include "FilterScorer.hpp"
 #include "Filters.hpp"
 
+/*
+ * Image Context Modeling Compressor
+ *
+ * This is based heavily on BCIF.  Notable improvements:
+ *
+ * + Better compression ratios
+ * + Maintainable codebase for future improvements
+ * + 2D LZ Exact Match and Fully-Transparent Alpha Mask integration
+ * + Uses 4x4 zones instead of 8x8
+ * + More spatial and color filters supported
+ * + Top N heuristic filters are submitted to entropy-based selection
+ * + Better filter matrix compression
+ * + Only 8 chaos levels
+ * + Encodes zero runs > ~256 without emitting more symbols for better AZ stats
+ * + Better chaos/color huffman table compression
+ */
+
 namespace cat {
 
 
 //#define FUZZY_CHAOS
 
 
-static const int FILTER_SELECT_FUZZ = 20;
+static const int FILTER_SELECT_FUZZ = 16;
 static const int COMPRESS_LEVEL = 0;
 #ifdef FUZZY_CHAOS
 static const int CHAOS_LEVELS = 16;
@@ -23,9 +40,9 @@ static const int CHAOS_LEVELS = 16;
 static const int CHAOS_LEVELS = 8;
 #endif
 
-//// ImageFilterWriter
+//// ImageCMWriter
 
-class ImageFilterWriter {
+class ImageCMWriter {
 	int _w, _h;
 	u16 *_matrix;
 	u8 *_chaos;
@@ -33,8 +50,7 @@ class ImageFilterWriter {
 	void clear();
 
 	u8 *_rgba;
-	int _width;
-	int _height;
+	int _width, _height;
 	ImageMaskWriter *_mask;
 	ImageLZWriter *_lz;
 
@@ -67,11 +83,11 @@ public:
 #endif // CAT_COLLECT_STATS
 
 public:
-	CAT_INLINE ImageFilterWriter() {
+	CAT_INLINE ImageCMWriter() {
 		_matrix = 0;
 		_chaos = 0;
 	}
-	CAT_INLINE virtual ~ImageFilterWriter() {
+	CAT_INLINE virtual ~ImageCMWriter() {
 		clear();
 	}
 

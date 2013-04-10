@@ -1,4 +1,4 @@
-#include "ImageFilterWriter.hpp"
+#include "ImageCMWriter.hpp"
 #include "BitMath.hpp"
 #include "Filters.hpp"
 #include "EntropyEstimator.hpp"
@@ -72,9 +72,9 @@ static void filterColor(int cf, const u8 *p, const u8 *pred, u8 *out) {
 }
 
 
-//// ImageFilterWriter
+//// ImageCMWriter
 
-void ImageFilterWriter::clear() {
+void ImageCMWriter::clear() {
 	if (_matrix) {
 		delete []_matrix;
 		_matrix = 0;
@@ -85,7 +85,7 @@ void ImageFilterWriter::clear() {
 	}
 }
 
-int ImageFilterWriter::init(int width, int height) {
+int ImageCMWriter::init(int width, int height) {
 	clear();
 
 	if (width < FILTER_ZONE_SIZE || height < FILTER_ZONE_SIZE) {
@@ -104,7 +104,7 @@ int ImageFilterWriter::init(int width, int height) {
 	return WE_OK;
 }
 
-void ImageFilterWriter::decideFilters() {
+void ImageCMWriter::decideFilters() {
 	u16 *filterWriter = _matrix;
 
 	EntropyEstimator<u8> ee[3];
@@ -293,7 +293,7 @@ void ImageFilterWriter::decideFilters() {
 	}
 }
 
-void ImageFilterWriter::applyFilters() {
+void ImageCMWriter::applyFilters() {
 	u16 *filterWriter = _matrix;
 	const int width = _width;
 
@@ -390,7 +390,7 @@ static const u8 CHAOS_TABLE[512] = {
 
 
 
-void ImageFilterWriter::chaosStats() {
+void ImageCMWriter::chaosStats() {
 #ifdef GENERATE_CHAOS_TABLE
 	GenerateChaosTable();
 #endif
@@ -509,7 +509,7 @@ void colorSpace(u8 *rgba, int width, int height, ImageMaskWriter &mask) {
 }
 #endif
 
-int ImageFilterWriter::initFromRGBA(u8 *rgba, int width, int height, ImageMaskWriter &mask, ImageLZWriter &lz) {
+int ImageCMWriter::initFromRGBA(u8 *rgba, int width, int height, ImageMaskWriter &mask, ImageLZWriter &lz) {
 	int err;
 
 	if ((err = init(width, height))) {
@@ -536,7 +536,7 @@ int ImageFilterWriter::initFromRGBA(u8 *rgba, int width, int height, ImageMaskWr
 	return WE_OK;
 }
 
-void ImageFilterWriter::writeFilterHuffmanTable(u8 codelens[256], ImageWriter &writer, int stats_index) {
+void ImageCMWriter::writeFilterHuffmanTable(u8 codelens[256], ImageWriter &writer, int stats_index) {
 	const int HUFF_TABLE_SIZE = 256;
 
 #ifdef CAT_COLLECT_STATS
@@ -565,7 +565,7 @@ void ImageFilterWriter::writeFilterHuffmanTable(u8 codelens[256], ImageWriter &w
 #endif // CAT_COLLECT_STATS
 }
 
-void ImageFilterWriter::writeFilters(ImageWriter &writer) {
+void ImageCMWriter::writeFilters(ImageWriter &writer) {
 	vector<u8> data[2];
 
 	bool writing = false;
@@ -651,7 +651,7 @@ void ImageFilterWriter::writeFilters(ImageWriter &writer) {
 	}
 }
 
-bool ImageFilterWriter::writeChaos(ImageWriter &writer) {
+bool ImageCMWriter::writeChaos(ImageWriter &writer) {
 #ifdef CAT_COLLECT_STATS
 	int overhead_bits = 0;
 	int bitcount[3] = {0};
@@ -736,7 +736,7 @@ bool ImageFilterWriter::writeChaos(ImageWriter &writer) {
 	return true;
 }
 
-void ImageFilterWriter::write(ImageWriter &writer) {
+void ImageCMWriter::write(ImageWriter &writer) {
 	writeFilters(writer);
 
 	if (!writeChaos(writer)) {
@@ -763,7 +763,7 @@ void ImageFilterWriter::write(ImageWriter &writer) {
 
 #ifdef CAT_COLLECT_STATS
 
-bool ImageFilterWriter::dumpStats() {
+bool ImageCMWriter::dumpStats() {
 	CAT_INFO("stats") << "(RGB Compress) Spatial Filter Table Size : " <<  Stats.filter_table_bits[0] << " bits (" << Stats.filter_table_bits[0]/8 << " bytes)";
 	CAT_INFO("stats") << "(RGB Compress) Spatial Filter Raw Size : " <<  Stats.filter_bytes[0] << " bytes";
 	CAT_INFO("stats") << "(RGB Compress) Spatial Filter Compressed Size : " <<  Stats.filter_compressed_bits[0] << " bits (" << Stats.filter_compressed_bits[0]/8 << " bytes)";

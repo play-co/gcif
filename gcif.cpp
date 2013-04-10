@@ -7,7 +7,7 @@ using namespace std;
 
 #include "ImageWriter.hpp"
 #include "ImageMaskWriter.hpp"
-#include "ImageFilterWriter.hpp"
+#include "ImageCMWriter.hpp"
 #include "ImageLZWriter.hpp"
 
 #include "ImageReader.hpp"
@@ -58,14 +58,14 @@ public:
 		imageLZWriter.write(writer);
 		imageLZWriter.dumpStats();
 
-		ImageFilterWriter imageFilterWriter;
-		if ((err = imageFilterWriter.initFromRGBA(&image[0], width, height, imageMaskWriter))) {
+		ImageCMWriter imageCMWriter;
+		if ((err = imageCMWriter.initFromRGBA(&image[0], width, height, imageMaskWriter, imageLZWriter))) {
 			CAT_WARN("main") << "Unable to initialize filter writer: " << ImageWriter::ErrorString(err);
 			return err;
 		}
 
-		imageFilterWriter.write(writer);
-		imageFilterWriter.dumpStats();
+		imageCMWriter.write(writer);
+		imageCMWriter.dumpStats();
 
 		if ((err = writer.finalizeAndWrite(outfile))) {
 			CAT_WARN("main") << "Unable to finalize and write image mask: " << ImageWriter::ErrorString(err);
