@@ -40,6 +40,7 @@ public:
 		double generateTableUsec, tableEncodeUsec, dataEncodeUsec;
 		double overallUsec;
 
+		int compressedDataBits;
 		int originalDataBytes, compressedDataBytes;
 
 		double compressionRatio;

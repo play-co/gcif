@@ -312,11 +312,13 @@ void ImageCMWriter::applyFilters() {
 
 			filterColor(cf, p, pred, p);
 
+#if 0
 			if (_lz->visited(x, y)) {
 				p[0] = 255;
 				p[1] = 0;
 				p[2] = 0;
 			}
+#endif
 
 #if 0
 			p[0] = p[0];
@@ -662,6 +664,7 @@ bool ImageCMWriter::writeChaos(ImageWriter &writer) {
 #ifdef CAT_COLLECT_STATS
 	int overhead_bits = 0;
 	int bitcount[3] = {0};
+	int chaos_count = 0;
 #endif
 
 	for (int ii = 0; ii < 3; ++ii) {
@@ -721,6 +724,9 @@ bool ImageCMWriter::writeChaos(ImageWriter &writer) {
 						bitcount[ii] += bits;
 #endif
 					}
+#ifdef CAT_COLLECT_STATS
+					chaos_count++;
+#endif
 				}
 			}
 
@@ -738,6 +744,7 @@ bool ImageCMWriter::writeChaos(ImageWriter &writer) {
 		Stats.rgb_bits[ii] = bitcount[ii];
 	}
 	Stats.chaos_overhead_bits = overhead_bits;
+	Stats.chaos_count = chaos_count;
 #endif
 
 	return true;
@@ -760,10 +767,14 @@ void ImageCMWriter::write(ImageWriter &writer) {
 		total += Stats.rgb_bits[ii];
 	}
 	total += Stats.chaos_overhead_bits;
-#ifdef CAT_FILTER_LZ
-	total += Stats.lz_huff_bits;
-#endif
+	Stats.chaos_bits = total;
+	total += _lz->Stats.huff_bits;
+	total += _mask->Stats.compressedDataBits;
 	Stats.total_bits = total;
+
+	Stats.overall_compression_ratio = _width * _height * 4 * 8 / (double)Stats.total_bits;
+
+	Stats.chaos_compression_ratio = Stats.chaos_count * 3 * 8 / (double)Stats.chaos_bits;
 
 #endif
 }
@@ -771,20 +782,23 @@ void ImageCMWriter::write(ImageWriter &writer) {
 #ifdef CAT_COLLECT_STATS
 
 bool ImageCMWriter::dumpStats() {
-	CAT_INFO("stats") << "(RGB Compress) Spatial Filter Table Size : " <<  Stats.filter_table_bits[0] << " bits (" << Stats.filter_table_bits[0]/8 << " bytes)";
-	CAT_INFO("stats") << "(RGB Compress) Spatial Filter Raw Size : " <<  Stats.filter_bytes[0] << " bytes";
-	CAT_INFO("stats") << "(RGB Compress) Spatial Filter Compressed Size : " <<  Stats.filter_compressed_bits[0] << " bits (" << Stats.filter_compressed_bits[0]/8 << " bytes)";
+	CAT_INFO("stats") << "(CM Compress) Spatial Filter Table Size : " <<  Stats.filter_table_bits[0] << " bits (" << Stats.filter_table_bits[0]/8 << " bytes)";
+	CAT_INFO("stats") << "(CM Compress) Spatial Filter Raw Size : " <<  Stats.filter_bytes[0] << " bytes";
+	CAT_INFO("stats") << "(CM Compress) Spatial Filter Compressed Size : " <<  Stats.filter_compressed_bits[0] << " bits (" << Stats.filter_compressed_bits[0]/8 << " bytes)";
 
-	CAT_INFO("stats") << "(RGB Compress) Color Filter Table Size : " <<  Stats.filter_table_bits[1] << " bits (" << Stats.filter_table_bits[1]/8 << " bytes)";
-	CAT_INFO("stats") << "(RGB Compress) Color Filter Raw Size : " <<  Stats.filter_bytes[1] << " bytes";
-	CAT_INFO("stats") << "(RGB Compress) Color Filter Compressed Size : " <<  Stats.filter_compressed_bits[1] << " bits (" << Stats.filter_compressed_bits[1]/8 << " bytes)";
+	CAT_INFO("stats") << "(CM Compress) Color Filter Table Size : " <<  Stats.filter_table_bits[1] << " bits (" << Stats.filter_table_bits[1]/8 << " bytes)";
+	CAT_INFO("stats") << "(CM Compress) Color Filter Raw Size : " <<  Stats.filter_bytes[1] << " bytes";
+	CAT_INFO("stats") << "(CM Compress) Color Filter Compressed Size : " <<  Stats.filter_compressed_bits[1] << " bits (" << Stats.filter_compressed_bits[1]/8 << " bytes)";
 
-	CAT_INFO("stats") << "(RGB Compress) Y-Channel Compressed Size : " <<  Stats.rgb_bits[0] << " bits (" << Stats.rgb_bits[0]/8 << " bytes)";
-	CAT_INFO("stats") << "(RGB Compress) U-Channel Compressed Size : " <<  Stats.rgb_bits[1] << " bits (" << Stats.rgb_bits[1]/8 << " bytes)";
-	CAT_INFO("stats") << "(RGB Compress) V-Channel Compressed Size : " <<  Stats.rgb_bits[2] << " bits (" << Stats.rgb_bits[2]/8 << " bytes)";
+	CAT_INFO("stats") << "(CM Compress) Y-Channel Compressed Size : " <<  Stats.rgb_bits[0] << " bits (" << Stats.rgb_bits[0]/8 << " bytes)";
+	CAT_INFO("stats") << "(CM Compress) U-Channel Compressed Size : " <<  Stats.rgb_bits[1] << " bits (" << Stats.rgb_bits[1]/8 << " bytes)";
+	CAT_INFO("stats") << "(CM Compress) V-Channel Compressed Size : " <<  Stats.rgb_bits[2] << " bits (" << Stats.rgb_bits[2]/8 << " bytes)";
 
-	CAT_INFO("stats") << "(RGB Compress) YUV Overhead Size : " << Stats.chaos_overhead_bits << " bits (" << Stats.chaos_overhead_bits/8 << " bytes)";
-	CAT_INFO("stats") << "(RGB Compress) Total size : " << Stats.total_bits << " bits (" << Stats.total_bits/8 << " bytes)";
+	CAT_INFO("stats") << "(CM Compress) YUV Overhead Size : " << Stats.chaos_overhead_bits << " bits (" << Stats.chaos_overhead_bits/8 << " bytes)";
+	CAT_INFO("stats") << "(CM Compress) Chaos pixel count : " << Stats.chaos_count << " pixels";
+	CAT_INFO("stats") << "(CM Compress) Chaos compression ratio : " << Stats.chaos_compression_ratio << ":1";
+	CAT_INFO("stats") << "(CM Compress) Overall size : " << Stats.total_bits << " bits (" << Stats.total_bits/8 << " bytes)";
+	CAT_INFO("stats") << "(CM Compress) Overall compression ratio : " << Stats.overall_compression_ratio << ":1";
 
 	return true;
 }

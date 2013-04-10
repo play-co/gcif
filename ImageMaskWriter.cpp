@@ -525,8 +525,9 @@ void ImageMaskWriter::write(ImageWriter &writer) {
 	Stats.overallUsec = t7 - t0;
 
 	Stats.originalDataBytes = _width * _height / 8;
-	Stats.compressedDataBytes = (Stats.data_bits + Stats.table_bits + 7) / 8;
-	Stats.compressionRatio = Stats.compressedDataBytes * 100.f / Stats.originalDataBytes;
+	Stats.compressedDataBits = Stats.data_bits + Stats.table_bits;
+	Stats.compressedDataBytes = Stats.compressedDataBits / 8;
+	Stats.compressionRatio = Stats.originalDataBytes / (double)Stats.compressedDataBytes;
 
 #endif // CAT_COLLECT_STATS
 }
@@ -550,7 +551,7 @@ bool ImageMaskWriter::dumpStats() {
 
 	CAT_INFO("stats") << "(Mask Encoding) Throughput : " << Stats.originalDataBytes / Stats.overallUsec << " MBPS (input bytes)";
 	CAT_INFO("stats") << "(Mask Encoding) Throughput : " << Stats.compressedDataBytes / Stats.overallUsec << " MBPS (output bytes)";
-	CAT_INFO("stats") << "(Mask Encoding) Ratio : " << Stats.compressionRatio << "% (" << Stats.compressedDataBytes << " bytes) of original data set (" << Stats.originalDataBytes << " bytes)";
+	CAT_INFO("stats") << "(Mask Encoding) Compression ratio : " << Stats.compressionRatio << ":1 (" << Stats.compressedDataBytes << " bytes) of original data set (" << Stats.originalDataBytes << " bytes)";
 
 	return true;
 }

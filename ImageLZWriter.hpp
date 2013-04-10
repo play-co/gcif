@@ -91,6 +91,7 @@ protected:
 	int match();
 
 #ifdef CAT_COLLECT_STATS
+public:
 	struct _Stats {
 		u32 covered, collisions, initial_matches;
 		double covered_percent;

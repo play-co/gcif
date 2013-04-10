@@ -33,7 +33,7 @@ namespace cat {
 
 
 static const int FILTER_SELECT_FUZZ = 16;
-static const int COMPRESS_LEVEL = 0;
+static const int COMPRESS_LEVEL = 1;
 #ifdef FUZZY_CHAOS
 static const int CHAOS_LEVELS = 16;
 #else
@@ -78,7 +78,13 @@ public:
 		// RGB data
 		int rgb_bits[3];
 
+		int chaos_bits;
 		int total_bits;
+
+		u32 chaos_count;
+		double chaos_compression_ratio;
+
+		double overall_compression_ratio;
 	} Stats;
 #endif // CAT_COLLECT_STATS
 
