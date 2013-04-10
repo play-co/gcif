@@ -1,9 +1,7 @@
 #include "ImageLZWriter.hpp"
 #include "EndianNeutral.hpp"
+#include "Log.hpp"
 using namespace cat;
-
-#include <iostream>
-using namespace std;
 
 
 //// ImageLZWriter
@@ -36,7 +34,7 @@ static CAT_INLINE u32 hashPixel(u32 key) {
 	return key;
 }
 
-bool ImageLZWriter::initWithRGBA(const u8 *rgba, int width, int height) {
+bool ImageLZWriter::initFromRGBA(const u8 *rgba, int width, int height) {
 	clear();
 
 	if (width % ZONE || height % ZONE) {
@@ -54,7 +52,7 @@ bool ImageLZWriter::initWithRGBA(const u8 *rgba, int width, int height) {
 	_visited = new u32[visited_size];
 	memset(_visited, 0, visited_size * sizeof(u32));
 
-	return true;
+	return match();
 }
 
 bool ImageLZWriter::checkMatch(u16 x, u16 y, u16 mx, u16 my) {
@@ -229,9 +227,7 @@ void ImageLZWriter::add(int unused, u16 sx, u16 sy, u16 dx, u16 dy, u16 w, u16 h
 
 	_exact_matches.push_back(m);
 
-	//cout << sx << "," << sy << " -> " << dx << "," << dy << " [" << w << "," << h << "] unused=" << unused << endl;
-
-	_covered += unused;
+	Stats.covered += unused;
 }
 
 bool ImageLZWriter::match() {
@@ -242,9 +238,9 @@ bool ImageLZWriter::match() {
 	const u8 *rgba = _rgba;
 	const int width = _width;
 
-	_collisions = 0;
-	_initial_matches = 0;
-	_covered = 0;
+	Stats.collisions = 0;
+	Stats.initial_matches = 0;
+	Stats.covered = 0;
 
 	// For each raster,
 	for (u16 y = 0, yend = _height - ZONE; y <= yend; ++y) {
@@ -270,7 +266,7 @@ bool ImageLZWriter::match() {
 
 				// If the match was genuine,
 				if (checkMatch(sx, sy, x, y)) {
-					++_initial_matches;
+					++Stats.initial_matches;
 
 					u16 dx = x, dy = y, w = ZONE, h = ZONE;
 
@@ -284,7 +280,7 @@ bool ImageLZWriter::match() {
 						add(unused, sx, sy, dx, dy, w, h);
 					}
 				} else {
-					++_collisions;
+					++Stats.collisions;
 				}
 			}
 
@@ -301,14 +297,32 @@ bool ImageLZWriter::match() {
 		} while (++x <= xend);
 	}
 
-#if 1
+	return true;
+}
 
-	cout << _initial_matches << " initial matches" << endl;
-	cout << _collisions << " initial collisions" << endl;
-	cout << _covered << " covered / " << width * _height << " = " << (_covered / (double)(width * _height)) * 100.f << "% of file" << endl;
-	cout << _exact_matches.size() * 10 << " bytes overhead / " << _covered * 3 << " bytes saved = " << _covered * 3 / (double)(_exact_matches.size() * 10) << ":1 ratio" << endl;
+void ImageLZWriter::write(ImageWriter &writer) {
+	writer.writeBits(16, _exact_matches.size());
+
+#ifdef CAT_COLLECT_STATS
+	Stats.covered_percent = Stats.covered / (double)(_width * _height);
+	Stats.bytes_saved = Stats.covered * 3;
+	Stats.bytes_overhead = _exact_matches.size() * 10;
+	Stats.compression_ratio = Stats.bytes_saved / (double)Stats.bytes_overhead;
 #endif
+}
+
+#ifdef CAT_COLLECT_STATS
+
+bool ImageLZWriter::dumpStats() {
+	CAT_INFO("stats") << "(LZ Compress) Initial matches : " << Stats.initial_matches;
+	CAT_INFO("stats") << "(LZ Compress) Initial collisions : " << Stats.collisions;
+	CAT_INFO("stats") << "(LZ Compress) Matched amount : " << Stats.covered_percent << "% of file is redundant";
+	CAT_INFO("stats") << "(LZ Compress) Bytes saved : " << Stats.bytes_saved << " bytes";
+	CAT_INFO("stats") << "(LZ Compress) Bytes overhead : " << Stats.bytes_overhead << " bytes to transmit";
+	CAT_INFO("stats") << "(LZ Compress) Compression ratio : " << Stats.compression_ratio << ":1";
 
 	return true;
 }
+
+#endif
 

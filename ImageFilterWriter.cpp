@@ -883,10 +883,6 @@ int ImageFilterWriter::initFromRGBA(u8 *rgba, int width, int height, ImageMaskWr
 		return err;
 	}
 
-	ImageLZWriter lzw;
-	lzw.initWithRGBA(rgba, width, height);
-	lzw.match();
-
 	_width = width;
 	_height = height;
 	_rgba = rgba;

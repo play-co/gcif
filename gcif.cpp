@@ -8,6 +8,7 @@ using namespace std;
 #include "ImageWriter.hpp"
 #include "ImageMaskWriter.hpp"
 #include "ImageFilterWriter.hpp"
+#include "ImageLZWriter.hpp"
 
 #include "ImageReader.hpp"
 #include "ImageMaskReader.hpp"
@@ -32,6 +33,12 @@ public:
 
 		int err;
 
+		ImageWriter writer;
+		if ((err = writer.init(width, height))) {
+			CAT_WARN("main") << "Unable to initialize image writer: " << ImageWriter::ErrorString(err);
+			return err;
+		}
+
 		// Generate ImageMask
 		ImageMaskWriter imageMaskWriter;
 		if ((err = imageMaskWriter.initFromRGBA(&image[0], width, height))) {
@@ -39,15 +46,17 @@ public:
 			return err;
 		}
 
-		ImageWriter writer;
-		if ((err = writer.init(width, height))) {
-			CAT_WARN("main") << "Unable to initialize image writer: " << ImageWriter::ErrorString(err);
+		imageMaskWriter.write(writer);
+		imageMaskWriter.dumpStats();
+
+		ImageLZWriter imageLZWriter;
+		if ((err = imageLZWriter.initFromRGBA(&image[0], width, height))) {
+			CAT_WARN("main") << "Unable to initialize filter writer: " << ImageWriter::ErrorString(err);
 			return err;
 		}
 
-		imageMaskWriter.write(writer);
-
-		imageMaskWriter.dumpStats();
+		imageLZWriter.write(writer);
+		imageLZWriter.dumpStats();
 
 		ImageFilterWriter imageFilterWriter;
 		if ((err = imageFilterWriter.initFromRGBA(&image[0], width, height, imageMaskWriter))) {
@@ -56,7 +65,6 @@ public:
 		}
 
 		imageFilterWriter.write(writer);
-
 		imageFilterWriter.dumpStats();
 
 		if ((err = writer.finalizeAndWrite(outfile))) {

@@ -2,6 +2,7 @@
 #define IMAGE_LZ_WRITER_HPP
 
 #include "Platform.hpp"
+#include "ImageWriter.hpp"
 
 #include <vector>
 
@@ -85,14 +86,23 @@ protected:
 	};
 
 	std::vector<Match> _exact_matches;
-	//std::vector<Match> _fuzzy_matches;
-	u32 _covered, _collisions, _initial_matches;
 
 	void clear();
 	bool checkMatch(u16 x, u16 y, u16 mx, u16 my);	
 	bool expandMatch(u16 &sx, u16 &sy, u16 &dx, u16 &dy, u16 &w, u16 &h);
 	u32 score(int x, int y, int w, int h);
 	void add(int unused, u16 sx, u16 sy, u16 dx, u16 dy, u16 w, u16 h);
+	bool match();
+
+#ifdef CAT_COLLECT_STATS
+	struct _Stats {
+		u32 covered, collisions, initial_matches;
+		double covered_percent;
+
+		u32 bytes_saved, bytes_overhead;
+		double compression_ratio;
+	} Stats;
+#endif
 
 public:
 	CAT_INLINE ImageLZWriter() {
@@ -104,9 +114,16 @@ public:
 		clear();
 	}
 
-	bool initWithRGBA(const u8 *rgba, int width, int height);
+	bool initFromRGBA(const u8 *rgba, int width, int height);
 
-	bool match();
+	void write(ImageWriter &writer);
+#ifdef CAT_COLLECT_STATS
+	bool dumpStats();
+#else
+	CAT_INLINE bool dumpStats() {
+		return false;
+	}
+#endif
 };
 
 
