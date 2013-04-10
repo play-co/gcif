@@ -60,6 +60,9 @@ bool ImageLZWriter::initWithRGBA(const u8 *rgba, int width, int height) {
 bool ImageLZWriter::checkMatch(u16 x, u16 y, u16 mx, u16 my) {
 	const u8 *rgba = _rgba;
 	const int width = _width;
+#ifdef IGNORE_ALL_ZERO_MATCHES
+	u32 nonzero = 0;
+#endif
 
 	for (int ii = 0; ii < ZONE; ++ii) {
 		for (int jj = 0; jj < ZONE; ++jj) {
@@ -74,10 +77,18 @@ bool ImageLZWriter::checkMatch(u16 x, u16 y, u16 mx, u16 my) {
 			if (((getLE(*p) ^ getLE(*mp)) << 8) != 0) {
 				return false;
 			}
+
+#ifdef IGNORE_ALL_ZERO_MATCHES
+			nonzero |= *p;
+#endif
 		}
 	}
 
+#ifdef IGNORE_ALL_ZERO_MATCHES
+	return (getLE(nonzero) >> 24) != 0;
+#else
 	return true;
+#endif
 }
 
 bool ImageLZWriter::expandMatch(u16 &sx, u16 &sy, u16 &dx, u16 &dy, u16 &w, u16 &h) {
@@ -184,11 +195,19 @@ u32 ImageLZWriter::score(int x, int y, int w, int h) {
 				return 0;
 			}
 			u32 *p = (u32*)&_rgba[((x + ii) + (y + jj) * _width)*4];
-			u32 pv = getLE(*p) << 8;
-			if (pv == 0) {
-				sum += 1;
-			} else {
-				sum += ZERO_COEFF;
+			u32 pv = getLE(*p);
+
+#ifdef IGNORE_ALL_ZERO_MATCHES
+			// If not fully transparent,
+			if (pv >> 24)
+#endif
+			{
+				// If color data,
+				if (pv << 8) {
+					sum += ZERO_COEFF;
+				} else {
+					sum += 1;
+				}
 			}
 		}
 	}
@@ -275,10 +294,13 @@ bool ImageLZWriter::match() {
 		} while (++x <= xend);
 	}
 
+#if 1
+
 	cout << _initial_matches << " initial matches" << endl;
 	cout << _collisions << " initial collisions" << endl;
-	cout << _covered << " covered / " << width * _height << endl;
-	cout << _exact_matches.size() * 10 << " bytes overhead / " << _covered * 3 << " bytes saved" << endl;
+	cout << _covered << " covered / " << width * _height << " = " << (_covered / (double)(width * _height)) * 100.f << "% of file" << endl;
+	cout << _exact_matches.size() * 10 << " bytes overhead / " << _covered * 3 << " bytes saved = " << _covered * 3 / (double)(_exact_matches.size() * 10) << ":1 ratio" << endl;
+#endif
 
 	return true;
 }

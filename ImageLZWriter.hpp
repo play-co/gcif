@@ -45,6 +45,9 @@
 namespace cat {
 
 
+#define IGNORE_ALL_ZERO_MATCHES /* Disallows fully-transparent pixels from causing matches */
+
+
 class ImageLZWriter {
 public:
 	static const int ZONE = 4;
@@ -83,7 +86,7 @@ protected:
 	};
 
 	std::vector<Match> _exact_matches;
-	std::vector<Match> _fuzzy_matches;
+	//std::vector<Match> _fuzzy_matches;
 	u32 _covered, _collisions, _initial_matches;
 
 	void clear();
