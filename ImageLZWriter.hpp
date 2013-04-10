@@ -35,6 +35,10 @@
  * Note that the source and destination rectangles overlap.  In the transmitted
  * data, only the first literal pixel column is emitted, and then the remaining
  * 21 columns are copied across.  Slick!
+ *
+ * It seems that about 7% of test image data can be represented with 2D LZ, and
+ * the compression ratio is about 5x better than context modeling.
+ * So the average 1024x1024 spritesheet gets 50KB smaller with this approach.
  */
 
 namespace cat {
