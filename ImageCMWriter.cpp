@@ -743,9 +743,7 @@ bool ImageCMWriter::writeChaos(ImageWriter &writer) {
 void ImageCMWriter::write(ImageWriter &writer) {
 	writeFilters(writer);
 
-	if (!writeChaos(writer)) {
-		cout << "WTF MAN" << endl;
-	}
+	writeChaos(writer);
 
 #ifdef CAT_COLLECT_STATS
 	int total = 0;
