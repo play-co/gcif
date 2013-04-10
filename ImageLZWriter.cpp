@@ -92,6 +92,7 @@ bool ImageLZWriter::match() {
 	const int width = _width;
 
 	u32 collisions = 0;
+	u32 matches = 0;
 
 	// For each raster,
 	for (u16 y = 0, yend = _height - ZONE; y <= yend; ++y) {
@@ -115,22 +116,26 @@ bool ImageLZWriter::match() {
 				if (mx != x && my != y) {
 
 					if (checkMatch(rgba, width, x, y, mx, my)) {
-						cout << "Found hash match between (" << x << ", " << y << ") and (" << mx << ", " << my << ")" << endl;
+						++matches;
+						if (mx != 0 || my != 0) {
+							cout << "Found hash match between (" << x << ", " << y << ") and (" << mx << ", " << my << ")" << endl;
+						}
 					} else {
 						++collisions;
 					}
 				}
 			}
-		} while (++x <= xend);
 
-		for (int jj = 0; jj < ZONE; ++jj) {
-			u32 *lp = (u32*)&rgba[(x + (y + jj) * width)*4];
-			hash -= hashPixel(getLE(*lp));
-			u32 *rp = (u32*)&rgba[((x + ZONE) + (y + jj) * width)*4];
-			hash += hashPixel(getLE(*rp));
-		}
+			for (int jj = 0; jj < ZONE; ++jj) {
+				u32 *lp = (u32*)&rgba[(x + (y + jj) * width)*4];
+				hash -= hashPixel(getLE(*lp));
+				u32 *rp = (u32*)&rgba[((x + ZONE) + (y + jj) * width)*4];
+				hash += hashPixel(getLE(*rp));
+			}
+		} while (++x <= xend);
 	}
 
+	cout << matches << " matches" << endl;
 	cout << collisions << " collisions" << endl;
 
 	return true;
