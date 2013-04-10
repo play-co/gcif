@@ -20,19 +20,18 @@
  *
  * Then the image is scanned from the upper left to the lower right, one pixel
  * increment at a time.  Each image match is verified and then expanded.
- * Forward matches are as useful as backwards matches at this point.
  *
- * To avoid overlaps, a simple algorithm is used: Each pixel for the match
- * copy destination is flagged as being used, and cannot be used as part of
- * another match.  New matches must have at least 16 previously unused pixels.
+ * Overlaps are immediately rejected.
  *
- * To avoid slowing down too much, ~256x256 is the largest match allowed.
+ * When deciding to accept a match or not, it expects a score of at least 16,
+ * where colored pixels count for 1 point and zero pixels count as 0.25 points.
+ *
+ * To reduce symbol sizes, 259x259 is the largest match allowed.
  * Compression speed is definitely not any consideration however, not that it
- * runs terribly slowly.
+ * runs slowly.
  *
  * The result is a set of pixel source/dest x,y coordinates (32+32 bits) and a
- * width/height (8+8 bits) or 10 bytes of overhead.  These are transmitted with
- * the image data and processed specially in the decoder.
+ * width/height (8+8 bits) for 10 bytes of overhead per match.
  */
 
 namespace cat {
