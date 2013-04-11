@@ -10,16 +10,20 @@
 #include "Filters.hpp"
 
 /*
- * Image Context Modeling Compressor
+ * Game Closure Context Modeling Compression
  *
- * This is based heavily on BCIF.  Notable improvements:
+ * This is based heavily on BCIF by Stefano Brocchi
+ * from his PhD thesis "Bidimensional pictures: reconstruction, expression and encoding" (Dec 2009)
+ * http://www.dsi.unifi.it/DRIIA/RaccoltaTesi/Brocchi.pdf
+ *
+ * Notable improvements:
  *
  * + Better compression ratios
  * + Maintainable codebase for future improvements
  * + 2D LZ Exact Match and Fully-Transparent Alpha Mask integration
  * + Uses 4x4 zones instead of 8x8
  * + More spatial and color filters supported
- * + Top N heuristic filters are submitted to entropy-based selection
+ * + Top (FILTER_SELECT_FUZZ) filters are submitted to entropy-based selection
  * + Better filter matrix compression
  * + Only 8 chaos levels
  * + Encodes zero runs > ~256 without emitting more symbols for better AZ stats
@@ -29,20 +33,13 @@
 namespace cat {
 
 
-//#define FUZZY_CHAOS
-
-
-static const int FILTER_SELECT_FUZZ = 16;
-static const int COMPRESS_LEVEL = 1;
-#ifdef FUZZY_CHAOS
-static const int CHAOS_LEVELS = 16;
-#else
-static const int CHAOS_LEVELS = 8;
-#endif
-
 //// ImageCMWriter
 
 class ImageCMWriter {
+protected:
+	static const int FILTER_SELECT_FUZZ = 16;
+	static const int COMPRESS_LEVEL = 1;
+
 	int _w, _h;
 	u16 *_matrix;
 	u8 *_chaos;
