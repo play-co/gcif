@@ -110,88 +110,6 @@ void EntropyEncoder::finalize() {
 	runListReadIndex = 0;
 }
 
-
-#ifdef FALLBACK_CHAOS_OVERHEAD
-
-static u32 writeHuffmanTable(int num_syms, u8 codelens[], ImageWriter &writer) {
-	u32 bitcount = 0;
-
-	for (int ii = 1; ii < num_syms; ++ii) {
-		u8 len = codelens[ii];
-
-		while (len >= 15) {
-			writer.writeBits(15, 4);
-			len -= 15;
-			bitcount += 4;
-		}
-
-		writer.writeBits(len, 4);
-		bitcount += 4;
-	}
-
-	return bitcount;
-}
-
-#elif defined(GOLOMB_CHAOS_OVERHEAD)
-
-static u32 writeHuffmanTable(int num_syms, u8 codelens[], ImageWriter &writer) {
-	vector<u8> huffTable;
-
-	// Delta-encode the Huffman codelen table
-	int lag0 = 3;
-	u32 sum = 0;
-
-	static const u32 LEN_MOD = HuffmanDecoder::MAX_CODE_SIZE + 1;
-
-	// Skip symbol 0 (never sent)
-	for (int ii = 1; ii < num_syms; ++ii) {
-		u8 symbol = ii;
-		u8 codelen = codelens[symbol];
-
-		u32 delta = (codelen - lag0) % LEN_MOD;
-		lag0 = codelen;
-
-		huffTable.push_back(delta);
-		sum += delta;
-	}
-
-	// Find K shift
-	sum >>= 8;
-	u32 shift = sum > 0 ? BSR32(sum) : 0;
-	u32 shiftMask = (1 << shift) - 1;
-
-	writer.writeBits(shift, 3);
-
-	u32 table_bits = 3;
-
-	// For each symbol,
-	for (int ii = 0; ii < huffTable.size(); ++ii) {
-		int symbol = huffTable[ii];
-		int q = symbol >> shift;
-
-		if CAT_UNLIKELY(q > 31) {
-			for (int ii = 0; ii < q; ++ii) {
-				writer.writeBit(1);
-				++table_bits;
-			}
-			writer.writeBit(0);
-			++table_bits;
-		} else {
-			writer.writeBits((0x7fffffff >> (31 - q)) << 1, q + 1);
-			table_bits += q + 1;
-		}
-
-		if (shift > 0) {
-			writer.writeBits(symbol & shiftMask, shift);
-			table_bits += shift;
-		}
-	}
-
-	return table_bits;
-}
-
-#else
-
 static u32 writeHuffmanTable(int num_syms, u8 codelens[], ImageWriter &writer) {
 	u32 bitcount = 0;
 
@@ -229,13 +147,14 @@ static u32 writeHuffmanTable(int num_syms, u8 codelens[], ImageWriter &writer) {
 	for (int ii = 0; ii < delta_syms; ++ii) {
 		u8 len = delta_codelens[ii];
 
-		while (len >= 15) {
+		if (len >= 15) {
 			writer.writeBits(15, 4);
-			len -= 15;
-			bitcount += 4;
+			writer.writeBit(len - 15);
+			bitcount++;
+		} else {
+			writer.writeBits(len, 4);
 		}
 
-		writer.writeBits(len, 4);
 		bitcount += 4;
 	}
 
@@ -252,9 +171,6 @@ static u32 writeHuffmanTable(int num_syms, u8 codelens[], ImageWriter &writer) {
 
 	return bitcount;
 }
-
-#endif
-
 
 u32 EntropyEncoder::writeOverhead(ImageWriter &writer) {
 	u32 bitcount = writeHuffmanTable(BZ_SYMS, codelensBZ, writer);

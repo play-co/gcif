@@ -483,16 +483,16 @@ void ImageCMWriter::writeFilterHuffmanTable(u8 codelens[256], ImageWriter &write
 
 	for (int ii = 0; ii < HUFF_TABLE_SIZE; ++ii) {
 		u8 len = codelens[ii];
-
-		while (len >= 15) {
+		if (len >= 15) {
 			writer.writeBits(15, 4);
-			len -= 15;
+			writer.writeBit(len - 15);
 #ifdef CAT_COLLECT_STATS
-			bitcount += 4;
+		bitcount++;
 #endif
+		} else {
+			writer.writeBits(len, 4);
 		}
 
-		writer.writeBits(len, 4);
 #ifdef CAT_COLLECT_STATS
 		bitcount += 4;
 #endif

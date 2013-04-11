@@ -48,6 +48,8 @@ protected:
 	int _width, _height;
 	u8 *_chaos;
 
+	u8 *_filters; // hi4bits: sf, lo4bits: cf
+
 	ImageMaskReader *_mask;
 	ImageLZReader *_lz;
 
@@ -70,6 +72,7 @@ public:
 	CAT_INLINE ImageCMReader() {
 		_rgba = 0;
 		_chaos = 0;
+		_filters = 0;
 	}
 	virtual CAT_INLINE ~ImageCMReader() {
 		clear();

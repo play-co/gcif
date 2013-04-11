@@ -14,6 +14,10 @@ void ImageCMReader::clear() {
 		delete []_rgba;
 		_rgba = 0;
 	}
+	if (_filters) {
+		delete []_filters;
+		_filters = 0;
+	}
 }
 
 int ImageCMReader::init(const ImageInfo *info) {
@@ -36,6 +40,22 @@ int ImageCMReader::init(const ImageInfo *info) {
 }
 
 int ImageCMReader::readFilters(ImageReader &reader) {
+	_filters = new u8[(_width >> FILTER_ZONE_SIZE_SHIFT) * (_height >> FILTER_ZONE_SIZE)];
+
+	const int HUFF_TABLE_SIZE = 256;
+
+	// For each table entry,
+	for (int ii = 0; ii < HUFF_TABLE_SIZE; ++ii) {
+		// Read codelen
+		u32 len = reader.readBits(4);
+
+		// If codelen is extended,
+		if (len >= 15) {
+			// Can only be extended once
+			len += reader.readBit();
+		}
+	}
+
 	return RE_OK;
 }
 

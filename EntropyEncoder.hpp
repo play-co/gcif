@@ -13,10 +13,6 @@ namespace cat {
 
 #define USE_AZ /* After-Zero Context (Pseudo-Order-1) */
 
-//#define FALLBACK_CHAOS_OVERHEAD
-//#define GOLOMB_CHAOS_OVERHEAD
-// Default is Huffman-encoded Huffman tables
-
 static const int FILTER_RLE_SYMS = 128; // Number of symbols set apart for zRLE
 
 

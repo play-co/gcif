@@ -57,11 +57,10 @@ int ImageLZReader::readTables(ImageReader &reader) {
 	// Read codelens
 	u8 codelens[NUM_SYMS];
 	for (int ii = 0; ii < NUM_SYMS; ++ii) {
-		u32 s, len = 0;
-		while ((s = reader.readBits(4)) >= 15) { // EOF will read zeroes back so no need to check here
-			len += 15;
+		u32 len = reader.readBits(4);
+		if (len >= 15) {
+			len += reader.readBit();
 		}
-		len += s;
 
 		codelens[ii] = len;
 	}
