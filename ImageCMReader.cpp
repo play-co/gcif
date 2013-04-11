@@ -103,9 +103,6 @@ int ImageCMReader::readRGB(ImageReader &reader) {
 			//chaos[1] = (chaos[1] + chaos[0]) >> 1;
 			//chaos[2] = (chaos[2] + chaos[1]) >> 1;
 #endif
-			left_rgb[0] = chaosScore(now[0]);
-			left_rgb[1] = chaosScore(now[1]);
-			left_rgb[2] = chaosScore(now[2]);
 
 			// If not fully transparent,
 			if (_mask->hasRGB(x, y)) {
@@ -133,6 +130,10 @@ int ImageCMReader::readRGB(ImageReader &reader) {
 				now[2] = rgb[2] + pred[2];
 				now[3] = 255;
 			}
+
+			left_rgb[0] = chaosScore(now[0]);
+			left_rgb[1] = chaosScore(now[1]);
+			left_rgb[2] = chaosScore(now[2]);
 
 			last_chaos_read[0] = chaos[0] >> 1;
 			last_chaos_read[1] = chaos[1] >> 1;
