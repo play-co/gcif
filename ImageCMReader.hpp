@@ -4,6 +4,8 @@
 #include "Platform.hpp"
 #include "ImageReader.hpp"
 #include "HuffmanDecoder.hpp"
+#include "ImageMaskReader.hpp"
+#include "ImageLZReader.hpp"
 
 /*
  * Game Closure Context Modeling (GC-CM) Decompression
@@ -41,6 +43,14 @@ public:
 #endif
 
 protected:
+	u8 *_rgba;
+
+	int _width, _height;
+	u8 *_chaos;
+
+	ImageMaskReader *_mask;
+	ImageLZReader *_lz;
+
 	HuffmanDecoder _decoder[3][CHAOS_LEVELS];
 
 	void clear();
@@ -58,12 +68,14 @@ public:
 
 public:
 	CAT_INLINE ImageCMReader() {
+		_rgba = 0;
+		_chaos = 0;
 	}
 	virtual CAT_INLINE ~ImageCMReader() {
 		clear();
 	}
 
-	int read(ImageReader &reader);
+	int read(ImageReader &reader, ImageMaskReader &maskReader, ImageLZReader &lzReader);
 
 #ifdef CAT_COLLECT_STATS
 	bool dumpStats();

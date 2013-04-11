@@ -5,6 +5,7 @@
 #include "ImageWriter.hpp"
 #include "ImageMaskWriter.hpp"
 #include "ImageLZWriter.hpp"
+#include "ImageCMReader.hpp"
 #include "EntropyEncoder.hpp"
 #include "FilterScorer.hpp"
 #include "Filters.hpp"
@@ -37,6 +38,7 @@ namespace cat {
 
 class ImageCMWriter {
 protected:
+	static const int CHAOS_LEVELS = ImageCMReader::CHAOS_LEVELS;
 	static const int FILTER_SELECT_FUZZ = 16;
 	static const int COMPRESS_LEVEL = 1;
 
