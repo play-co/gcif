@@ -1,4 +1,5 @@
 #include "ImageCMReader.hpp"
+#include "Filters.hpp"
 using namespace cat;
 
 
@@ -16,6 +17,8 @@ void ImageCMReader::clear() {
 }
 
 int ImageCMReader::init(const ImageInfo *info) {
+	clear();
+
 	_width = info->width;
 	_height = info->height;
 
@@ -26,6 +29,8 @@ int ImageCMReader::init(const ImageInfo *info) {
 	if (info->width % FILTER_ZONE_SIZE || info->height % FILTER_ZONE_SIZE) {
 		return RE_BAD_DIMS;
 	}
+
+	_rgba = new u8[_width * _height * 4];
 
 	return RE_OK;
 }
@@ -47,11 +52,33 @@ int ImageCMReader::readRGB(ImageReader &reader) {
 	u8 *last = _rgba;
 	u8 *now = _rgba;
 
+	u16 trigger_y = _lz->getTriggerY();
+	u16 trigger_x = _lz->getTriggerX();
+
 	for (int y = 0; y < _height; ++y) {
+		// If LZ triggered,
+		if (y == trigger_y) {
+			_lz->triggerY();
+
+			trigger_x = _lz->getTriggerX();
+			trigger_y = _lz->getTriggerY();
+		}
+
 		u8 left_rgb[3] = {0};
 		u8 *last_chaos_read = last_chaos + 3;
 
 		for (int x = 0; x < width; ++x) {
+			// If LZ triggered,
+			if (x == trigger_x) {
+				int skip = _lz->triggerX(now);
+
+				trigger_x = _lz->getTriggerX();
+				trigger_y = _lz->getTriggerY();
+
+				x += skip - 1;
+				continue;
+			}
+
 			u16 chaos[3] = {
 				left_rgb[0],
 				left_rgb[1],
@@ -80,16 +107,31 @@ int ImageCMReader::readRGB(ImageReader &reader) {
 			left_rgb[1] = chaosScore(now[1]);
 			left_rgb[2] = chaosScore(now[2]);
 
-			if (!_lz->visited(x, y) && !_mask->hasRGB(x, y)) {
+			// If not fully transparent,
+			if (_mask->hasRGB(x, y)) {
+				now[0] = 0;
+				now[1] = 0;
+				now[2] = 0;
+				now[3] = 0;
+			} else {
 				for (int ii = 0; ii < 3; ++ii) {
-					int bits = _encoder[ii][chaos[ii]].encode(now[ii], writer);
-#ifdef CAT_COLLECT_STATS
-					bitcount[ii] += bits;
-#endif
+					now[ii] = reader.nextHuffmanSymbol(&_decoder[ii][chaos[ii]]);
 				}
-#ifdef CAT_COLLECT_STATS
-				chaos_count++;
-#endif
+
+				// Reverse color filter
+				int cf = 0;
+				u8 rgb[3];
+				convertYUVtoRGB(cf, now, rgb);
+
+				// Reverse spatial filter
+				int sf = 0;
+				const u8 *pred = spatialFilterPixel(now, sf, x, y, _width);
+
+				// Write decoded RGB value
+				now[0] = rgb[0] + pred[0];
+				now[1] = rgb[1] + pred[1];
+				now[2] = rgb[2] + pred[2];
+				now[3] = 255;
 			}
 
 			last_chaos_read[0] = chaos[0] >> 1;

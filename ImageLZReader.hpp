@@ -83,10 +83,10 @@ public:
 
 	int read(ImageReader &reader);
 
-	CAT_INLINE u16 getNextTriggerX() {
+	CAT_INLINE u16 getTriggerX() {
 		return _zone_trigger_x;
 	}
-	CAT_INLINE u16 getNextTriggerY() {
+	CAT_INLINE u16 getTriggerY() {
 		return _zone_trigger_y;
 	}
 

@@ -6,6 +6,7 @@
 namespace cat {
 
 
+//#define GENERATE_CHAOS_TABLE
 //#define TEST_COLOR_FILTERS /* Verify color filters are reversible unit test */
 //#define LOWRES_MASK /* Use zone sized granularity for fully-transparent alpha mask */
 
@@ -111,6 +112,19 @@ const char *GetColorFilterString(int cf);
 #if TEST_COLOR_FILTERS
 void testColorFilters();
 #endif
+
+
+//// Chaos
+
+extern const u8 CHAOS_TABLE[512];
+
+static CAT_INLINE int chaosScore(u8 p) {
+	if (p < 128) {
+		return p;
+	} else {
+		return 256 - p;
+	}
+}
 
 
 } // namespace cat

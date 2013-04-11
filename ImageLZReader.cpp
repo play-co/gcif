@@ -140,6 +140,7 @@ int ImageLZReader::triggerX(u8 *p) {
 		p[0] = src[0];
 		p[1] = src[1];
 		p[2] = src[2];
+		p[3] = 255;
 		p += 4;
 		src += 4;
 	}
