@@ -7,6 +7,16 @@
 
 #include <vector>
 
+/*
+ * Game Closure Fully-Transparent Alpha Mask Compression
+ *
+ * Encodes pixels with fully-transparent alpha as a monochrome bitmap.
+ *
+ * It first performs bitwise filtering to reduce the data down to a few pixels.
+ * Then the distance between those pixels is recorded, compressed with LZ4HC,
+ * and then Huffman encoded.
+ */
+
 namespace cat {
 
 

@@ -7,11 +7,13 @@ using namespace std;
 
 #include "ImageWriter.hpp"
 #include "ImageMaskWriter.hpp"
-#include "ImageCMWriter.hpp"
 #include "ImageLZWriter.hpp"
+#include "ImageCMWriter.hpp"
 
 #include "ImageReader.hpp"
 #include "ImageMaskReader.hpp"
+#include "ImageLZReader.hpp"
+#include "ImageCMReader.hpp"
 using namespace cat;
 
 #include "lodepng.h"
@@ -94,13 +96,39 @@ public:
 			return err;
 		}
 
-		ImageMaskReader maskReader;
-		if ((err = maskReader.read(reader))) {
-			CAT_WARN("main") << "Unable to read mask: " << ImageReader::ErrorString(err);
+		// Fully-Transparent Alpha Mask
+
+		ImageMaskReader imageMaskReader;
+		if ((err = imageMaskReader.read(reader))) {
+			CAT_WARN("main") << "Unable to read GC-FTAM: " << ImageReader::ErrorString(err);
 			return err;
 		}
 
-		maskReader.dumpStats();
+		imageMaskReader.dumpStats();
+
+		// 2D-LZ Exact Match
+
+		ImageLZReader imageLZReader;
+		if ((err = imageLZReader.read(reader))) {
+			CAT_WARN("main") << "Unable to read GC-2D-LZ: " << ImageReader::ErrorString(err);
+			return err;
+		}
+
+		imageLZReader.dumpStats();
+
+		// Context Modeling Decompression
+
+		ImageCMReader imageCMReader;
+		if ((err = imageCMReader.read(reader))) {
+			CAT_WARN("main") << "Unable to read GC-CM: " << ImageReader::ErrorString(err);
+			return err;
+		}
+
+		imageCMReader.dumpStats();
+
+		imageLZReader.dumpStats();
+
+		// Verify hash
 
 		if (!reader.finalizeCheckHash()) {
 			CAT_WARN("main") << "Hash mismatch";

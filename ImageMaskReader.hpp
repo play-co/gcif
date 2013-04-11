@@ -5,6 +5,10 @@
 #include "ImageReader.hpp"
 #include "Filters.hpp"
 
+/*
+ * Game Closure Fully-Transparent Alpha Mask Decompression
+ */
+
 namespace cat {
 
 
