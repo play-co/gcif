@@ -3,6 +3,7 @@
 
 #include "Platform.hpp"
 #include "ImageWriter.hpp"
+#include "ImageLZReader.hpp"
 
 #include <vector>
 
@@ -49,7 +50,9 @@ namespace cat {
 
 class ImageLZWriter {
 public:
-	static const int ZONE = 4;
+	static const int ZONE = ImageLZReader::ZONE;
+
+protected:
 	static const int TABLE_BITS = 18;
 	static const int TABLE_SIZE = 1 << TABLE_BITS;
 	static const u32 TABLE_MASK = TABLE_SIZE - 1;
@@ -58,7 +61,6 @@ public:
 	static const int MIN_SCORE = 16;
 	static const int ZERO_COEFF = 4; // Count zeroes as being worth 1/4 of a normal match
 
-protected:
 	const u8 *_rgba;
 	int _width, _height;
 

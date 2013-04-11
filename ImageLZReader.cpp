@@ -23,6 +23,8 @@ void ImageLZReader::clear() {
 int ImageLZReader::init(const ImageInfo *info) {
 	clear();
 
+	_width = info->width;
+
 	return RE_OK;
 }
 
@@ -31,9 +33,16 @@ int ImageLZReader::readTables(ImageReader &reader) {
 
 	// Read and validate match count
 	u32 match_count = reader.readBits(16);
-	_zone_count = match_count;
+	_zones_size = match_count;
 
-	_zones = new u8[match_count * 10];
+	// If we abort early, ensure that triggers are cleared
+	_zone_work_head = ZONE_NULL;
+	_zone_trigger_x = ZONE_NULL;
+	_zone_next_x = ZONE_NULL;
+	_zone_trigger_y = ZONE_NULL;
+	_zone_next_y = ZONE_NULL;
+
+	_zones = new Zone[match_count];
 
 	// If invalid data,
 	if (match_count > MAX_ZONE_COUNT) {
@@ -49,7 +58,7 @@ int ImageLZReader::readTables(ImageReader &reader) {
 	u8 codelens[NUM_SYMS];
 	for (int ii = 0; ii < NUM_SYMS; ++ii) {
 		u32 s, len = 0;
-		while ((s = reader.readBits(4)) >= 15) { // EOF will read zeroes back so no need to check it really
+		while ((s = reader.readBits(4)) >= 15) { // EOF will read zeroes back so no need to check here
 			len += 15;
 		}
 		len += s;
@@ -67,7 +76,197 @@ int ImageLZReader::readTables(ImageReader &reader) {
 		return RE_LZ_CODES;
 	}
 
+	// For each zone to read,
+	u16 last_dx = 0, last_dy = 0;
+	Zone *z = _zones;
+	for (int ii = 0; ii < match_count; ++ii) {
+		u8 b0 = (u8)reader.nextHuffmanSymbol(&_huffman);
+		u8 b1 = (u8)reader.nextHuffmanSymbol(&_huffman);
+		u16 sx = ((u16)b1 << 8) | b0;
+
+		b0 = (u8)reader.nextHuffmanSymbol(&_huffman);
+		b1 = (u8)reader.nextHuffmanSymbol(&_huffman);
+		u16 sy = ((u16)b1 << 8) | b0;
+
+		b0 = (u8)reader.nextHuffmanSymbol(&_huffman);
+		b1 = (u8)reader.nextHuffmanSymbol(&_huffman);
+		u16 dx = ((u16)b1 << 8) | b0;
+
+		b0 = (u8)reader.nextHuffmanSymbol(&_huffman);
+		b1 = (u8)reader.nextHuffmanSymbol(&_huffman);
+		u16 dy = ((u16)b1 << 8) | b0;
+
+		z->w = (u32)reader.nextHuffmanSymbol(&_huffman) + ZONE;
+		z->h = (u32)reader.nextHuffmanSymbol(&_huffman) + ZONE;
+
+		// Reverse context modeling modifications
+		if (dy == 0) {
+			dx += last_dx;
+		}
+		dy += last_dy;
+		sy = dy - sy;
+
+		z->sox = (s16)dy - (s16)sx;
+		z->soy = (s16)dy - (s16)sy;
+		z->dx = dx;
+		z->dy = dy;
+
+		// TODO: Input security check here
+
+		last_dy = dy;
+		last_dx = dx;
+	}
+
+	// If file truncated,
+	if (reader.eof()) {
+		return RE_LZ_CODES;
+	}
+
+	// Trigger on first zone
+	_zone_next_y = _zones[0].dy;
+	_zone_trigger_y = 0;
+
 	return RE_OK;
+}
+
+int ImageLZReader::triggerX(u8 *p) {
+	// Just triggered a line from zi
+	u16 ii = _zone_next_x;
+	Zone *zi = &_zones[ii];
+
+	// Copy scanline one at a time in case the pointers are aliased
+	const u8 *src = p + (zi->sox + zi->soy * _width)*4;
+	for (int jj = 0, jjend = zi->w; jj < jjend; ++jj) {
+		p[0] = src[0];
+		p[1] = src[1];
+		p[2] = src[2];
+		p += 4;
+		src += 4;
+	}
+
+	// Iterate ahead to next in work list
+	_zone_next_x = zi->next;
+
+	// If work list is exhausted,
+	if (_zone_next_x == ZONE_NULL) {
+		// Disable x trigger
+		_zone_trigger_x = ZONE_NULL;
+	} else {
+		// Set it to the next trigger dx
+		_zone_trigger_x = _zones[_zone_next_x].dx;
+	}
+
+	// If this is zi's last scanline,
+	if (--zi->h <= 0) {
+		// Unlink from list
+
+		// If nothing behind it,
+		if (zi->prev == ZONE_NULL) {
+			// Link next as head
+			_zone_work_head = zi->next;
+		} else {
+			// Link previous through to next
+			_zones[zi->prev].next = zi->next;
+		}
+
+		// If there is a zone ahead of it,
+		if (zi->next != ZONE_NULL) {
+			// Link it back through to previous
+			_zones[zi->next].prev = zi->prev;
+		}
+	}
+
+	return zi->w;
+}
+
+void ImageLZReader::triggerY() {
+	// Merge y trigger zone and its same-y friends into the work list in order
+	const u16 same_dy = _zone_trigger_y;
+	u16 ii = _zone_next_y, jj;
+	Zone *zi = &_zones[ii], *zj = 0;
+
+	// Find insertion point for all same-y zones
+	for (jj = _zone_work_head; jj != ZONE_NULL; jj = zj->next) {
+		Zone *zj = &_zones[jj];
+
+		// If existing item is to the right of where we want to insert,
+		while (zj->dx >= zi->dx) {
+			// Insert here and update zi to point at next item to insert
+			zi->prev = zj->prev;
+			zi->next = jj;
+			if (zj->prev == ZONE_NULL) {
+				_zone_work_head = ii;
+			} else {
+				_zones[zj->prev].next = ii;
+			}
+			zj->prev = ii;
+
+			// If inserting before the zone work head,
+			if (jj == _zone_work_head) {
+				// Set it to this one instead
+				_zone_work_head = ii;
+			}
+
+			// If out of zones,
+			if (++ii >= _zones_size) {
+				// Stop triggering y
+				_zone_trigger_y = ZONE_NULL;
+				_zone_next_y = ZONE_NULL;
+				goto setup_trigger_x;
+			}
+
+			// Update zi to point at next item
+			zi = &_zones[ii];
+
+			// If the next zone is on another row,
+			if (zi->dy != same_dy) {
+				goto setup_trigger_y;
+			}
+
+			// Loop around and possibly insert before zj again
+		}
+
+		// Walk the work list forward trying to find a zj ahead of zi
+	}
+
+	do {
+		// Link after j
+		zi->next = ZONE_NULL;
+		zi->prev = jj;
+
+		// If the list is not empty,
+		if (zj) {
+			// Insert at end of list
+			zj->next = ii;
+		} else {
+			_zone_work_head = ii;
+		}
+
+		// j = i
+		zj = zi;
+		jj = ii;
+
+		// If out of zones,
+		if (++ii >= _zones_size) {
+			// Stop triggering y
+			_zone_trigger_y = ZONE_NULL;
+			_zone_next_y = ZONE_NULL;
+			goto setup_trigger_x;
+		}
+
+		// i = next i
+		zi = &_zones[ii];
+	} while (zi->dy == same_dy);
+
+setup_trigger_y:
+	// Set up next y trigger at zone index i
+	_zone_trigger_y = zi->dy;
+	_zone_next_y = ii;
+
+setup_trigger_x:
+	// Set up next x trigger at head of work list
+	_zone_next_x = _zone_work_head;
+	_zone_trigger_x = _zones[_zone_work_head].dx;
 }
 
 int ImageLZReader::read(ImageReader &reader) {
@@ -87,6 +286,9 @@ int ImageLZReader::read(ImageReader &reader) {
 	double t1 = m_clock->usec();
 #endif // CAT_COLLECT_STATS
 
+	if ((err = readTables(reader))) {
+		return err;
+	}
 
 #ifdef CAT_COLLECT_STATS
 	double t2 = m_clock->usec();

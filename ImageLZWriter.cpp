@@ -331,16 +331,18 @@ void ImageLZWriter::write(ImageWriter &writer) {
 	for (int ii = 0; ii < match_count; ++ii) {
 		Match *m = &_exact_matches[ii];
 
+		// Apply some context modeling for better compression
 		u16 edy = (m->dy - last_dy);
 		u16 edx = m->dx;
 		if (edy == 0) {
 			edx -= last_dx;
 		}
+		u16 esy = m->dy - m->sy;
 
 		hist.add((u8)m->sx);
 		hist.add((u8)(m->sx >> 8));
-		hist.add((u8)m->sy);
-		hist.add((u8)(m->sy >> 8));
+		hist.add((u8)esy);
+		hist.add((u8)(esy >> 8));
 		hist.add((u8)edx);
 		hist.add((u8)(edx >> 8));
 		hist.add((u8)edy);
@@ -373,14 +375,20 @@ void ImageLZWriter::write(ImageWriter &writer) {
 #endif
 	}
 
+	// Reset last for encoding
+	last_dx = 0;
+	last_dy = 0;
+
 	for (int ii = 0; ii < match_count; ++ii) {
 		Match *m = &_exact_matches[ii];
 
+		// Apply some context modeling for better compression
 		u16 edy = (m->dy - last_dy);
 		u16 edx = m->dx;
 		if (edy == 0) {
 			edx -= last_dx;
 		}
+		u16 esy = m->dy - m->sy;
 
 		u8 sym = (u8)m->sx;
 		writer.writeBits(codes[sym], codelens[sym]);
@@ -392,12 +400,12 @@ void ImageLZWriter::write(ImageWriter &writer) {
 #ifdef CAT_COLLECT_STATS
 		bitcount += codelens[sym];
 #endif
-		sym = (u8)m->sy;
+		sym = (u8)esy;
 		writer.writeBits(codes[sym], codelens[sym]);
 #ifdef CAT_COLLECT_STATS
 		bitcount += codelens[sym];
 #endif
-		sym = (u8)(m->sy >> 8);
+		sym = (u8)(esy >> 8);
 		writer.writeBits(codes[sym], codelens[sym]);
 #ifdef CAT_COLLECT_STATS
 		bitcount += codelens[sym];
