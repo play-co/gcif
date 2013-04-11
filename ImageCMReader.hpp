@@ -53,13 +53,14 @@ protected:
 	ImageMaskReader *_mask;
 	ImageLZReader *_lz;
 
+	HuffmanDecoder _sf, _cf;
 	HuffmanDecoder _decoder[3][CHAOS_LEVELS];
 
 	void clear();
 
 	int init(const ImageInfo *info);
-	int readFilters(ImageReader &reader);
-	int readTables(ImageReader &reader);
+	int readFilterTables(ImageReader &reader);
+	int readChaosTables(ImageReader &reader);
 	int readRGB(ImageReader &reader);
 
 #ifdef CAT_COLLECT_STATS

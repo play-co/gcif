@@ -36,16 +36,18 @@ int ImageCMReader::init(const ImageInfo *info) {
 
 	_rgba = new u8[_width * _height * 4];
 
+	// Just need to remember the last row of filters
+	_filters = new u8[_width >> FILTER_ZONE_SIZE_SHIFT];
+
 	return RE_OK;
 }
 
-int ImageCMReader::readFilters(ImageReader &reader) {
-	_filters = new u8[(_width >> FILTER_ZONE_SIZE_SHIFT) * (_height >> FILTER_ZONE_SIZE)];
-
-	const int HUFF_TABLE_SIZE = 256;
+int ImageCMReader::readFilterTables(ImageReader &reader) {
+	// Read spatial filter codelens
+	u8 sf_codelens[SF_COUNT];
 
 	// For each table entry,
-	for (int ii = 0; ii < HUFF_TABLE_SIZE; ++ii) {
+	for (int ii = 0; ii < SF_COUNT; ++ii) {
 		// Read codelen
 		u32 len = reader.readBits(4);
 
@@ -54,12 +56,41 @@ int ImageCMReader::readFilters(ImageReader &reader) {
 			// Can only be extended once
 			len += reader.readBit();
 		}
+
+		sf_codelens[ii] = len;
+	}
+
+	// Initialize huffman decoder
+	if (reader.eof() || !_sf.init(SF_COUNT, sf_codelens, 8)) {
+		return RE_CM_CODES;
+	}
+
+	// Read color filter codelens
+	u8 cf_codelens[CF_COUNT];
+
+	// For each table entry,
+	for (int ii = 0; ii < CF_COUNT; ++ii) {
+		// Read codelen
+		u32 len = reader.readBits(4);
+
+		// If codelen is extended,
+		if (len >= 15) {
+			// Can only be extended once
+			len += reader.readBit();
+		}
+
+		cf_codelens[ii] = len;
+	}
+
+	// Initialize huffman decoder
+	if (reader.eof() || !_cf.init(CF_COUNT, cf_codelens, 8)) {
+		return RE_CM_CODES;
 	}
 
 	return RE_OK;
 }
 
-int ImageCMReader::readTables(ImageReader &reader) {
+int ImageCMReader::readChaosTables(ImageReader &reader) {
 	return RE_OK;
 }
 
@@ -178,13 +209,13 @@ int ImageCMReader::read(ImageReader &reader, ImageMaskReader &maskReader, ImageL
 		return err;
 	}
 
-	// Read filter selection
-	if ((err = readFilters(reader))) {
+	// Read filter selection tables
+	if ((err = readFilterTables(reader))) {
 		return err;
 	}
 
 	// Read Huffman tables for each RGB channel and chaos level
-	if ((err = readTables(reader))) {
+	if ((err = readChaosTables(reader))) {
 		return err;
 	}
 

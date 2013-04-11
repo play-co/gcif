@@ -17,10 +17,14 @@ enum ReaderErrors {
 	RE_BAD_HEAD,	// File header is bad
 	RE_BAD_DIMS,	// Bad image dimensions
 	RE_BAD_DATA,	// File data is bad
+
 	RE_MASK_CODES,	// Mask codelen read failed
 	RE_MASK_DECI,	// Mask decode init failed
 	RE_MASK_LZ,		// Mask LZ decode failed
+
 	RE_LZ_CODES,	// LZ codelen read failed
+
+	RE_CM_CODES,	// CM codelen read failed
 
 	RE_COUNT
 };
