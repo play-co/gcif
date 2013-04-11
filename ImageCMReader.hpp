@@ -46,7 +46,9 @@ protected:
 	void clear();
 
 	int init(const ImageInfo *info);
+	int readFilters(ImageReader &reader);
 	int readTables(ImageReader &reader);
+	int readRGB(ImageReader &reader);
 
 #ifdef CAT_COLLECT_STATS
 public:
