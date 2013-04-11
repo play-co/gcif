@@ -36,6 +36,10 @@ Rich Geldreich
 + Fast static Huffman codec
 + LZHAM: https://code.google.com/p/lzham/
 
+Thomas Wang
++ Integer hash function
++ Closest URL: http://burtleburtle.net/bob/hash/integer.html
+
 
 Specification
 =============
