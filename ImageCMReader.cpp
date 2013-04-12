@@ -126,34 +126,16 @@ int ImageCMReader::readRGB(ImageReader &reader) {
 		u8 left[3] = {0};
 		u8 *last = _chaos;
 		u8 sf = 0, cf = 0;
+		int lz_skip = 0;
 
 		// For each pixel,
 		for (int x = 0; x < width; ++x) {
 			// If LZ triggered,
 			if (x == trigger_x) {
 				// Trigger LZ
-				int skip = _lz->triggerX(p);
+				lz_skip = _lz->triggerX(p);
 				trigger_x = _lz->getTriggerX();
 				trigger_y = _lz->getTriggerY();
-
-				// If we are on a filter info scanline,
-				if ((y & FILTER_ZONE_SIZE_MASK) == 0) {
-					// For each pixel we skipped,
-					for (int ii = x, iiend = x + skip; ii < iiend; ++ii) {
-						// If a filter would be there,
-						if ((ii & FILTER_ZONE_SIZE_MASK) == 0) {
-							// Read SF and CF for this zone
-							sf = reader.nextHuffmanSymbol(&_sf);
-							cf = reader.nextHuffmanSymbol(&_cf);
-							_filters[ii >> FILTER_ZONE_SIZE_SHIFT] = (sf << 4) | cf;
-						}
-					}
-				}
-
-				p += skip * 4;
-				last += skip * 3;
-				x += skip - 1; // -1 offset from for loop increment
-				continue;
 			}
 
 			// If it is time to read the filter,
@@ -173,12 +155,15 @@ int ImageCMReader::readRGB(ImageReader &reader) {
 			}
 
 			// If fully transparent,
-			if (_mask->hasRGB(x, y)) {
+			if (lz_skip-- || _mask->hasRGB(x, y)) {
 				// Write empty pixel
 				p[0] = 0;
 				p[1] = 0;
 				p[2] = 0;
 				p[3] = 0;
+				for (int c = 0; c < 3; ++c) {
+					left[c] = last[c] = 0;
+				}
 			} else {
 				// Read YUV filtered pixel
 				u8 yuv[3];
