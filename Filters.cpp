@@ -1118,9 +1118,6 @@ nextcf:
 
 //// Chaos
 
-#ifdef GENERATE_CHAOS_TABLE
-
-
 const u8 cat::CHAOS_TABLE[512] = {
 	0,1,2,2,3,3,3,3,4,4,4,4,4,4,4,4,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,
 	6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,
@@ -1140,6 +1137,8 @@ const u8 cat::CHAOS_TABLE[512] = {
 	7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,
 };
 
+
+#ifdef GENERATE_CHAOS_TABLE
 
 static int CalculateChaos(int sum) {
 	if (sum <= 0) {
