@@ -68,6 +68,8 @@ protected:
 #ifdef CAT_COLLECT_STATS
 public:
 	struct _Stats {
+		double initUsec, readFilterTablesUsec, readChaosTablesUsec;
+		double readRGBUsec, overallUsec;
 	} Stats;
 #endif
 

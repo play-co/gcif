@@ -1,6 +1,13 @@
 #include "ImageCMReader.hpp"
 using namespace cat;
 
+#ifdef CAT_COLLECT_STATS
+#include "Log.hpp"
+#include "Clock.hpp"
+
+static cat::Clock *m_clock = 0;
+#endif // CAT_COLLECT_STATS
+
 
 //// ImageCMReader
 
@@ -195,6 +202,12 @@ int ImageCMReader::readRGB(ImageReader &reader) {
 }
 
 int ImageCMReader::read(ImageReader &reader, ImageMaskReader &maskReader, ImageLZReader &lzReader, GCIFImage *image) {
+#ifdef CAT_COLLECT_STATS
+	m_clock = Clock::ref();
+
+	double t0 = m_clock->usec();
+#endif // CAT_COLLECT_STATS
+
 	int err;
 
 	_mask = &maskReader;
@@ -205,15 +218,27 @@ int ImageCMReader::read(ImageReader &reader, ImageMaskReader &maskReader, ImageL
 		return err;
 	}
 
+#ifdef CAT_COLLECT_STATS
+	double t1 = m_clock->usec();
+#endif	
+
 	// Read filter selection tables
 	if ((err = readFilterTables(reader))) {
 		return err;
 	}
 
+#ifdef CAT_COLLECT_STATS
+	double t2 = m_clock->usec();
+#endif	
+
 	// Read Huffman tables for each RGB channel and chaos level
 	if ((err = readChaosTables(reader))) {
 		return err;
 	}
+
+#ifdef CAT_COLLECT_STATS
+	double t3 = m_clock->usec();
+#endif	
 
 	// Read RGB data and decompress it
 	if ((err = readRGB(reader))) {
@@ -223,12 +248,31 @@ int ImageCMReader::read(ImageReader &reader, ImageMaskReader &maskReader, ImageL
 	// Pass image data reference back to caller
 	_rgba = 0;
 
+
+#ifdef CAT_COLLECT_STATS
+	double t4 = m_clock->usec();
+
+	Stats.initUsec = t1 - t0;
+	Stats.readFilterTablesUsec = t2 - t1;
+	Stats.readChaosTablesUsec = t3 - t2;
+	Stats.readRGBUsec = t4 - t3;
+	Stats.overallUsec = t4 - t0;
+#endif	
 	return RE_OK;
 }
 
 #ifdef CAT_COLLECT_STATS
 
 bool ImageCMReader::dumpStats() {
+	CAT_INFO("stats") << "(CM Decode)     Initialization : " << Stats.initUsec << " usec (" << Stats.initUsec * 100.f / Stats.overallUsec << " %total)";
+	CAT_INFO("stats") << "(CM Decode) Read Filter Tables : " << Stats.readFilterTablesUsec << " usec (" << Stats.readFilterTablesUsec * 100.f / Stats.overallUsec << " %total)";
+	CAT_INFO("stats") << "(CM Decode)  Read Chaos Tables : " << Stats.readChaosTablesUsec << " usec (" << Stats.readChaosTablesUsec * 100.f / Stats.overallUsec << " %total)";
+	CAT_INFO("stats") << "(CM Decode)           Read RGB : " << Stats.readRGBUsec << " usec (" << Stats.readRGBUsec * 100.f / Stats.overallUsec << " %total)";
+	CAT_INFO("stats") << "(CM Decode)            Overall : " << Stats.overallUsec << " usec";
+
+	CAT_INFO("stats") << "(CM Decode)         Throughput : " << (_width * _height * 4) / Stats.overallUsec << " MBPS (output bytes/time)";
+
+	return true;
 }
 
 #endif
