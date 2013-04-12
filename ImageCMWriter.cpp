@@ -297,7 +297,7 @@ void ImageCMWriter::chaosStats() {
 	// For each scanline,
 	const u8 *p = _rgba;
 	for (int y = 0; y < _height; ++y) {
-		u8 left_rgb[3] = {0};
+		u8 left[3] = {0};
 		u8 *last = _chaos;
 
 		// For each pixel,
@@ -324,13 +324,17 @@ void ImageCMWriter::chaosStats() {
 				// For each color,
 				for (int c = 0; c < 3; ++c) {
 					// Measure context chaos
-					u8 chaos = CHAOS_TABLE[left_rgb[c] + (u16)last[c]];
+					u8 chaos = CHAOS_TABLE[left[c] + (u16)last[c]];
 
 					// Record YUV
 					_encoder[c][chaos].push(yuv[c]);
 
 					// Store chaos score for next time
-					last[c] = left_rgb[c] = chaosScore(yuv[c]);
+					last[c] = left[c] = chaosScore(yuv[c]);
+				}
+			} else {
+				for (int c = 0; c < 3; ++c) {
+					last[c] = left[c] = 0;
 				}
 			}
 
@@ -595,6 +599,10 @@ bool ImageCMWriter::writeChaos(ImageWriter &writer) {
 #ifdef CAT_COLLECT_STATS
 				chaos_count++;
 #endif
+			} else {
+				for (int c = 0; c < 3; ++c) {
+					last[c] = left[c] = 0;
+				}
 			}
 
 			// Next pixel
