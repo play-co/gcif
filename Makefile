@@ -8,7 +8,7 @@ CFLAGS = -Wall -fstrict-aliasing -I.
 ifeq ($(DEBUG),1)
 CFLAGS += -g -O0
 else
-CFLAGS += -O3
+CFLAGS += -O4
 endif
 
 CPFLAGS = $(CFLAGS)

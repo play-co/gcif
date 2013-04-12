@@ -40,7 +40,7 @@ class ImageCMWriter {
 protected:
 	static const int CHAOS_LEVELS = ImageCMReader::CHAOS_LEVELS;
 	static const int FILTER_SELECT_FUZZ = 16;
-	static const int COMPRESS_LEVEL = 0;
+	static const int COMPRESS_LEVEL = 1;
 	static const u16 UNUSED_FILTER = 0xffff;
 
 	int _w, _h;
