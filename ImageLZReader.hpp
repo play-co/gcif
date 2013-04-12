@@ -40,7 +40,6 @@ public:
 	static const u32 MAX_ZONE_COUNT = 65535;
 
 protected:
-	static const int HUFF_TABLE_BITS = 8; // Time/memory tradeoff
 	static const u16 ZONE_NULL = 0xffff;
 
 	int _width, _height;

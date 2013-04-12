@@ -70,7 +70,7 @@ int ImageLZReader::readHuffmanTable(ImageReader &reader) {
 	}
 
 	// If not able to init Huffman decoder
-	if (!_huffman.init(NUM_SYMS, codelens, HUFF_TABLE_BITS)) {
+	if (!_huffman.init(NUM_SYMS, codelens, 8)) {
 		return RE_LZ_CODES;
 	}
 
@@ -91,7 +91,7 @@ int ImageLZReader::readZones(ImageReader &reader) {
 	// For each zone to read,
 	u16 last_dx = 0, last_dy = 0;
 	Zone *z = _zones;
-	for (int ii = 0; ii < match_count; ++ii) {
+	for (int ii = 0; ii < match_count; ++ii, ++z) {
 		u8 b0 = (u8)reader.nextHuffmanSymbol(&_huffman);
 		u8 b1 = (u8)reader.nextHuffmanSymbol(&_huffman);
 		u16 sx = ((u16)b1 << 8) | b0;
@@ -143,7 +143,6 @@ int ImageLZReader::readZones(ImageReader &reader) {
 
 		last_dy = dy;
 		last_dx = dx;
-		++z;
 	}
 
 	// If file truncated,
