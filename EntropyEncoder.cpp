@@ -240,6 +240,7 @@ int EntropyEncoder::writeZeroRun(int run, ImageWriter &writer) {
 	bits = codelensBZ[zsym];
 
 	if (rider) {
+		run -= FILTER_RLE_SYMS;
 		while (run >= 255) {
 			writer.writeBits(255, 8);
 			bits += 8;

@@ -26,13 +26,15 @@ public:
 #endif
 
 protected:
-	int zeroRun;
+	int _zeroRun;
 	HuffmanDecoder _bz;
 #ifdef USE_AZ
 	HuffmanDecoder _az;
+	bool _afterZero;
 #endif
 
 	void clear();
+	bool readHuffmanTable(int num_syms, HuffmanDecoder &table, ImageReader &reader);
 
 public:
 	CAT_INLINE EntropyDecoder() {

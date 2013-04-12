@@ -3,26 +3,20 @@
 
 #include "Platform.hpp"
 #include "ImageWriter.hpp"
+#include "EntropyDecoder.hpp"
 #include <vector>
 
 namespace cat {
 
 
-//#define ADAPTIVE_ZRLE
-#define ADAPTIVE_ZRLE_THRESH 10 /* percent */
-
-#define USE_AZ /* After-Zero Context (Pseudo-Order-1) */
-
-static const int FILTER_RLE_SYMS = 128; // Number of symbols set apart for zRLE
-
-
 //// EntropyEncoder
 
 class EntropyEncoder {
-	static const int BZ_SYMS = 256 + FILTER_RLE_SYMS;
 #ifdef USE_AZ
-	static const int AZ_SYMS = 256;
+	static const int AZ_SYMS = EntropyDecoder::AZ_SYMS;
 #endif
+	static const int BZ_SYMS = EntropyDecoder::BZ_SYMS;
+	static const int FILTER_RLE_SYMS = EntropyDecoder::FILTER_RLE_SYMS;
 
 	u32 histBZ[BZ_SYMS], maxBZ;
 #ifdef USE_AZ
