@@ -22,6 +22,8 @@ void HuffmanDecoder::clear() {
 }
 
 bool HuffmanDecoder::init(int count, const u8 *codelens, u32 table_bits) {
+	clear();
+
 	u32 min_codes[MAX_CODE_SIZE];
 
 	if (count <= 0 || (table_bits > MAX_TABLE_BITS)) {
@@ -79,10 +81,6 @@ bool HuffmanDecoder::init(int count, const u8 *codelens, u32 table_bits) {
 			_cur_sorted_symbol_order_size = count < nextPOT ? count : nextPOT;
 		}
 
-		if (_sorted_symbol_order) {
-			delete []_sorted_symbol_order;
-		}
-
 		_sorted_symbol_order = new u16[_cur_sorted_symbol_order_size];
 		if (!_sorted_symbol_order) {
 			return false;
@@ -110,10 +108,6 @@ bool HuffmanDecoder::init(int count, const u8 *codelens, u32 table_bits) {
 		u32 table_size = 1 << table_bits;
 		if (_cur_lookup_size < table_size) {
 			_cur_lookup_size = table_size;
-
-			if (_lookup) {
-				delete []_lookup;
-			}
 
 			_lookup = new u32[table_size];
 			if (!_lookup) {
