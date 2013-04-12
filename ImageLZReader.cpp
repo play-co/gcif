@@ -43,16 +43,14 @@ int ImageLZReader::readHuffmanTable(ImageReader &reader) {
 	_zone_trigger_y = ZONE_NULL;
 	_zone_next_y = ZONE_NULL;
 
-	_zones = new Zone[match_count];
+	// If no matches,
+	if (match_count <= 0) {
+		return RE_OK;
+	}
 
 	// If invalid data,
 	if (match_count > MAX_ZONE_COUNT) {
 		return RE_LZ_CODES;
-	}
-
-	// If no matches,
-	if (match_count <= 0) {
-		return RE_OK;
 	}
 
 	// Read codelens
@@ -81,6 +79,9 @@ int ImageLZReader::readHuffmanTable(ImageReader &reader) {
 
 int ImageLZReader::readZones(ImageReader &reader) {
 	const int match_count = _zones_size;
+
+	// Allocate space for zones
+	_zones = new Zone[match_count];
 
 	// For each zone to read,
 	u16 last_dx = 0, last_dy = 0;
