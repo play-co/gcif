@@ -119,7 +119,7 @@ public:
 		// Context Modeling Decompression
 
 		ImageCMReader imageCMReader;
-		if ((err = imageCMReader.read(reader))) {
+		if ((err = imageCMReader.read(reader, imageMaskReader, imageLZReader))) {
 			CAT_WARN("main") << "Unable to read GC-CM: " << ImageReader::ErrorString(err);
 			return err;
 		}

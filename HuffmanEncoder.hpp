@@ -78,10 +78,10 @@ void generateHuffmanCodes(int num_syms, u16 freqs[], u16 codes[], u8 codelens[])
 
 // Convenience class
 template<int NUM_SYMS> class FreqHistogram {
+public:
 	u32 hist[NUM_SYMS];
 	u32 max_freq;
 
-public:
 	CAT_INLINE FreqHistogram() {
 		CAT_OBJCLR(hist);
 		max_freq = 0;
@@ -92,6 +92,30 @@ public:
 		if (freq > max_freq) {
 			max_freq = freq;
 		}
+	}
+
+	CAT_INLINE void addMore(u32 symbol, u32 count) {
+		u32 freq = hist[symbol] += count;
+		if (freq > max_freq) {
+			max_freq = freq;
+		}
+	}
+
+	CAT_INLINE int firstHighestPeak() {
+		u32 highest = hist[0];
+		u32 peak_sym = 0;
+
+		// For each remaining symbol,
+		for (u32 sym = 1; sym < NUM_SYMS; ++sym) {
+			// If it is higher,
+			if (highest < hist[sym]) {
+				// Remember it well
+				highest = hist[sym];
+				peak_sym = sym;
+			}
+		}
+
+		return peak_sym;
 	}
 
 	CAT_INLINE void normalize(u16 freqs[NUM_SYMS]) {

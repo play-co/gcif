@@ -106,6 +106,7 @@ int ImageCMReader::readRGB(ImageReader &reader) {
 	u16 trigger_y = _lz->getTriggerY();
 	u16 trigger_x = _lz->getTriggerX();
 
+	// For each scanline,
 	for (int y = 0; y < _height; ++y) {
 		// If LZ triggered,
 		if (y == trigger_y) {
@@ -118,16 +119,49 @@ int ImageCMReader::readRGB(ImageReader &reader) {
 		u8 left_rgb[3] = {0};
 		u8 *last_chaos_read = last_chaos + 3;
 
+		u8 sf = 0, cf = 0;
+
+		// For each pixel,
 		for (int x = 0; x < width; ++x) {
 			// If LZ triggered,
 			if (x == trigger_x) {
+				// Trigger LZ
 				int skip = _lz->triggerX(now);
-
 				trigger_x = _lz->getTriggerX();
 				trigger_y = _lz->getTriggerY();
 
-				x += skip - 1;
+				// If we are on a filter info scanline,
+				if ((y & FILTER_ZONE_SIZE_MASK) == 0) {
+					// For each pixel we skipped,
+					for (int ii = x, iiend = x + skip; ii < iiend; ++ii) {
+						// If a filter would be there,
+						if ((ii & FILTER_ZONE_SIZE_MASK) == 0) {
+							// Read SF and CF for this zone
+							sf = reader.nextHuffmanSymbol(&_sf);
+							cf = reader.nextHuffmanSymbol(&_cf);
+							_filters[ii >> FILTER_ZONE_SIZE_SHIFT] = (sf << 4) | cf;
+						}
+					}
+				}
+
+				x += skip - 1; // Offset from end of for loop increment
 				continue;
+			}
+
+			// If it is time to read the filter,
+			if ((x & FILTER_ZONE_SIZE_MASK) == 0) {
+				// If we are on a filter info scanline,
+				if ((y & FILTER_ZONE_SIZE_MASK) == 0) {
+					// Read SF and CF for this zone
+					sf = reader.nextHuffmanSymbol(&_sf);
+					cf = reader.nextHuffmanSymbol(&_cf);
+					_filters[x >> FILTER_ZONE_SIZE_SHIFT] = (sf << 4) | cf;
+				} else {
+					// Read filter from previous scanline
+					u8 filter = _filters[x >> FILTER_ZONE_SIZE_SHIFT];
+					sf = filter >> 4;
+					cf = filter & 15;
+				}
 			}
 
 			u16 chaos[3] = {
@@ -166,13 +200,15 @@ int ImageCMReader::readRGB(ImageReader &reader) {
 					now[ii] = reader.nextHuffmanSymbol(&_decoder[ii][chaos[ii]]);
 				}
 
+				left_rgb[0] = chaosScore(now[0]);
+				left_rgb[1] = chaosScore(now[1]);
+				left_rgb[2] = chaosScore(now[2]);
+
 				// Reverse color filter
-				int cf = 0;
 				u8 rgb[3];
 				convertYUVtoRGB(cf, now, rgb);
 
 				// Reverse spatial filter
-				int sf = 0;
 				const u8 *pred = spatialFilterPixel(now, sf, x, y, _width);
 
 				// Write decoded RGB value
@@ -181,10 +217,6 @@ int ImageCMReader::readRGB(ImageReader &reader) {
 				now[2] = rgb[2] + pred[2];
 				now[3] = 255;
 			}
-
-			left_rgb[0] = chaosScore(now[0]);
-			left_rgb[1] = chaosScore(now[1]);
-			left_rgb[2] = chaosScore(now[2]);
 
 			last_chaos_read[0] = chaos[0] >> 1;
 			last_chaos_read[1] = chaos[1] >> 1;

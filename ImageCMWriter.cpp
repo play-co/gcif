@@ -375,11 +375,11 @@ void ImageCMWriter::chaosStats() {
 			//chaos[1] = (chaos[1] + chaos[0]) >> 1;
 			//chaos[2] = (chaos[2] + chaos[1]) >> 1;
 #endif
-			left_rgb[0] = chaosScore(now[0]);
-			left_rgb[1] = chaosScore(now[1]);
-			left_rgb[2] = chaosScore(now[2]);
-
 			if (!_lz->visited(x, y) && !_mask->hasRGB(x, y)) {
+				left_rgb[0] = chaosScore(now[0]);
+				left_rgb[1] = chaosScore(now[1]);
+				left_rgb[2] = chaosScore(now[2]);
+
 				for (int ii = 0; ii < 3; ++ii) {
 					_encoder[ii][chaos[ii]].push(now[ii]);
 				}
@@ -487,7 +487,7 @@ void ImageCMWriter::writeFilterHuffmanTable(u8 codelens[256], ImageWriter &write
 			writer.writeBits(15, 4);
 			writer.writeBit(len - 15);
 #ifdef CAT_COLLECT_STATS
-		bitcount++;
+			bitcount++;
 #endif
 		} else {
 			writer.writeBits(len, 4);
@@ -504,10 +504,9 @@ void ImageCMWriter::writeFilterHuffmanTable(u8 codelens[256], ImageWriter &write
 }
 
 void ImageCMWriter::writeFilters(ImageWriter &writer) {
-	vector<u8> data[2];
-
-	bool writing = false;
-	u8 sf_last = 0, cf_last = 0;
+	FreqHistogram<SF_COUNT> sf_hist;
+	FreqHistogram<CF_COUNT> cf_hist;
+	u32 unused_count = 0;
 
 	// For each zone,
 	for (int y = 0, height = _height; y < height; y += FILTER_ZONE_SIZE) {
@@ -536,57 +535,31 @@ void ImageCMWriter::writeFilters(ImageWriter &writer) {
 				u8 cf = (u8)filter;
 				u8 sf = (u8)(filter >> 8);
 
-				if (writing) {
-					data[0].push_back((sf << 4) | sf_last);
-					data[1].push_back((cf << 4) | cf_last);
-				} else {
-					sf_last = sf;
-					cf_last = cf;
-				}
+				sf_hist.add(sf);
+				cf_hist.add(cf);
+			} else {
+				setFilter(x, y, UNUSED_FILTER);
 
-				writing = !writing;
+				unused_count++;
 			}
 		}
 	}
 
-	if (writing) {
-		data[0].push_back(sf_last);
-		data[1].push_back(cf_last);
-	}
+	// Use most common symbol as unused symbol
+	_sf_unused_sym = sf_hist.firstHighestPeak();
+	_cf_unused_sym = cf_hist.firstHighestPeak();
 
-	for (int ii = 0; ii < 2; ++ii) {
-#ifdef CAT_COLLECT_STATS
-		Stats.filter_bytes[ii] = (int)data[ii].size();
-		int bitcount = 0;
-#endif
+	// Add unused count onto it
+	sf_hist.addMore(_sf_unused_sym, unused_count);
+	cf_hist.addMore(_cf_unused_sym, unused_count);
 
-		u16 freq[256];
+	// Geneerate huffman codes from final histogram
+	sf_hist.generateHuffman(_sf_codes, _sf_codelens);
+	cf_hist.generateHuffman(_cf_codes, _cf_codelens);
 
-		collectFreqs(256, data[ii], freq);
-
-		u16 codes[256];
-		u8 lens[256];
-		generateHuffmanCodes(256, freq, codes, lens);
-
-		writeFilterHuffmanTable(lens, writer, ii);
-
-		for (int jj = 0, len = (int)data[ii].size(); jj < len; ++jj) {
-			u8 symbol = data[ii][jj];
-
-			u8 bits = lens[symbol];
-			u16 code = codes[symbol];
-
-			writer.writeBits(code, bits);
-
-#ifdef CAT_COLLECT_STATS
-			bitcount += bits;
-#endif
-		}
-
-#ifdef CAT_COLLECT_STATS
-		Stats.filter_compressed_bits[ii] = bitcount;
-#endif
-	}
+	// Write out filter huffman tables
+	writeFilterHuffmanTable(_sf_codelens, writer, 0);
+	writeFilterHuffmanTable(_cf_codelens, writer, 1);
 }
 
 bool ImageCMWriter::writeChaos(ImageWriter &writer) {
@@ -594,6 +567,7 @@ bool ImageCMWriter::writeChaos(ImageWriter &writer) {
 	int overhead_bits = 0;
 	int bitcount[3] = {0};
 	int chaos_count = 0;
+	int filter_table_bits[2] = {0};
 #endif
 
 	for (int ii = 0; ii < 3; ++ii) {
@@ -613,11 +587,37 @@ bool ImageCMWriter::writeChaos(ImageWriter &writer) {
 	u8 *last = _rgba;
 	u8 *now = _rgba;
 
+	// For each scanline,
 	for (int y = 0; y < _height; ++y) {
 		u8 left_rgb[3] = {0};
 		u8 *last_chaos_read = last_chaos + 3;
 
+		// For each pixel,
 		for (int x = 0; x < width; ++x) {
+			// If it is time to write out a filter,
+			if ((x & FILTER_ZONE_SIZE_MASK) == 0 &&
+				(y & FILTER_ZONE_SIZE_MASK) == 0) {
+				u16 filter = getFilter(x, y);
+
+				u8 sf, cf;
+
+				// If filter is unused,
+				if (filter == UNUSED_FILTER) {
+					sf = _sf_unused_sym;
+					cf = _cf_unused_sym;
+				} else {
+					sf = filter >> 8;
+					cf = (u8)filter;
+				}
+
+				writer.writeBits(_sf_codes[sf], _sf_codelens[sf]);
+				writer.writeBits(_cf_codes[cf], _cf_codelens[cf]);
+#ifdef CAT_COLLECT_STATS
+				filter_table_bits[0] += _sf_codelens[sf];
+				filter_table_bits[1] += _cf_codelens[cf];
+#endif
+			}
+
 			u16 chaos[3] = {
 				left_rgb[0],
 				left_rgb[1],
@@ -642,11 +642,11 @@ bool ImageCMWriter::writeChaos(ImageWriter &writer) {
 			//chaos[1] = (chaos[1] + chaos[0]) >> 1;
 			//chaos[2] = (chaos[2] + chaos[1]) >> 1;
 #endif
-			left_rgb[0] = chaosScore(now[0]);
-			left_rgb[1] = chaosScore(now[1]);
-			left_rgb[2] = chaosScore(now[2]);
-
 			if (!_lz->visited(x, y) && !_mask->hasRGB(x, y)) {
+				left_rgb[0] = chaosScore(now[0]);
+				left_rgb[1] = chaosScore(now[1]);
+				left_rgb[2] = chaosScore(now[2]);
+
 				for (int ii = 0; ii < 3; ++ii) {
 					int bits = _encoder[ii][chaos[ii]].encode(now[ii], writer);
 #ifdef CAT_COLLECT_STATS
@@ -673,6 +673,8 @@ bool ImageCMWriter::writeChaos(ImageWriter &writer) {
 	}
 	Stats.chaos_overhead_bits = overhead_bits;
 	Stats.chaos_count = chaos_count;
+	Stats.filter_compressed_bits[0] = filter_table_bits[0];
+	Stats.filter_compressed_bits[1] = filter_table_bits[1];
 #endif
 
 	return true;
@@ -709,11 +711,9 @@ void ImageCMWriter::write(ImageWriter &writer) {
 
 bool ImageCMWriter::dumpStats() {
 	CAT_INFO("stats") << "(CM Compress) Spatial Filter Table Size : " <<  Stats.filter_table_bits[0] << " bits (" << Stats.filter_table_bits[0]/8 << " bytes)";
-	CAT_INFO("stats") << "(CM Compress) Spatial Filter Raw Size : " <<  Stats.filter_bytes[0] << " bytes";
 	CAT_INFO("stats") << "(CM Compress) Spatial Filter Compressed Size : " <<  Stats.filter_compressed_bits[0] << " bits (" << Stats.filter_compressed_bits[0]/8 << " bytes)";
 
 	CAT_INFO("stats") << "(CM Compress) Color Filter Table Size : " <<  Stats.filter_table_bits[1] << " bits (" << Stats.filter_table_bits[1]/8 << " bytes)";
-	CAT_INFO("stats") << "(CM Compress) Color Filter Raw Size : " <<  Stats.filter_bytes[1] << " bytes";
 	CAT_INFO("stats") << "(CM Compress) Color Filter Compressed Size : " <<  Stats.filter_compressed_bits[1] << " bits (" << Stats.filter_compressed_bits[1]/8 << " bytes)";
 
 	CAT_INFO("stats") << "(CM Compress) Y-Channel Compressed Size : " <<  Stats.rgb_bits[0] << " bits (" << Stats.rgb_bits[0]/8 << " bytes)";

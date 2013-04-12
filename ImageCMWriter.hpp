@@ -41,6 +41,7 @@ protected:
 	static const int CHAOS_LEVELS = ImageCMReader::CHAOS_LEVELS;
 	static const int FILTER_SELECT_FUZZ = 16;
 	static const int COMPRESS_LEVEL = 1;
+	static const u16 UNUSED_FILTER = 0xffff;
 
 	int _w, _h;
 	u16 *_matrix;
@@ -52,6 +53,14 @@ protected:
 	int _width, _height;
 	ImageMaskWriter *_mask;
 	ImageLZWriter *_lz;
+
+	// Filter Huffman codes
+	u16 _sf_codes[SF_COUNT];
+	u8 _sf_codelens[SF_COUNT];
+	u8 _sf_unused_sym;
+	u16 _cf_codes[CF_COUNT];
+	u8 _cf_codelens[CF_COUNT];
+	u8 _cf_unused_sym;
 
 	EntropyEncoder _encoder[3][CHAOS_LEVELS];
 
@@ -69,7 +78,7 @@ protected:
 public:
 	struct _Stats {
 		// For these SF = 0, CF = 1
-		int filter_bytes[2], filter_table_bits[2];
+		int filter_table_bits[2];
 		int filter_compressed_bits[2];
 
 		int chaos_overhead_bits;
