@@ -8,6 +8,7 @@
 #include "ImageLZReader.hpp"
 #include "GCIFReader.hpp"
 #include "Filters.hpp"
+#include "EntropyDecoder.hpp"
 
 /*
  * Game Closure Context Modeling (GC-CM) Decompression
@@ -56,7 +57,7 @@ protected:
 	ImageLZReader *_lz;
 
 	HuffmanDecoder _sf, _cf;
-	HuffmanDecoder _decoder[3][CHAOS_LEVELS];
+	EntropyDecoder _decoder[3][CHAOS_LEVELS];
 
 	void clear();
 

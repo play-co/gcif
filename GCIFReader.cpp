@@ -28,8 +28,6 @@ int gcif_read(const char *input_file_path, GCIFImage *image) {
 
 	imageLZReader.dumpStats();
 
-	return 0;
-
 	// Fully-Transparent Alpha Mask
 	ImageMaskReader imageMaskReader;
 	if ((err = imageMaskReader.read(reader))) {

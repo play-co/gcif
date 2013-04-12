@@ -231,6 +231,8 @@ void ImageLZWriter::add(int unused, u16 sx, u16 sy, u16 dx, u16 dy, u16 w, u16 h
 
 	_exact_matches.push_back(m);
 
+	//CAT_WARN("TEST") << sx << "," << sy << " -> " << dx << "," << dy << " " << (int)w << "," << (int)h;
+
 	Stats.covered += w * h;
 }
 
@@ -337,12 +339,12 @@ void ImageLZWriter::write(ImageWriter &writer) {
 		Match *m = &_exact_matches[ii];
 
 		// Apply some context modeling for better compression
-		u16 edy = (m->dy - last_dy);
 		u16 edx = m->dx;
+		u16 esy = m->dy - m->sy;
+		u16 edy = m->dy - last_dy;
 		if (edy == 0) {
 			edx -= last_dx;
 		}
-		u16 esy = m->dy - m->sy;
 
 		hist.add((u8)m->sx);
 		hist.add((u8)(m->sx >> 8));
@@ -377,7 +379,7 @@ void ImageLZWriter::write(ImageWriter &writer) {
 		}
 
 #ifdef CAT_COLLECT_STATS
-			bitcount += 4;
+		bitcount += 4;
 #endif
 	}
 
@@ -389,12 +391,12 @@ void ImageLZWriter::write(ImageWriter &writer) {
 		Match *m = &_exact_matches[ii];
 
 		// Apply some context modeling for better compression
-		u16 edy = (m->dy - last_dy);
 		u16 edx = m->dx;
+		u16 esy = m->dy - m->sy;
+		u16 edy = m->dy - last_dy;
 		if (edy == 0) {
 			edx -= last_dx;
 		}
-		u16 esy = m->dy - m->sy;
 
 		u8 sym = (u8)m->sx;
 		writer.writeBits(codes[sym], codelens[sym]);

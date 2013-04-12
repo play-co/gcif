@@ -103,6 +103,17 @@ int ImageCMReader::readFilterTables(ImageReader &reader) {
 }
 
 int ImageCMReader::readChaosTables(ImageReader &reader) {
+	// For each color plane,
+	for (int ii = 0; ii < 3; ++ii) {
+		// For each chaos level,
+		for (int jj = 0; jj < CHAOS_LEVELS; ++jj) {
+			// Read the decoder table
+			if (!_decoder[ii][jj].init(reader)) {
+				return RE_CM_CODES;
+			}
+		}
+	}
+
 	return RE_OK;
 }
 
@@ -162,7 +173,12 @@ int ImageCMReader::readRGB(ImageReader &reader) {
 			}
 
 			// If fully transparent,
-			if (lz_skip-- || _mask->hasRGB(x, y)) {
+			if (lz_skip) {
+				// Record a zero here
+				for (int c = 0; c < 3; ++c) {
+					left[c] = last[c] = 0;
+				}
+			} else if (_mask->hasRGB(x, y)) {
 				// Write empty pixel
 				p[0] = 0;
 				p[1] = 0;
@@ -176,7 +192,7 @@ int ImageCMReader::readRGB(ImageReader &reader) {
 				u8 yuv[3];
 				for (int c = 0; c < 3; ++c) {
 					u8 chaos = CHAOS_TABLE[left[c] + (u16)last[c]];
-					u8 value = reader.nextHuffmanSymbol(&_decoder[c][chaos]);
+					u8 value = _decoder[c][chaos].next(reader);
 					left[c] = last[c] = yuv[c] = value;
 				}
 

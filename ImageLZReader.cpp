@@ -113,7 +113,6 @@ int ImageLZReader::readZones(ImageReader &reader) {
 		z->h = (u32)reader.nextHuffmanSymbol(&_huffman) + ZONE;
 
 		// Reverse CM
-
 		if (dy == 0) {
 			dx += last_dx;
 		}
@@ -126,9 +125,8 @@ int ImageLZReader::readZones(ImageReader &reader) {
 		z->dy = dy;
 
 		// Input security checks
-
 		if (sy > dy ||
-			(sy == dy && sx >= dy)) {
+			(sy == dy && sx >= dx)) {
 			return RE_LZ_BAD;
 		}
 
@@ -217,7 +215,7 @@ void ImageLZReader::triggerY() {
 
 	// Find insertion point for all same-y zones
 	for (jj = _zone_work_head; jj != ZONE_NULL; jj = zj->next) {
-		Zone *zj = &_zones[jj];
+		zj = &_zones[jj];
 
 		// If existing item is to the right of where we want to insert,
 		while (zj->dx >= zi->dx) {
