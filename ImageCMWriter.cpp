@@ -409,10 +409,10 @@ int ImageCMWriter::initFromRGBA(const u8 *rgba, int width, int height, ImageMask
 	_mask = &mask;
 	_lz = &lz;
 
-#if 0
+#ifdef TEST_COLOR_FILTERS
 	testColorFilters();
-	colorSpace(rgba, width, height, mask);
-	return 0;
+	//colorSpace(rgba, width, height, mask);
+	return -1;
 #endif
 
 	decideFilters();

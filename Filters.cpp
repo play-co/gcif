@@ -7,107 +7,6 @@ using namespace cat;
 static const u8 FPZ[3] = {0};
 static u8 FPT[3]; // not thread-safe
 
-static CAT_INLINE u8 predLevel(int a, int b, int c) {
-	if (c >= a && c >= b) {
-		if (a > b) {
-			return b;
-		} else {
-			return a;
-		}
-	} else if (c <= a && c <= b) {
-		if (a > b) {
-			return a;
-		} else {
-			return b;
-		}
-	} else {
-		return b + a - c;
-	}
-}
-
-static CAT_INLINE u8 abcClamp(int a, int b, int c) {
-	int sum = a + b - c;
-	if (sum < 0) {
-		return 0;
-	} else if (sum > 255) {
-		return 255;
-	} else {
-		return sum;
-	}
-}
-
-static CAT_INLINE u8 predABC(int a, int b, int c) {
-	int abc = a + b - c;
-	if (abc > 255) abc = 255;
-	else if (abc < 0) abc = 0;
-	return abc;
-}
-
-static CAT_INLINE u8 paeth(int a, int b, int c) {
-	// Paeth filter
-	int pabc = a + b - c;
-	int pa = AbsVal(pabc - a);
-	int pb = AbsVal(pabc - b);
-	int pc = AbsVal(pabc - c);
-
-	if (pa <= pb && pa <= pc) {
-		return (u8)a;
-	} else if (pb <= pc) {
-		return (u8)b;
-	} else {
-		return (u8)c;
-	}
-}
-
-static CAT_INLINE u8 abc_paeth(int a, int b, int c) {
-	// Paeth filter with modifications from BCIF
-	int pabc = a + b - c;
-	if (a <= c && c <= b) {
-		return (u8)pabc;
-	}
-
-	int pa = AbsVal(pabc - a);
-	int pb = AbsVal(pabc - b);
-	int pc = AbsVal(pabc - c);
-
-	if (pa <= pb && pa <= pc) {
-		return (u8)a;
-	} else if (pb <= pc) {
-		return (u8)b;
-	} else {
-		return (u8)c;
-	}
-}
-
-u8 leftSel(int f, int c, int a) {
-	if (AbsVal(f - c) < AbsVal(f - a)) {
-		return c;
-	} else {
-		return a;
-	}
-}
-
-u8 threeSel(int f, int c, int b, int d) {
-	int dc = AbsVal(f - c);
-	int db = AbsVal(f - b);
-	int dd = AbsVal(f - d);
-
-	if (dc < db) {
-		if (dc < dd) {
-			return c;
-		}
-	} else {
-		if (db < dd) {
-			return b;
-		}
-	}
-
-	return d;
-}
-
-
-//// Spatial Filter Functions
-
 static const u8 *SFF_Z(const u8 *p, int x, int y, int width) {
 	return FPZ;
 }
@@ -202,6 +101,17 @@ static const u8 *SFF_BD(const u8 *p, int x, int y, int width) {
 	return FPZ;
 }
 
+static CAT_INLINE u8 abcClamp(int a, int b, int c) {
+	int sum = a + b - c;
+	if (sum < 0) {
+		return 0;
+	} else if (sum > 255) {
+		return 255;
+	} else {
+		return sum;
+	}
+}
+
 static const u8 *SFF_ABC_CLAMP(const u8 *p, int x, int y, int width) {
 	if CAT_LIKELY(x > 0) {
 		const u8 *a = p - 4; // A
@@ -223,6 +133,22 @@ static const u8 *SFF_ABC_CLAMP(const u8 *p, int x, int y, int width) {
 	}
 
 	return FPZ;
+}
+
+static CAT_INLINE u8 paeth(int a, int b, int c) {
+	// Paeth filter
+	int pabc = a + b - c;
+	int pa = AbsVal(pabc - a);
+	int pb = AbsVal(pabc - b);
+	int pc = AbsVal(pabc - c);
+
+	if (pa <= pb && pa <= pc) {
+		return (u8)a;
+	} else if (pb <= pc) {
+		return (u8)b;
+	} else {
+		return (u8)c;
+	}
 }
 
 static const u8 *SFF_PAETH(const u8 *p, int x, int y, int width) {
@@ -248,6 +174,26 @@ static const u8 *SFF_PAETH(const u8 *p, int x, int y, int width) {
 	return FPZ;
 }
 
+static CAT_INLINE u8 abc_paeth(int a, int b, int c) {
+	// Paeth filter with modifications from BCIF
+	int pabc = a + b - c;
+	if (a <= c && c <= b) {
+		return (u8)pabc;
+	}
+
+	int pa = AbsVal(pabc - a);
+	int pb = AbsVal(pabc - b);
+	int pc = AbsVal(pabc - c);
+
+	if (pa <= pb && pa <= pc) {
+		return (u8)a;
+	} else if (pb <= pc) {
+		return (u8)b;
+	} else {
+		return (u8)c;
+	}
+}
+
 static const u8 *SFF_ABC_PAETH(const u8 *p, int x, int y, int width) {
 	if CAT_LIKELY(x > 0) {
 		const u8 *a = p - 4; // A
@@ -269,6 +215,24 @@ static const u8 *SFF_ABC_PAETH(const u8 *p, int x, int y, int width) {
 	}
 
 	return FPZ;
+}
+
+static CAT_INLINE u8 predLevel(int a, int b, int c) {
+	if (c >= a && c >= b) {
+		if (a > b) {
+			return b;
+		} else {
+			return a;
+		}
+	} else if (c <= a && c <= b) {
+		if (a > b) {
+			return a;
+		} else {
+			return b;
+		}
+	} else {
+		return b + a - c;
+	}
 }
 
 static const u8 *SFF_PL(const u8 *p, int x, int y, int width) {
@@ -357,6 +321,14 @@ static const u8 *SFF_ABCD(const u8 *p, int x, int y, int width) {
 	return FPZ;
 }
 
+static CAT_INLINE u8 leftSel(int f, int c, int a) {
+	if (AbsVal(f - c) < AbsVal(f - a)) {
+		return c;
+	} else {
+		return a;
+	}
+}
+
 static const u8 *SFF_PICK_LEFT(const u8 *p, int x, int y, int width) {
 	if CAT_LIKELY(x > 1 && y > 1 && x < width - 2) {
 		const u8 *a = p - 4;
@@ -426,6 +398,8 @@ static const u8 *SFF_AD(const u8 *p, int x, int y, int width) {
 	return FPZ;
 }
 
+#if 0
+
 static const u8 *SFF_A_BC(const u8 *p, int x, int y, int width) {
 	if CAT_LIKELY(x > 0) {
 		const u8 *a = p - 4; // A
@@ -471,6 +445,8 @@ static const u8 *SFF_B_AC(const u8 *p, int x, int y, int width) {
 
 	return FPZ;
 }
+
+#endif
 
 
 SpatialFilterFunction cat::SPATIAL_FILTERS[SF_COUNT] = {
@@ -615,9 +591,9 @@ void CFF_R2Y_D18(const u8 rgb[3], u8 yuv[3]) {
 void CFF_R2Y_B_GR_R(const u8 rgb[3], u8 yuv[3]) {
 	START_R2Y;
 
-	Y = R;
-	U = B - ((R + G) >> 1);
-	V = G - R;
+	Y = B;
+	U = G - R;
+	V = R;
 
 	END_R2Y;
 }
@@ -903,7 +879,7 @@ YUV2RGBFilterFunction cat::YUV2RGB_FILTERS[CF_COUNT] = {
 };
 
 
-const char *GetColorFilterString(int cf) {
+const char *cat::GetColorFilterString(int cf) {
 	switch (cf) {
 		case CF_YUVr:	// YUVr from JPEG2000
 			return "YUVr";
@@ -949,22 +925,21 @@ const char *GetColorFilterString(int cf) {
 }
 
 
-#if TEST_COLOR_FILTERS
+#ifdef TEST_COLOR_FILTERS
 
 #include <iostream>
 using namespace std;
 
-void testColorFilters() {
+void cat::testColorFilters() {
 	for (int cf = 0; cf < CF_COUNT; ++cf) {
-retry:
 		for (int r = 0; r < 256; ++r) {
 			for (int g = 0; g < 256; ++g) {
 				for (int b = 0; b < 256; ++b) {
 					u8 yuv[3];
 					u8 rgb[3] = {r, g, b};
-					convertRGBtoYUV(cf, rgb, yuv);
+					RGB2YUV_FILTERS[cf](rgb, yuv);
 					u8 rgb2[3];
-					convertYUVtoRGB(cf, yuv, rgb2);
+					YUV2RGB_FILTERS[cf](yuv, rgb2);
 
 					if (rgb2[0] != r || rgb2[1] != g || rgb2[2] != b) {
 						cout << "Color filter " << GetColorFilterString(cf) << " is lossy for " << r << "," << g << "," << b << " -> " << (int)rgb2[0] << "," << (int)rgb2[1] << "," << (int)rgb2[2] << endl;

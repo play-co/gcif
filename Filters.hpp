@@ -103,7 +103,7 @@ extern YUV2RGBFilterFunction YUV2RGB_FILTERS[];
 
 const char *GetColorFilterString(int cf);
 
-#if TEST_COLOR_FILTERS
+#ifdef TEST_COLOR_FILTERS
 void testColorFilters();
 #endif
 
