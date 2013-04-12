@@ -82,7 +82,7 @@ int ImageCMWriter::init(int width, int height) {
 	_w = width >> FILTER_ZONE_SIZE_SHIFT;
 	_h = height >> FILTER_ZONE_SIZE_SHIFT;
 	_matrix = new u16[_w * _h];
-	_chaos = new u8[width * 3 + 3];
+	_chaos = new u8[width * 3];
 
 	return WE_OK;
 }
@@ -291,81 +291,56 @@ void ImageCMWriter::chaosStats() {
 	int bitcount[3] = {0};
 	const int width = _width;
 
-#ifdef FUZZY_CHAOS
-	u8 *last_chaos = _chaos;
-	CAT_CLR(last_chaos, width * 3 + 3);
-#endif
+	// Initialize previous chaos scanline to zero
+	CAT_CLR(_chaos, width * 3);
 
-	const u8 *last = _rgba;
+	// For each scanline,
 	const u8 *p = _rgba;
-
 	for (int y = 0; y < _height; ++y) {
 		u8 left_rgb[3] = {0};
-#ifdef FUZZY_CHAOS
-		u8 *last_chaos_read = last_chaos + 3;
-#endif
+		u8 *last = _chaos;
 
+		// For each pixel,
 		for (int x = 0; x < width; ++x) {
-			u16 chaos[3] = {
-				left_rgb[0],
-				left_rgb[1],
-				left_rgb[2]
-			};
-			if (y > 0) {
-				chaos[0] += chaosScore(last[0]);
-				chaos[1] += chaosScore(last[1]);
-				chaos[2] += chaosScore(last[2]);
-				last += 4;
-			}
-
-			chaos[0] = CHAOS_TABLE[chaos[0]];
-			chaos[1] = CHAOS_TABLE[chaos[1]];
-			chaos[2] = CHAOS_TABLE[chaos[2]];
-#ifdef FUZZY_CHAOS
-			u16 isum = last_chaos_read[0] + last_chaos_read[-3];
-			chaos[0] += (isum + chaos[0] + (isum >> 1)) >> 2;
-			chaos[1] += (last_chaos_read[1] + last_chaos_read[-2] + chaos[1] + (chaos[0] >> 1)) >> 2;
-			chaos[2] += (last_chaos_read[2] + last_chaos_read[-1] + chaos[2] + (chaos[1] >> 1)) >> 2;
-#else
-			//chaos[1] = (chaos[1] + chaos[0]) >> 1;
-			//chaos[2] = (chaos[2] + chaos[1]) >> 1;
-#endif
+			// If not masked out,
 			if (!_lz->visited(x, y) && !_mask->hasRGB(x, y)) {
+				// Get filter for this pixel
 				u16 filter = getFilter(x, y);
 				u8 cf = (u8)filter;
 				u8 sf = (u8)(filter >> 8);
 
+				// Apply spatial filter
 				const u8 *pred = spatialFilterPixel(p, sf, x, y, width);
-
 				u8 temp[3] = {
 					p[0] - pred[0],
 					p[1] - pred[1],
 					p[2] - pred[2]
 				};
 
+				// Apply color filter
 				u8 yuv[3];
 				convertRGBtoYUV(cf, temp, yuv);
 
-				left_rgb[0] = chaosScore(yuv[0]);
-				left_rgb[1] = chaosScore(yuv[1]);
-				left_rgb[2] = chaosScore(yuv[2]);
+				// For each color,
+				for (int c = 0; c < 3; ++c) {
+					// Measure context chaos
+					u8 chaos = CHAOS_TABLE[left_rgb[c] + (u16)last[c]];
 
-				for (int ii = 0; ii < 3; ++ii) {
-					_encoder[ii][chaos[ii]].push(yuv[ii]);
+					// Record YUV
+					_encoder[c][chaos].push(yuv[c]);
+
+					// Store chaos score for next time
+					last[c] = left_rgb[c] = chaosScore(yuv[c]);
 				}
 			}
 
-#ifdef FUZZY_CHAOS
-			last_chaos_read[0] = (chaos[0] + 1) >> 1;
-			last_chaos_read[1] = (chaos[1] + 1) >> 1;
-			last_chaos_read[2] = (chaos[2] + 1) >> 1;
-			last_chaos_read += 3;
-#endif
-
+			// Next pixel
+			last += 3;
 			p += 4;
 		}
 	}
 
+	// Finalize
 	for (int ii = 0; ii < 3; ++ii) {
 		for (int jj = 0; jj < CHAOS_LEVELS; ++jj) {
 			_encoder[ii][jj].finalize();
@@ -550,16 +525,14 @@ bool ImageCMWriter::writeChaos(ImageWriter &writer) {
 
 	const int width = _width;
 
-	u8 *last_chaos = _chaos;
-	CAT_CLR(last_chaos, width * 3 + 3);
-
-	const u8 *last = _rgba;
-	const u8 *p = _rgba;
+	// Initialize previous chaos scanline to zero
+	CAT_CLR(_chaos, width * 3);
 
 	// For each scanline,
+	const u8 *p = _rgba;
 	for (int y = 0; y < _height; ++y) {
-		u8 left_rgb[3] = {0};
-		u8 *last_chaos_read = last_chaos + 3;
+		u8 left[3] = {0};
+		u8 *last = _chaos;
 
 		// For each pixel,
 		for (int x = 0; x < width; ++x) {
@@ -567,7 +540,6 @@ bool ImageCMWriter::writeChaos(ImageWriter &writer) {
 			if ((x & FILTER_ZONE_SIZE_MASK) == 0 &&
 				(y & FILTER_ZONE_SIZE_MASK) == 0) {
 				u16 filter = getFilter(x, y);
-
 				u8 sf, cf;
 
 				// If filter is unused,
@@ -587,66 +559,46 @@ bool ImageCMWriter::writeChaos(ImageWriter &writer) {
 #endif
 			}
 
-			u16 chaos[3] = {
-				left_rgb[0],
-				left_rgb[1],
-				left_rgb[2]
-			};
-			if (y > 0) {
-				chaos[0] += chaosScore(last[0]);
-				chaos[1] += chaosScore(last[1]);
-				chaos[2] += chaosScore(last[2]);
-				last += 4;
-			}
-
-			chaos[0] = CHAOS_TABLE[chaos[0]];
-			chaos[1] = CHAOS_TABLE[chaos[1]];
-			chaos[2] = CHAOS_TABLE[chaos[2]];
-#ifdef FUZZY_CHAOS
-			u16 isum = last_chaos_read[0] + last_chaos_read[-3];
-			chaos[0] += (isum + chaos[0] + (isum >> 1)) >> 2;
-			chaos[1] += (last_chaos_read[1] + last_chaos_read[-2] + chaos[1] + (chaos[0] >> 1)) >> 2;
-			chaos[2] += (last_chaos_read[2] + last_chaos_read[-1] + chaos[2] + (chaos[1] >> 1)) >> 2;
-#else
-			//chaos[1] = (chaos[1] + chaos[0]) >> 1;
-			//chaos[2] = (chaos[2] + chaos[1]) >> 1;
-#endif
+			// If not masked out,
 			if (!_lz->visited(x, y) && !_mask->hasRGB(x, y)) {
+				// Get filter for this pixel
 				u16 filter = getFilter(x, y);
 				u8 cf = (u8)filter;
 				u8 sf = (u8)(filter >> 8);
 
+				// Apply spatial filter
 				const u8 *pred = spatialFilterPixel(p, sf, x, y, width);
-
 				u8 temp[3] = {
 					p[0] - pred[0],
 					p[1] - pred[1],
 					p[2] - pred[2]
 				};
 
+				// Apply color filter
 				u8 yuv[3];
 				convertRGBtoYUV(cf, temp, yuv);
 
-				left_rgb[0] = chaosScore(yuv[0]);
-				left_rgb[1] = chaosScore(yuv[1]);
-				left_rgb[2] = chaosScore(yuv[2]);
+				// For each color,
+				for (int c = 0; c < 3; ++c) {
+					// Measure context chaos
+					u8 chaos = CHAOS_TABLE[left[c] + (u16)last[c]];
 
-				for (int ii = 0; ii < 3; ++ii) {
-					int bits = _encoder[ii][chaos[ii]].encode(yuv[ii], writer);
+					// Record YUV
+					int bits = _encoder[c][chaos].encode(yuv[c], writer);
 #ifdef CAT_COLLECT_STATS
-					bitcount[ii] += bits;
+					bitcount[c] += bits;
 #endif
+
+					// Store chaos score for next time
+					last[c] = left[c] = chaosScore(yuv[c]);
 				}
 #ifdef CAT_COLLECT_STATS
 				chaos_count++;
 #endif
 			}
 
-			last_chaos_read[0] = chaos[0] >> 1;
-			last_chaos_read[1] = chaos[1] >> 1;
-			last_chaos_read[2] = chaos[2] >> 1;
-			last_chaos_read += 3;
-
+			// Next pixel
+			last += 3;
 			p += 4;
 		}
 	}

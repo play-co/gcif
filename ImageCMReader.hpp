@@ -30,9 +30,6 @@
 namespace cat {
 
 
-//#define FUZZY_CHAOS
-
-
 //// ImageCMReader
 
 class ImageCMReader {

@@ -64,7 +64,6 @@ public:
 
 	u32 writeOverhead(ImageWriter &writer);
 	u32 encode(u8 symbol, ImageWriter &writer);
-	u32 encodeFinalize(ImageWriter &writer);
 };
 
 

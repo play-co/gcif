@@ -253,8 +253,3 @@ int EntropyEncoder::writeZeroRun(int run, ImageWriter &writer) {
 	return bits;
 }
 
-u32 EntropyEncoder::encodeFinalize(ImageWriter &writer) {
-	// Zeroes are written up front so no need for a finalize step
-	return 0;
-}
-
