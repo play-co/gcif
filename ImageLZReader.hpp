@@ -65,11 +65,17 @@ protected:
 	void clear();
 
 	int init(const ImageInfo *info);
-	int readTables(ImageReader &reader);
+	int readHuffmanTable(ImageReader &reader);
+	int readZones(ImageReader &reader);
 
 #ifdef CAT_COLLECT_STATS
 public:
 	struct _Stats {
+		double initUsec;
+		double readCodelensUsec;
+		double readZonesUsec;
+
+		int zoneCount;
 	} Stats;
 #endif
 

@@ -116,6 +116,8 @@ public:
 
 		imageLZReader.dumpStats();
 
+		return 0;
+
 		// Context Modeling Decompression
 
 		ImageCMReader imageCMReader;

@@ -28,7 +28,7 @@ int ImageLZReader::init(const ImageInfo *info) {
 	return RE_OK;
 }
 
-int ImageLZReader::readTables(ImageReader &reader) {
+int ImageLZReader::readHuffmanTable(ImageReader &reader) {
 	static const int NUM_SYMS = 256;
 
 	// Read and validate match count
@@ -74,6 +74,12 @@ int ImageLZReader::readTables(ImageReader &reader) {
 	if (!_huffman.init(NUM_SYMS, codelens, HUFF_TABLE_BITS)) {
 		return RE_LZ_CODES;
 	}
+
+	return RE_OK;
+}
+
+int ImageLZReader::readZones(ImageReader &reader) {
+	const int match_count = _zones_size;
 
 	// For each zone to read,
 	u16 last_dx = 0, last_dy = 0;
@@ -286,12 +292,25 @@ int ImageLZReader::read(ImageReader &reader) {
 	double t1 = m_clock->usec();
 #endif // CAT_COLLECT_STATS
 
-	if ((err = readTables(reader))) {
+	if ((err = readHuffmanTable(reader))) {
 		return err;
 	}
 
 #ifdef CAT_COLLECT_STATS
 	double t2 = m_clock->usec();
+#endif // CAT_COLLECT_STATS
+
+	if ((err = readZones(reader))) {
+		return err;
+	}
+
+#ifdef CAT_COLLECT_STATS
+	double t3 = m_clock->usec();
+
+	Stats.initUsec = t1 - t0;
+	Stats.readCodelensUsec = t2 - t1;
+	Stats.readZonesUsec = t3 - t2;
+	Stats.zoneCount = _zones_size;
 #endif // CAT_COLLECT_STATS
 
 	return RE_OK;
@@ -300,7 +319,10 @@ int ImageLZReader::read(ImageReader &reader) {
 #ifdef CAT_COLLECT_STATS
 
 bool ImageLZReader::dumpStats() {
-	//CAT_INFO("stats") << "(LZ Decompress) Initial matches : " << Stats.initial_matches;
+	CAT_INFO("stats") << "(LZ Decoding) Initialization : " << Stats.initUsec;
+	CAT_INFO("stats") << "(LZ Decoding) Read Huffman Table : " << Stats.readCodelensUsec;
+	CAT_INFO("stats") << "(LZ Decoding) Zone Count : " << Stats.zoneCount;
+	CAT_INFO("stats") << "(LZ Decoding) Read Zones : " << Stats.readZonesUsec;
 
 	return true;
 }
