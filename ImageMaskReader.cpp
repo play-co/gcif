@@ -45,9 +45,6 @@ bool ImageMaskReader::readHuffmanCodelens(u8 codelens[256], ImageReader &reader)
 	// Decode Golomb-encoded Huffman table
 
 	int pivot = reader.readBits(3);
-#ifdef CAT_COLLECT_STATS
-	Stats.pivot = pivot;
-#endif // CAT_COLLECT_STATS
 
 	int tableWriteIndex = 0;
 	int lag0 = 3, q = 0;
@@ -535,7 +532,6 @@ int ImageMaskReader::read(ImageReader &reader) {
 	Stats.overallUsec = t4 - t0;
 
 	Stats.originalDataBytes = _width * _height / 8;
-	Stats.compressedDataBytes = reader.getTotalDataWords() * 4;
 #endif // CAT_COLLECT_STATS
 
 #ifdef DUMP_MONOCHROME
@@ -564,17 +560,15 @@ int ImageMaskReader::read(ImageReader &reader) {
 #ifdef CAT_COLLECT_STATS
 
 bool ImageMaskReader::dumpStats() {
-	CAT_INFO("stats") << "(Mask Decoding) Table Pivot : " <<  Stats.pivot;
+	CAT_INFO("stats") << "(Mask Decode) Initialization : " <<  Stats.initUsec << " usec (" << Stats.initUsec * 100.f / Stats.overallUsec << " %total)";
+	CAT_INFO("stats") << "(Mask Decode)  Read Codelens : " <<  Stats.readCodelensUsec << " usec (" << Stats.readCodelensUsec * 100.f / Stats.overallUsec << " %total)";
+	CAT_INFO("stats") << "(Mask Decode)  Setup Huffman : " <<  Stats.initHuffmanUsec << " usec (" << Stats.initHuffmanUsec * 100.f / Stats.overallUsec << " %total)";
+	CAT_INFO("stats") << "(Mask Decode)     Huffman+LZ : " <<  Stats.lzUsec << " usec (" << Stats.lzUsec * 100.f / Stats.overallUsec << " %total)";
+	CAT_INFO("stats") << "(Mask Decode)     RLE+Filter : " <<  Stats.rleUsec << " usec (" << Stats.rleUsec * 100.f / Stats.overallUsec << " %total)";
+	CAT_INFO("stats") << "(Mask Decode)        Overall : " <<  Stats.overallUsec << " usec";
 
-	CAT_INFO("stats") << "(Mask Decoding) Initialization : " <<  Stats.initUsec << " usec (" << Stats.initUsec * 100.f / Stats.overallUsec << " %total)";
-	CAT_INFO("stats") << "(Mask Decoding)  Read Codelens : " <<  Stats.readCodelensUsec << " usec (" << Stats.readCodelensUsec * 100.f / Stats.overallUsec << " %total)";
-	CAT_INFO("stats") << "(Mask Decoding)  Setup Huffman : " <<  Stats.initHuffmanUsec << " usec (" << Stats.initHuffmanUsec * 100.f / Stats.overallUsec << " %total)";
-	CAT_INFO("stats") << "(Mask Decoding)     Huffman+LZ : " <<  Stats.lzUsec << " usec (" << Stats.lzUsec * 100.f / Stats.overallUsec << " %total)";
-	CAT_INFO("stats") << "(Mask Decoding)     RLE+Filter : " <<  Stats.rleUsec << " usec (" << Stats.rleUsec * 100.f / Stats.overallUsec << " %total)";
-	CAT_INFO("stats") << "(Mask Decoding)        Overall : " <<  Stats.overallUsec << " usec";
-
-	CAT_INFO("stats") << "(Mask Decoding) Throughput : " << Stats.compressedDataBytes / Stats.overallUsec << " MBPS (input bytes)";
-	CAT_INFO("stats") << "(Mask Decoding) Throughput : " << Stats.originalDataBytes / Stats.overallUsec << " MBPS (output bytes)";
+	CAT_INFO("stats") << "(Mask Decode)  Original Size : " <<  Stats.originalDataBytes << " bytes";
+	CAT_INFO("stats") << "(Mask Decode)     Throughput : " << Stats.originalDataBytes / Stats.overallUsec << " MBPS (output bytes/time)";
 
 	return true;
 }

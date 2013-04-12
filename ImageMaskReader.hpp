@@ -41,13 +41,11 @@ class ImageMaskReader {
 #ifdef CAT_COLLECT_STATS
 public:
 	struct _Stats {
-		int pivot;
-
 		double initUsec, readCodelensUsec, initHuffmanUsec;
 		double lzUsec, rleUsec;
 		double overallUsec;
 
-		u32 originalDataBytes, compressedDataBytes;
+		u32 originalDataBytes;
 	} Stats;
 #endif // CAT_COLLECT_STATS
 

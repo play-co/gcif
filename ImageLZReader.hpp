@@ -74,8 +74,10 @@ public:
 		double initUsec;
 		double readCodelensUsec;
 		double readZonesUsec;
+		double overallUsec;
 
 		int zoneCount;
+		int zoneBytes;
 	} Stats;
 #endif
 
