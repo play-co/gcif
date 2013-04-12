@@ -132,7 +132,7 @@ void ImageCMWriter::decideFilters() {
 							const u8 *p = _rgba + (px + py * width) * 4;
 
 							for (int ii = 0; ii < SF_COUNT; ++ii) {
-								const u8 *pred = spatialFilterPixel(p, ii, px, py, width);
+								const u8 *pred = SPATIAL_FILTERS[ii](p, px, py, width);
 
 								for (int jj = 0; jj < CF_COUNT; ++jj) {
 									u8 temp[3] = {
@@ -142,7 +142,7 @@ void ImageCMWriter::decideFilters() {
 									};
 
 									u8 yuv[3];
-									convertRGBtoYUV(jj, temp, yuv);
+									RGB2YUV_FILTERS[jj](temp, yuv);
 
 									int error = scoreYUV(yuv);
 
@@ -178,17 +178,17 @@ void ImageCMWriter::decideFilters() {
 							const u8 *p = _rgba + (px + py * width) * 4;
 
 							for (int ii = 0; ii < SF_COUNT; ++ii) {
-								const u8 *pred = spatialFilterPixel(p, ii, px, py, width);
+								const u8 *pred = SPATIAL_FILTERS[ii](p, px, py, width);
 
 								for (int jj = 0; jj < CF_COUNT; ++jj) {
-									u8 sp[3] = {
+									u8 temp[3] = {
 										p[0] - pred[0],
 										p[1] - pred[1],
 										p[2] - pred[2]
 									};
 
 									u8 yuv[3];
-									convertRGBtoYUV(jj, sp, yuv);
+									RGB2YUV_FILTERS[jj](temp, yuv);
 
 									int error = scoreYUV(yuv);
 
@@ -233,16 +233,16 @@ void ImageCMWriter::decideFilters() {
 									}
 
 									const u8 *p = _rgba + (px + py * width) * 4;
-									const u8 *pred = spatialFilterPixel(p, sf, px, py, width);
+									const u8 *pred = SPATIAL_FILTERS[sf](p, px, py, width);
 
-									u8 sp[3] = {
+									u8 temp[3] = {
 										p[0] - pred[0],
 										p[1] - pred[1],
 										p[2] - pred[2]
 									};
 
 									u8 yuv[3];
-									convertRGBtoYUV(cf, sp, yuv);
+									RGB2YUV_FILTERS[cf](temp, yuv);
 
 									ee[0].push(yuv[0]);
 									ee[1].push(yuv[1]);
@@ -310,7 +310,7 @@ void ImageCMWriter::chaosStats() {
 				u8 sf = (u8)(filter >> 8);
 
 				// Apply spatial filter
-				const u8 *pred = spatialFilterPixel(p, sf, x, y, width);
+				const u8 *pred = SPATIAL_FILTERS[sf](p, x, y, width);
 				u8 temp[3] = {
 					p[0] - pred[0],
 					p[1] - pred[1],
@@ -319,7 +319,7 @@ void ImageCMWriter::chaosStats() {
 
 				// Apply color filter
 				u8 yuv[3];
-				convertRGBtoYUV(cf, temp, yuv);
+				RGB2YUV_FILTERS[cf](temp, yuv);
 
 				// For each color,
 				for (int c = 0; c < 3; ++c) {
@@ -571,7 +571,7 @@ bool ImageCMWriter::writeChaos(ImageWriter &writer) {
 				u8 sf = (u8)(filter >> 8);
 
 				// Apply spatial filter
-				const u8 *pred = spatialFilterPixel(p, sf, x, y, width);
+				const u8 *pred = SPATIAL_FILTERS[sf](p, x, y, width);
 				u8 temp[3] = {
 					p[0] - pred[0],
 					p[1] - pred[1],
@@ -580,7 +580,7 @@ bool ImageCMWriter::writeChaos(ImageWriter &writer) {
 
 				// Apply color filter
 				u8 yuv[3];
-				convertRGBtoYUV(cf, temp, yuv);
+				RGB2YUV_FILTERS[cf](temp, yuv);
 
 				// For each color,
 				for (int c = 0; c < 3; ++c) {

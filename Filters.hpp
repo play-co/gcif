@@ -28,6 +28,7 @@ static const int FILTER_ZONE_SIZE_MASK = FILTER_ZONE_SIZE - 1;
 
 enum SpatialFilters {
 	// In the order they are applied in the case of a tie:
+	// WARNING: Changing the order of these requires changes to SPATIAL_FILTERS
 	SF_Z,			// 0
 	SF_D,			// D
 	SF_C,			// C
@@ -55,7 +56,9 @@ enum SpatialFilters {
 };
 
 
-const u8 *spatialFilterPixel(const u8 *p, int sf, int x, int y, int width);
+typedef const u8 *(*SpatialFilterFunction)(const u8 *p, int x, int y, int width);
+
+extern SpatialFilterFunction SPATIAL_FILTERS[];
 
 
 //// Color Filters
@@ -90,22 +93,13 @@ enum ColorFilters {
 	CF_COUNT,
 
 	// Disabled filters:
-	// These do not appear to be reversible under YUV888
-	CF_C7,		// from the Strutz paper
-	CF_E2,		// from the Strutz paper
-	CF_E1,		// from the Strutz paper
-	CF_E4,		// from the Strutz paper
-	CF_E5,		// from the Strutz paper
-	CF_E8,		// from the Strutz paper
-	CF_E11,		// from the Strutz paper
-	CF_A3,		// from the Strutz paper
-	CF_F1,		// from the Strutz paper
-	CF_F2,		// from the Strutz paper
 };
 
+typedef void (*RGB2YUVFilterFunction)(const u8 rgb[3], u8 yuv[3]);
+typedef void (*YUV2RGBFilterFunction)(const u8 yuv[3], u8 out[3]);
 
-void convertRGBtoYUV(int cf, const u8 rgb[3], u8 out[3]);
-void convertYUVtoRGB(int cf, const u8 yuv[3], u8 out[3]);
+extern RGB2YUVFilterFunction RGB2YUV_FILTERS[];
+extern YUV2RGBFilterFunction YUV2RGB_FILTERS[];
 
 const char *GetColorFilterString(int cf);
 

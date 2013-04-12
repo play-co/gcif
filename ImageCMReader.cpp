@@ -1,5 +1,4 @@
 #include "ImageCMReader.hpp"
-#include "Filters.hpp"
 using namespace cat;
 
 
@@ -40,7 +39,7 @@ int ImageCMReader::init(GCIFImage *image) {
 	image->rgba = _rgba;
 
 	// Just need to remember the last row of filters
-	_filters = new u8[_width >> FILTER_ZONE_SIZE_SHIFT];
+	_filters = new FilterSelection[_width >> FILTER_ZONE_SIZE_SHIFT];
 
 	// And last row of chaos data
 	_chaos = new u8[_width * 3];
@@ -125,7 +124,8 @@ int ImageCMReader::readRGB(ImageReader &reader) {
 		// Restart for scanline
 		u8 left[3] = {0};
 		u8 *last = _chaos;
-		u8 sf = 0, cf = 0;
+		SpatialFilterFunction sf;
+		YUV2RGBFilterFunction cf;
 		int lz_skip = 0;
 
 		// For each pixel,
@@ -140,17 +140,17 @@ int ImageCMReader::readRGB(ImageReader &reader) {
 
 			// If it is time to read the filter,
 			if ((x & FILTER_ZONE_SIZE_MASK) == 0) {
+				FilterSelection *filter = &_filters[x >> FILTER_ZONE_SIZE_SHIFT];
+
 				// If we are on a filter info scanline,
 				if ((y & FILTER_ZONE_SIZE_MASK) == 0) {
 					// Read SF and CF for this zone
-					sf = reader.nextHuffmanSymbol(&_sf);
-					cf = reader.nextHuffmanSymbol(&_cf);
-					_filters[x >> FILTER_ZONE_SIZE_SHIFT] = (sf << 4) | cf;
+					filter->sf = sf = SPATIAL_FILTERS[reader.nextHuffmanSymbol(&_sf)];
+					filter->cf = cf = YUV2RGB_FILTERS[reader.nextHuffmanSymbol(&_cf)];
 				} else {
 					// Read filter from previous scanline
-					u8 filter = _filters[x >> FILTER_ZONE_SIZE_SHIFT];
-					sf = filter >> 4;
-					cf = filter & 15;
+					sf = filter->sf;
+					cf = filter->cf;
 				}
 			}
 
@@ -175,10 +175,10 @@ int ImageCMReader::readRGB(ImageReader &reader) {
 
 				// Reverse color filter
 				u8 rgb[3];
-				convertYUVtoRGB(cf, yuv, rgb);
+				cf(yuv, rgb);
 
 				// Reverse spatial filter
-				const u8 *pred = spatialFilterPixel(p, sf, x, y, width);
+				const u8 *pred = sf(p, x, y, width);
 				p[0] = rgb[0] + pred[0];
 				p[1] = rgb[1] + pred[1];
 				p[2] = rgb[2] + pred[2];

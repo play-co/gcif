@@ -7,6 +7,7 @@
 #include "ImageMaskReader.hpp"
 #include "ImageLZReader.hpp"
 #include "GCIFReader.hpp"
+#include "Filters.hpp"
 
 /*
  * Game Closure Context Modeling (GC-CM) Decompression
@@ -46,7 +47,10 @@ protected:
 	int _width, _height;
 	u8 *_chaos;
 
-	u8 *_filters; // hi4bits: sf, lo4bits: cf
+	struct FilterSelection {
+		SpatialFilterFunction sf;
+		YUV2RGBFilterFunction cf;
+	} *_filters; // hi4bits: sf, lo4bits: cf
 
 	ImageMaskReader *_mask;
 	ImageLZReader *_lz;
