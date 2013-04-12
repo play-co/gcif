@@ -31,7 +31,6 @@ void ImageMaskReader::clear() {
 		delete []_mask;
 		_mask = 0;
 	}
-
 	if (_lz) {
 		delete []_lz;
 		_lz = 0;
@@ -365,6 +364,7 @@ bool ImageMaskReader::decodeLZ(HuffmanDecoder &decoder, ImageReader &reader) {
 			if CAT_UNLIKELY((u16)(lzIndex - lzLast) >= BATCH_RATE) {
 				if CAT_UNLIKELY(lzLast > lzIndex) {
 					if (decodeRLE(&lz[lzLast], 65536 - lzLast)) {
+						CAT_WARN("TEST") << "OMGGGG6";
 						return true;
 					}
 
@@ -372,6 +372,7 @@ bool ImageMaskReader::decodeLZ(HuffmanDecoder &decoder, ImageReader &reader) {
 				}
 
 				if CAT_UNLIKELY(decodeRLE(&lz[lzLast], lzIndex - lzLast)) {
+					CAT_WARN("TEST") << "OMGGGG5";
 					return true;
 				}
 
@@ -408,6 +409,7 @@ bool ImageMaskReader::decodeLZ(HuffmanDecoder &decoder, ImageReader &reader) {
 		if CAT_UNLIKELY((u16)(lzIndex - lzLast) >= BATCH_RATE) {
 			if CAT_UNLIKELY(lzLast > lzIndex) {
 				if (decodeRLE(&lz[lzLast], 65536 - lzLast)) {
+					CAT_WARN("TEST") << "OMGGGG4";
 					return true;
 				}
 
@@ -415,6 +417,7 @@ bool ImageMaskReader::decodeLZ(HuffmanDecoder &decoder, ImageReader &reader) {
 			}
 
 			if CAT_UNLIKELY(decodeRLE(&lz[lzLast], lzIndex - lzLast)) {
+				CAT_WARN("TEST") << "OMGGGG3";
 				return true;
 			}
 
@@ -425,6 +428,7 @@ bool ImageMaskReader::decodeLZ(HuffmanDecoder &decoder, ImageReader &reader) {
 	// Decode [wrapped] RLE sequence
 	if CAT_UNLIKELY(lzLast > lzIndex) {
 		if (decodeRLE(&lz[lzLast], 65536 - lzLast)) {
+			CAT_WARN("TEST") << "OMGGGG2";
 			return true;
 		}
 
@@ -432,6 +436,7 @@ bool ImageMaskReader::decodeLZ(HuffmanDecoder &decoder, ImageReader &reader) {
 	}
 
 	if CAT_UNLIKELY(decodeRLE(&lz[lzLast], lzIndex - lzLast)) {
+		CAT_WARN("TEST") << "OMGGGG1";
 		return true;
 	}
 
@@ -481,7 +486,6 @@ int ImageMaskReader::init(const ImageHeader *header) {
 
 int ImageMaskReader::read(ImageReader &reader) {
 	static const int NUM_SYMS = 256;
-	static const int TABLE_BITS = 9;
 
 #ifdef CAT_COLLECT_STATS
 	m_clock = Clock::ref();
@@ -509,7 +513,7 @@ int ImageMaskReader::read(ImageReader &reader) {
 #endif // CAT_COLLECT_STATS
 
 	HuffmanDecoder decoder;
-	if (!decoder.init(NUM_SYMS, codelens, TABLE_BITS)) {
+	if (!decoder.init(NUM_SYMS, codelens, 8)) {
 		return RE_MASK_DECI;
 	}
 

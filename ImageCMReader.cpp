@@ -6,6 +6,10 @@ using namespace cat;
 #include "Clock.hpp"
 
 static cat::Clock *m_clock = 0;
+
+#include <iostream>
+using namespace std;
+
 #endif // CAT_COLLECT_STATS
 
 
@@ -55,6 +59,8 @@ int ImageCMReader::init(GCIFImage *image) {
 }
 
 int ImageCMReader::readFilterTables(ImageReader &reader) {
+	cout << reader.readBits(30) << endl;
+
 	// Read spatial filter codelens
 	u8 sf_codelens[SF_COUNT];
 
@@ -103,6 +109,8 @@ int ImageCMReader::readFilterTables(ImageReader &reader) {
 }
 
 int ImageCMReader::readChaosTables(ImageReader &reader) {
+	cout << reader.readBits(30) << endl;
+
 	// For each color plane,
 	for (int ii = 0; ii < 3; ++ii) {
 		// For each chaos level,
@@ -118,6 +126,8 @@ int ImageCMReader::readChaosTables(ImageReader &reader) {
 }
 
 int ImageCMReader::readRGB(ImageReader &reader) {
+	cout << reader.readBits(30) << endl;
+
 	const int width = _width;
 
 	// Initialize previous chaos scanline to zero
@@ -195,7 +205,7 @@ int ImageCMReader::readRGB(ImageReader &reader) {
 					u8 value = _decoder[c][chaos].next(reader);
 					left[c] = last[c] = yuv[c] = value;
 				}
-
+/*
 				// Reverse color filter
 				u8 rgb[3];
 				cf(yuv, rgb);
@@ -205,7 +215,7 @@ int ImageCMReader::readRGB(ImageReader &reader) {
 				p[0] = rgb[0] + pred[0];
 				p[1] = rgb[1] + pred[1];
 				p[2] = rgb[2] + pred[2];
-				p[3] = 255;
+				p[3] = 255;*/
 			}
 
 			// Next pixel

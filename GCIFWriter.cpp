@@ -17,15 +17,6 @@ int gcif_write(const void *rgba, int width, int height, const char *output_file_
 		return err;
 	}
 
-	// 2D-LZ Exact Match
-	ImageLZWriter imageLZWriter;
-	if ((err = imageLZWriter.initFromRGBA(image, width, height))) {
-		return err;
-	}
-
-	imageLZWriter.write(writer);
-	imageLZWriter.dumpStats();
-
 	// Fully-Transparent Alpha Mask
 	ImageMaskWriter imageMaskWriter;
 	if ((err = imageMaskWriter.initFromRGBA(image, width, height))) {
@@ -34,6 +25,15 @@ int gcif_write(const void *rgba, int width, int height, const char *output_file_
 
 	imageMaskWriter.write(writer);
 	imageMaskWriter.dumpStats();
+
+	// 2D-LZ Exact Match
+	ImageLZWriter imageLZWriter;
+	if ((err = imageLZWriter.initFromRGBA(image, width, height))) {
+		return err;
+	}
+
+	imageLZWriter.write(writer);
+	imageLZWriter.dumpStats();
 
 	// Context Modeling Decompression
 	ImageCMWriter imageCMWriter;

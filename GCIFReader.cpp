@@ -20,14 +20,6 @@ int gcif_read(const char *input_file_path, GCIFImage *image) {
 	image->width = header->width;
 	image->height = header->height;
 
-	// 2D-LZ Exact Match
-	ImageLZReader imageLZReader;
-	if ((err = imageLZReader.read(reader))) {
-		return err;
-	}
-
-	imageLZReader.dumpStats();
-
 	// Fully-Transparent Alpha Mask
 	ImageMaskReader imageMaskReader;
 	if ((err = imageMaskReader.read(reader))) {
@@ -35,6 +27,14 @@ int gcif_read(const char *input_file_path, GCIFImage *image) {
 	}
 
 	imageMaskReader.dumpStats();
+
+	// 2D-LZ Exact Match
+	ImageLZReader imageLZReader;
+	if ((err = imageLZReader.read(reader))) {
+		return err;
+	}
+
+	imageLZReader.dumpStats();
 
 	// Context Modeling Decompression
 	ImageCMReader imageCMReader;

@@ -40,7 +40,7 @@ bool EntropyDecoder::readHuffmanTable(int num_syms, HuffmanDecoder &table, Image
 	}
 
 	// If table could not be initialized,
-	if (!table.init(num_syms, codelens, 8)) {
+	if (!table.init(num_syms, codelens, 9)) {
 		return false;
 	}
 

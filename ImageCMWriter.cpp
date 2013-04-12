@@ -452,6 +452,8 @@ void ImageCMWriter::writeFilterHuffmanTable(u8 codelens[256], ImageWriter &write
 }
 
 void ImageCMWriter::writeFilters(ImageWriter &writer) {
+	writer.writeBits(1234569, 30);
+
 	FreqHistogram<SF_COUNT> sf_hist;
 	FreqHistogram<CF_COUNT> cf_hist;
 	u32 unused_count = 0;
@@ -511,6 +513,8 @@ void ImageCMWriter::writeFilters(ImageWriter &writer) {
 }
 
 bool ImageCMWriter::writeChaos(ImageWriter &writer) {
+	writer.writeBits(1234568, 30);
+
 #ifdef CAT_COLLECT_STATS
 	int overhead_bits = 0;
 	int bitcount[3] = {0};
@@ -526,6 +530,8 @@ bool ImageCMWriter::writeChaos(ImageWriter &writer) {
 #endif
 		}
 	}
+
+	writer.writeBits(1234567, 30);
 
 	const int width = _width;
 
