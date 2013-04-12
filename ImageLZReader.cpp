@@ -80,6 +80,11 @@ int ImageLZReader::readHuffmanTable(ImageReader &reader) {
 int ImageLZReader::readZones(ImageReader &reader) {
 	const int match_count = _zones_size;
 
+	// Skip if nothing to read
+	if (match_count == 0) {
+		return RE_OK;
+	}
+
 	// Allocate space for zones
 	_zones = new Zone[match_count];
 
