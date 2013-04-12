@@ -22,6 +22,7 @@ void ImageLZWriter::clear() {
 }
 
 static CAT_INLINE u32 hashPixel(u32 key) {
+	swapLE(key);
 	key <<= 8; // Remove alpha
 
 	// Thomas Wang's integer hash function
@@ -246,19 +247,18 @@ int ImageLZWriter::match() {
 
 	// For each raster,
 	for (u16 y = 0, yend = _height - ZONE; y <= yend; ++y) {
-		u32 hash = 0;
-
 		// Initialize a full hash block in the upper left of this row
+		u32 hash = 0;
 		for (int ii = 0; ii < ZONE; ++ii) {
 			for (int jj = 0; jj < ZONE; ++jj) {
 				u32 *p = (u32*)&rgba[(ii + jj * width)*4];
-				hash += hashPixel(getLE(*p));
+				hash += hashPixel(*p);
 			}
 		}
 
 		// For each column,
 		u16 x = 0, xend = width - ZONE;
-		do {
+		for (;;) {
 			// If a previous zone had this hash,
 			u32 match = _table[hash & TABLE_MASK];
 			if (match != TABLE_NULL) {
@@ -270,9 +270,8 @@ int ImageLZWriter::match() {
 				if (checkMatch(sx, sy, x, y)) {
 					++Stats.initial_matches;
 
-					u16 dx = x, dy = y, w = ZONE, h = ZONE;
-
 					// See how far the match can be expanded
+					u16 dx = x, dy = y, w = ZONE, h = ZONE;
 					expandMatch(sx, sy, dx, dy, w, h);
 
 					// If the match scores well,
@@ -294,14 +293,19 @@ int ImageLZWriter::match() {
 			// Insert this zone into the hash table
 			_table[hash & TABLE_MASK] = ((u32)x << 16) | y;
 
+			// If exceeded end,
+			if (++x >= xend) {
+				break;
+			}
+
 			// Roll the hash to the next zone one pixel over
 			for (int jj = 0; jj < ZONE; ++jj) {
 				u32 *lp = (u32*)&rgba[(x + (y + jj) * width)*4];
-				hash -= hashPixel(getLE(*lp));
+				hash -= hashPixel(*lp);
 				u32 *rp = (u32*)&rgba[((x + ZONE) + (y + jj) * width)*4];
-				hash += hashPixel(getLE(*rp));
+				hash += hashPixel(*rp);
 			}
-		} while (++x <= xend);
+		}
 	}
 
 	return WE_OK;
