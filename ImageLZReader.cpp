@@ -24,6 +24,7 @@ int ImageLZReader::init(const ImageInfo *info) {
 	clear();
 
 	_width = info->width;
+	_height = info->height;
 
 	return RE_OK;
 }
@@ -32,7 +33,7 @@ int ImageLZReader::readHuffmanTable(ImageReader &reader) {
 	static const int NUM_SYMS = 256;
 
 	// Read and validate match count
-	u32 match_count = reader.readBits(16);
+	const u32 match_count = reader.readBits(16);
 	_zones_size = match_count;
 
 	// If we abort early, ensure that triggers are cleared
@@ -104,7 +105,8 @@ int ImageLZReader::readZones(ImageReader &reader) {
 		z->w = (u32)reader.nextHuffmanSymbol(&_huffman) + ZONE;
 		z->h = (u32)reader.nextHuffmanSymbol(&_huffman) + ZONE;
 
-		// Reverse context modeling modifications
+		// Reverse CM
+
 		if (dy == 0) {
 			dx += last_dx;
 		}
@@ -116,10 +118,26 @@ int ImageLZReader::readZones(ImageReader &reader) {
 		z->dx = dx;
 		z->dy = dy;
 
-		// TODO: Input security check here
+		// Input security checks
+
+		if (sy > dy ||
+			(sy == dy && sx >= dy)) {
+			return RE_LZ_BAD;
+		}
+
+		if ((u32)sx + (u32)z->w > _width ||
+			(u32)sy + (u32)z->h > _height) {
+			return RE_LZ_BAD;
+		}
+
+		if ((u32)z->dx + (u32)z->w > _width ||
+			(u32)z->dy + (u32)z->h > _height) {
+			return RE_LZ_BAD;
+		}
 
 		last_dy = dy;
 		last_dx = dx;
+		++z;
 	}
 
 	// If file truncated,

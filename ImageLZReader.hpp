@@ -43,7 +43,7 @@ protected:
 	static const int HUFF_TABLE_BITS = 8; // Time/memory tradeoff
 	static const u16 ZONE_NULL = 0xffff;
 
-	int _width;
+	int _width, _height;
 
 	struct Zone {
 		s16 sox, soy;		// Source read offset in x and y from dx,dy
