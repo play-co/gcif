@@ -1,6 +1,7 @@
 #include "ImageLZReader.hpp"
 #include "EndianNeutral.hpp"
 #include "HuffmanDecoder.hpp"
+#include "GCIFReader.hpp"
 using namespace cat;
 
 #ifdef CAT_COLLECT_STATS
@@ -20,11 +21,11 @@ void ImageLZReader::clear() {
 	}
 }
 
-int ImageLZReader::init(const ImageInfo *info) {
+int ImageLZReader::init(const ImageHeader *header) {
 	clear();
 
-	_width = info->width;
-	_height = info->height;
+	_width = header->width;
+	_height = header->height;
 
 	return RE_OK;
 }
@@ -307,7 +308,7 @@ int ImageLZReader::read(ImageReader &reader) {
 
 	int err;
 
-	if ((err = init(reader.getImageInfo()))) {
+	if ((err = init(reader.getImageHeader()))) {
 		return err;
 	}
 

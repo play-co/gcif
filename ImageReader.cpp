@@ -1,32 +1,7 @@
 #include "ImageReader.hpp"
 #include "EndianNeutral.hpp"
+#include "GCIFReader.hpp"
 using namespace cat;
-
-
-const char *ImageReader::ErrorString(int err) {
-	switch (err) {
-		case RE_OK:			// No problemo
-			return "No problemo";
-		case RE_FILE:		// File access error
-			return "File access error";
-		case RE_BAD_HEAD:	// File header is bad
-			return "File header is bad";
-		case RE_BAD_DATA:	// File data is bad
-			return "File data is bad";
-		case RE_BAD_DIMS:	// Bad image dimensions
-			return "Bad image dimensions";
-		case RE_MASK_CODES:	// Mask codelen read failed
-			return "Mask codelen read failed";
-		case RE_MASK_DECI:	// Mask decode init failed
-			return "Mask decode init failed";
-		case RE_MASK_LZ:	// Mask LZ decode failed
-			return "Mask LZ decode failed";
-		default:
-			break;
-	}
-
-	return "Unknown error code";
-}
 
 
 //// ImageReader
@@ -142,10 +117,10 @@ int ImageReader::init(const void *buffer, int fileSize) {
 
 	// Read header
 
-	_info.width = word1 >> 16;
-	_info.height = word1 & 0xffff;
-	_info.headHash = headHash;
-	_info.dataHash = dataHash;
+	_header.width = word1 >> 16;
+	_header.height = (u16)word1;
+	_header.headHash = headHash;
+	_header.dataHash = dataHash;
 
 	// Get ready to read words
 

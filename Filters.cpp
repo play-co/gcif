@@ -102,7 +102,7 @@ u8 threeSel(int f, int c, int b, int d) {
 	return d;
 }
 
-const u8 *cat::spatialFilterPixel(u8 *p, int sf, int x, int y, int width) {
+const u8 *cat::spatialFilterPixel(const u8 *p, int sf, int x, int y, int width) {
 	static const u8 FPZ[3] = {0};
 	static u8 fpt[3]; // not thread-safe
 

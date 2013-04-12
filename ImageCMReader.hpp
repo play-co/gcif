@@ -6,6 +6,7 @@
 #include "HuffmanDecoder.hpp"
 #include "ImageMaskReader.hpp"
 #include "ImageLZReader.hpp"
+#include "GCIFReader.hpp"
 
 /*
  * Game Closure Context Modeling (GC-CM) Decompression
@@ -58,7 +59,7 @@ protected:
 
 	void clear();
 
-	int init(const ImageInfo *info);
+	int init(GCIFImage *image);
 	int readFilterTables(ImageReader &reader);
 	int readChaosTables(ImageReader &reader);
 	int readRGB(ImageReader &reader);
@@ -79,7 +80,7 @@ public:
 		clear();
 	}
 
-	int read(ImageReader &reader, ImageMaskReader &maskReader, ImageLZReader &lzReader);
+	int read(ImageReader &reader, ImageMaskReader &maskReader, ImageLZReader &lzReader, GCIFImage *image);
 
 #ifdef CAT_COLLECT_STATS
 	bool dumpStats();

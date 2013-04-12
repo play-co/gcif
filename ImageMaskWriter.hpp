@@ -66,7 +66,7 @@ public:
 		clear();
 	}
 
-	int initFromRGBA(u8 *rgba, int width, int height);
+	int initFromRGBA(const u8 *rgba, int width, int height);
 
 	void write(ImageWriter &writer);
 

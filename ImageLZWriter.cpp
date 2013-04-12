@@ -3,6 +3,7 @@
 #include "HuffmanEncoder.hpp"
 #include "ImageLZReader.hpp"
 #include "Log.hpp"
+#include "GCIFWriter.hpp"
 using namespace cat;
 
 

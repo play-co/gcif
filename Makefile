@@ -22,6 +22,7 @@ gcif_objects += MappedFile.o SystemInfo.o MurmurHash3.o ImageWriter.o
 gcif_objects += ImageReader.o ImageMaskWriter.o ImageMaskReader.o
 gcif_objects += ImageCMWriter.o EntropyEncoder.o FilterScorer.o Filters.o
 gcif_objects += ImageLZWriter.o ImageLZReader.o ImageCMReader.o
+gcif_objects += GCIFReader.o GCIFWriter.o
 
 
 # List of source files
@@ -32,6 +33,7 @@ SRCS += MappedFile.cpp SystemInfo.cpp MurmurHash3.cpp ImageWriter.cpp
 SRCS += ImageReader.cpp ImageMaskWriter.cpp ImageMaskReader.cpp
 SRCS += ImageCMWriter.cpp EntropyEncoder.cpp FilterScorer.cpp Filters.cpp
 SRCS += ImageLZWriter.cpp ImageLZReader.cpp ImageCMReader.cpp
+SRCS += GCIFReader.cpp GCIFWriter.cpp
 
 
 # Default target: gcif executable
@@ -116,6 +118,12 @@ ImageLZReader.o : ImageLZReader.cpp
 
 ImageCMReader.o : ImageCMReader.cpp
 	$(CCPP) $(CPFLAGS) -c ImageCMReader.cpp
+
+GCIFReader.o : GCIFReader.cpp
+	$(CCPP) $(CPFLAGS) -c GCIFReader.cpp
+
+GCIFWriter.o : GCIFWriter.cpp
+	$(CCPP) $(CPFLAGS) -c GCIFWriter.cpp
 
 
 # Depend target

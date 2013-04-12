@@ -36,7 +36,7 @@ class ImageMaskReader {
 	bool readHuffmanCodelens(u8 codelens[256], ImageReader &reader);
 	void clear();
 
-	int init(const ImageInfo *info);
+	int init(const ImageHeader *header);
 
 #ifdef CAT_COLLECT_STATS
 public:

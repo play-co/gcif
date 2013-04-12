@@ -63,7 +63,7 @@ protected:
 
 	void clear();
 
-	int init(const ImageInfo *info);
+	int init(const ImageHeader *header);
 	int readHuffmanTable(ImageReader &reader);
 	int readZones(ImageReader &reader);
 

@@ -9,18 +9,6 @@
 namespace cat {
 
 
-// When API functions return an int, it's all about this:
-enum WriteErrors {
-	WE_OK,			// No error
-
-	WE_BAD_DIMS,	// Image dimensions are invalid
-	WE_FILE,		// Unable to access file
-	WE_BUG,			// Bug detected in compressor
-
-	WE_COUNT
-};
-
-
 //// WriteVector
 
 /*
@@ -97,7 +85,7 @@ public:
 //// ImageWriter
 
 class ImageWriter {
-	ImageInfo _info;
+	ImageHeader _header;
 
 	WriteVector _words;
 	u32 _work;	// Word workspace
@@ -112,8 +100,8 @@ public:
 	CAT_INLINE virtual ~ImageWriter() {
 	}
 
-	CAT_INLINE ImageInfo *getImageInfo() {
-		return &_info;
+	CAT_INLINE ImageHeader *getImageHeader() {
+		return &_header;
 	}
 
 	static const char *ErrorString(int err);

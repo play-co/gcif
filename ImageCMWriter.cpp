@@ -4,6 +4,7 @@
 #include "EntropyEstimator.hpp"
 #include "Log.hpp"
 #include "ImageLZWriter.hpp"
+#include "GCIFWriter.hpp"
 using namespace cat;
 
 #include <vector>
@@ -51,16 +52,6 @@ static int calcBits(vector<u8> &lz, u8 codelens[256]) {
 	}
 
 	return bits;
-}
-
-static void filterColor(int cf, const u8 *p, const u8 *pred, u8 *out) {
-	u8 r = p[0] - pred[0];
-	u8 g = p[1] - pred[1];
-	u8 b = p[2] - pred[2];
-
-	u8 temp[3] = {r, g, b};
-
-	convertRGBtoYUV(cf, temp, out);
 }
 
 
@@ -138,14 +129,21 @@ void ImageCMWriter::decideFilters() {
 								continue;
 							}
 
-							u8 *p = _rgba + (px + py * width) * 4;
+							const u8 *p = _rgba + (px + py * width) * 4;
 
 							for (int ii = 0; ii < SF_COUNT; ++ii) {
 								const u8 *pred = spatialFilterPixel(p, ii, px, py, width);
 
 								for (int jj = 0; jj < CF_COUNT; ++jj) {
+									u8 temp[3] = {
+										p[0] - pred[0],
+										p[1] - pred[1],
+										p[2] - pred[2]
+									};
+
 									u8 yuv[3];
-									filterColor(jj, p, pred, yuv);
+									convertRGBtoYUV(jj, temp, yuv);
+
 									int error = scoreYUV(yuv);
 
 									scores.add(ii + jj*SF_COUNT, error);
@@ -177,7 +175,7 @@ void ImageCMWriter::decideFilters() {
 								continue;
 							}
 
-							u8 *p = _rgba + (px + py * width) * 4;
+							const u8 *p = _rgba + (px + py * width) * 4;
 
 							for (int ii = 0; ii < SF_COUNT; ++ii) {
 								const u8 *pred = spatialFilterPixel(p, ii, px, py, width);
@@ -234,7 +232,7 @@ void ImageCMWriter::decideFilters() {
 										continue;
 									}
 
-									u8 *p = _rgba + (px + py * width) * 4;
+									const u8 *p = _rgba + (px + py * width) * 4;
 									const u8 *pred = spatialFilterPixel(p, sf, px, py, width);
 
 									u8 sp[3] = {
@@ -285,49 +283,6 @@ void ImageCMWriter::decideFilters() {
 	}
 }
 
-void ImageCMWriter::applyFilters() {
-	u16 *filterWriter = _matrix;
-	const int width = _width;
-
-	// For each zone,
-	for (int y = _height - 1; y >= 0; --y) {
-		for (int x = width - 1; x >= 0; --x) {
-			u16 filter = getFilter(x, y);
-			u8 cf = (u8)filter;
-			u8 sf = (u8)(filter >> 8);
-			if (_mask->hasRGB(x, y)) {
-				continue;
-			}
-
-			u8 *p = _rgba + (x + y * width) * 4;
-			const u8 *pred = spatialFilterPixel(p, sf, x, y, width);
-
-			filterColor(cf, p, pred, p);
-
-#if 0
-			if (_lz->visited(x, y)) {
-				p[0] = 255;
-				p[1] = 0;
-				p[2] = 0;
-			} else {
-				p[0] = score(p[0]);
-				p[1] = score(p[1]);
-				p[2] = score(p[2]);
-			}
-#endif
-
-#if 0
-				rgba[(x + y * width) * 4] = 200;
-				rgba[(x + y * width) * 4 + 1] = 200;
-				rgba[(x + y * width) * 4 + 2] = 200;
-			}
-#endif
-		}
-	}
-}
-
-
-
 void ImageCMWriter::chaosStats() {
 #ifdef GENERATE_CHAOS_TABLE
 	GenerateChaosTable();
@@ -341,8 +296,8 @@ void ImageCMWriter::chaosStats() {
 	CAT_CLR(last_chaos, width * 3 + 3);
 #endif
 
-	u8 *last = _rgba;
-	u8 *now = _rgba;
+	const u8 *last = _rgba;
+	const u8 *p = _rgba;
 
 	for (int y = 0; y < _height; ++y) {
 		u8 left_rgb[3] = {0};
@@ -376,12 +331,27 @@ void ImageCMWriter::chaosStats() {
 			//chaos[2] = (chaos[2] + chaos[1]) >> 1;
 #endif
 			if (!_lz->visited(x, y) && !_mask->hasRGB(x, y)) {
-				left_rgb[0] = chaosScore(now[0]);
-				left_rgb[1] = chaosScore(now[1]);
-				left_rgb[2] = chaosScore(now[2]);
+				u16 filter = getFilter(x, y);
+				u8 cf = (u8)filter;
+				u8 sf = (u8)(filter >> 8);
+
+				const u8 *pred = spatialFilterPixel(p, sf, x, y, width);
+
+				u8 temp[3] = {
+					p[0] - pred[0],
+					p[1] - pred[1],
+					p[2] - pred[2]
+				};
+
+				u8 yuv[3];
+				convertRGBtoYUV(cf, temp, yuv);
+
+				left_rgb[0] = chaosScore(yuv[0]);
+				left_rgb[1] = chaosScore(yuv[1]);
+				left_rgb[2] = chaosScore(yuv[2]);
 
 				for (int ii = 0; ii < 3; ++ii) {
-					_encoder[ii][chaos[ii]].push(now[ii]);
+					_encoder[ii][chaos[ii]].push(yuv[ii]);
 				}
 			}
 
@@ -392,7 +362,7 @@ void ImageCMWriter::chaosStats() {
 			last_chaos_read += 3;
 #endif
 
-			now += 4;
+			p += 4;
 		}
 	}
 
@@ -447,7 +417,7 @@ void colorSpace(u8 *rgba, int width, int height, ImageMaskWriter &mask) {
 }
 #endif
 
-int ImageCMWriter::initFromRGBA(u8 *rgba, int width, int height, ImageMaskWriter &mask, ImageLZWriter &lz) {
+int ImageCMWriter::initFromRGBA(const u8 *rgba, int width, int height, ImageMaskWriter &mask, ImageLZWriter &lz) {
 	int err;
 
 	if ((err = init(width, height))) {
@@ -467,7 +437,6 @@ int ImageCMWriter::initFromRGBA(u8 *rgba, int width, int height, ImageMaskWriter
 #endif
 
 	decideFilters();
-	applyFilters();
 
 	chaosStats();
 
@@ -584,8 +553,8 @@ bool ImageCMWriter::writeChaos(ImageWriter &writer) {
 	u8 *last_chaos = _chaos;
 	CAT_CLR(last_chaos, width * 3 + 3);
 
-	u8 *last = _rgba;
-	u8 *now = _rgba;
+	const u8 *last = _rgba;
+	const u8 *p = _rgba;
 
 	// For each scanline,
 	for (int y = 0; y < _height; ++y) {
@@ -643,12 +612,27 @@ bool ImageCMWriter::writeChaos(ImageWriter &writer) {
 			//chaos[2] = (chaos[2] + chaos[1]) >> 1;
 #endif
 			if (!_lz->visited(x, y) && !_mask->hasRGB(x, y)) {
-				left_rgb[0] = chaosScore(now[0]);
-				left_rgb[1] = chaosScore(now[1]);
-				left_rgb[2] = chaosScore(now[2]);
+				u16 filter = getFilter(x, y);
+				u8 cf = (u8)filter;
+				u8 sf = (u8)(filter >> 8);
+
+				const u8 *pred = spatialFilterPixel(p, sf, x, y, width);
+
+				u8 temp[3] = {
+					p[0] - pred[0],
+					p[1] - pred[1],
+					p[2] - pred[2]
+				};
+
+				u8 yuv[3];
+				convertRGBtoYUV(cf, temp, yuv);
+
+				left_rgb[0] = chaosScore(yuv[0]);
+				left_rgb[1] = chaosScore(yuv[1]);
+				left_rgb[2] = chaosScore(yuv[2]);
 
 				for (int ii = 0; ii < 3; ++ii) {
-					int bits = _encoder[ii][chaos[ii]].encode(now[ii], writer);
+					int bits = _encoder[ii][chaos[ii]].encode(yuv[ii], writer);
 #ifdef CAT_COLLECT_STATS
 					bitcount[ii] += bits;
 #endif
@@ -663,7 +647,7 @@ bool ImageCMWriter::writeChaos(ImageWriter &writer) {
 			last_chaos_read[2] = chaos[2] >> 1;
 			last_chaos_read += 3;
 
-			now += 4;
+			p += 4;
 		}
 	}
 

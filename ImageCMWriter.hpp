@@ -49,7 +49,7 @@ protected:
 
 	void clear();
 
-	u8 *_rgba;
+	const u8 *_rgba;
 	int _width, _height;
 	ImageMaskWriter *_mask;
 	ImageLZWriter *_lz;
@@ -66,7 +66,6 @@ protected:
 
 	int init(int width, int height);
 	void decideFilters();
-	void applyFilters();
 	void chaosStats();
 
 	void writeFilterHuffmanTable(u8 codelens[256], ImageWriter &writer, int stats_index);
@@ -117,7 +116,7 @@ public:
 		return _matrix[filterX + filterY * _w];
 	}
 
-	int initFromRGBA(u8 *rgba, int width, int height, ImageMaskWriter &mask, ImageLZWriter &lz);
+	int initFromRGBA(const u8 *rgba, int width, int height, ImageMaskWriter &mask, ImageLZWriter &lz);
 	void write(ImageWriter &writer);
 
 #ifdef CAT_COLLECT_STATS

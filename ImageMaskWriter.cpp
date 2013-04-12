@@ -4,6 +4,7 @@
 #include "HuffmanEncoder.hpp"
 #include "HuffmanDecoder.hpp"
 #include "Filters.hpp"
+#include "GCIFWriter.hpp"
 
 #ifdef CAT_COLLECT_STATS
 #include "Log.hpp"
@@ -96,7 +97,7 @@ void ImageMaskWriter::clear() {
 	}
 }
 
-int ImageMaskWriter::initFromRGBA(u8 *rgba, int width, int height) {
+int ImageMaskWriter::initFromRGBA(const u8 *rgba, int width, int height) {
 
 	if (!rgba || width < FILTER_ZONE_SIZE || height < FILTER_ZONE_SIZE) {
 		return WE_BAD_DIMS;
@@ -232,20 +233,6 @@ int ImageMaskWriter::initFromRGBA(u8 *rgba, int width, int height) {
 	}
 
 #endif
-
-	// Clear RGB data from fully-transparent pixels
-
-	for (int y = 0; y < height; ++y) {
-		for (int x = 0; x < width; ++x) {
-			if (rgba[x * 4 + 3] == 0) {
-				rgba[x * 4] = 0;
-				rgba[x * 4 + 1] = 0;
-				rgba[x * 4 + 2] = 0;
-			}
-		}
-
-		rgba += width * 4;
-	}
 
 #ifdef DUMP_FILTER_OUTPUT
 		{

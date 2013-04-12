@@ -9,34 +9,7 @@
 namespace cat {
 
 
-// When API functions return an int, it's all about this:
-enum ReaderErrors {
-	RE_OK,			// No problemo
-
-	RE_FILE,		// File access error
-	RE_BAD_HEAD,	// File header is bad
-	RE_BAD_DIMS,	// Bad image dimensions
-	RE_BAD_DATA,	// File data is bad
-
-	RE_MASK_CODES,	// Mask codelen read failed
-	RE_MASK_DECI,	// Mask decode init failed
-	RE_MASK_LZ,		// Mask LZ decode failed
-
-	RE_LZ_CODES,	// LZ codelen read failed
-	RE_LZ_BAD,		// Bad data in LZ section
-
-	RE_CM_CODES,	// CM codelen read failed
-
-	RE_COUNT
-};
-
-
-/*
- * Image file info
- *
- * This is the parsed, not raw, data
- */
-struct ImageInfo {
+struct ImageHeader {
 	u16 width, height; // pixels
 
 	u32 headHash; // MurmurHash3 of head words
@@ -50,7 +23,7 @@ class ImageReader {
 	MappedFile _file;
 	MappedView _fileView;
 
-	ImageInfo _info;
+	ImageHeader _header;
 
 	MurmurHash3 _hash;
 
@@ -85,14 +58,12 @@ public:
 		return _wordsLeft;
 	}
 
-	static const char *ErrorString(int err);
-
 	// Initialize with file or memory buffer
 	int init(const char *path);
 	int init(const void *buffer, int bytes);
 
-	CAT_INLINE ImageInfo *getImageInfo() {
-		return &_info;
+	CAT_INLINE ImageHeader *getImageHeader() {
+		return &_header;
 	}
 
 	// Returns at least minBits in the high bits, supporting up to 32 bits
@@ -143,7 +114,7 @@ public:
 	static const u32 DATA_SEED = 0xCA71D123;
 
 	CAT_INLINE bool finalizeCheckHash() {
-		return _info.dataHash == _hash.final(_wordCount);
+		return _header.dataHash == _hash.final(_wordCount);
 	}
 };
 

@@ -20,21 +20,24 @@ void ImageCMReader::clear() {
 	}
 }
 
-int ImageCMReader::init(const ImageInfo *info) {
+int ImageCMReader::init(GCIFImage *image) {
 	clear();
 
-	_width = info->width;
-	_height = info->height;
+	_width = image->width;
+	_height = image->height;
 
 	// Validate input dimensions
-	if (info->width < FILTER_ZONE_SIZE || info->height < FILTER_ZONE_SIZE) {
+	if (_width < FILTER_ZONE_SIZE || _height < FILTER_ZONE_SIZE) {
 		return RE_BAD_DIMS;
 	}
-	if (info->width % FILTER_ZONE_SIZE || info->height % FILTER_ZONE_SIZE) {
+	if (_width % FILTER_ZONE_SIZE || _height % FILTER_ZONE_SIZE) {
 		return RE_BAD_DIMS;
 	}
 
 	_rgba = new u8[_width * _height * 4];
+
+	// Fill in image pointer
+	image->rgba = _rgba;
 
 	// Just need to remember the last row of filters
 	_filters = new u8[_width >> FILTER_ZONE_SIZE_SHIFT];
@@ -230,14 +233,14 @@ int ImageCMReader::readRGB(ImageReader &reader) {
 	return RE_OK;
 }
 
-int ImageCMReader::read(ImageReader &reader, ImageMaskReader &maskReader, ImageLZReader &lzReader) {
+int ImageCMReader::read(ImageReader &reader, ImageMaskReader &maskReader, ImageLZReader &lzReader, GCIFImage *image) {
 	int err;
 
 	_mask = &maskReader;
 	_lz = &lzReader;
 
 	// Initialize
-	if ((err = init(reader.getImageInfo()))) {
+	if ((err = init(image))) {
 		return err;
 	}
 
@@ -255,6 +258,9 @@ int ImageCMReader::read(ImageReader &reader, ImageMaskReader &maskReader, ImageL
 	if ((err = readRGB(reader))) {
 		return err;
 	}
+
+	// Pass image data reference back to caller
+	_rgba = 0;
 
 	return RE_OK;
 }

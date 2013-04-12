@@ -5,145 +5,62 @@ using namespace std;
 #include "Log.hpp"
 #include "Clock.hpp"
 
-#include "ImageWriter.hpp"
-#include "ImageMaskWriter.hpp"
-#include "ImageLZWriter.hpp"
-#include "ImageCMWriter.hpp"
+#include "GCIFReader.hpp"
+#include "GCIFWriter.hpp"
 
-#include "ImageReader.hpp"
-#include "ImageMaskReader.hpp"
-#include "ImageLZReader.hpp"
-#include "ImageCMReader.hpp"
 using namespace cat;
 
 #include "lodepng.h"
 #include "optionparser.h"
 
 
-class Converter {
-public:
-	static int compress(const char *filename, const char *outfile) {
-		vector<unsigned char> image;
-		unsigned width, height;
+//// Commands
 
-		unsigned error = lodepng::decode(image, width, height, filename);
+static int compress(const char *filename, const char *outfile) {
+	vector<unsigned char> image;
+	unsigned width, height;
 
-		if (error) {
-			CAT_WARN("main") << "Decoder error " << error << ": " << lodepng_error_text(error);
-			return error;
-		}
+	CAT_WARN("main") << "Reading input PNG image file: " << filename;
 
-		int err;
+	unsigned error = lodepng::decode(image, width, height, filename);
 
-		ImageWriter writer;
-		if ((err = writer.init(width, height))) {
-			CAT_WARN("main") << "Unable to initialize image writer: " << ImageWriter::ErrorString(err);
-			return err;
-		}
-
-		// Generate ImageMask
-		ImageMaskWriter imageMaskWriter;
-		if ((err = imageMaskWriter.initFromRGBA(&image[0], width, height))) {
-			CAT_WARN("main") << "Unable to generate image mask: " << ImageWriter::ErrorString(err);
-			return err;
-		}
-
-		imageMaskWriter.write(writer);
-		imageMaskWriter.dumpStats();
-
-		ImageLZWriter imageLZWriter;
-		if ((err = imageLZWriter.initFromRGBA(&image[0], width, height))) {
-			CAT_WARN("main") << "Unable to initialize LZ compressor: " << ImageWriter::ErrorString(err);
-			return err;
-		}
-
-		imageLZWriter.write(writer);
-		imageLZWriter.dumpStats();
-
-		ImageCMWriter imageCMWriter;
-		if ((err = imageCMWriter.initFromRGBA(&image[0], width, height, imageMaskWriter, imageLZWriter))) {
-			CAT_WARN("main") << "Unable to initialize CM compressor: " << ImageWriter::ErrorString(err);
-			return err;
-		}
-
-		imageCMWriter.write(writer);
-		imageCMWriter.dumpStats();
-
-		if ((err = writer.finalizeAndWrite(outfile))) {
-			CAT_WARN("main") << "Unable to finalize and write image mask: " << ImageWriter::ErrorString(err);
-			return err;
-		}
-
-#if 1
-		{
-			CAT_WARN("main") << "Writing post-filter image file";
-
-			lodepng_encode_file("postfilter.png", (const unsigned char*)&image[0], width, height, LCT_RGBA, 8);
-		}
-#endif
-
-		CAT_INFO("main") << "Wrote " << outfile;
-		return 0;
+	if (error) {
+		CAT_WARN("main") << "PNG read error " << error << ": " << lodepng_error_text(error);
+		return error;
 	}
 
-	static int decompress(const char *filename, const char *outfile) {
-		ImageReader reader;
+	CAT_WARN("main") << "Encoding image: " << outfile;
 
-		int err;
+	int err;
 
-		if ((err = reader.init(filename))) {
-			CAT_WARN("main") << "Unable to read file: " << ImageReader::ErrorString(err);
-			return err;
-		}
-
-		// Fully-Transparent Alpha Mask
-
-		ImageMaskReader imageMaskReader;
-		if ((err = imageMaskReader.read(reader))) {
-			CAT_WARN("main") << "Unable to read GC-FTAM: " << ImageReader::ErrorString(err);
-			return err;
-		}
-
-		imageMaskReader.dumpStats();
-
-		// 2D-LZ Exact Match
-
-		ImageLZReader imageLZReader;
-		if ((err = imageLZReader.read(reader))) {
-			CAT_WARN("main") << "Unable to read GC-2D-LZ: " << ImageReader::ErrorString(err);
-			return err;
-		}
-
-		imageLZReader.dumpStats();
-
-		return 0;
-
-		// Context Modeling Decompression
-
-		ImageCMReader imageCMReader;
-		if ((err = imageCMReader.read(reader, imageMaskReader, imageLZReader))) {
-			CAT_WARN("main") << "Unable to read GC-CM: " << ImageReader::ErrorString(err);
-			return err;
-		}
-
-		imageCMReader.dumpStats();
-
-		imageLZReader.dumpStats();
-
-		// Verify hash
-
-		if (!reader.finalizeCheckHash()) {
-			CAT_WARN("main") << "Hash mismatch";
-			return 1000;
-		}
-
-		CAT_WARN("main") << "Writing output image file: " << outfile;
-		// Convert to image:
-
-		CAT_INFO("main") << "Read success!";
-		return 0;
+	if ((err = gcif_write(&image[0], width, height, outfile))) {
+		CAT_WARN("main") << "Error while compressing the image: " << gcif_write_errstr(err);
+		return err;
 	}
-};
+
+	CAT_WARN("main") << "Success.";
+	return 0;
+}
+
+
+static int decompress(const char *filename, const char *outfile) {
+	CAT_WARN("main") << "Decoding input GCIF image file: " << filename;
+
+	int err;
+
+	GCIFImage image;
+	if ((err = gcif_read(filename, &image))) {
+		CAT_WARN("main") << "Error while compressing the image: " << gcif_write_errstr(err);
+		return err;
+	}
+
+	CAT_WARN("main") << "Writing output image file: " << outfile;
+
+	lodepng_encode_file(outfile, (const unsigned char*)image.rgba, image.width, image.height, LCT_RGBA, 8);
+
+	CAT_WARN("main") << "Success.";
+	return 0;
+}
 
 
 //// Command-line parameter parsing
@@ -188,7 +105,7 @@ int processParameters(option::Parser &parse, option::Option options[]) {
 			const char *outFilePath = parse.nonOption(1);
 			int err;
 
-			if ((err = Converter::compress(inFilePath, outFilePath))) {
+			if ((err = compress(inFilePath, outFilePath))) {
 				CAT_INFO("main") << "Error during conversion [retcode:" << err << "]";
 				return err;
 			}
@@ -203,7 +120,7 @@ int processParameters(option::Parser &parse, option::Option options[]) {
 			const char *outFilePath = parse.nonOption(1);
 			int err;
 
-			if ((err = Converter::decompress(inFilePath, outFilePath))) {
+			if ((err = decompress(inFilePath, outFilePath))) {
 				CAT_INFO("main") << "Error during conversion [retcode:" << err << "]";
 				return err;
 			}

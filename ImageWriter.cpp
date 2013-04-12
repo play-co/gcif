@@ -1,23 +1,8 @@
 #include "ImageWriter.hpp"
 #include "EndianNeutral.hpp"
 #include "MappedFile.hpp"
+#include "GCIFWriter.hpp"
 using namespace cat;
-
-
-const char *ImageWriter::ErrorString(int err) {
-	switch (err) {
-		case WE_OK:			// No error
-			return "No errors";
-		case WE_BAD_DIMS:	// Image dimensions are invalid
-			return "Image dimensions are invalid";
-		case WE_FILE:		// Unable to access file
-			return "Unable to access the file";
-		default:
-			break;
-	}
-
-	return "Unknown error code";
-}
 
 
 //// WriteVector
@@ -120,8 +105,8 @@ int ImageWriter::init(int width, int height) {
 
 	_words.init(ImageReader::DATA_SEED);
 
-	_info.width = static_cast<u16>( width );
-	_info.height = static_cast<u16>( height );
+	_header.width = static_cast<u16>( width );
+	_header.height = static_cast<u16>( height );
 
 	_work = 0;
 	_bits = 0;
@@ -197,7 +182,7 @@ int ImageWriter::finalizeAndWrite(const char *path) {
 	fileWords[0] = getLE(ImageReader::HEAD_MAGIC);
 	hh.hashWord(ImageReader::HEAD_MAGIC);
 
-	u32 header1 = (_info.width << 16) | _info.height; // Temporary
+	u32 header1 = (_header.width << 16) | _header.height;
 	fileWords[1] = getLE(header1);
 	hh.hashWord(header1);
 
@@ -209,8 +194,8 @@ int ImageWriter::finalizeAndWrite(const char *path) {
 
 	fileWords += ImageReader::HEAD_WORDS;
 
-	_info.headHash = headHash;
-	_info.dataHash = dataHash;
+	_header.headHash = headHash;
+	_header.dataHash = dataHash;
 
 	// Copy file data
 
