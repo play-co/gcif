@@ -50,7 +50,7 @@ static int decompress(const char *filename, const char *outfile) {
 
 	GCIFImage image;
 	if ((err = gcif_read(filename, &image))) {
-		CAT_WARN("main") << "Error while compressing the image: " << gcif_write_errstr(err);
+		CAT_WARN("main") << "Error while compressing the image: " << gcif_read_errstr(err);
 		return err;
 	}
 

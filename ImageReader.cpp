@@ -86,7 +86,7 @@ int ImageReader::init(const void *buffer, int fileSize) {
 	clear();
 
 	const u32 *words = reinterpret_cast<const u32 *>( buffer );
-	const u32 fileWords = fileSize / 4;
+	const u32 fileWords = fileSize / sizeof(u32);
 
 	// Validate header
 

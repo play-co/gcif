@@ -320,7 +320,7 @@ void ImageLZWriter::write(ImageWriter &writer) {
 	Stats.bytes_overhead_uncompressed = match_count * 10;
 #endif
 
-	writer.writeBits(16, match_count);
+	writer.writeBits(match_count, 16);
 
 	// If no matches to record,
 	if (match_count <= 0) {

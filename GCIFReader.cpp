@@ -78,7 +78,6 @@ const char *gcif_read_errstr(int err) {
 
 		case RE_LZ_CODES:	// LZ codelen read failed
 			return "LZ codelen read failed";
-
 		case RE_LZ_BAD:		// Bad data in LZ section
 			return "Bad data in LZ section";
 
