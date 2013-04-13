@@ -372,6 +372,88 @@ static const u8 *SFF_PRED_UR(const u8 *p, int x, int y, int width) {
 	return FPZ;
 }
 
+static CAT_INLINE u8 clampGrad(int b, int a, int c) {
+	int grad = (int)b + (int)a - (int)c;
+	int lo = b;
+	if (lo > a) {
+		lo = a;
+	}
+	if (lo > c) {
+		lo = c;
+	}
+	int hi = b;
+	if (hi < a) {
+		hi = a;
+	}
+	if (hi < c) {
+		hi = c;
+	}
+	if (grad <= lo) {
+		return lo;
+	}
+	if (grad >= hi) {
+		return hi;
+	}
+	return grad;
+}
+
+static const u8 *SFF_CLAMP_GRAD(const u8 *p, int x, int y, int width) {
+	if CAT_LIKELY(y > 0) {
+		if CAT_LIKELY(x > 0) {
+			const u8 *a = p - 4; // A
+			const u8 *b = p - width*4; // B
+			const u8 *c = b - 4; // C
+
+			FPT[0] = clampGrad(b[0], a[0], c[0]);
+			FPT[1] = clampGrad(b[1], a[1], c[1]);
+			FPT[2] = clampGrad(b[2], a[2], c[2]);
+
+			return FPT;
+		} else {
+			// Assume image is not really narrow
+			return p - width*4 + 4; // D
+		}
+	} else if (x > 0) {
+		return p - 4; // A
+	}
+
+	return FPZ;
+}
+
+static u8 skewGrad(int b, int a, int c) {
+	int pred = (3 * (b + a) - (c << 1)) >> 2;
+	if (pred >= 255) {
+		return 255;
+	}
+	if (pred <= 0) {
+		return 0;
+	}
+	return pred;
+}
+
+static const u8 *SFF_SKEW_GRAD(const u8 *p, int x, int y, int width) {
+	if CAT_LIKELY(y > 0) {
+		if CAT_LIKELY(x > 0) {
+			const u8 *a = p - 4; // A
+			const u8 *b = p - width*4; // B
+			const u8 *c = b - 4; // C
+
+			FPT[0] = skewGrad(b[0], a[0], c[0]);
+			FPT[1] = skewGrad(b[1], a[1], c[1]);
+			FPT[2] = skewGrad(b[2], a[2], c[2]);
+
+			return FPT;
+		} else {
+			// Assume image is not really narrow
+			return p - width*4 + 4; // D
+		}
+	} else if (x > 0) {
+		return p - 4; // A
+	}
+
+	return FPZ;
+}
+
 static const u8 *SFF_AD(const u8 *p, int x, int y, int width) {
 	if CAT_LIKELY(y > 0) {
 		if CAT_LIKELY(x > 0) {
@@ -457,15 +539,17 @@ SpatialFilterFunction cat::SPATIAL_FILTERS[SF_COUNT] = {
 	SFF_A,
 	SFF_AB,
 	SFF_BD,
+	SFF_CLAMP_GRAD,
+	SFF_SKEW_GRAD,
+	SFF_PICK_LEFT,
+	SFF_PRED_UR,
 	SFF_ABC_CLAMP,
 	SFF_PAETH,
 	SFF_ABC_PAETH,
 	SFF_PL,
 	SFF_PLO,
 	SFF_ABCD,
-	SFF_PICK_LEFT,
-	SFF_PRED_UR,
-	SFF_AD
+	SFF_AD,
 };
 
 

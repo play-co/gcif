@@ -36,16 +36,16 @@ enum SpatialFilters {
 	SF_A,			// A
 	SF_AB,			// (A + B)/2
 	SF_BD,			// (B + D)/2
+	SF_CLAMP_GRAD,	// CBloom: 12: ClampedGradPredictor
+	SF_SKEW_GRAD,	// CBloom: 5: Gradient skewed towards average
+	SF_PICK_LEFT,	// New: Pick A or C based on which is closer to F
+	SF_PRED_UR,		// New: Predict gradient continues from E to D to current
 	SF_ABC_CLAMP,	// A + B - C clamped to [0, 255]
 	SF_PAETH,		// Paeth filter
 	SF_ABC_PAETH,	// If A <= C <= B, A + B - C, else Paeth filter
 	SF_PL,			// Use ABC to determine if increasing or decreasing
 	SF_PLO,			// Offset PL
 	SF_ABCD,		// (A + B + C + D + 1)/4
-
-	SF_PICK_LEFT,	// Pick A or C based on which is closer to F
-	SF_PRED_UR,		// Predict gradient continues from E to D to current
-
 	SF_AD,			// (A + D)/2
 
 	SF_COUNT,
