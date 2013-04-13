@@ -68,7 +68,7 @@ protected:
 	void decideFilters();
 	void chaosStats();
 
-	void writeFilterHuffmanTable(u8 codelens[256], ImageWriter &writer, int stats_index);
+	void writeFilterHuffmanTable(int num_syms, u8 codelens[256], ImageWriter &writer, int stats_index);
 
 	void writeFilters(ImageWriter &writer);
 	bool writeChaos(ImageWriter &writer);

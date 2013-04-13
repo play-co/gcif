@@ -58,6 +58,8 @@ static int decompress(const char *filename, const char *outfile) {
 
 	lodepng_encode_file(outfile, (const unsigned char*)image.rgba, image.width, image.height, LCT_RGBA, 8);
 
+	delete []image.rgba;
+
 	CAT_WARN("main") << "Success.";
 	return 0;
 }

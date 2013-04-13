@@ -59,8 +59,6 @@ int ImageCMReader::init(GCIFImage *image) {
 }
 
 int ImageCMReader::readFilterTables(ImageReader &reader) {
-	cout << reader.readBits(30) << endl;
-
 	// Read spatial filter codelens
 	u8 sf_codelens[SF_COUNT];
 
@@ -109,8 +107,6 @@ int ImageCMReader::readFilterTables(ImageReader &reader) {
 }
 
 int ImageCMReader::readChaosTables(ImageReader &reader) {
-	cout << reader.readBits(30) << endl;
-
 	// For each color plane,
 	for (int ii = 0; ii < 3; ++ii) {
 		// For each chaos level,
@@ -126,8 +122,6 @@ int ImageCMReader::readChaosTables(ImageReader &reader) {
 }
 
 int ImageCMReader::readRGB(ImageReader &reader) {
-	cout << reader.readBits(30) << endl;
-
 	const int width = _width;
 
 	// Initialize previous chaos scanline to zero
@@ -183,11 +177,12 @@ int ImageCMReader::readRGB(ImageReader &reader) {
 			}
 
 			// If fully transparent,
-			if (lz_skip) {
+			if (lz_skip > 0) {
 				// Record a zero here
 				for (int c = 0; c < 3; ++c) {
 					left[c] = last[c] = 0;
 				}
+				--lz_skip;
 			} else if (_mask->hasRGB(x, y)) {
 				// Write empty pixel
 				p[0] = 0;
@@ -205,7 +200,7 @@ int ImageCMReader::readRGB(ImageReader &reader) {
 					u8 value = _decoder[c][chaos].next(reader);
 					left[c] = last[c] = yuv[c] = value;
 				}
-/*
+
 				// Reverse color filter
 				u8 rgb[3];
 				cf(yuv, rgb);
@@ -215,7 +210,7 @@ int ImageCMReader::readRGB(ImageReader &reader) {
 				p[0] = rgb[0] + pred[0];
 				p[1] = rgb[1] + pred[1];
 				p[2] = rgb[2] + pred[2];
-				p[3] = 255;*/
+				p[3] = 255;
 			}
 
 			// Next pixel

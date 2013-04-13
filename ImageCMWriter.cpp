@@ -42,7 +42,6 @@ static CAT_INLINE int wrapNeg(u8 p) {
 	}
 }
 
-
 static int calcBits(vector<u8> &lz, u8 codelens[256]) {
 	int bits = 0;
 
@@ -394,6 +393,7 @@ void colorSpace(u8 *rgba, int width, int height, ImageMaskWriter &mask) {
 		cout << "YUV888 Entropy for " << GetColorFilterString(cf) << " = { " << e[0] << ", " << e[1] << ", " << e[2] << " } : SCORE=" << score << endl;
 	}
 }
+
 #endif
 
 int ImageCMWriter::initFromRGBA(const u8 *rgba, int width, int height, ImageMaskWriter &mask, ImageLZWriter &lz) {
@@ -422,14 +422,12 @@ int ImageCMWriter::initFromRGBA(const u8 *rgba, int width, int height, ImageMask
 	return WE_OK;
 }
 
-void ImageCMWriter::writeFilterHuffmanTable(u8 codelens[256], ImageWriter &writer, int stats_index) {
-	const int HUFF_TABLE_SIZE = 256;
-
+void ImageCMWriter::writeFilterHuffmanTable(int num_syms, u8 codelens[256], ImageWriter &writer, int stats_index) {
 #ifdef CAT_COLLECT_STATS
 	int bitcount = 0;
 #endif
 
-	for (int ii = 0; ii < HUFF_TABLE_SIZE; ++ii) {
+	for (int ii = 0; ii < num_syms; ++ii) {
 		u8 len = codelens[ii];
 		if (len >= 15) {
 			writer.writeBits(15, 4);
@@ -452,8 +450,6 @@ void ImageCMWriter::writeFilterHuffmanTable(u8 codelens[256], ImageWriter &write
 }
 
 void ImageCMWriter::writeFilters(ImageWriter &writer) {
-	writer.writeBits(1234569, 30);
-
 	FreqHistogram<SF_COUNT> sf_hist;
 	FreqHistogram<CF_COUNT> cf_hist;
 	u32 unused_count = 0;
@@ -508,13 +504,11 @@ void ImageCMWriter::writeFilters(ImageWriter &writer) {
 	cf_hist.generateHuffman(_cf_codes, _cf_codelens);
 
 	// Write out filter huffman tables
-	writeFilterHuffmanTable(_sf_codelens, writer, 0);
-	writeFilterHuffmanTable(_cf_codelens, writer, 1);
+	writeFilterHuffmanTable(SF_COUNT, _sf_codelens, writer, 0);
+	writeFilterHuffmanTable(CF_COUNT, _cf_codelens, writer, 1);
 }
 
 bool ImageCMWriter::writeChaos(ImageWriter &writer) {
-	writer.writeBits(1234568, 30);
-
 #ifdef CAT_COLLECT_STATS
 	int overhead_bits = 0;
 	int bitcount[3] = {0};
@@ -530,8 +524,6 @@ bool ImageCMWriter::writeChaos(ImageWriter &writer) {
 #endif
 		}
 	}
-
-	writer.writeBits(1234567, 30);
 
 	const int width = _width;
 
@@ -653,7 +645,6 @@ void ImageCMWriter::write(ImageWriter &writer) {
 	Stats.overall_compression_ratio = _width * _height * 4 * 8 / (double)Stats.total_bits;
 
 	Stats.chaos_compression_ratio = Stats.chaos_count * 3 * 8 / (double)Stats.chaos_bits;
-
 #endif
 }
 
