@@ -500,9 +500,6 @@ void ImageMaskWriter::write(ImageWriter &writer) {
 	writer.writeWord(rle.size());
 	writer.writeWord(lz.size());
 
-	CAT_WARN("TEST") << rle.size();
-	CAT_WARN("TEST") << lz.size();
-
 	writeEncodedLZ(lz, codes, codelens, writer);
 
 #ifdef CAT_COLLECT_STATS

@@ -149,6 +149,8 @@ public:
 		} else {
 			_work = 0;
 		}
+
+		_bits = shift;
 	}
 
 	int finalizeAndWrite(const char *path);

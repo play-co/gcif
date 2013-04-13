@@ -97,6 +97,7 @@ public:
 	CAT_INLINE u32 readWord() {
 		const u32 bits = peek(32);
 		_bitsLeft = 0;
+		_bits = 0;
 		return bits;
 	}
 

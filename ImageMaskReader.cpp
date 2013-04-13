@@ -343,9 +343,6 @@ bool ImageMaskReader::decodeLZ(HuffmanDecoder &decoder, ImageReader &reader) {
 	u32 rleSize = reader.readWord();
 	u32 lzSize = reader.readWord();
 
-	CAT_WARN("TEST") << rleSize;
-	CAT_WARN("TEST") << lzSize;
-
 	_rle = new u8[rleSize];
 	_lz = new u8[lzSize];
 
