@@ -48,6 +48,8 @@ int gcif_write(const void *rgba, int width, int height, const char *output_file_
 	if ((err = writer.finalizeAndWrite(output_file_path))) {
 		return err;
 	}
+
+	return 0;
 }
 
 

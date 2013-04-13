@@ -31,6 +31,10 @@ void ImageMaskReader::clear() {
 		delete []_mask;
 		_mask = 0;
 	}
+	if (_rle) {
+		delete []_rle;
+		_rle = 0;
+	}
 	if (_lz) {
 		delete []_lz;
 		_lz = 0;
@@ -336,111 +340,30 @@ bool ImageMaskReader::decodeRLE(u8 *rle, int len) {
 
 
 bool ImageMaskReader::decodeLZ(HuffmanDecoder &decoder, ImageReader &reader) {
-	const int BATCH_RATE = 8192;
+	u32 rleSize = reader.readWord();
+	u32 lzSize = reader.readWord();
 
-	u8 *lz = _lz;
-	u16 lzIndex = 0, lzLast = 0;
+	CAT_WARN("TEST") << rleSize;
+	CAT_WARN("TEST") << lzSize;
 
-	while CAT_UNLIKELY(!reader.eof()) {
-		// Read token
-		u8 token = reader.nextHuffmanSymbol(&decoder);
+	_rle = new u8[rleSize];
+	_lz = new u8[lzSize];
 
-		// Read Literal Length
-		int literalLength = token >> 4;
-		if (literalLength == 15) {
-			int s;
-			do {
-				s = reader.nextHuffmanSymbol(&decoder);
-				literalLength += s;
-			} while (s == 255 && CAT_UNLIKELY(!reader.eof()));
-		}
-
-		// Decode literal symbols
-		for (int ii = 0; ii < literalLength; ++ii) {
-			u8 symbol = reader.nextHuffmanSymbol(&decoder);
-			lz[lzIndex++] = symbol;
-
-			// Decode [wrapped] RLE sequence
-			if CAT_UNLIKELY((u16)(lzIndex - lzLast) >= BATCH_RATE) {
-				if CAT_UNLIKELY(lzLast > lzIndex) {
-					if (decodeRLE(&lz[lzLast], 65536 - lzLast)) {
-						CAT_WARN("TEST") << "OMGGGG6";
-						return true;
-					}
-
-					lzLast = 0;
-				}
-
-				if CAT_UNLIKELY(decodeRLE(&lz[lzLast], lzIndex - lzLast)) {
-					CAT_WARN("TEST") << "OMGGGG5";
-					return true;
-				}
-
-				lzLast = lzIndex;
-			}
-		}
-
-		// Read match offset
-		u8 offset0 = reader.nextHuffmanSymbol(&decoder);
-		u8 offset1 = reader.nextHuffmanSymbol(&decoder);
-		u16 offset = ((u16)offset1 << 8) | offset0;
-
-		// Read match length
-		int matchLength = token & 15;
-		if (matchLength == 15) {
-			int s;
-			do {
-				s = reader.nextHuffmanSymbol(&decoder);
-				matchLength += s;
-			} while (s == 255 && CAT_UNLIKELY(!reader.eof()));
-		}
-		matchLength += 4;
-
-		// Copy the match
-		u16 copyStart = static_cast<u16>( lzIndex - offset );
-
-		for (int ii = 0; ii < matchLength; ++ii) {
-			u8 symbol = lz[static_cast<u16>( copyStart + ii )];
-
-			lz[lzIndex++] = symbol;
-		}
-
-		// Decode [wrapped] RLE sequence
-		if CAT_UNLIKELY((u16)(lzIndex - lzLast) >= BATCH_RATE) {
-			if CAT_UNLIKELY(lzLast > lzIndex) {
-				if (decodeRLE(&lz[lzLast], 65536 - lzLast)) {
-					CAT_WARN("TEST") << "OMGGGG4";
-					return true;
-				}
-
-				lzLast = 0;
-			}
-
-			if CAT_UNLIKELY(decodeRLE(&lz[lzLast], lzIndex - lzLast)) {
-				CAT_WARN("TEST") << "OMGGGG3";
-				return true;
-			}
-
-			lzLast = lzIndex;
-		}
+	for (int ii = 0; ii < lzSize; ++ii) {
+		_lz[ii] = reader.nextHuffmanSymbol(&decoder);
 	}
 
-	// Decode [wrapped] RLE sequence
-	if CAT_UNLIKELY(lzLast > lzIndex) {
-		if (decodeRLE(&lz[lzLast], 65536 - lzLast)) {
-			CAT_WARN("TEST") << "OMGGGG2";
-			return true;
-		}
-
-		lzLast = 0;
+	if (reader.eof()) {
+		return false;
 	}
 
-	if CAT_UNLIKELY(decodeRLE(&lz[lzLast], lzIndex - lzLast)) {
-		CAT_WARN("TEST") << "OMGGGG1";
-		return true;
+	int result = LZ4_uncompress_unknownOutputSize(reinterpret_cast<const char *>( _lz ), reinterpret_cast<char *>( _rle ), lzSize, rleSize);
+
+	if (result != rleSize) {
+		return false;
 	}
 
-	return true;
+	return decodeRLE(_rle, rleSize);
 }
 
 int ImageMaskReader::init(const ImageHeader *header) {
@@ -474,8 +397,6 @@ int ImageMaskReader::init(const ImageHeader *header) {
 	_lastSum = 0;
 	_rowLeft = 0;
 	_rowStarted = false;
-
-	_lz = new u8[65536];
 
 	_bitOffset = 0;
 	_bitOn = true;

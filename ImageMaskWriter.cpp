@@ -355,7 +355,7 @@ void ImageMaskWriter::performLZ(const std::vector<u8> &rle, std::vector<u8> &lz)
 }
 
 void ImageMaskWriter::writeHuffmanTable(u8 codelens[256], ImageWriter &writer) {
-	vector<unsigned char> huffTable;
+	vector<u8> huffTable;
 
 	// Delta-encode the Huffman codelen table
 	int lag0 = 3;
@@ -496,6 +496,12 @@ void ImageMaskWriter::write(ImageWriter &writer) {
 #ifdef CAT_COLLECT_STATS
 	double t6 = clock->usec();
 #endif // CAT_COLLECT_STATS
+
+	writer.writeWord(rle.size());
+	writer.writeWord(lz.size());
+
+	CAT_WARN("TEST") << rle.size();
+	CAT_WARN("TEST") << lz.size();
 
 	writeEncodedLZ(lz, codes, codelens, writer);
 

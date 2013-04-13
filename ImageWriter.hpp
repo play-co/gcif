@@ -146,6 +146,8 @@ public:
 
 		if (shift > 0) {
 			_work = word << (32 - shift);
+		} else {
+			_work = 0;
 		}
 	}
 

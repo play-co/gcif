@@ -21,6 +21,7 @@ class ImageMaskReader {
 	int _stride;
 
 	u8 *_lz;
+	u8 *_rle;
 
 	int _sum, _lastSum;
 	int _rowLeft;
@@ -53,6 +54,7 @@ public:
 	ImageMaskReader() {
 		_mask = 0;
 		_lz = 0;
+		_rle = 0;
 	}
 	virtual ~ImageMaskReader() {
 		clear();
