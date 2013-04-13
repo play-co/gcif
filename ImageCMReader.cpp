@@ -195,11 +195,10 @@ int ImageCMReader::readRGB(ImageReader &reader) {
 			} else {
 				// Read YUV filtered pixel
 				u8 yuv[3];
-				for (int c = 0; c < 3; ++c) {
-					u8 chaos = CHAOS_TABLE[left[c] + (u16)last[c]];
-					u8 value = _decoder[c][chaos].next(reader);
-					left[c] = last[c] = yuv[c] = value;
-				}
+
+				left[0] = last[0] = yuv[0] = _decoder[0][CHAOS_TABLE[left[0] + (u16)last[0]]].next(reader);
+				left[1] = last[1] = yuv[1] = _decoder[1][CHAOS_TABLE[left[1] + (u16)last[1]]].next(reader);
+				left[2] = last[2] = yuv[2] = _decoder[2][CHAOS_TABLE[left[2] + (u16)last[2]]].next(reader);
 
 				// Reverse color filter
 				u8 rgb[3];
