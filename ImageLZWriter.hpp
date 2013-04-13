@@ -24,7 +24,7 @@
  * When deciding to accept a match or not, it expects a score of at least 16,
  * where colored pixels count for 1 point and zero pixels count as 0.25 points.
  *
- * To reduce symbol sizes, 259x259 is the largest match allowed.
+ * To reduce symbol sizes, 258x258 is the largest match allowed.
  *
  * The result is a set of pixel source/dest x,y coordinates (32+32 bits) and a
  * width/height (8+8 bits) for 10 bytes of overhead per match.
@@ -49,10 +49,7 @@ namespace cat {
 
 
 class ImageLZWriter {
-public:
 	static const int ZONE = ImageLZReader::ZONE;
-
-protected:
 	static const int TABLE_BITS = 18;
 	static const int TABLE_SIZE = 1 << TABLE_BITS;
 	static const u32 TABLE_MASK = TABLE_SIZE - 1;

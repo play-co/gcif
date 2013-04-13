@@ -11,14 +11,13 @@
 #include "Filters.hpp"
 
 /*
- * Game Closure Context Modeling Compression
+ * Game Closure Context Modeling (GC-CM) Compression
  *
  * This is based heavily on BCIF by Stefano Brocchi
  * from his PhD thesis "Bidimensional pictures: reconstruction, expression and encoding" (Dec 2009)
  * http://www.dsi.unifi.it/DRIIA/RaccoltaTesi/Brocchi.pdf
  *
  * Notable improvements:
- *
  * + Better compression ratios
  * + Maintainable codebase for future improvements
  * + 2D LZ Exact Match and Fully-Transparent Alpha Mask integration
@@ -28,7 +27,7 @@
  * + Better filter matrix compression
  * + Only 8 chaos levels
  * + Encodes zero runs > ~256 without emitting more symbols for better AZ stats
- * + Better chaos/color huffman table compression
+ * + Better chaos/color Huffman table compression
  */
 
 namespace cat {
