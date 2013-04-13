@@ -41,7 +41,7 @@ static CAT_INLINE u32 hashPixel(u32 key) {
 int ImageLZWriter::initFromRGBA(const u8 *rgba, int width, int height) {
 	clear();
 
-	if (width % ZONE || height % ZONE) {
+	if (width < ZONE || height < ZONE) {
 		return WE_BAD_DIMS;
 	}
 

@@ -46,7 +46,7 @@ int gcif_read(const char *input_file_path, GCIFImage *image) {
 
 	// Verify hash
 	if (!reader.finalizeCheckHash()) {
-		return 1000;
+		return 0;
 	}
 
 	return 0;

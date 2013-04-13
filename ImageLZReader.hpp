@@ -36,7 +36,7 @@ namespace cat {
 
 class ImageLZReader {
 public:
-	static const int ZONE = 4;
+	static const int ZONE = 3;
 	static const u32 MAX_ZONE_COUNT = 65535;
 
 protected:
