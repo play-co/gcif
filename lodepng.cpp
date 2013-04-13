@@ -1281,7 +1281,9 @@ unsigned lodepng_inflate(unsigned char** out, size_t* outsize,
                          const unsigned char* in, size_t insize,
                          const LodePNGDecompressSettings* settings)
 {
+#if 0
 	double t0 = Clock::ref()->usec();
+#endif
 
   unsigned error;
   ucvector v;
@@ -1290,11 +1292,13 @@ unsigned lodepng_inflate(unsigned char** out, size_t* outsize,
   *out = v.data;
   *outsize = v.size;
 
+#if 0
   	double t1 = Clock::ref()->usec();
 	CAT_WARN("png") << "Inflate took " << t1 - t0 << " usec";
 
 	CAT_WARN("png") << "Processed input at " << insize / (t1 - t0) << " MB/S";
 	CAT_WARN("png") << "Generated at " << *outsize / (t1 - t0) << " MB/S";
+#endif
 
   return error;
 }

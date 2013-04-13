@@ -33,7 +33,7 @@ namespace cat {
 
 
 // Enable statistics collection
-#define CAT_COLLECT_STATS
+//#define CAT_COLLECT_STATS
 
 // This definition overrides CAT_BUILD_DLL below.  Neuters CAT_EXPORT macro so symbols are
 // neither exported or imported.

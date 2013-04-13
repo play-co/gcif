@@ -233,7 +233,9 @@ void ImageLZWriter::add(int unused, u16 sx, u16 sy, u16 dx, u16 dy, u16 w, u16 h
 
 	//CAT_WARN("TEST") << sx << "," << sy << " -> " << dx << "," << dy << " " << (int)w << "," << (int)h;
 
+#ifdef CAT_COLLECT_STATS
 	Stats.covered += w * h;
+#endif
 }
 
 int ImageLZWriter::match() {
@@ -244,9 +246,11 @@ int ImageLZWriter::match() {
 	const u8 *rgba = _rgba;
 	const int width = _width;
 
+#ifdef CAT_COLLECT_STATS
 	Stats.collisions = 0;
 	Stats.initial_matches = 0;
 	Stats.covered = 0;
+#endif
 
 	// For each raster,
 	for (u16 y = 0, yend = _height - ZONE; y <= yend; ++y) {
@@ -271,7 +275,9 @@ int ImageLZWriter::match() {
 
 				// If the match was genuine,
 				if (checkMatch(sx, sy, x, y)) {
+#ifdef CAT_COLLECT_STATS
 					++Stats.initial_matches;
+#endif
 
 					// See how far the match can be expanded
 					u16 dx = x, dy = y, w = ZONE, h = ZONE;
@@ -289,7 +295,9 @@ int ImageLZWriter::match() {
 						}
 					}
 				} else {
+#ifdef CAT_COLLECT_STATS
 					++Stats.collisions;
+#endif
 				}
 			}
 
@@ -332,7 +340,6 @@ void ImageLZWriter::write(ImageWriter &writer) {
 
 	// Collect frequency statistics
 	u16 last_dx = 0, last_dy = 0;
-	u16 freqs[256];
 	FreqHistogram<256> hist;
 
 	for (int ii = 0; ii < match_count; ++ii) {

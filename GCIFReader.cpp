@@ -26,7 +26,9 @@ int gcif_read(const char *input_file_path, GCIFImage *image) {
 		return err;
 	}
 
+#ifdef CAT_COLLECT_STATS
 	imageMaskReader.dumpStats();
+#endif
 
 	// 2D-LZ Exact Match
 	ImageLZReader imageLZReader;
@@ -34,7 +36,9 @@ int gcif_read(const char *input_file_path, GCIFImage *image) {
 		return err;
 	}
 
+#ifdef CAT_COLLECT_STATS
 	imageLZReader.dumpStats();
+#endif
 
 	// Context Modeling Decompression
 	ImageCMReader imageCMReader;
@@ -42,7 +46,9 @@ int gcif_read(const char *input_file_path, GCIFImage *image) {
 		return err;
 	}
 
+#ifdef CAT_COLLECT_STATS
 	imageCMReader.dumpStats();
+#endif
 
 	// Verify hash
 	if (!reader.finalizeCheckHash()) {
