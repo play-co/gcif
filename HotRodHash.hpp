@@ -13,7 +13,7 @@ namespace cat {
  *
  * This hash isn't going to pass any tests.  It's designed to allow for
  * fast operation on ARM platforms.  This is a hotrodded version of the
- * MurmurHash3 algorithm.
+ * MurmurHash3 algorithm to be used for file validation only.
  */
 class HotRodHash {
 	static const u32 c1 = 0xcc9e2d51;
