@@ -786,6 +786,7 @@ int cat::writeHuffmanTable(int num_syms, u8 codelens[], ImageWriter &writer) {
 
 	// Write best symbols
 	switch (best) {
+	default:
 	case 0:
 		{
 			for (int ii = 0; ii < num_syms; ++ii) {
