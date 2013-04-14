@@ -18,7 +18,7 @@ CPFLAGS = $(CFLAGS)
 
 gcif_objects = gcif.o lodepng.o Log.o Mutex.o Clock.o Thread.o
 gcif_objects += EndianNeutral.o lz4.o lz4hc.o HuffmanDecoder.o HuffmanEncoder.o
-gcif_objects += MappedFile.o SystemInfo.o MurmurHash3.o ImageWriter.o
+gcif_objects += MappedFile.o SystemInfo.o HotRodHash.o ImageWriter.o
 gcif_objects += ImageReader.o ImageMaskWriter.o ImageMaskReader.o
 gcif_objects += ImageCMWriter.o EntropyEncoder.o FilterScorer.o Filters.o
 gcif_objects += ImageLZWriter.o ImageLZReader.o ImageCMReader.o
@@ -30,7 +30,7 @@ gcif_objects += ImageLPReader.o
 
 SRCS = gcif.cpp lodepng.cpp Log.cpp Mutex.cpp Clock.cpp Thread.cpp
 SRCS += EndianNeutral.cpp lz4.c lz4hc.c HuffmanDecoder.cpp HuffmanEncoder.cpp
-SRCS += MappedFile.cpp SystemInfo.cpp MurmurHash3.cpp ImageWriter.cpp
+SRCS += MappedFile.cpp SystemInfo.cpp HotRodHash.cpp ImageWriter.cpp
 SRCS += ImageReader.cpp ImageMaskWriter.cpp ImageMaskReader.cpp
 SRCS += ImageCMWriter.cpp EntropyEncoder.cpp FilterScorer.cpp Filters.cpp
 SRCS += ImageLZWriter.cpp ImageLZReader.cpp ImageCMReader.cpp
@@ -85,8 +85,8 @@ HuffmanDecoder.o : HuffmanDecoder.cpp
 HuffmanEncoder.o : HuffmanEncoder.cpp
 	$(CCPP) $(CPFLAGS) -c HuffmanEncoder.cpp
 
-MurmurHash3.o : MurmurHash3.cpp
-	$(CCPP) $(CPFLAGS) -c MurmurHash3.cpp
+HotRodHash.o : HotRodHash.cpp
+	$(CCPP) $(CPFLAGS) -c HotRodHash.cpp
 
 ImageReader.o : ImageReader.cpp
 	$(CCPP) $(CPFLAGS) -c ImageReader.cpp

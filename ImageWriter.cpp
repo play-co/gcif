@@ -176,7 +176,7 @@ int ImageWriter::finalizeAndWrite(const char *path) {
 
 	// Write header
 
-	MurmurHash3 hh;
+	HotRodHash hh;
 	hh.init(ImageReader::HEAD_SEED);
 
 	fileWords[0] = getLE(ImageReader::HEAD_MAGIC);

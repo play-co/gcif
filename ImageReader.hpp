@@ -3,7 +3,7 @@
 
 #include "Platform.hpp"
 #include "HuffmanDecoder.hpp"
-#include "MurmurHash3.hpp"
+#include "HotRodHash.hpp"
 #include "MappedFile.hpp"
 
 namespace cat {
@@ -12,8 +12,8 @@ namespace cat {
 struct ImageHeader {
 	u16 width, height; // pixels
 
-	u32 headHash; // MurmurHash3 of head words
-	u32 dataHash; // MurmurHash3 of data words
+	u32 headHash; // Hash of head words
+	u32 dataHash; // Hash of data words
 };
 
 
@@ -25,7 +25,7 @@ class ImageReader {
 
 	ImageHeader _header;
 
-	MurmurHash3 _hash;
+	HotRodHash _hash;
 
 	bool _eof;
 

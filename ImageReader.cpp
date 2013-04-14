@@ -90,7 +90,7 @@ int ImageReader::init(const void *buffer, int fileSize) {
 
 	// Validate header
 
-	MurmurHash3 hh;
+	HotRodHash hh;
 	hh.init(HEAD_SEED);
 
 	if CAT_UNLIKELY(fileWords < HEAD_WORDS) {

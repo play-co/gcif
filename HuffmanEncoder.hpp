@@ -2,6 +2,7 @@
 #define CAT_HUFFMAN_ENCODER_H
 
 #include "Platform.hpp"
+#include "ImageWriter.hpp"
 #include <vector>
 
 /*
@@ -74,6 +75,9 @@ void normalizeFreqs(u32 max_freq, int num_syms, u32 hist[], u16 freqs[]);
 void collectArrayFreqs(int num_syms, int data_size, u8 data[], u16 freqs[]);
 void collectFreqs(int num_syms, const std::vector<u8> &lz, u16 freqs[]);
 void generateHuffmanCodes(int num_syms, u16 freqs[], u16 codes[], u8 codelens[]);
+
+// Try several methods of encoding the table and choose the best one
+void writeHuffmanTable(int num_syms, u8 codelens[], ImageWriter &writer);
 
 
 // Convenience class

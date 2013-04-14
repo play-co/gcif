@@ -491,3 +491,6 @@ void cat::generateHuffmanCodes(int num_syms, u16 freqs[], u16 codes[], u8 codele
 	huffman::generate_codes(num_syms, codelens, codes);
 }
 
+void cat::writeHuffmanTable(int num_syms, u8 codelens[], ImageWriter &writer) {
+}
+

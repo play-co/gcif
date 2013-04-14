@@ -2,7 +2,7 @@
 #define IMAGE_WRITER_HPP
 
 #include "Platform.hpp"
-#include "MurmurHash3.hpp"
+#include "HotRodHash.hpp"
 #include "ImageReader.hpp"
 #include "EndianNeutral.hpp"
 
@@ -25,7 +25,7 @@ namespace cat {
  * then write it all out.  Data is stored internally in little-endian byte
  * order so that it can just be memcpy out to the file.
  *
- * Iunno...  Speeeed! -cat
+ * Iunno...  Speeeed!
  */
 
 class WriteVector {
@@ -41,7 +41,7 @@ class WriteVector {
 
 	int _size;		// Total number of words
 
-	MurmurHash3 _hash;
+	HotRodHash _hash;
 
 	void clear();
 	void grow();
