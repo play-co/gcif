@@ -14,17 +14,34 @@
  * sort of clever threshold like that that seems to work well; let's be honest
  * this is mainly black magic.
  *
- * Each region takes 6 bytes to represent: x(16b), y(16b), w(8b), h(8b)
+ * Each region takes 6.5 bytes to represent: x(16b), y(16b), w(8b), h(8b), c(4b)
  * Plus the cost of transmitting each color.
+ * Each color costs 4.1 bits for the Huffman table entry + 4 bytes for the
+ * color itself.
+ *
+ * If the compression ratio exceeds 4:1 it is acceptable, and the largest area
+ * with this ratio or better is chosen.
  */
 
 namespace cat {
 
 
+//// ImageLPWriter
+
 class ImageLPWriter {
-	static const int ZONE = 4;
+	static const int ZONEW = 4;
+	static const int ZONEH = 4;
+	static const int ZONE_MAX_COLORS = 3;
+	static const int MAX_COLORS = 16;
+	static const int MAXW = 255 + ZONEW;
+	static const int MAXH = 255 + ZONEH;
+	static const int HUFF_COLOR_THRESH = 20;
+	static const int HUFF_ZONE_THRESH = 12;
+	static const int MAX_HUFF_SYMS = MAX_COLORS;
 
 	void clear();
+
+	u32 _colors[MAX_COLORS];
 
 	const u8 *_rgba;
 	int _width, _height;
@@ -33,28 +50,40 @@ class ImageLPWriter {
 	ImageLZWriter *_lz;
 
 	// Visited bitmask
-	u32 *_visited;
+	u16 *_visited;
 
-	CAT_INLINE void visit(int x, int y) {
-		int off = x + y * _width;
-		_visited[off >> 5] |= 1 << (off & 31);
+	CAT_INLINE void visit(int x, int y, int index) {
+		_visited[x + y * _width] = index + 1; // will be +1 off actual index
 	}
 
 	struct Match {
+		u32 colors[MAX_COLORS];
+		int used;
 		u16 x, y;
-		u8 w, h;
+		u16 w, h;
+		u16 codes[MAX_HUFF_SYMS];
+		u8 codelens[MAX_HUFF_SYMS];
 	};
 
 	std::vector<Match> _exact_matches;
 
 	bool checkMatch(u16 x, u16 y, u16 w, u16 h);	
-	bool expandMatch(u16 &x, u16 &y, u16 &w, u16 &h);
-	void add(u16 x, u16 y, u16 w, u16 h);
+	bool expandMatch(int &used, u16 &x, u16 &y, u16 &w, u16 &h);
+	void add(int used, u16 x, u16 y, u16 w, u16 h);
 	int match();
 
 #ifdef CAT_COLLECT_STATS
 public:
 	struct _Stats {
+		u32 color_list_size;
+		u32 color_list_overhead;
+		u32 zone_list_overhead;
+		u32 pixel_overhead;
+		u32 pixels_covered;
+		u32 zone_count;
+		u32 overall_bytes;
+
+		double compressionRatio;
 	} Stats;
 #endif
 
@@ -70,8 +99,7 @@ public:
 	int initFromRGBA(const u8 *rgba, int width, int height, ImageMaskWriter &mask, ImageLZWriter &lz);
 
 	CAT_INLINE u32 visited(int x, int y) {
-		int off = x + y * _width;
-		return (_visited[off >> 5] >> (off & 31)) & 1;
+		return _visited[x + y * _width];
 	}
 
 	void write(ImageWriter &writer);
@@ -87,5 +115,5 @@ public:
 
 } // namespace cat
 
-#endif // IMAGE_PALETTE_WRITER_HPP
+#endif // IMAGE_LP_WRITER_HPP
 
