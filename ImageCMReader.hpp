@@ -6,6 +6,7 @@
 #include "HuffmanDecoder.hpp"
 #include "ImageMaskReader.hpp"
 #include "ImageLZReader.hpp"
+#include "ImageLPReader.hpp"
 #include "GCIFReader.hpp"
 #include "Filters.hpp"
 #include "EntropyDecoder.hpp"
@@ -36,11 +37,7 @@ namespace cat {
 
 class ImageCMReader {
 public:
-#ifdef FUZZY_CHAOS
-	static const int CHAOS_LEVELS = 16;
-#else
 	static const int CHAOS_LEVELS = 8;
-#endif
 
 protected:
 	u8 *_rgba;
@@ -55,6 +52,7 @@ protected:
 
 	ImageMaskReader *_mask;
 	ImageLZReader *_lz;
+	ImageLPReader *_lp;
 
 	HuffmanDecoder _sf, _cf;
 	EntropyDecoder _decoder[3][CHAOS_LEVELS];
@@ -84,7 +82,7 @@ public:
 		clear();
 	}
 
-	int read(ImageReader &reader, ImageMaskReader &maskReader, ImageLZReader &lzReader, GCIFImage *image);
+	int read(ImageReader &reader, ImageMaskReader &maskReader, ImageLZReader &lzReader, ImageLPReader &lpReader, GCIFImage *image);
 
 #ifdef CAT_COLLECT_STATS
 	bool dumpStats();

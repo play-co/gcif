@@ -5,6 +5,7 @@
 #include "ImageWriter.hpp"
 #include "ImageMaskWriter.hpp"
 #include "ImageLZWriter.hpp"
+#include "ImageLPReader.hpp"
 
 /*
  * Game Closure Local Palette (GC-LP) Compression
@@ -29,10 +30,10 @@ namespace cat {
 //// ImageLPWriter
 
 class ImageLPWriter {
-	static const int ZONEW = 4;
-	static const int ZONEH = 4;
+	static const int ZONEW = ImageLPReader::ZONEW;
+	static const int ZONEH = ImageLPReader::ZONEH;
 	static const int ZONE_MAX_COLORS = 2;
-	static const int MAX_COLORS = 16;
+	static const int MAX_COLORS = ImageLPReader::MAX_COLORS;
 	static const int MAXW = 255 + ZONEW;
 	static const int MAXH = 255 + ZONEH;
 	static const int HUFF_COLOR_THRESH = 20;

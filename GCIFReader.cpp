@@ -2,6 +2,7 @@
 #include "ImageReader.hpp"
 #include "ImageMaskReader.hpp"
 #include "ImageLZReader.hpp"
+#include "ImageLPReader.hpp"
 #include "ImageCMReader.hpp"
 using namespace cat;
 
@@ -40,9 +41,19 @@ int gcif_read(const char *input_file_path, GCIFImage *image) {
 	imageLZReader.dumpStats();
 #endif
 
+	// Local Palette
+	ImageLPReader imageLPReader;
+	if ((err = imageLPReader.read(reader))) {
+		return err;
+	}
+
+#ifdef CAT_COLLECT_STATS
+	imageLPReader.dumpStats();
+#endif
+
 	// Context Modeling Decompression
 	ImageCMReader imageCMReader;
-	if ((err = imageCMReader.read(reader, imageMaskReader, imageLZReader, image))) {
+	if ((err = imageCMReader.read(reader, imageMaskReader, imageLZReader, imageLPReader, image))) {
 		return err;
 	}
 

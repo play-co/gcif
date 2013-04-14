@@ -128,8 +128,10 @@ int ImageCMReader::readRGB(ImageReader &reader) {
 	CAT_CLR(_chaos, width * 3);
 
 	// Get initial triggers
-	u16 trigger_y = _lz->getTriggerY();
-	u16 trigger_x = _lz->getTriggerX();
+	u16 trigger_y_lz = _lz->getTriggerY();
+	u16 trigger_x_lz = _lz->getTriggerX();
+	u16 trigger_y_lp = _lp->getTriggerY();
+	u16 trigger_x_lp = _lp->getTriggerX();
 
 	// Start from upper-left of image
 	u8 *p = _rgba;
@@ -137,10 +139,16 @@ int ImageCMReader::readRGB(ImageReader &reader) {
 	// For each scanline,
 	for (int y = 0; y < _height; ++y) {
 		// If LZ triggered,
-		if (y == trigger_y) {
+		if (y == trigger_y_lz) {
 			_lz->triggerY();
-			trigger_x = _lz->getTriggerX();
-			trigger_y = _lz->getTriggerY();
+			trigger_x_lz = _lz->getTriggerX();
+			trigger_y_lz = _lz->getTriggerY();
+		}
+		// If LP triggered,
+		if (y == trigger_y_lp) {
+			_lp->triggerY();
+			trigger_x_lp = _lp->getTriggerX();
+			trigger_y_lp = _lp->getTriggerY();
 		}
 
 		// Restart for scanline
@@ -148,16 +156,21 @@ int ImageCMReader::readRGB(ImageReader &reader) {
 		u8 *last = _chaos;
 		SpatialFilterFunction sf;
 		YUV2RGBFilterFunction cf;
-		int lz_skip = 0;
+		int lz_skip = 0, lp_skip = 0;
 
 		// For each pixel,
 		for (int x = 0; x < width; ++x) {
 			// If LZ triggered,
-			if (x == trigger_x) {
-				// Trigger LZ
+			if (x == trigger_x_lz) {
 				lz_skip = _lz->triggerX(p);
-				trigger_x = _lz->getTriggerX();
-				trigger_y = _lz->getTriggerY();
+				trigger_x_lz = _lz->getTriggerX();
+				trigger_y_lz = _lz->getTriggerY();
+			}
+			// If LP triggered,
+			if (x == trigger_x_lp) {
+				lp_skip = _lz->triggerX(p);
+				trigger_x_lp = _lp->getTriggerX();
+				trigger_y_lp = _lp->getTriggerY();
 			}
 
 			// If it is time to read the filter,
@@ -183,6 +196,12 @@ int ImageCMReader::readRGB(ImageReader &reader) {
 					left[c] = last[c] = 0;
 				}
 				--lz_skip;
+			} else if (lp_skip > 0) {
+				// Record a zero here
+				for (int c = 0; c < 3; ++c) {
+					left[c] = last[c] = 0;
+				}
+				--lp_skip;
 			} else if (_mask->hasRGB(x, y)) {
 				// Write empty pixel
 				p[0] = 0;
@@ -221,7 +240,7 @@ int ImageCMReader::readRGB(ImageReader &reader) {
 	return RE_OK;
 }
 
-int ImageCMReader::read(ImageReader &reader, ImageMaskReader &maskReader, ImageLZReader &lzReader, GCIFImage *image) {
+int ImageCMReader::read(ImageReader &reader, ImageMaskReader &maskReader, ImageLZReader &lzReader, ImageLPReader &lpReader, GCIFImage *image) {
 #ifdef CAT_COLLECT_STATS
 	m_clock = Clock::ref();
 
@@ -232,6 +251,7 @@ int ImageCMReader::read(ImageReader &reader, ImageMaskReader &maskReader, ImageL
 
 	_mask = &maskReader;
 	_lz = &lzReader;
+	_lp = &lpReader;
 
 	// Initialize
 	if ((err = init(image))) {
