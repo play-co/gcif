@@ -8,7 +8,7 @@
 #include "ImageLPReader.hpp"
 
 /*
- * Game Closure Local Palette (GC-LP) Compression
+ * Game Closure Local Palette (GC-2D-LP) Compression
  *
  * This algorithm searches for rectangular regions where the number of colors
  * used is less than a quarter of the number of pixels in the region, or some

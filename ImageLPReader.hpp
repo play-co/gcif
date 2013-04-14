@@ -6,7 +6,7 @@
 #include "HuffmanDecoder.hpp"
 
 /*
- * Game Closure Local Palette (GC-LP) Decompression
+ * Game Closure Local Palette (GC-2D-LP) Decompression
  *
  * Similar to the GC-2D-LZ decompression algorithm, this one triggers on X and
  * Y positions during decoding.
