@@ -24,7 +24,7 @@ void ImageLZWriter::clear() {
 
 static CAT_INLINE u32 hashPixel(u32 key) {
 	swapLE(key);
-	key <<= 8; // Remove alpha
+	//key <<= 8; // Remove alpha
 
 	// Thomas Wang's integer hash function
 	// http://www.cris.com/~Ttwang/tech/inthash.htm
@@ -41,7 +41,7 @@ static CAT_INLINE u32 hashPixel(u32 key) {
 int ImageLZWriter::initFromRGBA(const u8 *rgba, int width, int height) {
 	clear();
 
-	if (width < ZONE || height < ZONE) {
+	if (width < ZONEW || height < ZONEH) {
 		return WE_BAD_DIMS;
 	}
 
@@ -66,8 +66,8 @@ bool ImageLZWriter::checkMatch(u16 x, u16 y, u16 mx, u16 my) {
 	u32 nonzero = 0;
 #endif
 
-	for (int ii = 0; ii < ZONE; ++ii) {
-		for (int jj = 0; jj < ZONE; ++jj) {
+	for (int ii = 0; ii < ZONEW; ++ii) {
+		for (int jj = 0; jj < ZONEH; ++jj) {
 			if (visited(x + ii, y + jj)) {
 				return false;
 			}
@@ -76,7 +76,8 @@ bool ImageLZWriter::checkMatch(u16 x, u16 y, u16 mx, u16 my) {
 			u32 *mp = (u32*)&rgba[((mx + ii) + (my + jj) * width)*4];
 
 			// If RGB components match,
-			if (((getLE(*p) ^ getLE(*mp)) << 8) != 0) {
+			//if (((getLE(*p) ^ getLE(*mp)) << 8) != 0) {
+			if (getLE(*p) ^ getLE(*mp)) {
 				return false;
 			}
 
@@ -99,7 +100,7 @@ bool ImageLZWriter::expandMatch(u16 &sx, u16 &sy, u16 &dx, u16 &dy, u16 &w, u16 
 	const int height = _height;
 
 	// Try expanding to the right
-	while (w + 1 <= MAX_MATCH_SIZE && sx + w < width && dx + w < width) {
+	while (w + 1 <= MAXW && sx + w < width && dx + w < width) {
 		for (int jj = 0; jj < h; ++jj) {
 			if (visited(dx + w, dy + jj)) {
 				goto try_down;
@@ -109,7 +110,8 @@ bool ImageLZWriter::expandMatch(u16 &sx, u16 &sy, u16 &dx, u16 &dy, u16 &w, u16 
 			u32 *dp = (u32*)&rgba[((dx + w) + (dy + jj) * width)*4];
 
 			// If RGB components match,
-			if (((getLE(*sp) ^ getLE(*dp)) << 8) != 0) {
+			//if (((getLE(*sp) ^ getLE(*dp)) << 8) != 0) {
+			if (getLE(*sp) ^ getLE(*dp)) {
 				goto try_down;
 			}
 		}
@@ -120,7 +122,7 @@ bool ImageLZWriter::expandMatch(u16 &sx, u16 &sy, u16 &dx, u16 &dy, u16 &w, u16 
 
 	// Try expanding down
 try_down:
-	while (h + 1 <= MAX_MATCH_SIZE && sy + h < height && dy + h < height) {
+	while (h + 1 <= MAXH && sy + h < height && dy + h < height) {
 		for (int jj = 0; jj < w; ++jj) {
 			if (visited(dx + jj, dy + h)) {
 				goto try_left;
@@ -130,7 +132,8 @@ try_down:
 			u32 *dp = (u32*)&rgba[((dx + jj) + (dy + h) * width)*4];
 
 			// If RGB components match,
-			if (((getLE(*sp) ^ getLE(*dp)) << 8) != 0) {
+			//if (((getLE(*sp) ^ getLE(*dp)) << 8) != 0) {
+			if (getLE(*sp) ^ getLE(*dp)) {
 				goto try_left;
 			}
 		}
@@ -141,7 +144,7 @@ try_down:
 
 	// Try expanding left
 try_left:
-	while (w + 1 <= MAX_MATCH_SIZE && sx >= 1 && dx >= 1) {
+	while (w + 1 <= MAXW && sx >= 1 && dx >= 1) {
 		for (int jj = 0; jj < h; ++jj) {
 			if (visited(dx - 1, dy + jj)) {
 				goto try_up;
@@ -151,7 +154,8 @@ try_left:
 			u32 *dp = (u32*)&rgba[((dx - 1) + (dy + jj) * width)*4];
 
 			// If RGB components match,
-			if (((getLE(*sp) ^ getLE(*dp)) << 8) != 0) {
+			//if (((getLE(*sp) ^ getLE(*dp)) << 8) != 0) {
+			if (getLE(*sp) ^ getLE(*dp)) {
 				goto try_up;
 			}
 		}
@@ -164,7 +168,7 @@ try_left:
 
 	// Try expanding up
 try_up:
-	while (h + 1 <= MAX_MATCH_SIZE && sy >= 1 && dy >= 1) {
+	while (h + 1 <= MAXH && sy >= 1 && dy >= 1) {
 		for (int jj = 0; jj < w; ++jj) {
 			if (visited(dx + jj, dy - 1)) {
 				return true;
@@ -174,7 +178,8 @@ try_up:
 			u32 *dp = (u32*)&rgba[((dx + jj) + (dy - 1) * width)*4];
 
 			// If RGB components match,
-			if (((getLE(*sp) ^ getLE(*dp)) << 8) != 0) {
+			//if (((getLE(*sp) ^ getLE(*dp)) << 8) != 0) {
+			if (getLE(*sp) ^ getLE(*dp)) {
 				return true;
 			}
 		}
@@ -226,7 +231,7 @@ void ImageLZWriter::add(int unused, u16 sx, u16 sy, u16 dx, u16 dy, u16 w, u16 h
 	}
 
 	Match m = {
-		sx, sy, dx, dy, w - ZONE, h - ZONE
+		sx, sy, dx, dy, w - ZONEW, h - ZONEH
 	};
 
 	_exact_matches.push_back(m);
@@ -253,18 +258,18 @@ int ImageLZWriter::match() {
 #endif
 
 	// For each raster,
-	for (u16 y = 0, yend = _height - ZONE; y <= yend; ++y) {
+	for (u16 y = 0, yend = _height - ZONEH; y <= yend; ++y) {
 		// Initialize a full hash block in the upper left of this row
 		u32 hash = 0;
-		for (int ii = 0; ii < ZONE; ++ii) {
-			for (int jj = 0; jj < ZONE; ++jj) {
+		for (int ii = 0; ii < ZONEW; ++ii) {
+			for (int jj = 0; jj < ZONEH; ++jj) {
 				u32 *p = (u32*)&rgba[(ii + jj * width)*4];
 				hash += hashPixel(*p);
 			}
 		}
 
 		// For each column,
-		u16 x = 0, xend = width - ZONE;
+		u16 x = 0, xend = width - ZONEW;
 		for (;;) {
 			// If a previous zone had this hash,
 			u32 match = _table[hash & TABLE_MASK];
@@ -280,7 +285,7 @@ int ImageLZWriter::match() {
 #endif
 
 					// See how far the match can be expanded
-					u16 dx = x, dy = y, w = ZONE, h = ZONE;
+					u16 dx = x, dy = y, w = ZONEW, h = ZONEH;
 					expandMatch(sx, sy, dx, dy, w, h);
 
 					// If the match scores well,
@@ -310,10 +315,10 @@ int ImageLZWriter::match() {
 			}
 
 			// Roll the hash to the next zone one pixel over
-			for (int jj = 0; jj < ZONE; ++jj) {
+			for (int jj = 0; jj < ZONEH; ++jj) {
 				u32 *lp = (u32*)&rgba[(x + (y + jj) * width)*4];
 				hash -= hashPixel(*lp);
-				u32 *rp = (u32*)&rgba[((x + ZONE) + (y + jj) * width)*4];
+				u32 *rp = (u32*)&rgba[((x + ZONEW) + (y + jj) * width)*4];
 				hash += hashPixel(*rp);
 			}
 		}
@@ -463,7 +468,7 @@ void ImageLZWriter::write(ImageWriter &writer) {
 #ifdef CAT_COLLECT_STATS
 	Stats.huff_bits = bitcount;
 	Stats.covered_percent = Stats.covered * 100. / (double)(_width * _height);
-	Stats.bytes_saved = Stats.covered * 3;
+	Stats.bytes_saved = Stats.covered * 4;
 	Stats.bytes_overhead = bitcount / 8;
 	Stats.compression_ratio = Stats.bytes_saved / (double)Stats.bytes_overhead;
 #endif

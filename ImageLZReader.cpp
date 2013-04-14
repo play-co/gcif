@@ -109,8 +109,8 @@ int ImageLZReader::readZones(ImageReader &reader) {
 		b1 = (u8)reader.nextHuffmanSymbol(&_huffman);
 		u16 dy = ((u16)b1 << 8) | b0;
 
-		z->w = (u32)reader.nextHuffmanSymbol(&_huffman) + ZONE;
-		z->h = (u32)reader.nextHuffmanSymbol(&_huffman) + ZONE;
+		z->w = (u32)reader.nextHuffmanSymbol(&_huffman) + ZONEW;
+		z->h = (u32)reader.nextHuffmanSymbol(&_huffman) + ZONEH;
 
 		// Reverse CM
 		if (dy == 0) {
@@ -167,7 +167,7 @@ int ImageLZReader::triggerX(u8 *p) {
 		p[0] = src[0];
 		p[1] = src[1];
 		p[2] = src[2];
-		p[3] = 255;
+		p[3] = src[3];
 		p += 4;
 		src += 4;
 	}

@@ -42,17 +42,6 @@ static CAT_INLINE int wrapNeg(u8 p) {
 	}
 }
 
-static int calcBits(vector<u8> &lz, u8 codelens[256]) {
-	int bits = 0;
-
-	for (int ii = 0; ii < lz.size(); ++ii) {
-		int sym = lz[ii];
-		bits += codelens[sym];
-	}
-
-	return bits;
-}
-
 
 //// ImageCMWriter
 
@@ -87,8 +76,6 @@ int ImageCMWriter::init(int width, int height) {
 }
 
 void ImageCMWriter::decideFilters() {
-	u16 *filterWriter = _matrix;
-
 	EntropyEstimator<u8> ee[3];
 	ee[0].clear(256);
 	ee[1].clear(256);
@@ -287,7 +274,6 @@ void ImageCMWriter::chaosStats() {
 	GenerateChaosTable();
 #endif
 
-	int bitcount[3] = {0};
 	const int width = _width;
 
 	// Initialize previous chaos scanline to zero

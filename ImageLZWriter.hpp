@@ -49,12 +49,14 @@ namespace cat {
 
 
 class ImageLZWriter {
-	static const int ZONE = ImageLZReader::ZONE;
+	static const int ZONEW = ImageLZReader::ZONEW;
+	static const int ZONEH = ImageLZReader::ZONEH;
 	static const int TABLE_BITS = 18;
 	static const int TABLE_SIZE = 1 << TABLE_BITS;
 	static const u32 TABLE_MASK = TABLE_SIZE - 1;
 	static const u32 TABLE_NULL = 0xffffffff;
-	static const int MAX_MATCH_SIZE = 255 + ZONE;
+	static const int MAXW = 255 + ZONEW;
+	static const int MAXH = 255 + ZONEH;
 	static const int MIN_SCORE = 16;
 	static const int ZERO_COEFF = 4; // Count zeroes as being worth 1/4 of a normal match
 
@@ -63,7 +65,6 @@ class ImageLZWriter {
 
 	// Value is 16-bit x, y coordinates
 	u32 *_table;
-	int _table_size;
 
 	// Visited bitmask
 	u32 *_visited;

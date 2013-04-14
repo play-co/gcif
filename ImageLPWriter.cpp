@@ -27,9 +27,6 @@ void ImageLPWriter::clear() {
 	_rgba = 0;
 }
 
-bool ImageLPWriter::checkMatch(u16 x, u16 y, u16 w, u16 h) {
-}
-
 bool ImageLPWriter::expandMatch(int &used, u16 &x, u16 &y, u16 &w, u16 &h) {
 	const u32 *rgba = reinterpret_cast<const u32*>( _rgba );
 

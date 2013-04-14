@@ -68,7 +68,6 @@ class ImageLPWriter {
 
 	std::vector<Match> _exact_matches;
 
-	bool checkMatch(u16 x, u16 y, u16 w, u16 h);	
 	bool expandMatch(int &used, u16 &x, u16 &y, u16 &w, u16 &h);
 	void add(int used, u16 x, u16 y, u16 w, u16 h);
 	int match();
