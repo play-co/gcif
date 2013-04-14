@@ -1,5 +1,7 @@
 #include "HuffmanEncoder.hpp"
 #include "HuffmanDecoder.hpp"
+#include "Log.hpp"
+#include "BitMath.hpp"
 using namespace cat;
 using namespace huffman;
 
@@ -491,6 +493,362 @@ void cat::generateHuffmanCodes(int num_syms, u16 freqs[], u16 codes[], u8 codele
 	huffman::generate_codes(num_syms, codelens, codes);
 }
 
-void cat::writeHuffmanTable(int num_syms, u8 codelens[], ImageWriter &writer) {
+int cat::writeHuffmanTable(int num_syms, u8 codelens[], ImageWriter &writer) {
+	static const int HUFF_SYMS = HuffmanDecoder::MAX_CODE_SIZE + 1;
+
+	CAT_ENFORCE(HUFF_SYMS == 17);
+
+	// Degenerate case: Empty or single element
+	if (num_syms <= 1) {
+		return 0;
+	}
+
+	int bc = 0;
+
+	// Find last non-zero symbol
+	int last_non_zero = 0;
+	for (int ii = 0; ii < num_syms; ++ii) {
+		if (codelens[ii] > 0) {
+			last_non_zero = ii;
+		}
+	}
+
+	// Determine if it is worth shaving
+	int shaved = num_syms - last_non_zero - 1;
+	int num_syms_bits = BSR32(num_syms - 1) + 1;
+	if (shaved >= num_syms_bits) {
+		writer.writeBit(1);
+		writer.writeBits(last_non_zero, num_syms_bits);
+		bc += num_syms_bits + 1;
+
+		num_syms = last_non_zero + 1;
+	} else {
+		writer.writeBit(0);
+		bc++;
+	}
+
+	// If the symbol count is low,
+	if (num_syms <= 20) {
+		// Encode the symbols directly
+		for (int ii = 0; ii < num_syms; ++ii) {
+			u8 len = codelens[ii];
+
+			CAT_ENFORCE(len < HUFF_SYMS);
+
+			if (len >= 15) {
+				writer.writeBits(15, 4);
+				writer.writeBit(len - 15);
+				bc += 5;
+			} else {
+				writer.writeBits(len, 4);
+				bc += 4;
+			}
+		}
+
+		return bc;
+	}
+
+	/*
+	 * Choose from one of four models of the codelens:
+	 * 00 : No modifications
+	 * 01 : Monotonically increasing: Subtract previous from next
+	 * 10 : Increasing then decreasing: Switch to next minus previous half way through
+	 * 11 : Predict using running average
+	 */
+
+	int bitcount[4] = { 0 };
+	u16 table_codes[4][HUFF_SYMS];
+	u8 table_codelens[4][HUFF_SYMS];
+
+	// 00 : No modifications
+
+	{
+		// Collect statistics
+		u16 freqs[HUFF_SYMS] = {0};
+		for (int ii = 0; ii < num_syms; ++ii) {
+			u8 len = codelens[ii];
+
+			CAT_ENFORCE(len < HUFF_SYMS);
+
+			freqs[len]++;
+		}
+
+		// Generate candidate codes
+		generateHuffmanCodes(HUFF_SYMS, freqs, table_codes[0], table_codelens[0]);
+
+		// Add bitcount for table
+		for (int ii = 0; ii < HUFF_SYMS; ++ii) {
+			u8 len = table_codelens[0][ii];
+
+			CAT_ENFORCE(len < HUFF_SYMS);
+
+			if (len >= 15) {
+				bitcount[0] += 5;
+			} else {
+				bitcount[0] += 4;
+			}
+		}
+
+		// Add bitcount for symbols
+		for (int ii = 0; ii < num_syms; ++ii) {
+			u8 sym = codelens[ii];
+
+			bitcount[0] += table_codelens[0][sym];
+		}
+	}
+
+	// 01 : Monotonically increasing: Subtract previous from next
+
+	{
+		// Collect statistics
+		u16 freqs[HUFF_SYMS] = {0};
+		u8 prev = 1;
+		for (int ii = 0; ii < num_syms; ++ii) {
+			u8 len = codelens[ii];
+
+			CAT_ENFORCE(len < HUFF_SYMS);
+
+			u8 sym = (len - prev + HUFF_SYMS) % HUFF_SYMS;
+			prev = len;
+
+			freqs[sym]++;
+		}
+
+		// Generate candidate codes
+		generateHuffmanCodes(HUFF_SYMS, freqs, table_codes[1], table_codelens[1]);
+
+		// Add bitcount for table
+		for (int ii = 0; ii < HUFF_SYMS; ++ii) {
+			u8 len = table_codelens[1][ii];
+
+			CAT_ENFORCE(len < HUFF_SYMS);
+
+			if (len >= 15) {
+				bitcount[1] += 5;
+			} else {
+				bitcount[1] += 4;
+			}
+		}
+
+		// Add bitcount for symbols
+		prev = 1;
+		for (int ii = 0; ii < num_syms; ++ii) {
+			u8 len = codelens[ii];
+
+			u8 sym = (len - prev + HUFF_SYMS) % HUFF_SYMS;
+			prev = len;
+
+			bitcount[1] += table_codelens[1][sym];
+		}
+	}
+
+	// 10 : Increasing then decreasing: Switch to next minus previous half way through
+
+	{
+		// Collect statistics
+		u16 freqs[HUFF_SYMS] = {0};
+		u8 prev = 1;
+		const int half = num_syms/2;
+		for (int ii = 0; ii < half; ++ii) {
+			u8 len = codelens[ii];
+
+			CAT_ENFORCE(len < HUFF_SYMS);
+
+			u8 sym = (len - prev + HUFF_SYMS) % HUFF_SYMS;
+			prev = len;
+
+			freqs[sym]++;
+		}
+		for (int ii = half; ii < num_syms; ++ii) {
+			u8 len = codelens[ii];
+
+			CAT_ENFORCE(len < HUFF_SYMS);
+
+			u8 sym = (prev - len + HUFF_SYMS) % HUFF_SYMS;
+			prev = len;
+
+			freqs[sym]++;
+		}
+
+		// Generate candidate codes
+		generateHuffmanCodes(HUFF_SYMS, freqs, table_codes[2], table_codelens[2]);
+
+		// Add bitcount for table
+		for (int ii = 0; ii < HUFF_SYMS; ++ii) {
+			u8 len = table_codelens[2][ii];
+
+			CAT_ENFORCE(len < HUFF_SYMS);
+
+			if (len >= 15) {
+				bitcount[2] += 5;
+			} else {
+				bitcount[2] += 4;
+			}
+		}
+
+		// Add bitcount for symbols
+		prev = 1;
+		for (int ii = 0; ii < half; ++ii) {
+			u8 len = codelens[ii];
+
+			u8 sym = (len - prev + HUFF_SYMS) % HUFF_SYMS;
+			prev = len;
+
+			bitcount[2] += table_codelens[2][sym];
+		}
+		for (int ii = half; ii < num_syms; ++ii) {
+			u8 len = codelens[ii];
+
+			u8 sym = (prev - len + HUFF_SYMS) % HUFF_SYMS;
+			prev = len;
+
+			bitcount[2] += table_codelens[2][sym];
+		}
+	}
+
+	// 11 : Predict using running average
+
+	{
+		// Collect statistics
+		u16 freqs[HUFF_SYMS] = {0};
+		u32 sum = 1, count = 1;
+		for (int ii = 0; ii < num_syms; ++ii) {
+			u8 len = codelens[ii];
+
+			CAT_ENFORCE(len < HUFF_SYMS);
+
+			u32 pred = sum / count;
+
+			u8 sym = (len - pred + HUFF_SYMS) % HUFF_SYMS;
+
+			sum += len;
+			count++;
+
+			freqs[sym]++;
+		}
+
+		// Generate candidate codes
+		generateHuffmanCodes(HUFF_SYMS, freqs, table_codes[3], table_codelens[3]);
+
+		// Add bitcount for table
+		for (int ii = 0; ii < HUFF_SYMS; ++ii) {
+			u8 len = table_codelens[3][ii];
+
+			CAT_ENFORCE(len < HUFF_SYMS);
+
+			if (len >= 15) {
+				bitcount[3] += 5;
+			} else {
+				bitcount[3] += 4;
+			}
+		}
+
+		// Add bitcount for symbols
+		sum = 1, count = 1;
+		for (int ii = 0; ii < num_syms; ++ii) {
+			u8 len = codelens[ii];
+
+			u32 pred = sum / count;
+
+			u8 sym = (len - pred + HUFF_SYMS) % HUFF_SYMS;
+
+			sum += len;
+			count++;
+
+			bitcount[3] += table_codelens[3][sym];
+		}
+	}
+
+	// Determine best option
+	int best = 0, bestScore = bitcount[0];
+	for (int ii = 1; ii < 4; ++ii) {
+		if (bestScore < bitcount[ii]) {
+			bestScore = bitcount[ii];
+			best = ii;
+		}
+	}
+	bc += 2 + bitcount[best];
+
+	// Write best method
+	writer.writeBits(best, 2);
+
+	// Write best table
+	for (int ii = 0; ii < HUFF_SYMS; ++ii) {
+		u8 len = table_codelens[best][ii];
+
+		if (len >= 15) {
+			writer.writeBits(15, 4);
+			writer.writeBit(len - 15);
+		} else {
+			writer.writeBits(len, 4);
+		}
+	}
+
+	// Write best symbols
+	switch (best) {
+	case 0:
+		{
+			for (int ii = 0; ii < num_syms; ++ii) {
+				u8 sym = codelens[ii];
+
+				writer.writeBits(table_codes[0][sym], table_codelens[0][sym]);
+			}
+		}
+		break;
+	case 1:
+		{
+			u8 prev = 1;
+			for (int ii = 0; ii < num_syms; ++ii) {
+				u8 len = codelens[ii];
+
+				u8 sym = (len - prev + HUFF_SYMS) % HUFF_SYMS;
+				prev = len;
+
+				writer.writeBits(table_codes[1][sym], table_codelens[1][sym]);
+			}
+		}
+		break;
+	case 2:
+		{
+			u8 prev = 1;
+			const int half = num_syms/2;
+			for (int ii = 0; ii < half; ++ii) {
+				u8 len = codelens[ii];
+
+				u8 sym = (len - prev + HUFF_SYMS) % HUFF_SYMS;
+				prev = len;
+
+				writer.writeBits(table_codes[2][sym], table_codelens[2][sym]);
+			}
+			for (int ii = half; ii < num_syms; ++ii) {
+				u8 len = codelens[ii];
+
+				u8 sym = (prev - len + HUFF_SYMS) % HUFF_SYMS;
+				prev = len;
+
+				writer.writeBits(table_codes[2][sym], table_codelens[2][sym]);
+			}
+		}
+		break;
+	case 3:
+		{
+			u32 sum = 1, count = 1;
+			for (int ii = 0; ii < num_syms; ++ii) {
+				u8 len = codelens[ii];
+
+				u32 pred = sum / count;
+
+				u8 sym = (len - pred + HUFF_SYMS) % HUFF_SYMS;
+
+				sum += len;
+				count++;
+
+				writer.writeBits(table_codes[3][sym], table_codelens[3][sym]);
+			}
+		}
+		break;
+	}
+
+	return bc;
 }
 
