@@ -354,77 +354,6 @@ void ImageMaskWriter::performLZ(const std::vector<u8> &rle, std::vector<u8> &lz)
 #endif // CAT_COLLECT_STATS
 }
 
-void ImageMaskWriter::writeHuffmanTable(u8 codelens[256], ImageWriter &writer) {
-	vector<u8> huffTable;
-
-	// Delta-encode the Huffman codelen table
-	int lag0 = 3;
-	u32 sum = 0;
-
-	for (int ii = 0; ii < 256; ++ii) {
-		u8 symbol = ii;
-		u8 codelen = codelens[symbol];
-
-		int delta = codelen - lag0;
-		lag0 = codelen;
-
-		if (delta <= 0) {
-			delta = -delta << 1;
-		} else {
-			delta = ((delta - 1) << 1) | 1;
-		}
-
-		huffTable.push_back(delta);
-		sum += delta;
-	}
-
-	// Find K shift
-	sum >>= 8;
-	u32 shift = sum > 0 ? BSR32(sum) : 0;
-	u32 shiftMask = (1 << shift) - 1;
-
-	writer.writeBits(shift, 3);
-
-#ifdef CAT_COLLECT_STATS
-	Stats.pivot = shift;
-	u32 table_bits = 3;
-#endif // CAT_COLLECT_STATS
-
-	// For each symbol,
-	for (int ii = 0; ii < huffTable.size(); ++ii) {
-		int symbol = huffTable[ii];
-		int q = symbol >> shift;
-
-		if CAT_UNLIKELY(q > 31) {
-			for (int ii = 0; ii < q; ++ii) {
-				writer.writeBit(1);
-#ifdef CAT_COLLECT_STATS
-				++table_bits;
-#endif // CAT_COLLECT_STATS
-			}
-			writer.writeBit(0);
-#ifdef CAT_COLLECT_STATS
-			++table_bits;
-#endif // CAT_COLLECT_STATS
-		} else {
-			writer.writeBits((0x7fffffff >> (31 - q)) << 1, q + 1);
-#ifdef CAT_COLLECT_STATS
-			table_bits += q + 1;
-#endif // CAT_COLLECT_STATS
-		}
-
-		if (shift > 0) {
-			writer.writeBits(symbol & shiftMask, shift);
-#ifdef CAT_COLLECT_STATS
-			table_bits += shift;
-#endif // CAT_COLLECT_STATS
-		}
-	}
-
-#ifdef CAT_COLLECT_STATS
-	Stats.table_bits = table_bits;
-#endif // CAT_COLLECT_STATS
-}
 
 void ImageMaskWriter::writeEncodedLZ(const std::vector<u8> &lz, u16 codes[256], u8 codelens[256], ImageWriter &writer) {
 	const int lzSize = static_cast<int>( lz.size() );
@@ -491,9 +420,11 @@ void ImageMaskWriter::write(ImageWriter &writer) {
 	double t5 = clock->usec();
 #endif // CAT_COLLECT_STATS
 
-	writeHuffmanTable(codelens, writer);
+	int table_bits = writeHuffmanTable(256, codelens, writer);
 
 #ifdef CAT_COLLECT_STATS
+	Stats.table_bits = table_bits;
+
 	double t6 = clock->usec();
 #endif // CAT_COLLECT_STATS
 

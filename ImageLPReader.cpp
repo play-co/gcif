@@ -53,17 +53,6 @@ int ImageLPReader::readColorTable(ImageReader &reader) {
 		return RE_LZ_CODES;
 	}
 
-	// Read codelens
-	u8 codelens[NUM_SYMS];
-	for (int ii = 0; ii < NUM_SYMS; ++ii) {
-		u32 len = reader.readBits(4);
-		if (len >= 15) {
-			len += reader.readBit();
-		}
-
-		codelens[ii] = len;
-	}
-
 	// If file truncated,
 	if (reader.eof()) {
 		return RE_LZ_CODES;
@@ -91,55 +80,6 @@ int ImageLPReader::readZones(ImageReader &reader) {
 	u16 last_dx = 0, last_dy = 0;
 	Zone *z = _zones;
 	for (int ii = 0; ii < match_count; ++ii, ++z) {
-		u8 b0 = (u8)reader.nextHuffmanSymbol(&_huffman);
-		u8 b1 = (u8)reader.nextHuffmanSymbol(&_huffman);
-		u16 sx = ((u16)b1 << 8) | b0;
-
-		b0 = (u8)reader.nextHuffmanSymbol(&_huffman);
-		b1 = (u8)reader.nextHuffmanSymbol(&_huffman);
-		u16 sy = ((u16)b1 << 8) | b0;
-
-		b0 = (u8)reader.nextHuffmanSymbol(&_huffman);
-		b1 = (u8)reader.nextHuffmanSymbol(&_huffman);
-		u16 dx = ((u16)b1 << 8) | b0;
-
-		b0 = (u8)reader.nextHuffmanSymbol(&_huffman);
-		b1 = (u8)reader.nextHuffmanSymbol(&_huffman);
-		u16 dy = ((u16)b1 << 8) | b0;
-
-		z->w = (u32)reader.nextHuffmanSymbol(&_huffman) + ZONEW;
-		z->h = (u32)reader.nextHuffmanSymbol(&_huffman) + ZONEH;
-
-		// Reverse CM
-		if (dy == 0) {
-			dx += last_dx;
-		}
-		dy += last_dy;
-		sy = dy - sy;
-
-		z->sox = (s16)dy - (s16)sx;
-		z->soy = (s16)dy - (s16)sy;
-		z->dx = dx;
-		z->dy = dy;
-
-		// Input security checks
-		if (sy > dy ||
-			(sy == dy && sx >= dx)) {
-			return RE_LZ_BAD;
-		}
-
-		if ((u32)sx + (u32)z->w > _width ||
-			(u32)sy + (u32)z->h > _height) {
-			return RE_LZ_BAD;
-		}
-
-		if ((u32)z->dx + (u32)z->w > _width ||
-			(u32)z->dy + (u32)z->h > _height) {
-			return RE_LZ_BAD;
-		}
-
-		last_dy = dy;
-		last_dx = dx;
 	}
 
 	// If file truncated,
@@ -148,7 +88,7 @@ int ImageLPReader::readZones(ImageReader &reader) {
 	}
 
 	// Trigger on first zone
-	_zone_next_y = _zones[0].dy;
+	_zone_next_y = _zones[0].y;
 	_zone_trigger_y = 0;
 
 	return RE_OK;

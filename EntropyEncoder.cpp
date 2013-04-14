@@ -110,68 +110,6 @@ void EntropyEncoder::finalize() {
 	runListReadIndex = 0;
 }
 
-static u32 writeHuffmanTable(int num_syms, u8 codelens[], ImageWriter &writer) {
-	u32 bitcount = 0;
-
-	vector<u8> huffTable;
-
-	// Delta-encode the Huffman codelen table
-	u32 lag0 = 3;
-	u32 sum = 0;
-
-	static const u32 LEN_MOD = HuffmanDecoder::MAX_CODE_SIZE + 1;
-
-	// Skip symbol 0 (never sent)
-	for (int ii = 1; ii < num_syms; ++ii) {
-		u8 symbol = ii;
-		u8 codelen = codelens[symbol];
-
-		u32 delta = (codelen - lag0) % LEN_MOD;
-		lag0 = codelen;
-
-		huffTable.push_back(delta);
-		sum += delta;
-	}
-
-	const int delta_syms = LEN_MOD;
-	u16 freqs[delta_syms];
-
-	collectFreqs(delta_syms, huffTable, freqs);
-
-	u16 delta_codes[delta_syms];
-	u8 delta_codelens[delta_syms];
-
-	generateHuffmanCodes(delta_syms, freqs, delta_codes, delta_codelens);
-
-	// Write huffman table's huffman table
-	for (int ii = 0; ii < delta_syms; ++ii) {
-		u8 len = delta_codelens[ii];
-
-		if (len >= 15) {
-			writer.writeBits(15, 4);
-			writer.writeBit(len - 15);
-			bitcount++;
-		} else {
-			writer.writeBits(len, 4);
-		}
-
-		bitcount += 4;
-	}
-
-	// Write huffman table
-	for (int ii = 0; ii < huffTable.size(); ++ii) {
-		u8 delta = huffTable[ii];
-
-		u16 code = delta_codes[delta];
-		u8 codelen = delta_codelens[delta];
-
-		writer.writeBits(code, codelen);
-		bitcount += codelen;
-	}
-
-	return bitcount;
-}
-
 u32 EntropyEncoder::writeOverhead(ImageWriter &writer) {
 	u32 bitcount = writeHuffmanTable(BZ_SYMS, codelensBZ, writer);
 

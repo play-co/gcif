@@ -18,6 +18,9 @@ enum ReaderErrors {
 	RE_LZ_CODES,	// LZ codelen read failed
 	RE_LZ_BAD,		// Bad data in LZ section
 
+	RE_LP_CODES,	// LP codelen read failed
+	RE_LP_BAD,		// Bad data in LP section
+
 	RE_CM_CODES		// CM codelen read failed
 };
 

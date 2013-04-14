@@ -377,23 +377,10 @@ void ImageLZWriter::write(ImageWriter &writer) {
 	u8 codelens[256];
 	hist.generateHuffman(codes, codelens);
 
-	for (int ii = 0; ii < 256; ++ii) {
-		u8 len = codelens[ii];
-
-		if (len >= 15) {
-			writer.writeBits(15, 4);
-			writer.writeBit(len - 15);
+	int huffbits = writeHuffmanTable(256, codelens, writer);
 #ifdef CAT_COLLECT_STATS
-			bitcount++;
+	bitcount += huffbits;
 #endif
-		} else {
-			writer.writeBits(len, 4);
-		}
-
-#ifdef CAT_COLLECT_STATS
-		bitcount += 4;
-#endif
-	}
 
 	// Reset last for encoding
 	last_dx = 0;

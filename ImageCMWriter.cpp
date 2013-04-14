@@ -111,7 +111,7 @@ void ImageCMWriter::decideFilters() {
 								continue;
 							}
 #endif
-							if (_lz->visited(px, py)) {
+							if (_lz->visited(px, py) || _lp->visited(px, py)) {
 								continue;
 							}
 
@@ -157,7 +157,7 @@ void ImageCMWriter::decideFilters() {
 								continue;
 							}
 #endif
-							if (_lz->visited(px, py)) {
+							if (_lz->visited(px, py) || _lp->visited(px, py)) {
 								continue;
 							}
 
@@ -214,7 +214,7 @@ void ImageCMWriter::decideFilters() {
 										continue;
 									}
 #endif
-									if (_lz->visited(px, py)) {
+									if (_lz->visited(px, py) || _lp->visited(px, py)) {
 										continue;
 									}
 
@@ -409,33 +409,6 @@ int ImageCMWriter::initFromRGBA(const u8 *rgba, int width, int height, ImageMask
 	return WE_OK;
 }
 
-void ImageCMWriter::writeFilterHuffmanTable(int num_syms, u8 codelens[256], ImageWriter &writer, int stats_index) {
-#ifdef CAT_COLLECT_STATS
-	int bitcount = 0;
-#endif
-
-	for (int ii = 0; ii < num_syms; ++ii) {
-		u8 len = codelens[ii];
-		if (len >= 15) {
-			writer.writeBits(15, 4);
-			writer.writeBit(len - 15);
-#ifdef CAT_COLLECT_STATS
-			bitcount++;
-#endif
-		} else {
-			writer.writeBits(len, 4);
-		}
-
-#ifdef CAT_COLLECT_STATS
-		bitcount += 4;
-#endif
-	}
-
-#ifdef CAT_COLLECT_STATS
-	Stats.filter_table_bits[stats_index] = bitcount;
-#endif // CAT_COLLECT_STATS
-}
-
 void ImageCMWriter::writeFilters(ImageWriter &writer) {
 	FreqHistogram<SF_COUNT> sf_hist;
 	FreqHistogram<CF_COUNT> cf_hist;
@@ -491,8 +464,12 @@ void ImageCMWriter::writeFilters(ImageWriter &writer) {
 	cf_hist.generateHuffman(_cf_codes, _cf_codelens);
 
 	// Write out filter huffman tables
-	writeFilterHuffmanTable(SF_COUNT, _sf_codelens, writer, 0);
-	writeFilterHuffmanTable(CF_COUNT, _cf_codelens, writer, 1);
+	int sf_table_bits = writeHuffmanTable(SF_COUNT, _sf_codelens, writer);
+	int cf_table_bits = writeHuffmanTable(CF_COUNT, _cf_codelens, writer);
+#ifdef CAT_COLLECT_STATS
+	Stats.filter_table_bits[0] = sf_table_bits;
+	Stats.filter_table_bits[1] = cf_table_bits;
+#endif // CAT_COLLECT_STATS
 }
 
 bool ImageCMWriter::writeChaos(ImageWriter &writer) {

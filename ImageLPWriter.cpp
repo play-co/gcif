@@ -411,23 +411,11 @@ void ImageLPWriter::write(ImageWriter &writer) {
 		for (int ii = 0; ii < 4; ++ii) {
 			hist[ii].generateHuffman(codes[ii], codelens[ii]);
 
-			for (int jj = 0; jj < 256; ++jj) {
-				u8 len = codelens[ii][jj];
-
-				if (len >= 15) {
-					writer.writeBits(15, 4);
-					writer.writeBit(len - 15);
-#ifdef CAT_COLLECT_STATS
-					++color_overhead;
-#endif
-				} else {
-					writer.writeBits(len, 4);
-				}
+			int table_bits = writeHuffmanTable(256, codelens[ii], writer);
 
 #ifdef CAT_COLLECT_STATS
-				color_overhead += 4;
+			color_overhead += table_bits;
 #endif
-			}
 		}
 
 		// Write encoded colors
@@ -515,23 +503,11 @@ void ImageLPWriter::write(ImageWriter &writer) {
 		for (int ii = 0; ii < 6; ++ii) {
 			hist[ii].generateHuffman(codes[ii], codelens[ii]);
 
-			for (int jj = 0; jj < NUM_SYMS[ii]; ++jj) {
-				u8 len = codelens[ii][jj];
-
-				if (len >= 15) {
-					writer.writeBits(15, 4);
-					writer.writeBit(len - 15);
-#ifdef CAT_COLLECT_STATS
-					++overhead;
-#endif
-				} else {
-					writer.writeBits(len, 4);
-				}
+			int table_bits = writeHuffmanTable(NUM_SYMS[ii], codelens[ii], writer);
 
 #ifdef CAT_COLLECT_STATS
-				overhead += 4;
+			overhead += table_bits;
 #endif
-			}
 		}
 
 		// Encode zones
@@ -614,26 +590,15 @@ void ImageLPWriter::write(ImageWriter &writer) {
 
 				hist.generateHuffman(m->codes, m->codelens);
 
+				int table_bits = writeHuffmanTable(m->used, m->codelens, writer);
+#ifdef CAT_COLLECT_STATS
+				overhead += table_bits;
+#endif
+
 				for (int jj = 0; jj < m->used; ++jj) {
 					writer.writeBits(m->colorIndex[jj], colorIndexBits);
 #ifdef CAT_COLLECT_STATS
 					overhead += colorIndexBits;
-#endif
-
-					u8 len = m->codelens[jj];
-
-					if (len >= 15) {
-						writer.writeBits(15, 4);
-						writer.writeBit(len - 15);
-#ifdef CAT_COLLECT_STATS
-						++overhead;
-#endif
-					} else {
-						writer.writeBits(len, 4);
-					}
-
-#ifdef CAT_COLLECT_STATS
-					overhead += 4;
 #endif
 				}
 
@@ -703,11 +668,11 @@ void ImageLPWriter::write(ImageWriter &writer) {
 
 bool ImageLPWriter::dumpStats() {
 	CAT_INFO("stats") << "(LP Compress) Color palette size : " << Stats.color_list_size << " colors";
-	CAT_INFO("stats") << "(LP Compress) Color palette overhead : " << Stats.color_list_overhead << " bytes";
+	CAT_INFO("stats") << "(LP Compress) Color palette overhead : " << Stats.color_list_overhead/8 << " bytes";
 	CAT_INFO("stats") << "(LP Compress) Zone count : " << Stats.zone_count;
-	CAT_INFO("stats") << "(LP Compress) Zone list overhead : " << Stats.zone_list_overhead << " bytes";
+	CAT_INFO("stats") << "(LP Compress) Zone list overhead : " << Stats.zone_list_overhead/8 << " bytes";
 	CAT_INFO("stats") << "(LP Compress) Pixels covered : " << Stats.pixels_covered << " of " << _width * _height << " (" << Stats.pixels_covered * 100. / (_width * _height) << " % covered)";
-	CAT_INFO("stats") << "(LP Compress) Pixel data size after encoding : " << Stats.pixel_overhead << " bytes";
+	CAT_INFO("stats") << "(LP Compress) Pixel data size after encoding : " << Stats.pixel_overhead/8 << " bytes";
 	CAT_INFO("stats") << "(LP Compress) Compression ratio : " << Stats.compressionRatio << ":1 (" << Stats.overall_bytes << " bytes used overall)";
 
 	return true;
