@@ -5,6 +5,7 @@
 #include "ImageWriter.hpp"
 #include "ImageMaskWriter.hpp"
 #include "ImageLZWriter.hpp"
+#include "ImageLPWriter.hpp"
 #include "ImageCMReader.hpp"
 #include "EntropyEncoder.hpp"
 #include "FilterScorer.hpp"
@@ -20,7 +21,7 @@
  * Notable improvements:
  * + Better compression ratios
  * + Maintainable codebase for future improvements
- * + 2D LZ Exact Match and Fully-Transparent Alpha Mask integration
+ * + 2D Local Palette, 2D LZ Exact Match, and Fully-Transparent Alpha Mask integration
  * + Uses 4x4 zones instead of 8x8
  * + More spatial and color filters supported
  * + Top (FILTER_SELECT_FUZZ) filters are submitted to entropy-based selection
@@ -52,6 +53,7 @@ protected:
 	int _width, _height;
 	ImageMaskWriter *_mask;
 	ImageLZWriter *_lz;
+	ImageLPWriter *_lp;
 
 	// Filter Huffman codes
 	u16 _sf_codes[SF_COUNT];
@@ -115,7 +117,7 @@ public:
 		return _matrix[filterX + filterY * _w];
 	}
 
-	int initFromRGBA(const u8 *rgba, int width, int height, ImageMaskWriter &mask, ImageLZWriter &lz);
+	int initFromRGBA(const u8 *rgba, int width, int height, ImageMaskWriter &mask, ImageLZWriter &lz, ImageLPWriter &lp);
 	void write(ImageWriter &writer);
 
 #ifdef CAT_COLLECT_STATS

@@ -58,6 +58,7 @@ class ImageLPWriter {
 
 	struct Match {
 		u32 colors[MAX_COLORS];
+		u16 colorIndex[MAX_COLORS];
 		int used;
 		u16 x, y;
 		u16 w, h;
@@ -97,6 +98,25 @@ public:
 	}
 
 	int initFromRGBA(const u8 *rgba, int width, int height, ImageMaskWriter &mask, ImageLZWriter &lz);
+
+	CAT_INLINE void writePixel(int match, int x, int y, ImageWriter &writer) {
+		Match *m = &_exact_matches[match - 1];
+
+		if (m->used > 1) {
+			u32 color = _rgba[x + y * _width];
+			int index = 0;
+
+			// Find the color index that matches
+			for (int ii = 0; ii < m->used; ++ii) {
+				if (color == m->colors[ii]) {
+					index = ii;
+					break;
+				}
+			}
+
+			writer.writeBits(m->codes[index], m->codelens[index]);
+		}
+	}
 
 	CAT_INLINE u32 visited(int x, int y) {
 		return _visited[x + y * _width];

@@ -331,7 +331,7 @@ void ImageLPWriter::write(ImageWriter &writer) {
 				colors.push_back(color);
 			}
 
-			m->colors[jj] = colorId;
+			m->colorIndex[jj] = colorId;
 		}
 
 		covered += m->w * m->h;
@@ -590,7 +590,7 @@ void ImageLPWriter::write(ImageWriter &writer) {
 #endif
 
 			if (m->used == 1) {
-				writer.writeBits(m->colors[0], colorIndexBits);
+				writer.writeBits(m->colorIndex[0], colorIndexBits);
 #ifdef CAT_COLLECT_STATS
 				overhead += colorIndexBits;
 #endif
@@ -603,7 +603,7 @@ void ImageLPWriter::write(ImageWriter &writer) {
 						int colorIndex = 0;
 
 						for (int jj = 0; jj < m->used; ++jj) {
-							u32 tc = colors[m->colors[jj]];
+							u32 tc = m->colors[jj];
 
 							if (color == tc) {
 								colorIndex = jj;
@@ -618,9 +618,9 @@ void ImageLPWriter::write(ImageWriter &writer) {
 				hist.generateHuffman(m->codes, m->codelens);
 
 				for (int jj = 0; jj < m->used; ++jj) {
-					writer.writeBits(m->colors[jj], colorIndexBits);
+					writer.writeBits(m->colorIndex[jj], colorIndexBits);
 #ifdef CAT_COLLECT_STATS
-						overhead += colorIndexBits;
+					overhead += colorIndexBits;
 #endif
 
 					u8 len = m->codelens[jj];
@@ -648,7 +648,7 @@ void ImageLPWriter::write(ImageWriter &writer) {
 						int colorIndex = 0;
 
 						for (int jj = 0; jj < m->used; ++jj) {
-							u32 tc = colors[m->colors[jj]];
+							u32 tc = m->colors[jj];
 
 							if (color == tc) {
 								colorIndex = jj;
@@ -680,7 +680,7 @@ void ImageLPWriter::write(ImageWriter &writer) {
 			overhead += 16 + 16 + 8 + 8 + 4 + m->used * colorIndexBits;
 #endif
 			for (int jj = 0; jj < m->used; ++jj) {
-				writer.writeBits(m->colors[jj], colorIndexBits);
+				writer.writeBits(m->colorIndex[jj], colorIndexBits);
 				m->codes[jj] = jj;
 				m->codelens[jj] = 4;
 			}

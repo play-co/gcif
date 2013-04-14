@@ -47,7 +47,7 @@ int gcif_write(const void *rgba, int width, int height, const char *output_file_
 
 	// Context Modeling Decompression
 	ImageCMWriter imageCMWriter;
-	if ((err = imageCMWriter.initFromRGBA(image, width, height, imageMaskWriter, imageLZWriter))) {
+	if ((err = imageCMWriter.initFromRGBA(image, width, height, imageMaskWriter, imageLZWriter, imageLPWriter))) {
 		return err;
 	}
 

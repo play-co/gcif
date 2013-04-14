@@ -302,7 +302,7 @@ void ImageCMWriter::chaosStats() {
 		// For each pixel,
 		for (int x = 0; x < width; ++x) {
 			// If not masked out,
-			if (!_lz->visited(x, y) && !_mask->hasRGB(x, y)) {
+			if (!_lz->visited(x, y) && !_mask->hasRGB(x, y) && !_lp->visited(x, y)) {
 				// Get filter for this pixel
 				u16 filter = getFilter(x, y);
 				u8 cf = (u8)filter;
@@ -396,7 +396,7 @@ void colorSpace(u8 *rgba, int width, int height, ImageMaskWriter &mask) {
 
 #endif
 
-int ImageCMWriter::initFromRGBA(const u8 *rgba, int width, int height, ImageMaskWriter &mask, ImageLZWriter &lz) {
+int ImageCMWriter::initFromRGBA(const u8 *rgba, int width, int height, ImageMaskWriter &mask, ImageLZWriter &lz, ImageLPWriter &lp) {
 	int err;
 
 	if ((err = init(width, height))) {
@@ -408,6 +408,7 @@ int ImageCMWriter::initFromRGBA(const u8 *rgba, int width, int height, ImageMask
 	_rgba = rgba;
 	_mask = &mask;
 	_lz = &lz;
+	_lp = &lp;
 
 #ifdef TEST_COLOR_FILTERS
 	testColorFilters();
@@ -562,7 +563,7 @@ bool ImageCMWriter::writeChaos(ImageWriter &writer) {
 			}
 
 			// If not masked out,
-			if (!_lz->visited(x, y) && !_mask->hasRGB(x, y)) {
+			if (!_lz->visited(x, y) && !_mask->hasRGB(x, y) && !_lp->visited(x, y)) {
 				// Get filter for this pixel
 				u16 filter = getFilter(x, y);
 				u8 cf = (u8)filter;
@@ -598,6 +599,12 @@ bool ImageCMWriter::writeChaos(ImageWriter &writer) {
 				chaos_count++;
 #endif
 			} else {
+				// If LP,
+				u32 lpIndex = _lp->visited(x, y);
+				if (lpIndex > 0) {
+					_lp->writePixel(lpIndex, x, y, writer);
+				}
+
 				for (int c = 0; c < 3; ++c) {
 					last[c] = left[c] = 0;
 				}
@@ -640,6 +647,7 @@ void ImageCMWriter::write(ImageWriter &writer) {
 	Stats.chaos_bits = total;
 	total += _lz->Stats.huff_bits;
 	total += _mask->Stats.compressedDataBits;
+	total += _lp->Stats.overall_bytes * 8;
 	Stats.total_bits = total;
 
 	Stats.overall_compression_ratio = _width * _height * 4 * 8 / (double)Stats.total_bits;
