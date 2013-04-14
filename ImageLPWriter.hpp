@@ -31,7 +31,7 @@ namespace cat {
 class ImageLPWriter {
 	static const int ZONEW = 4;
 	static const int ZONEH = 4;
-	static const int ZONE_MAX_COLORS = 3;
+	static const int ZONE_MAX_COLORS = 2;
 	static const int MAX_COLORS = 16;
 	static const int MAXW = 255 + ZONEW;
 	static const int MAXH = 255 + ZONEH;
