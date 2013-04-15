@@ -466,7 +466,7 @@ void ImageLZWriter::write(ImageWriter &writer) {
 bool ImageLZWriter::dumpStats() {
 	CAT_INANE("stats") << "(LZ Compress) Initial matches : " << Stats.initial_matches;
 	CAT_INANE("stats") << "(LZ Compress) Initial collisions : " << Stats.collisions;
-	CAT_INANE("stats") << "(LZ Compress) Matched amount : " << Stats.covered_percent << "% of file is redundant";
+	CAT_INANE("stats") << "(LZ Compress) Matched amount : " << Stats.covered_percent << "% of file is redundant (" << Stats.covered << " of " << _width * _height << " pixels)";
 	CAT_INANE("stats") << "(LZ Compress) Bytes saved : " << Stats.bytes_saved << " bytes";
 	CAT_INANE("stats") << "(LZ Compress) Raw overhead : " << Stats.bytes_overhead_uncompressed << " bytes before compression";
 	CAT_INANE("stats") << "(LZ Compress) Compressed overhead : " << Stats.bytes_overhead << " bytes to transmit";

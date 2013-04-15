@@ -41,6 +41,7 @@ public:
 	struct _Stats {
 		u32 table_bits;
 		u32 data_bits;
+		u32 covered;
 
 		int rleBytes, lzBytes;
 

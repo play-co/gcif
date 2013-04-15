@@ -180,6 +180,8 @@ int ImageMaskWriter::initFromRGBA(const u8 *rgba, int width, int height) {
 
 #else
 
+	u32 covered = 0;
+
 	const unsigned char *alpha = (const unsigned char*)&rgba[0] + 3;
 	for (int y = 0; y < height; ++y) {
 		for (int x = 0, len = width >> 5; x < len; ++x) {
@@ -218,6 +220,10 @@ int ImageMaskWriter::initFromRGBA(const u8 *rgba, int width, int height) {
 
 			*writer++ = bits;
 			alpha += 128;
+
+#ifdef CAT_COLLECT_STATS
+			covered += BitCount(bits);
+#endif // CAT_COLLECT_STATS
 		}
 
 		u32 ctr = width & 31;
@@ -229,8 +235,15 @@ int ImageMaskWriter::initFromRGBA(const u8 *rgba, int width, int height) {
 			}
 
 			*writer++ = bits;
+#ifdef CAT_COLLECT_STATS
+			covered += BitCount(bits);
+#endif // CAT_COLLECT_STATS
 		}
 	}
+
+#ifdef CAT_COLLECT_STATS
+	Stats.covered = covered;
+#endif // CAT_COLLECT_STATS
 
 #endif
 
@@ -445,10 +458,9 @@ void ImageMaskWriter::write(ImageWriter &writer) {
 	Stats.dataEncodeUsec = t7 - t6;
 	Stats.overallUsec = t7 - t0;
 
-	Stats.originalDataBytes = _width * _height / 8;
 	Stats.compressedDataBits = Stats.data_bits + Stats.table_bits;
 	Stats.compressedDataBytes = Stats.compressedDataBits / 8;
-	Stats.compressionRatio = Stats.originalDataBytes / (double)Stats.compressedDataBytes;
+	Stats.compressionRatio = Stats.covered * 4 / (double)Stats.compressedDataBytes;
 
 #endif // CAT_COLLECT_STATS
 }
@@ -472,7 +484,8 @@ bool ImageMaskWriter::dumpStats() {
 
 	CAT_INANE("stats") << "(Mask Encoding) Throughput : " << Stats.originalDataBytes / Stats.overallUsec << " MBPS (input bytes)";
 	CAT_INANE("stats") << "(Mask Encoding) Throughput : " << Stats.compressedDataBytes / Stats.overallUsec << " MBPS (output bytes)";
-	CAT_INANE("stats") << "(Mask Encoding) Compression ratio : " << Stats.compressionRatio << ":1 (" << Stats.compressedDataBytes << " bytes) of original data set (" << Stats.originalDataBytes << " bytes)";
+	CAT_INANE("stats") << "(Mask Encoding) Pixels covered : " << Stats.covered << " (" << Stats.covered * 100. / (_width * _height) << " %total)";
+	CAT_INANE("stats") << "(Mask Encoding) Compression ratio : " << Stats.compressionRatio << ":1";
 
 	return true;
 }
