@@ -34,7 +34,6 @@ protected:
 #endif
 
 	void clear();
-	bool readHuffmanTable(int num_syms, HuffmanDecoder &table, ImageReader &reader);
 
 public:
 	CAT_INLINE EntropyDecoder() {

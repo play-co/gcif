@@ -497,11 +497,7 @@ int cat::writeHuffmanTable(int num_syms, u8 codelens[], ImageWriter &writer) {
 	static const int HUFF_SYMS = HuffmanDecoder::MAX_CODE_SIZE + 1;
 
 	CAT_ENFORCE(HUFF_SYMS == 17);
-
-	// Degenerate case: Empty or single element
-	if (num_syms <= 1) {
-		return 0;
-	}
+	CAT_ENFORCE(num_syms >= 2);
 
 	int bc = 0;
 
@@ -553,7 +549,7 @@ int cat::writeHuffmanTable(int num_syms, u8 codelens[], ImageWriter &writer) {
 	 * 00 : No modifications
 	 * 01 : Monotonically increasing: Subtract previous from next
 	 * 10 : Increasing then decreasing: Switch to next minus previous half way through
-	 * 11 : Predict using running average
+	 * 11 : Monotonically increasing with a smoothed average of the last two
 	 */
 
 	int bitcount[4] = { 0 };
@@ -711,18 +707,18 @@ int cat::writeHuffmanTable(int num_syms, u8 codelens[], ImageWriter &writer) {
 	{
 		// Collect statistics
 		u16 freqs[HUFF_SYMS] = {0};
-		u32 sum = 1, count = 1;
+		u32 lag0 = 1, lag1 = 1;
 		for (int ii = 0; ii < num_syms; ++ii) {
 			u8 len = codelens[ii];
 
 			CAT_ENFORCE(len < HUFF_SYMS);
 
-			u32 pred = sum / count;
+			u32 pred = (lag0 + lag1) >> 1;
 
 			u8 sym = (len - pred + HUFF_SYMS) % HUFF_SYMS;
 
-			sum += len;
-			count++;
+			lag1 = lag0;
+			lag0 = len;
 
 			freqs[sym]++;
 		}
@@ -744,16 +740,16 @@ int cat::writeHuffmanTable(int num_syms, u8 codelens[], ImageWriter &writer) {
 		}
 
 		// Add bitcount for symbols
-		sum = 1, count = 1;
+		lag0 = 1, lag1 = 1;
 		for (int ii = 0; ii < num_syms; ++ii) {
 			u8 len = codelens[ii];
 
-			u32 pred = sum / count;
+			u32 pred = (lag0 + lag1) >> 1;
 
 			u8 sym = (len - pred + HUFF_SYMS) % HUFF_SYMS;
 
-			sum += len;
-			count++;
+			lag1 = lag0;
+			lag0 = len;
 
 			bitcount[3] += table_codelens[3][sym];
 		}
@@ -769,9 +765,6 @@ int cat::writeHuffmanTable(int num_syms, u8 codelens[], ImageWriter &writer) {
 	}
 	bc += 2 + bitcount[best];
 
-	// Write best method
-	writer.writeBits(best, 2);
-
 	// Write best table
 	for (int ii = 0; ii < HUFF_SYMS; ++ii) {
 		u8 len = table_codelens[best][ii];
@@ -783,6 +776,9 @@ int cat::writeHuffmanTable(int num_syms, u8 codelens[], ImageWriter &writer) {
 			writer.writeBits(len, 4);
 		}
 	}
+
+	// Write best method
+	writer.writeBits(best, 2);
 
 	// Write best symbols
 	switch (best) {
@@ -833,16 +829,16 @@ int cat::writeHuffmanTable(int num_syms, u8 codelens[], ImageWriter &writer) {
 		break;
 	case 3:
 		{
-			u32 sum = 1, count = 1;
+			u32 lag0 = 1, lag1 = 1;
 			for (int ii = 0; ii < num_syms; ++ii) {
 				u8 len = codelens[ii];
 
-				u32 pred = sum / count;
+				u32 pred = (lag0 + lag1) >> 1;
 
 				u8 sym = (len - pred + HUFF_SYMS) % HUFF_SYMS;
 
-				sum += len;
-				count++;
+				lag1 = lag0;
+				lag0 = len;
 
 				writer.writeBits(table_codes[3][sym], table_codelens[3][sym]);
 			}

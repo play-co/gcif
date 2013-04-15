@@ -178,3 +178,128 @@ bool HuffmanDecoder::init(int count, const u8 *codelens, u32 table_bits) {
 	return true;
 }
 
+bool HuffmanDecoder::init(int num_syms, ImageReader &reader, u32 table_bits) {
+	static const int HUFF_SYMS = MAX_CODE_SIZE + 1;
+	u8 codelens[huffman::cHuffmanMaxSupportedSyms];
+
+	CAT_ENFORCE(HUFF_SYMS == 17);
+	CAT_ENFORCE(num_syms >= 2);
+
+	// Shaved?
+
+	if (reader.readBit()) {
+		int num_syms_bits = BSR32(num_syms - 1) + 1;
+
+		int shaved = reader.readBits(num_syms_bits) + 1;
+		if (shaved >= num_syms) {
+			// Invalid input
+			return false;
+		}
+
+		for (int ii = shaved; ii < num_syms; ++ii) {
+			codelens[ii] = 0;
+		}
+
+		num_syms = shaved;
+	}
+
+	// If the symbol count is low,
+	if (num_syms <= 20) {
+		for (int ii = 0; ii < num_syms; ++ii) {
+			u8 len = reader.readBits(4);
+
+			if (len >= 15) {
+				len += reader.readBit();
+			}
+
+			codelens[ii] = len;
+		}
+
+		return init(num_syms, codelens, table_bits);
+	}
+
+	// Read the table decoder codelens
+	u8 table_codelens[HUFF_SYMS];
+	for (int ii = 0; ii < HUFF_SYMS; ++ii) {
+		u8 len = reader.readBits(4);
+
+		if (len >= 15) {
+			len += reader.readBit();
+		}
+
+		table_codelens[ii] = len;
+	}
+
+	// Initialize the table decoder
+	HuffmanDecoder table_decoder;
+	if (!table_decoder.init(HUFF_SYMS, table_codelens, 8)) {
+		// Init fail
+		return false;
+	}
+
+	// Read the method chosen
+	switch (reader.readBits(2)) {
+	default:
+	case 0:
+		{
+			for (int ii = 0; ii < num_syms; ++ii) {
+				codelens[ii] = reader.nextHuffmanSymbol(&table_decoder);
+			}
+		}
+		break;
+	case 1:
+		{
+			u8 prev = 1;
+			for (int ii = 0; ii < num_syms; ++ii) {
+				u32 sym = reader.nextHuffmanSymbol(&table_decoder);
+
+				u8 len = (sym + prev) % HUFF_SYMS;
+				prev = len;
+
+				codelens[ii] = len;
+			}
+		}
+		break;
+	case 2:
+		{
+			u8 prev = 1;
+			const int half = num_syms/2;
+			for (int ii = 0; ii < half; ++ii) {
+				u32 sym = reader.nextHuffmanSymbol(&table_decoder);
+
+				u8 len = (sym + prev) % HUFF_SYMS;
+				prev = len;
+
+				codelens[ii] = len;
+			}
+			for (int ii = half; ii < num_syms; ++ii) {
+				u32 sym = reader.nextHuffmanSymbol(&table_decoder);
+
+				u8 len = (prev - sym + HUFF_SYMS) % HUFF_SYMS;
+				prev = len;
+
+				codelens[ii] = len;
+			}
+		}
+		break;
+	case 3:
+		{
+			u32 lag0 = 1, lag1 = 1;
+			for (int ii = 0; ii < num_syms; ++ii) {
+				u32 sym = reader.nextHuffmanSymbol(&table_decoder);
+
+				u32 pred = (lag0 + lag1) >> 1;
+
+				u8 len = (sym + pred) % HUFF_SYMS;
+				lag1 = lag0;
+				lag0 = len;
+
+				codelens[ii] = len;
+			}
+		}
+		break;
+	}
+
+	return init(num_syms, codelens, table_bits);
+}
+

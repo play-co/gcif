@@ -421,22 +421,13 @@ int ImageMaskReader::read(ImageReader &reader) {
 	double t1 = m_clock->usec();
 #endif // CAT_COLLECT_STATS
 
-	u8 codelens[NUM_SYMS];
-	if (!readHuffmanCodelens(codelens, reader)) {
-		return RE_MASK_CODES;
-	}
-
-#ifdef CAT_COLLECT_STATS
-	double t2 = m_clock->usec();
-#endif // CAT_COLLECT_STATS
-
 	HuffmanDecoder decoder;
-	if (!decoder.init(NUM_SYMS, codelens, 8)) {
+	if (!decoder.init(NUM_SYMS, reader, 8)) {
 		return RE_MASK_DECI;
 	}
 
 #ifdef CAT_COLLECT_STATS
-	double t3 = m_clock->usec();
+	double t2 = m_clock->usec();
 
 	Stats.rleUsec = 0;
 #endif // CAT_COLLECT_STATS
@@ -446,13 +437,12 @@ int ImageMaskReader::read(ImageReader &reader) {
 	}
 
 #ifdef CAT_COLLECT_STATS
-	double t4 = m_clock->usec();
+	double t3 = m_clock->usec();
 
 	Stats.initUsec = t1 - t0;
-	Stats.readCodelensUsec = t2 - t1;
-	Stats.initHuffmanUsec = t3 - t2;
-	Stats.lzUsec = t4 - t3 - Stats.rleUsec;
-	Stats.overallUsec = t4 - t0;
+	Stats.initHuffmanUsec = t2 - t1;
+	Stats.lzUsec = t3 - t2 - Stats.rleUsec;
+	Stats.overallUsec = t3 - t0;
 
 	Stats.originalDataBytes = _width * _height / 8;
 #endif // CAT_COLLECT_STATS
@@ -484,7 +474,6 @@ int ImageMaskReader::read(ImageReader &reader) {
 
 bool ImageMaskReader::dumpStats() {
 	CAT_INFO("stats") << "(Mask Decode) Initialization : " <<  Stats.initUsec << " usec (" << Stats.initUsec * 100.f / Stats.overallUsec << " %total)";
-	CAT_INFO("stats") << "(Mask Decode)  Read Codelens : " <<  Stats.readCodelensUsec << " usec (" << Stats.readCodelensUsec * 100.f / Stats.overallUsec << " %total)";
 	CAT_INFO("stats") << "(Mask Decode)  Setup Huffman : " <<  Stats.initHuffmanUsec << " usec (" << Stats.initHuffmanUsec * 100.f / Stats.overallUsec << " %total)";
 	CAT_INFO("stats") << "(Mask Decode)     Huffman+LZ : " <<  Stats.lzUsec << " usec (" << Stats.lzUsec * 100.f / Stats.overallUsec << " %total)";
 	CAT_INFO("stats") << "(Mask Decode)     RLE+Filter : " <<  Stats.rleUsec << " usec (" << Stats.rleUsec * 100.f / Stats.overallUsec << " %total)";

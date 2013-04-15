@@ -59,47 +59,13 @@ int ImageCMReader::init(GCIFImage *image) {
 }
 
 int ImageCMReader::readFilterTables(ImageReader &reader) {
-	// Read spatial filter codelens
-	u8 sf_codelens[SF_COUNT];
-
-	// For each table entry,
-	for (int ii = 0; ii < SF_COUNT; ++ii) {
-		// Read codelen
-		u32 len = reader.readBits(4);
-
-		// If codelen is extended,
-		if (len >= 15) {
-			// Can only be extended once
-			len += reader.readBit();
-		}
-
-		sf_codelens[ii] = len;
-	}
-
 	// Initialize huffman decoder
-	if (reader.eof() || !_sf.init(SF_COUNT, sf_codelens, 8)) {
+	if (reader.eof() || !_sf.init(SF_COUNT, reader, 8)) {
 		return RE_CM_CODES;
 	}
 
-	// Read color filter codelens
-	u8 cf_codelens[CF_COUNT];
-
-	// For each table entry,
-	for (int ii = 0; ii < CF_COUNT; ++ii) {
-		// Read codelen
-		u32 len = reader.readBits(4);
-
-		// If codelen is extended,
-		if (len >= 15) {
-			// Can only be extended once
-			len += reader.readBit();
-		}
-
-		cf_codelens[ii] = len;
-	}
-
 	// Initialize huffman decoder
-	if (reader.eof() || !_cf.init(CF_COUNT, cf_codelens, 8)) {
+	if (reader.eof() || !_cf.init(CF_COUNT, reader, 8)) {
 		return RE_CM_CODES;
 	}
 

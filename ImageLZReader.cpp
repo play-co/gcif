@@ -54,24 +54,8 @@ int ImageLZReader::readHuffmanTable(ImageReader &reader) {
 		return RE_LZ_CODES;
 	}
 
-	// Read codelens
-	u8 codelens[NUM_SYMS];
-	for (int ii = 0; ii < NUM_SYMS; ++ii) {
-		u32 len = reader.readBits(4);
-		if (len >= 15) {
-			len += reader.readBit();
-		}
-
-		codelens[ii] = len;
-	}
-
-	// If file truncated,
-	if (reader.eof()) {
-		return RE_LZ_CODES;
-	}
-
 	// If not able to init Huffman decoder
-	if (!_huffman.init(NUM_SYMS, codelens, 8)) {
+	if (!_huffman.init(NUM_SYMS, reader, 8)) {
 		return RE_LZ_CODES;
 	}
 

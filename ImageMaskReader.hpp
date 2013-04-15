@@ -42,7 +42,7 @@ class ImageMaskReader {
 #ifdef CAT_COLLECT_STATS
 public:
 	struct _Stats {
-		double initUsec, readCodelensUsec, initHuffmanUsec;
+		double initUsec, initHuffmanUsec;
 		double lzUsec, rleUsec;
 		double overallUsec;
 

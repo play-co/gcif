@@ -1,5 +1,5 @@
-#ifndef CAT_HUFFMAN_DECODER_H
-#define CAT_HUFFMAN_DECODER_H
+#ifndef CAT_HUFFMAN_DECODER_HPP
+#define CAT_HUFFMAN_DECODER_HPP
 
 #include "Platform.hpp"
 
@@ -8,11 +8,15 @@
 namespace cat {
 
 
+class ImageReader;
+
+
 //// HuffmanDecoder
 
 class HuffmanDecoder {
 public:
 	static const u32 MAX_CODE_SIZE = 16;
+	static const u32 MAX_TABLE_BITS = 11; // Time-memory tradeoff LUT optimization limit
 
 protected:
 	u32 _num_syms;
@@ -37,6 +41,8 @@ protected:
 
 	void clear();
 
+	bool init(int num_syms, const u8 codelens[], u32 table_bits);
+
 public:
 	CAT_INLINE HuffmanDecoder() {
 		_cur_sorted_symbol_order_size = 0;
@@ -49,9 +55,7 @@ public:
 		clear();
 	}
 
-	static const u32 MAX_TABLE_BITS = 11; // Time-memory tradeoff LUT optimization limit
-
-	bool init(int num_syms, const u8 codelens[], u32 table_bits);
+	bool init(int num_syms, ImageReader &reader, u32 table_bits);
 
 	// Returns symbol, bitlength
 	CAT_INLINE u32 get(u32 code, u32 &bitLength) {
@@ -93,5 +97,5 @@ public:
 
 } // namespace cat
 
-#endif // CAT_HUFFMAN_DECODER_H
+#endif // CAT_HUFFMAN_DECODER_HPP
 
