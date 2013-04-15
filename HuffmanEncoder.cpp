@@ -463,8 +463,6 @@ void cat::normalizeFreqs(u32 max_freq, int num_syms, u32 hist[], u16 freqs[]) {
 }
 
 void cat::collectArrayFreqs(int num_syms, int data_size, u8 data[], u16 freqs[]) {
-	const int MAX_FREQ = 0xffff;
-
 	u32 hist[cHuffmanMaxSupportedSyms] = {0};
 	int max_freq = 0;
 

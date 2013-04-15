@@ -191,8 +191,10 @@ template<class T> T *SingletonImpl<T>::GetRef()
 
 
 #define CAT_SINGLETON_MUTEX(T)				\
-	static cat::SingletonImpl<T> m_T_ss;	\
-	template<> T *Singleton<T>::ref() { return m_T_ss.GetRef(); }
+	namespace cat { \
+	static SingletonImpl<T> m_T_ss;	\
+	template<> T *Singleton<T>::ref() { return m_T_ss.GetRef(); } \
+	}
 
 // In the C file for the object, use this macro:
 #define CAT_SINGLETON(T)	CAT_SINGLETON_MUTEX(T)
