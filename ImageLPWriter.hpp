@@ -10,18 +10,27 @@
 /*
  * Game Closure Local Palette (GC-2D-LP) Compression
  *
- * This algorithm searches for rectangular regions where the number of colors
+ * This algorithm searches for rectangular zones where the number of colors
  * used is less than a quarter of the number of pixels in the region, or some
  * sort of clever threshold like that that seems to work well; let's be honest
  * this is mainly black magic.
  *
- * Each region takes 6.5 bytes to represent: x(16b), y(16b), w(8b), h(8b), c(4b)
- * Plus the cost of transmitting each color.
- * Each color costs 4.1 bits for the Huffman table entry + 4 bytes for the
- * color itself.
+ * Because the colors often repeat between different zones, a global palette is
+ * created from each zone palette.  The global palette indices are then used to
+ * reference the actual color value in each zone palette.  This global color
+ * palette is compressed by converting the RGBA data to YUVA using one of the
+ * color filters (the best is selected based on entropy measurement) and then
+ * Huffman-encoding each color plane separately.
  *
- * If the compression ratio exceeds 4:1 it is acceptable, and the largest area
- * with this ratio or better is chosen.
+ * Each zone is also Huffman encoded using simple prediction filters for each
+ * of the fields (x,y,w,h,used).
+ *
+ * If more than one color is used in a zone, then the zone palette index for
+ * each pixel is Huffman encoded.  If there is just one color in a zone, then
+ * no bits are emitted per-pixel since it can be assumed (this happens often).
+ *
+ * When there are only a few colors or only a few zones, compression is not
+ * performed on the overhead since it would probably not help.
  */
 
 namespace cat {
