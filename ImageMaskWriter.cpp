@@ -459,8 +459,7 @@ void ImageMaskWriter::write(ImageWriter &writer) {
 	Stats.overallUsec = t7 - t0;
 
 	Stats.compressedDataBits = Stats.data_bits + Stats.table_bits;
-	Stats.compressedDataBytes = Stats.compressedDataBits / 8;
-	Stats.compressionRatio = Stats.covered * 4 / (double)Stats.compressedDataBytes;
+	Stats.compressionRatio = Stats.covered * 4 / (double)(Stats.compressedDataBits/8);
 
 #endif // CAT_COLLECT_STATS
 }
@@ -482,8 +481,7 @@ bool ImageMaskWriter::dumpStats() {
 	CAT_INANE("stats") << "(Mask Encoding)    Encode Data : " <<  Stats.dataEncodeUsec << " usec (" << Stats.dataEncodeUsec * 100.f / Stats.overallUsec << " %total)";
 	CAT_INANE("stats") << "(Mask Encoding)        Overall : " <<  Stats.overallUsec << " usec";
 
-	CAT_INANE("stats") << "(Mask Encoding) Throughput : " << Stats.originalDataBytes / Stats.overallUsec << " MBPS (input bytes)";
-	CAT_INANE("stats") << "(Mask Encoding) Throughput : " << Stats.compressedDataBytes / Stats.overallUsec << " MBPS (output bytes)";
+	CAT_INANE("stats") << "(Mask Encoding) Throughput : " << Stats.compressedDataBits/8 / Stats.overallUsec << " MBPS (output bytes)";
 	CAT_INANE("stats") << "(Mask Encoding) Pixels covered : " << Stats.covered << " (" << Stats.covered * 100. / (_width * _height) << " %total)";
 	CAT_INANE("stats") << "(Mask Encoding) Compression ratio : " << Stats.compressionRatio << ":1";
 

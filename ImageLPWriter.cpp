@@ -614,7 +614,7 @@ void ImageLPWriter::write(ImageWriter &writer) {
 				for (int y = m->y, yend = m->y + m->h; y < yend; ++y) {
 					for (int x = m->x, xend = m->x + m->w; x < xend; ++x) {
 						u32 color = rgba[x + y * _width];
-						int colorIndex = -1;
+						int colorIndex = 0;
 
 						for (int jj = 0; jj < m->used; ++jj) {
 							u32 tc = m->colors[jj];

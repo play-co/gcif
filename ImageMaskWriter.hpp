@@ -50,7 +50,6 @@ public:
 		double overallUsec;
 
 		int compressedDataBits;
-		int originalDataBytes, compressedDataBytes;
 
 		double compressionRatio;
 	} Stats;
