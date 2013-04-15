@@ -36,8 +36,6 @@ int ImageLPReader::init(const ImageHeader *header) {
 }
 
 int ImageLPReader::readColorTable(ImageReader &reader) {
-	static const int NUM_SYMS = 256;
-
 	// Read and validate match count
 	const u32 colors_size = reader.readBits(16);
 	_colors_size = colors_size;
@@ -87,6 +85,8 @@ int ImageLPReader::readColorTable(ImageReader &reader) {
 								((u32)rgb[1] << 8) |
 								((u32)rgb[2] << 16) |
 								((u32)a << 24));
+
+			CAT_WARN("COLOR") << _colors[ii];
 		}
 	} else {
 		// Read colors

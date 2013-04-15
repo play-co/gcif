@@ -373,19 +373,26 @@ void ImageLPWriter::write(ImageWriter &writer) {
 			ee[1].setup();
 			ee[2].setup();
 
+			RGB2YUVFilterFunction cff = RGB2YUV_FILTERS[cf];
+
 			for (int ii = 0; ii < colors.size(); ++ii) {
 				u32 rgba = getLE(colors[ii]);
-				u8 r = (u8)rgba;
-				u8 g = (u8)(rgba >> 8);
-				u8 b = (u8)(rgba >> 16);
+				u8 rgb[3] = {
+					(u8)rgba,
+					(u8)(rgba >> 8),
+					(u8)(rgba >> 16)
+				};
 
-				ee[0].push(r);
-				ee[1].push(g);
-				ee[2].push(b);
+				u8 yuv[3];
+				cff(rgb, yuv);
+
+				ee[0].push(yuv[0]);
+				ee[1].push(yuv[1]);
+				ee[2].push(yuv[2]);
 			}
 
 			double e = ee[0].entropy() + ee[1].entropy() + ee[2].entropy();
-			if (e > best) {
+			if (cf == 0 || e < best) {
 				best = e;
 				bestCF = cf;
 			}
