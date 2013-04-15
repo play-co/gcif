@@ -28,8 +28,8 @@ static CAT_INLINE int score(u8 p) {
 	}
 }
 
-static CAT_INLINE int scoreYUVA(u8 *yuv, u8 a) {
-	return score(yuv[0]) + score(yuv[1]) + score(yuv[2]) + score(a);
+static CAT_INLINE int scoreYUV(u8 *yuv) {
+	return score(yuv[0]) + score(yuv[1]) + score(yuv[2]);
 }
 
 static CAT_INLINE int wrapNeg(u8 p) {
@@ -76,8 +76,8 @@ int ImageCMWriter::init(int width, int height) {
 }
 
 void ImageCMWriter::decideFilters() {
-	EntropyEstimator<u8> ee[PLANES];
-	for (int ii = 0; ii < PLANES; ++ii) {
+	EntropyEstimator<u8> ee[3];
+	for (int ii = 0; ii < 3; ++ii) {
 		ee[ii].clear(256);
 	}
 
@@ -120,8 +120,8 @@ void ImageCMWriter::decideFilters() {
 							for (int ii = 0; ii < SF_COUNT; ++ii) {
 								const u8 *pred = SPATIAL_FILTERS[ii](p, px, py, width);
 
-								u8 temp[PLANES];
-								for (int jj = 0; jj < PLANES; ++jj) {
+								u8 temp[3];
+								for (int jj = 0; jj < 3; ++jj) {
 									temp[jj] = p[jj] - pred[jj];
 								}
 
@@ -129,7 +129,7 @@ void ImageCMWriter::decideFilters() {
 									u8 yuv[3];
 									RGB2YUV_FILTERS[jj](temp, yuv);
 
-									int error = scoreYUVA(yuv, temp[3]);
+									int error = scoreYUV(yuv);
 
 									scores.add(ii + jj*SF_COUNT, error);
 								}
@@ -164,8 +164,8 @@ void ImageCMWriter::decideFilters() {
 
 							for (int ii = 0; ii < SF_COUNT; ++ii) {
 								const u8 *pred = SPATIAL_FILTERS[ii](p, px, py, width);
-								u8 temp[PLANES];
-								for (int jj = 0; jj < PLANES; ++jj) {
+								u8 temp[3];
+								for (int jj = 0; jj < 3; ++jj) {
 									temp[jj] = p[jj] - pred[jj];
 								}
 
@@ -173,7 +173,7 @@ void ImageCMWriter::decideFilters() {
 									u8 yuv[3];
 									RGB2YUV_FILTERS[jj](temp, yuv);
 
-									int error = scoreYUVA(yuv, temp[3]);
+									int error = scoreYUV(yuv);
 
 									scores.add(ii + SF_COUNT*jj, error);
 								}
@@ -199,7 +199,7 @@ void ImageCMWriter::decideFilters() {
 							u8 sf = top[ii].index % SF_COUNT;
 							u8 cf = top[ii].index / SF_COUNT;
 
-							for (int jj = 0; jj < PLANES; ++jj) {
+							for (int jj = 0; jj < 3; ++jj) {
 								ee[jj].setup();
 							}
 
@@ -217,8 +217,8 @@ void ImageCMWriter::decideFilters() {
 
 									const u8 *p = _rgba + (px + py * width) * 4;
 									const u8 *pred = SPATIAL_FILTERS[sf](p, px, py, width);
-									u8 temp[PLANES];
-									for (int jj = 0; jj < PLANES; ++jj) {
+									u8 temp[3];
+									for (int jj = 0; jj < 3; ++jj) {
 										temp[jj] = p[jj] - pred[jj];
 									}
 
@@ -228,23 +228,22 @@ void ImageCMWriter::decideFilters() {
 									ee[0].push(yuv[0]);
 									ee[1].push(yuv[1]);
 									ee[2].push(yuv[2]);
-									ee[3].push(temp[3]);
 								}
 							}
 
-							double score = ee[0].entropy() + ee[1].entropy() + ee[2].entropy() + ee[3].entropy();
+							double score = ee[0].entropy() + ee[1].entropy() + ee[2].entropy();
 							if (ii == 0) {
 								bestScore = score;
 								bestSF = sf;
 								bestCF = cf;
-								for (int jj = 0; jj < PLANES; ++jj) {
+								for (int jj = 0; jj < 3; ++jj) {
 									ee[jj].save();
 								}
 							} else {
 								if (score < bestScore) {
 									bestSF = sf;
 									bestCF = cf;
-									for (int jj = 0; jj < PLANES; ++jj) {
+									for (int jj = 0; jj < 3; ++jj) {
 										ee[jj].save();
 									}
 									bestScore = score;
@@ -252,7 +251,7 @@ void ImageCMWriter::decideFilters() {
 							}
 						}
 
-						for (int jj = 0; jj < PLANES; ++jj) {
+						for (int jj = 0; jj < 3; ++jj) {
 							ee[jj].commit();
 						}
 					}
@@ -292,14 +291,15 @@ void ImageCMWriter::chaosStats() {
 
 				// Apply spatial filter
 				const u8 *pred = SPATIAL_FILTERS[sf](p, x, y, width);
-				u8 temp[PLANES];
-				for (int jj = 0; jj < PLANES; ++jj) {
+				u8 temp[3];
+				for (int jj = 0; jj < 3; ++jj) {
 					temp[jj] = p[jj] - pred[jj];
 				}
 
 				// Apply color filter
-				u8 yuv[3];
+				u8 yuv[PLANES];
 				RGB2YUV_FILTERS[cf](temp, yuv);
+				yuv[3] = 255 - p[3];
 
 				// For each color,
 				for (int c = 0; c < PLANES; ++c) {
@@ -529,14 +529,15 @@ bool ImageCMWriter::writeChaos(ImageWriter &writer) {
 
 				// Apply spatial filter
 				const u8 *pred = SPATIAL_FILTERS[sf](p, x, y, width);
-				u8 temp[PLANES];
-				for (int jj = 0; jj < PLANES; ++jj) {
+				u8 temp[3];
+				for (int jj = 0; jj < 3; ++jj) {
 					temp[jj] = p[jj] - pred[jj];
 				}
 
 				// Apply color filter
-				u8 yuv[3];
+				u8 yuv[4];
 				RGB2YUV_FILTERS[cf](temp, yuv);
+				yuv[3] = 255 - p[3];
 
 				// For each color,
 				for (int c = 0; c < PLANES; ++c) {
