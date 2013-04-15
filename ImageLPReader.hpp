@@ -39,7 +39,7 @@ protected:
 		u32 colors[MAX_COLORS];
 		int used;
 
-		HuffmanDecoder huffman;
+		HuffmanDecoder decoder;
 
 		u16 x, y;
 		u16 w, h;

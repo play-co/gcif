@@ -466,20 +466,8 @@ void ImageLPWriter::write(ImageWriter &writer) {
 	// Write zone list size
 	writer.writeBits(_exact_matches.size(), 16);
 
-	// Color index huffman tables
-	u16 index_codes[2][256];
-	u8 index_codelens[2][256];
-	indexHist[0].generateHuffman(index_codes[0], index_codelens[0]);
-	indexHist[1].generateHuffman(index_codes[1], index_codelens[1]);
-
-	int index_huff_bits = writeHuffmanTable(256, index_codelens[0], writer);
-
-	// If there are more colors than one byte,
-	if (colors.size() > 256) {
-		index_huff_bits += writeHuffmanTable(256, index_codelens[1], writer);
-	}
 #ifdef CAT_COLLECT_STATS
-	u32 overhead = 32 + index_huff_bits;
+	u32 overhead = 32;
 	u32 pixelsize = 0;
 #endif
 
@@ -531,6 +519,23 @@ void ImageLPWriter::write(ImageWriter &writer) {
 			overhead += table_bits;
 #endif
 		}
+
+		// Color index huffman tables
+		u16 index_codes[2][256];
+		u8 index_codelens[2][256];
+		indexHist[0].generateHuffman(index_codes[0], index_codelens[0]);
+		indexHist[1].generateHuffman(index_codes[1], index_codelens[1]);
+
+		int index_huff_bits = writeHuffmanTable(256, index_codelens[0], writer);
+
+		// If there are more colors than one byte,
+		if (colors.size() > 256) {
+			index_huff_bits += writeHuffmanTable(256, index_codelens[1], writer);
+		}
+
+#ifdef CAT_COLLECT_STATS
+		overhead += index_huff_bits;
+#endif
 
 		// Encode zones
 		for (int ii = 0; ii < _exact_matches.size(); ++ii) {

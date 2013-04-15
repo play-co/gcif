@@ -120,7 +120,6 @@ int ImageLPReader::readZones(ImageReader &reader) {
 
 	// Allocate space for zones
 	_zones = new Zone[zones_size];
-	u16 last_x = 0, last_y = 0;
 	Zone *z = _zones;
 
 	if (zones_size >= HUFF_ZONE_THRESH) {
@@ -136,9 +135,77 @@ int ImageLPReader::readZones(ImageReader &reader) {
 			}
 		}
 
+		// Read color index decoders
+		HuffmanDecoder index_decoders[2];
+		if (!index_decoders[0].init(256, reader, 8)) {
+			return RE_LP_CODES;
+		}
+		if (_colors_size > 256) {
+			if (!index_decoders[1].init(256, reader, 8)) {
+				return RE_LP_CODES;
+			}
+		}
+
 		// For each zone to read,
+		u16 last_x = 0, last_y = 0;
 		for (int ii = 0; ii < zones_size; ++ii, ++z) {
-			// TODO
+			u32 x = reader.nextHuffmanSymbol(&zone_decoders[0]);
+			u32 x1 = reader.nextHuffmanSymbol(&zone_decoders[1]);
+			x |= x1 << 8;
+			u32 y = reader.nextHuffmanSymbol(&zone_decoders[2]);
+			u32 y1 = reader.nextHuffmanSymbol(&zone_decoders[3]);
+			y |= y1 << 8;
+			u32 w = reader.nextHuffmanSymbol(&zone_decoders[4]) + ZONEW;
+			u32 h = reader.nextHuffmanSymbol(&zone_decoders[4]) + ZONEH;
+			u32 used = reader.nextHuffmanSymbol(&zone_decoders[5]) + 1;
+
+			// Context modeling for the offsets
+			if (y == 0) {
+				x += last_x;
+			}
+			y += last_y;
+
+			z->x = x;
+			z->y = y;
+			z->w = w;
+			z->h = h;
+			z->used = used;
+
+			if (used <= 1) {
+				u32 c = reader.nextHuffmanSymbol(&index_decoders[0]);
+				if (_colors_size > 256) {
+					u32 c1 = reader.nextHuffmanSymbol(&index_decoders[1]);
+					c |= c1 << 8;
+				}
+
+				if (c >= _colors_size) {
+					return RE_LP_CODES;
+				}
+
+				z->colors[0] = _colors[c];
+			} else {
+				// Read pixel decoder
+				z->decoder.init(used, reader, 8);
+
+				// Read colors
+				for (int ii = 0; ii < used; ++ii) {
+					u32 c = reader.nextHuffmanSymbol(&index_decoders[0]);
+					if (_colors_size > 256) {
+						u32 c1 = reader.nextHuffmanSymbol(&index_decoders[1]);
+						c |= c1 << 8;
+					}
+
+					if (c >= _colors_size) {
+						return RE_LP_CODES;
+					}
+
+					z->colors[ii] = _colors[c];
+				}
+			}
+
+			last_x = x;
+			last_y = y;
+			++z;
 		}
 	} else {
 		int colorIndexBits = (int)BSR32(_colors_size - 1) + 1;
@@ -169,7 +236,7 @@ int ImageLPReader::readZones(ImageReader &reader) {
 
 			// If at least two colors are present,
 			if (d->used > 1) {
-				d->huffman.init(d->used, reader, 8);
+				d->decoder.init(d->used, reader, 8);
 			}
 
 			for (int jj = 0; jj < d->used; ++jj) {
@@ -211,7 +278,7 @@ int ImageLPReader::triggerX(u8 *p, ImageReader &reader) {
 		}
 	} else {
 		for (int jj = 0, jjend = zi->w; jj < jjend; ++jj) {
-			u8 sym = reader.nextHuffmanSymbol(&zi->huffman);
+			u8 sym = reader.nextHuffmanSymbol(&zi->decoder);
 			dest[jj] = zi->colors[sym];
 		}
 	}
