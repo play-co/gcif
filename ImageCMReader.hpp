@@ -38,6 +38,7 @@ namespace cat {
 class ImageCMReader {
 public:
 	static const int CHAOS_LEVELS = 8;
+	static const int PLANES = 4;
 
 protected:
 	u8 *_rgba;
@@ -55,7 +56,7 @@ protected:
 	ImageLPReader *_lp;
 
 	HuffmanDecoder _sf, _cf;
-	EntropyDecoder _decoder[3][CHAOS_LEVELS];
+	EntropyDecoder _decoder[PLANES][CHAOS_LEVELS];
 
 	void clear();
 

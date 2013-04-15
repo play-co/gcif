@@ -53,7 +53,7 @@ int ImageCMReader::init(GCIFImage *image) {
 	_filters = new FilterSelection[_width >> FILTER_ZONE_SIZE_SHIFT];
 
 	// And last row of chaos data
-	_chaos = new u8[_width * 3];
+	_chaos = new u8[_width * PLANES];
 
 	return RE_OK;
 }
@@ -74,7 +74,7 @@ int ImageCMReader::readFilterTables(ImageReader &reader) {
 
 int ImageCMReader::readChaosTables(ImageReader &reader) {
 	// For each color plane,
-	for (int ii = 0; ii < 3; ++ii) {
+	for (int ii = 0; ii < PLANES; ++ii) {
 		// For each chaos level,
 		for (int jj = 0; jj < CHAOS_LEVELS; ++jj) {
 			// Read the decoder table
@@ -91,7 +91,7 @@ int ImageCMReader::readRGB(ImageReader &reader) {
 	const int width = _width;
 
 	// Initialize previous chaos scanline to zero
-	CAT_CLR(_chaos, width * 3);
+	CAT_CLR(_chaos, width * PLANES);
 
 	// Get initial triggers
 	u16 trigger_y_lz = _lz->getTriggerY();
@@ -118,7 +118,7 @@ int ImageCMReader::readRGB(ImageReader &reader) {
 		}
 
 		// Restart for scanline
-		u8 left[3] = {0};
+		u8 left[PLANES] = {0};
 		u8 *last = _chaos;
 		SpatialFilterFunction sf;
 		YUV2RGBFilterFunction cf;
@@ -158,32 +158,31 @@ int ImageCMReader::readRGB(ImageReader &reader) {
 			// If fully transparent,
 			if (lz_skip > 0) {
 				// Record a zero here
-				for (int c = 0; c < 3; ++c) {
+				for (int c = 0; c < PLANES; ++c) {
 					left[c] = last[c] = 0;
 				}
 				--lz_skip;
 			} else if (lp_skip > 0) {
 				// Record a zero here
-				for (int c = 0; c < 3; ++c) {
+				for (int c = 0; c < PLANES; ++c) {
 					left[c] = last[c] = 0;
 				}
 				--lp_skip;
 			} else if (_mask->hasRGB(x, y)) {
 				// Write empty pixel
-				p[0] = 0;
-				p[1] = 0;
-				p[2] = 0;
-				p[3] = 0;
-				for (int c = 0; c < 3; ++c) {
+				u32 *zp = reinterpret_cast<u32 *>( p );
+				*zp = 0;
+				for (int c = 0; c < PLANES; ++c) {
 					left[c] = last[c] = 0;
 				}
 			} else {
 				// Read YUV filtered pixel
-				u8 yuv[3];
+				u8 yuv[3], a;
 
 				left[0] = last[0] = yuv[0] = _decoder[0][CHAOS_TABLE[left[0] + (u16)last[0]]].next(reader);
 				left[1] = last[1] = yuv[1] = _decoder[1][CHAOS_TABLE[left[1] + (u16)last[1]]].next(reader);
 				left[2] = last[2] = yuv[2] = _decoder[2][CHAOS_TABLE[left[2] + (u16)last[2]]].next(reader);
+				left[3] = last[3] = a = _decoder[3][CHAOS_TABLE[left[3] + (u16)last[3]]].next(reader);
 
 				// Reverse color filter
 				u8 rgb[3];
@@ -194,11 +193,11 @@ int ImageCMReader::readRGB(ImageReader &reader) {
 				p[0] = rgb[0] + pred[0];
 				p[1] = rgb[1] + pred[1];
 				p[2] = rgb[2] + pred[2];
-				p[3] = 255;
+				p[3] = 255 - a;
 			}
 
 			// Next pixel
-			last += 3;
+			last += PLANES;
 			p += 4;
 		}
 	}

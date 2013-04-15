@@ -535,7 +535,7 @@ bool ImageCMWriter::writeChaos(ImageWriter &writer) {
 				}
 
 				// Apply color filter
-				u8 yuv[4];
+				u8 yuv[PLANES];
 				RGB2YUV_FILTERS[cf](temp, yuv);
 				yuv[3] = 255 - p[3];
 
