@@ -42,6 +42,7 @@ protected:
 	static const int FILTER_SELECT_FUZZ = 16;
 	static const int COMPRESS_LEVEL = 1;
 	static const u16 UNUSED_FILTER = 0xffff;
+	static const int PLANES = 4;
 
 	int _w, _h;
 	u16 *_matrix;
@@ -63,7 +64,7 @@ protected:
 	u8 _cf_codelens[CF_COUNT];
 	u8 _cf_unused_sym;
 
-	EntropyEncoder _encoder[3][CHAOS_LEVELS];
+	EntropyEncoder _encoder[PLANES][CHAOS_LEVELS];
 
 	int init(int width, int height);
 	void decideFilters();
@@ -82,7 +83,7 @@ public:
 		int chaos_overhead_bits;
 
 		// RGB data
-		int rgb_bits[3];
+		int rgb_bits[PLANES];
 
 		int chaos_bits;
 		int total_bits;

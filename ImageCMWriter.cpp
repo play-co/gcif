@@ -28,8 +28,8 @@ static CAT_INLINE int score(u8 p) {
 	}
 }
 
-static CAT_INLINE int scoreYUV(u8 *yuv) {
-	return score(yuv[0]) + score(yuv[1]) + score(yuv[2]);
+static CAT_INLINE int scoreYUVA(u8 *yuv, u8 a) {
+	return score(yuv[0]) + score(yuv[1]) + score(yuv[2]) + score(a);
 }
 
 static CAT_INLINE int wrapNeg(u8 p) {
@@ -70,16 +70,16 @@ int ImageCMWriter::init(int width, int height) {
 	_w = width >> FILTER_ZONE_SIZE_SHIFT;
 	_h = height >> FILTER_ZONE_SIZE_SHIFT;
 	_matrix = new u16[_w * _h];
-	_chaos = new u8[width * 3];
+	_chaos = new u8[width * PLANES];
 
 	return WE_OK;
 }
 
 void ImageCMWriter::decideFilters() {
-	EntropyEstimator<u8> ee[3];
-	ee[0].clear(256);
-	ee[1].clear(256);
-	ee[2].clear(256);
+	EntropyEstimator<u8> ee[PLANES];
+	for (int ii = 0; ii < PLANES; ++ii) {
+		ee[ii].clear(256);
+	}
 
 	FilterScorer scores;
 	scores.init(SF_COUNT * CF_COUNT);
@@ -120,17 +120,16 @@ void ImageCMWriter::decideFilters() {
 							for (int ii = 0; ii < SF_COUNT; ++ii) {
 								const u8 *pred = SPATIAL_FILTERS[ii](p, px, py, width);
 
-								for (int jj = 0; jj < CF_COUNT; ++jj) {
-									u8 temp[3] = {
-										p[0] - pred[0],
-										p[1] - pred[1],
-										p[2] - pred[2]
-									};
+								u8 temp[PLANES];
+								for (int jj = 0; jj < PLANES; ++jj) {
+									temp[jj] = p[jj] - pred[jj];
+								}
 
+								for (int jj = 0; jj < CF_COUNT; ++jj) {
 									u8 yuv[3];
 									RGB2YUV_FILTERS[jj](temp, yuv);
 
-									int error = scoreYUV(yuv);
+									int error = scoreYUVA(yuv, temp[3]);
 
 									scores.add(ii + jj*SF_COUNT, error);
 								}
@@ -165,18 +164,16 @@ void ImageCMWriter::decideFilters() {
 
 							for (int ii = 0; ii < SF_COUNT; ++ii) {
 								const u8 *pred = SPATIAL_FILTERS[ii](p, px, py, width);
+								u8 temp[PLANES];
+								for (int jj = 0; jj < PLANES; ++jj) {
+									temp[jj] = p[jj] - pred[jj];
+								}
 
 								for (int jj = 0; jj < CF_COUNT; ++jj) {
-									u8 temp[3] = {
-										p[0] - pred[0],
-										p[1] - pred[1],
-										p[2] - pred[2]
-									};
-
 									u8 yuv[3];
 									RGB2YUV_FILTERS[jj](temp, yuv);
 
-									int error = scoreYUV(yuv);
+									int error = scoreYUVA(yuv, temp[3]);
 
 									scores.add(ii + SF_COUNT*jj, error);
 								}
@@ -202,9 +199,9 @@ void ImageCMWriter::decideFilters() {
 							u8 sf = top[ii].index % SF_COUNT;
 							u8 cf = top[ii].index / SF_COUNT;
 
-							ee[0].setup();
-							ee[1].setup();
-							ee[2].setup();
+							for (int jj = 0; jj < PLANES; ++jj) {
+								ee[jj].setup();
+							}
 
 							for (int yy = 0; yy < FILTER_ZONE_SIZE; ++yy) {
 								for (int xx = 0; xx < FILTER_ZONE_SIZE; ++xx) {
@@ -220,12 +217,10 @@ void ImageCMWriter::decideFilters() {
 
 									const u8 *p = _rgba + (px + py * width) * 4;
 									const u8 *pred = SPATIAL_FILTERS[sf](p, px, py, width);
-
-									u8 temp[3] = {
-										p[0] - pred[0],
-										p[1] - pred[1],
-										p[2] - pred[2]
-									};
+									u8 temp[PLANES];
+									for (int jj = 0; jj < PLANES; ++jj) {
+										temp[jj] = p[jj] - pred[jj];
+									}
 
 									u8 yuv[3];
 									RGB2YUV_FILTERS[cf](temp, yuv);
@@ -233,32 +228,33 @@ void ImageCMWriter::decideFilters() {
 									ee[0].push(yuv[0]);
 									ee[1].push(yuv[1]);
 									ee[2].push(yuv[2]);
+									ee[3].push(temp[3]);
 								}
 							}
 
-							double score = ee[0].entropy() + ee[1].entropy() + ee[2].entropy();
+							double score = ee[0].entropy() + ee[1].entropy() + ee[2].entropy() + ee[3].entropy();
 							if (ii == 0) {
 								bestScore = score;
 								bestSF = sf;
 								bestCF = cf;
-								ee[0].save();
-								ee[1].save();
-								ee[2].save();
+								for (int jj = 0; jj < PLANES; ++jj) {
+									ee[jj].save();
+								}
 							} else {
 								if (score < bestScore) {
 									bestSF = sf;
 									bestCF = cf;
-									ee[0].save();
-									ee[1].save();
-									ee[2].save();
+									for (int jj = 0; jj < PLANES; ++jj) {
+										ee[jj].save();
+									}
 									bestScore = score;
 								}
 							}
 						}
 
-						ee[0].commit();
-						ee[1].commit();
-						ee[2].commit();
+						for (int jj = 0; jj < PLANES; ++jj) {
+							ee[jj].commit();
+						}
 					}
 				}
 			}
@@ -277,12 +273,12 @@ void ImageCMWriter::chaosStats() {
 	const int width = _width;
 
 	// Initialize previous chaos scanline to zero
-	CAT_CLR(_chaos, width * 3);
+	CAT_CLR(_chaos, width * PLANES);
 
 	// For each scanline,
 	const u8 *p = _rgba;
 	for (int y = 0; y < _height; ++y) {
-		u8 left[3] = {0};
+		u8 left[PLANES] = {0};
 		u8 *last = _chaos;
 
 		// For each pixel,
@@ -296,18 +292,17 @@ void ImageCMWriter::chaosStats() {
 
 				// Apply spatial filter
 				const u8 *pred = SPATIAL_FILTERS[sf](p, x, y, width);
-				u8 temp[3] = {
-					p[0] - pred[0],
-					p[1] - pred[1],
-					p[2] - pred[2]
-				};
+				u8 temp[PLANES];
+				for (int jj = 0; jj < PLANES; ++jj) {
+					temp[jj] = p[jj] - pred[jj];
+				}
 
 				// Apply color filter
 				u8 yuv[3];
 				RGB2YUV_FILTERS[cf](temp, yuv);
 
 				// For each color,
-				for (int c = 0; c < 3; ++c) {
+				for (int c = 0; c < PLANES; ++c) {
 					// Measure context chaos
 					u8 chaos = CHAOS_TABLE[left[c] + (u16)last[c]];
 
@@ -318,19 +313,19 @@ void ImageCMWriter::chaosStats() {
 					last[c] = left[c] = chaosScore(yuv[c]);
 				}
 			} else {
-				for (int c = 0; c < 3; ++c) {
+				for (int c = 0; c < PLANES; ++c) {
 					last[c] = left[c] = 0;
 				}
 			}
 
 			// Next pixel
-			last += 3;
+			last += 4;
 			p += 4;
 		}
 	}
 
 	// Finalize
-	for (int ii = 0; ii < 3; ++ii) {
+	for (int ii = 0; ii < PLANES; ++ii) {
 		for (int jj = 0; jj < CHAOS_LEVELS; ++jj) {
 			_encoder[ii][jj].finalize();
 		}
@@ -475,12 +470,12 @@ void ImageCMWriter::writeFilters(ImageWriter &writer) {
 bool ImageCMWriter::writeChaos(ImageWriter &writer) {
 #ifdef CAT_COLLECT_STATS
 	int overhead_bits = 0;
-	int bitcount[3] = {0};
+	int bitcount[PLANES] = {0};
 	int chaos_count = 0;
 	int filter_table_bits[2] = {0};
 #endif
 
-	for (int ii = 0; ii < 3; ++ii) {
+	for (int ii = 0; ii < PLANES; ++ii) {
 		for (int jj = 0; jj < CHAOS_LEVELS; ++jj) {
 			int bits = _encoder[ii][jj].writeOverhead(writer);
 #ifdef CAT_COLLECT_STATS
@@ -492,12 +487,12 @@ bool ImageCMWriter::writeChaos(ImageWriter &writer) {
 	const int width = _width;
 
 	// Initialize previous chaos scanline to zero
-	CAT_CLR(_chaos, width * 3);
+	CAT_CLR(_chaos, width * PLANES);
 
 	// For each scanline,
 	const u8 *p = _rgba;
 	for (int y = 0; y < _height; ++y) {
-		u8 left[3] = {0};
+		u8 left[PLANES] = {0};
 		u8 *last = _chaos;
 
 		// For each pixel,
@@ -534,18 +529,17 @@ bool ImageCMWriter::writeChaos(ImageWriter &writer) {
 
 				// Apply spatial filter
 				const u8 *pred = SPATIAL_FILTERS[sf](p, x, y, width);
-				u8 temp[3] = {
-					p[0] - pred[0],
-					p[1] - pred[1],
-					p[2] - pred[2]
-				};
+				u8 temp[PLANES];
+				for (int jj = 0; jj < PLANES; ++jj) {
+					temp[jj] = p[jj] - pred[jj];
+				}
 
 				// Apply color filter
 				u8 yuv[3];
 				RGB2YUV_FILTERS[cf](temp, yuv);
 
 				// For each color,
-				for (int c = 0; c < 3; ++c) {
+				for (int c = 0; c < PLANES; ++c) {
 					// Measure context chaos
 					u8 chaos = CHAOS_TABLE[left[c] + (u16)last[c]];
 
@@ -568,19 +562,19 @@ bool ImageCMWriter::writeChaos(ImageWriter &writer) {
 					_lp->writePixel(lpIndex, x, y, writer);
 				}
 
-				for (int c = 0; c < 3; ++c) {
+				for (int c = 0; c < PLANES; ++c) {
 					last[c] = left[c] = 0;
 				}
 			}
 
 			// Next pixel
-			last += 3;
+			last += 4;
 			p += 4;
 		}
 	}
 
 #ifdef CAT_COLLECT_STATS
-	for (int ii = 0; ii < 3; ++ii) {
+	for (int ii = 0; ii < PLANES; ++ii) {
 		Stats.rgb_bits[ii] = bitcount[ii];
 	}
 	Stats.chaos_overhead_bits = overhead_bits;
@@ -603,7 +597,7 @@ void ImageCMWriter::write(ImageWriter &writer) {
 		total += Stats.filter_table_bits[ii];
 		total += Stats.filter_compressed_bits[ii];
 	}
-	for (int ii = 0; ii < 3; ++ii) {
+	for (int ii = 0; ii < PLANES; ++ii) {
 		total += Stats.rgb_bits[ii];
 	}
 	total += Stats.chaos_overhead_bits;
@@ -615,7 +609,7 @@ void ImageCMWriter::write(ImageWriter &writer) {
 
 	Stats.overall_compression_ratio = _width * _height * 4 * 8 / (double)Stats.total_bits;
 
-	Stats.chaos_compression_ratio = Stats.chaos_count * 3 * 8 / (double)Stats.chaos_bits;
+	Stats.chaos_compression_ratio = Stats.chaos_count * PLANES * 8 / (double)Stats.chaos_bits;
 #endif
 }
 
@@ -631,8 +625,9 @@ bool ImageCMWriter::dumpStats() {
 	CAT_INFO("stats") << "(CM Compress) Y-Channel Compressed Size : " <<  Stats.rgb_bits[0] << " bits (" << Stats.rgb_bits[0]/8 << " bytes)";
 	CAT_INFO("stats") << "(CM Compress) U-Channel Compressed Size : " <<  Stats.rgb_bits[1] << " bits (" << Stats.rgb_bits[1]/8 << " bytes)";
 	CAT_INFO("stats") << "(CM Compress) V-Channel Compressed Size : " <<  Stats.rgb_bits[2] << " bits (" << Stats.rgb_bits[2]/8 << " bytes)";
+	CAT_INFO("stats") << "(CM Compress) A-Channel Compressed Size : " <<  Stats.rgb_bits[3] << " bits (" << Stats.rgb_bits[3]/8 << " bytes)";
 
-	CAT_INFO("stats") << "(CM Compress) YUV Overhead Size : " << Stats.chaos_overhead_bits << " bits (" << Stats.chaos_overhead_bits/8 << " bytes)";
+	CAT_INFO("stats") << "(CM Compress) YUVA Overhead Size : " << Stats.chaos_overhead_bits << " bits (" << Stats.chaos_overhead_bits/8 << " bytes)";
 	CAT_INFO("stats") << "(CM Compress) Chaos pixel count : " << Stats.chaos_count << " pixels";
 	CAT_INFO("stats") << "(CM Compress) Chaos compression ratio : " << Stats.chaos_compression_ratio << ":1";
 	CAT_INFO("stats") << "(CM Compress) Overall size : " << Stats.total_bits << " bits (" << Stats.total_bits/8 << " bytes)";
