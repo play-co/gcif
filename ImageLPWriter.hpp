@@ -76,7 +76,7 @@ class ImageLPWriter {
 #ifdef CAT_COLLECT_STATS
 public:
 	struct _Stats {
-		u32 color_list_size;
+		u32 color_list_size, total_palette_entries;
 		u32 color_list_overhead;
 		u32 zone_list_overhead;
 		u32 pixel_overhead;

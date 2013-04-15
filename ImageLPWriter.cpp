@@ -305,17 +305,22 @@ int ImageLPWriter::initFromRGBA(const u8 *rgba, int width, int height, ImageMask
 
 void ImageLPWriter::write(ImageWriter &writer) {
 	vector<u32> colors;
-	u32 covered = 0;
-	u32 ccnt = 0;
+	FreqHistogram<256> indexHist[2];
+#ifdef CAT_COLLECT_STATS
+	u32 covered = 0, ccnt = 0;
+#endif
 
 	for (int ii = 0; ii < _exact_matches.size(); ++ii) {
 		Match *m = &_exact_matches[ii];
+#ifdef CAT_COLLECT_STATS
+		ccnt += m->used;
+#endif
 
 		for (int jj = 0; jj < m->used; ++jj) {
-			++ccnt;
 			u32 color = m->colors[jj];
 			bool found = false;
 			u32 colorId = 0;
+
 			for (int kk = 0; kk < colors.size(); ++kk) {
 				if (color == colors[kk]) {
 					found = true;
@@ -329,9 +334,14 @@ void ImageLPWriter::write(ImageWriter &writer) {
 			}
 
 			m->colorIndex[jj] = colorId;
+
+			indexHist[0].add((u8)colorId);
+			indexHist[1].add((u8)(colorId >> 8));
 		}
 
+#ifdef CAT_COLLECT_STATS
 		covered += m->w * m->h;
+#endif
 	}
 
 	// Write color table
@@ -343,7 +353,8 @@ void ImageLPWriter::write(ImageWriter &writer) {
 
 	// If there are enough colors to justify the expense,
 #ifdef CAT_COLLECT_STATS
-	u32 color_overhead = 0;
+	u32 color_overhead = 32;
+	Stats.total_palette_entries = ccnt;
 #endif
 	if (colors.size() >= HUFF_COLOR_THRESH) {
 		// Huffman-encode the color table
@@ -452,14 +463,25 @@ void ImageLPWriter::write(ImageWriter &writer) {
 		}
 	}
 
-#ifdef CAT_COLLECT_STATS
-	u32 overhead = 0;
-	u32 pixelsize = 0;
-#endif
-
+	// Write zone list size
 	writer.writeWord(_exact_matches.size());
 
-	u32 colorIndexBits = BSR32((u32)colors.size()) + 1;
+	// Color index huffman tables
+	u16 index_codes[2][256];
+	u8 index_codelens[2][256];
+	indexHist[0].generateHuffman(index_codes[0], index_codelens[0]);
+	indexHist[1].generateHuffman(index_codes[1], index_codelens[1]);
+
+	int index_huff_bits = writeHuffmanTable(256, index_codelens[0], writer);
+
+	// If there are more colors than one byte,
+	if (colors.size() > 256) {
+		index_huff_bits += writeHuffmanTable(256, index_codelens[1], writer);
+	}
+#ifdef CAT_COLLECT_STATS
+	u32 overhead = 32 + index_huff_bits;
+	u32 pixelsize = 0;
+#endif
 
 	u16 last_x = 0, last_y = 0;
 
@@ -558,15 +580,18 @@ void ImageLPWriter::write(ImageWriter &writer) {
 			overhead += codelens[5][sym];
 #endif
 
-#ifdef CAT_COLLECT_STATS
-			overhead += m->used * colorIndexBits;
-#endif
-
 			if (m->used == 1) {
-				writer.writeBits(m->colorIndex[0], colorIndexBits);
+				u16 ci = m->colorIndex[0];
+				writer.writeBits(index_codes[0][(u8)ci], index_codelens[0][(u8)ci]);
 #ifdef CAT_COLLECT_STATS
-				overhead += colorIndexBits;
+				overhead += index_codelens[0][(u8)ci];
 #endif
+				if (colors.size() > 256) {
+					writer.writeBits(index_codes[1][(u8)(ci >> 8)], index_codelens[1][(u8)(ci >> 8)]);
+#ifdef CAT_COLLECT_STATS
+					overhead += index_codelens[1][(u8)(ci >> 8)];
+#endif
+				}
 			} else {
 				// Collect stats
 				FreqHistogram<16> hist;
@@ -596,10 +621,17 @@ void ImageLPWriter::write(ImageWriter &writer) {
 #endif
 
 				for (int jj = 0; jj < m->used; ++jj) {
-					writer.writeBits(m->colorIndex[jj], colorIndexBits);
+					u16 ci = m->colorIndex[jj];
+					writer.writeBits(index_codes[0][(u8)ci], index_codelens[0][(u8)ci]);
 #ifdef CAT_COLLECT_STATS
-					overhead += colorIndexBits;
+					overhead += index_codelens[0][(u8)ci];
 #endif
+					if (colors.size() > 256) {
+						writer.writeBits(index_codes[1][(u8)(ci >> 8)], index_codelens[1][(u8)(ci >> 8)]);
+#ifdef CAT_COLLECT_STATS
+						overhead += index_codelens[1][(u8)(ci >> 8)];
+#endif
+					}
 				}
 
 #ifdef CAT_COLLECT_STATS
@@ -629,6 +661,7 @@ void ImageLPWriter::write(ImageWriter &writer) {
 			last_y = m->y;
 		}
 	} else {
+		int colorIndexBits = (int)BSR32(colors.size() - 1) + 1;
 		for (int ii = 0; ii < _exact_matches.size(); ++ii) {
 			Match *m = &_exact_matches[ii];
 
@@ -667,7 +700,7 @@ void ImageLPWriter::write(ImageWriter &writer) {
 #ifdef CAT_COLLECT_STATS
 
 bool ImageLPWriter::dumpStats() {
-	CAT_INFO("stats") << "(LP Compress) Color palette size : " << Stats.color_list_size << " colors";
+	CAT_INFO("stats") << "(LP Compress) Color palette size : " << Stats.color_list_size << " colors collected from " << Stats.total_palette_entries << " total palette entries";
 	CAT_INFO("stats") << "(LP Compress) Color palette overhead : " << Stats.color_list_overhead/8 << " bytes";
 	CAT_INFO("stats") << "(LP Compress) Zone count : " << Stats.zone_count;
 	CAT_INFO("stats") << "(LP Compress) Zone list overhead : " << Stats.zone_list_overhead/8 << " bytes";

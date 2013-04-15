@@ -39,7 +39,6 @@ class ImageMaskWriter {
 #ifdef CAT_COLLECT_STATS
 public:
 	struct _Stats {
-		u32 pivot;
 		u32 table_bits;
 		u32 data_bits;
 
