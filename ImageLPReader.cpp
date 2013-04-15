@@ -14,6 +14,10 @@ static cat::Clock *m_clock = 0;
 //// ImageLPReader
 
 void ImageLPReader::clear() {
+	if (_colors) {
+		delete []_colors;
+		_colors = 0;
+	}
 	if (_zones) {
 		delete []_zones;
 		_zones = 0;
@@ -33,8 +37,8 @@ int ImageLPReader::readColorTable(ImageReader &reader) {
 	static const int NUM_SYMS = 256;
 
 	// Read and validate match count
-	const u32 match_count = reader.readBits(16);
-	_zones_size = match_count;
+	const u32 colors_size = reader.readBits(16);
+	_colors_size = colors_size;
 
 	// If we abort early, ensure that triggers are cleared
 	_zone_work_head = ZONE_NULL;
@@ -44,47 +48,143 @@ int ImageLPReader::readColorTable(ImageReader &reader) {
 	_zone_next_y = ZONE_NULL;
 
 	// If no matches,
-	if (match_count <= 0) {
+	if (colors_size <= 0) {
 		return RE_OK;
 	}
 
-	// If invalid data,
-	if (match_count > MAX_ZONE_COUNT) {
-		return RE_LZ_CODES;
+	_colors = new u32[colors_size];
+
+	// If enough colors are in the list,
+	if (colors_size >= HUFF_COLOR_THRESH) {
+		// Read the color filter
+		YUV2RGBFilterFunction cff = YUV2RGB_FILTERS[reader.readBits(4)];
+
+		// Read color decoders
+		HuffmanDecoder color_decoder[4];
+		for (int ii = 0; ii < 4; ++ii) {
+			if (!color_decoder[ii].init(256, reader, 8)) {
+				return RE_LP_CODES;
+			}
+		}
+
+		// Read colors
+		for (int ii = 0; ii < colors_size; ++ii) {
+			// Read YUV
+			u8 yuv[3];
+			yuv[0] = reader.nextHuffmanSymbol(&color_decoder[0]);
+			yuv[1] = reader.nextHuffmanSymbol(&color_decoder[1]);
+			yuv[2] = reader.nextHuffmanSymbol(&color_decoder[2]);
+			u8 a = reader.nextHuffmanSymbol(&color_decoder[3]);
+
+			// Reverse color filter
+			u8 rgb[3];
+			cff(yuv, rgb);
+
+			// Store decoded color
+			_colors[ii] = getLE((u32)rgb[0] |
+								((u32)rgb[1] << 8) |
+								((u32)rgb[2] << 16) |
+								((u32)a << 24));
+		}
+	} else {
+		// Read colors
+		for (int ii = 0; ii < colors_size; ++ii) {
+			_colors[ii] = reader.readWord();
+		}
 	}
 
 	// If file truncated,
 	if (reader.eof()) {
-		return RE_LZ_CODES;
+		return RE_LP_CODES;
 	}
-
-	// TODO
 
 	return RE_OK;
 }
 
 int ImageLPReader::readZones(ImageReader &reader) {
-	const int match_count = _zones_size;
+	// Read zone list size
+	const int zones_size = reader.readBits(16);
+	_zones_size = zones_size;
 
-	// Skip if nothing to read
-	if (match_count == 0) {
-		return RE_OK;
+	// If invalid data,
+	if (zones_size > MAX_ZONE_COUNT) {
+		return RE_LP_CODES;
 	}
 
-	// TODO
+	// Skip if nothing to read
+	if (zones_size <= 0) {
+		return RE_LP_CODES;
+	}
 
 	// Allocate space for zones
-	_zones = new Zone[match_count];
-
-	// For each zone to read,
-	u16 last_dx = 0, last_dy = 0;
+	_zones = new Zone[zones_size];
+	u16 last_x = 0, last_y = 0;
 	Zone *z = _zones;
-	for (int ii = 0; ii < match_count; ++ii, ++z) {
+
+	if (zones_size >= HUFF_ZONE_THRESH) {
+		static const int NUM_SYMS[6] = {
+			256, 256, 256, 256, 256, MAX_COLORS
+		};
+
+		// Read zone decoders
+		HuffmanDecoder zone_decoders[6];
+		for (int ii = 0; ii < 6; ++ii) {
+			if (!zone_decoders[ii].init(NUM_SYMS[ii], reader, 8)) {
+				return RE_LP_CODES;
+			}
+		}
+
+		// For each zone to read,
+		for (int ii = 0; ii < zones_size; ++ii, ++z) {
+			// TODO
+		}
+	} else {
+		int colorIndexBits = (int)BSR32(_colors_size - 1) + 1;
+
+		// For each zone to read,
+		for (int ii = 0; ii < zones_size; ++ii, ++z) {
+			Zone *d = &_zones[ii];
+
+			d->x = reader.readBits(16);
+			d->y = reader.readBits(16);
+
+			if (d->x >= _width || d->y >= _height) {
+				return RE_LP_CODES;
+			}
+
+			d->w = reader.readBits(8) + ZONEW;
+			d->h = reader.readBits(8) + ZONEH;
+
+			if ((u32)d->x + (u32)d->w >= _width || (u32)d->y + (u32)d->h >= _height) {
+				return RE_LP_CODES;
+			}
+
+			d->used = reader.readBits(4) + 1;
+
+			if (d->used >= MAX_COLORS) {
+				return RE_LP_CODES;
+			}
+
+			// If at least two colors are present,
+			if (d->used > 1) {
+				d->huffman.init(d->used, reader, 8);
+			}
+
+			for (int jj = 0; jj < d->used; ++jj) {
+				u32 colorIndex = reader.readBits(colorIndexBits);
+
+				if (colorIndex >= _colors_size) {
+					return RE_LP_CODES;
+				}
+
+				d->colors[jj] = _colors[colorIndex];
+			}
+		}
 	}
 
 	// If file truncated,
 	if (reader.eof()) {
-		return RE_LZ_CODES;
+		return RE_LP_CODES;
 	}
 
 	// Trigger on first zone

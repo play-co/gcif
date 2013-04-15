@@ -345,9 +345,9 @@ void ImageLPWriter::write(ImageWriter &writer) {
 	}
 
 	// Write color table
-	writer.writeWord(colors.size());
+	writer.writeBits(colors.size(), 16);
 
-	if (_exact_matches.size() <= 0) {
+	if (colors.size() <= 0) {
 		return;
 	}
 
@@ -464,7 +464,7 @@ void ImageLPWriter::write(ImageWriter &writer) {
 	}
 
 	// Write zone list size
-	writer.writeWord(_exact_matches.size());
+	writer.writeBits(_exact_matches.size(), 16);
 
 	// Color index huffman tables
 	u16 index_codes[2][256];
@@ -594,7 +594,7 @@ void ImageLPWriter::write(ImageWriter &writer) {
 				}
 			} else {
 				// Collect stats
-				FreqHistogram<16> hist;
+				FreqHistogram<MAX_HUFF_SYMS> hist;
 				for (int y = m->y, yend = m->y + m->h; y < yend; ++y) {
 					for (int x = m->x, xend = m->x + m->w; x < xend; ++x) {
 						u32 color = _rgba[x + y * _width];
@@ -674,6 +674,37 @@ void ImageLPWriter::write(ImageWriter &writer) {
 #ifdef CAT_COLLECT_STATS
 			overhead += 16 + 16 + 8 + 8 + 4 + m->used * colorIndexBits;
 #endif
+
+			if (m->used > 1) {
+				// Collect stats
+				FreqHistogram<MAX_HUFF_SYMS> hist;
+				for (int y = m->y, yend = m->y + m->h; y < yend; ++y) {
+					for (int x = m->x, xend = m->x + m->w; x < xend; ++x) {
+						u32 color = _rgba[x + y * _width];
+						int colorIndex = 0;
+
+						for (int jj = 0; jj < m->used; ++jj) {
+							u32 tc = m->colors[jj];
+
+							if (color == tc) {
+								colorIndex = jj;
+								break;
+							}
+						}
+
+						hist.add(colorIndex);
+					}
+				}
+
+				hist.generateHuffman(m->codes, m->codelens);
+
+				int table_bits = writeHuffmanTable(m->used, m->codelens, writer);
+#ifdef CAT_COLLECT_STATS
+				overhead += table_bits;
+#endif
+			}
+
+
 			for (int jj = 0; jj < m->used; ++jj) {
 				writer.writeBits(m->colorIndex[jj], colorIndexBits);
 				m->codes[jj] = jj;
