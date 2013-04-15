@@ -27,6 +27,8 @@ public:
 	static const int MAX_COLORS = 16;
 	static const u32 MAX_ZONE_COUNT = 65535;
 	static const int MAX_HUFF_SYMS = MAX_COLORS;
+	static const int HUFF_COLOR_THRESH = 20;		// Minimum color count to compress color information
+	static const int HUFF_ZONE_THRESH = 12;			// Minimum zone count to compress zone information
 
 protected:
 	static const u16 ZONE_NULL = 0xffff;

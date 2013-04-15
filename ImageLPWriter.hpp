@@ -36,8 +36,8 @@ class ImageLPWriter {
 	static const int MAX_COLORS = ImageLPReader::MAX_COLORS;
 	static const int MAXW = 255 + ZONEW;
 	static const int MAXH = 255 + ZONEH;
-	static const int HUFF_COLOR_THRESH = 20;
-	static const int HUFF_ZONE_THRESH = 12;
+	static const int HUFF_COLOR_THRESH = ImageLPReader::HUFF_COLOR_THRESH;
+	static const int HUFF_ZONE_THRESH = ImageLPReader::HUFF_ZONE_THRESH;
 	static const int MAX_HUFF_SYMS = MAX_COLORS;
 
 	void clear();

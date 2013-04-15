@@ -1,6 +1,8 @@
 #include "ImageLPReader.hpp"
 #include "EndianNeutral.hpp"
 #include "GCIFReader.hpp"
+#include "Filters.hpp"
+#include "BitMath.hpp"
 using namespace cat;
 
 #ifdef CAT_COLLECT_STATS
