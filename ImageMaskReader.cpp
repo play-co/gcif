@@ -473,14 +473,14 @@ int ImageMaskReader::read(ImageReader &reader) {
 #ifdef CAT_COLLECT_STATS
 
 bool ImageMaskReader::dumpStats() {
-	CAT_INFO("stats") << "(Mask Decode) Initialization : " <<  Stats.initUsec << " usec (" << Stats.initUsec * 100.f / Stats.overallUsec << " %total)";
-	CAT_INFO("stats") << "(Mask Decode)  Setup Huffman : " <<  Stats.initHuffmanUsec << " usec (" << Stats.initHuffmanUsec * 100.f / Stats.overallUsec << " %total)";
-	CAT_INFO("stats") << "(Mask Decode)     Huffman+LZ : " <<  Stats.lzUsec << " usec (" << Stats.lzUsec * 100.f / Stats.overallUsec << " %total)";
-	CAT_INFO("stats") << "(Mask Decode)     RLE+Filter : " <<  Stats.rleUsec << " usec (" << Stats.rleUsec * 100.f / Stats.overallUsec << " %total)";
-	CAT_INFO("stats") << "(Mask Decode)        Overall : " <<  Stats.overallUsec << " usec";
+	CAT_INANE("stats") << "(Mask Decode) Initialization : " <<  Stats.initUsec << " usec (" << Stats.initUsec * 100.f / Stats.overallUsec << " %total)";
+	CAT_INANE("stats") << "(Mask Decode)  Setup Huffman : " <<  Stats.initHuffmanUsec << " usec (" << Stats.initHuffmanUsec * 100.f / Stats.overallUsec << " %total)";
+	CAT_INANE("stats") << "(Mask Decode)     Huffman+LZ : " <<  Stats.lzUsec << " usec (" << Stats.lzUsec * 100.f / Stats.overallUsec << " %total)";
+	CAT_INANE("stats") << "(Mask Decode)     RLE+Filter : " <<  Stats.rleUsec << " usec (" << Stats.rleUsec * 100.f / Stats.overallUsec << " %total)";
+	CAT_INANE("stats") << "(Mask Decode)        Overall : " <<  Stats.overallUsec << " usec";
 
-	CAT_INFO("stats") << "(Mask Decode)  Original Size : " <<  Stats.originalDataBytes << " bytes";
-	CAT_INFO("stats") << "(Mask Decode)     Throughput : " << Stats.originalDataBytes / Stats.overallUsec << " MBPS (output bytes/time)";
+	CAT_INANE("stats") << "(Mask Decode)  Original Size : " <<  Stats.originalDataBytes << " bytes";
+	CAT_INANE("stats") << "(Mask Decode)     Throughput : " << Stats.originalDataBytes / Stats.overallUsec << " MBPS (output bytes/time)";
 
 	return true;
 }

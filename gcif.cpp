@@ -87,7 +87,8 @@ static int benchfile(BenchStats &stats, string filename) {
 
 	if (error) {
 		CAT_WARN("main") << "PNG read error " << error << ": " << lodepng_error_text(error) << " for " << filename;
-		return error;
+		return 0;
+		//return error;
 	}
 
 	int err;
@@ -100,13 +101,13 @@ static int benchfile(BenchStats &stats, string filename) {
 	}
 
 	double t2 = Clock::ref()->usec();
-
+/*
 	GCIFImage outimage;
 	if ((err = gcif_read(BENCHFILE, &outimage))) {
 		CAT_WARN("main") << "Error while decompressing the image: " << gcif_read_errstr(err) << " for " << filename;
 		return err;
 	}
-
+*/
 	double t3 = Clock::ref()->usec();
 
 #if 0
@@ -122,7 +123,7 @@ static int benchfile(BenchStats &stats, string filename) {
 	stat(BENCHFILE, &gci);
 
 	u32 pngBytes = png.st_size;
-	u32 gciBytes = png.st_size;
+	u32 gciBytes = gci.st_size;
 	double gcipngrat = pngBytes / (double)gciBytes;
 	double gciover = width * height * 4 / (double)gciBytes;
 
@@ -190,6 +191,8 @@ int processParameters(option::Parser &parse, option::Option options[]) {
 		CAT_FATAL("main") << "Error parsing arguments [retcode:1]";
 		return 1;
 	}
+
+	Log::ref()->SetThreshold(LVL_INFO);
 
 	if (options[SILENT]) {
 		Log::ref()->SetThreshold(LVL_SILENT);

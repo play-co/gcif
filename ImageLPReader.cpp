@@ -85,8 +85,6 @@ int ImageLPReader::readColorTable(ImageReader &reader) {
 								((u32)rgb[1] << 8) |
 								((u32)rgb[2] << 16) |
 								((u32)a << 24));
-
-			CAT_WARN("COLOR") << _colors[ii];
 		}
 	} else {
 		// Read colors
@@ -171,6 +169,21 @@ int ImageLPReader::readZones(ImageReader &reader) {
 			z->h = h;
 			z->used = used;
 
+			if (z->x >= _width || z->y >= _height) {
+				CAT_WARN("TEST") << x << ", " << y;
+				return RE_LP_CODES;
+			}
+
+			if ((u32)z->x + (u32)z->w >= _width || (u32)z->y + (u32)z->h >= _height) {
+				CAT_WARN("TEST2");
+				return RE_LP_CODES;
+			}
+
+			if (z->used > MAX_COLORS) {
+				CAT_WARN("TEST3");
+				return RE_LP_CODES;
+			}
+
 			if (used <= 1) {
 				u32 c = reader.nextHuffmanSymbol(&index_decoders[0]);
 				if (_colors_size > 256) {
@@ -179,6 +192,7 @@ int ImageLPReader::readZones(ImageReader &reader) {
 				}
 
 				if (c >= _colors_size) {
+					CAT_WARN("TEST4");
 					return RE_LP_CODES;
 				}
 
@@ -196,6 +210,7 @@ int ImageLPReader::readZones(ImageReader &reader) {
 					}
 
 					if (c >= _colors_size) {
+						CAT_WARN("TEST5");
 						return RE_LP_CODES;
 					}
 
@@ -212,41 +227,41 @@ int ImageLPReader::readZones(ImageReader &reader) {
 
 		// For each zone to read,
 		for (int ii = 0; ii < zones_size; ++ii, ++z) {
-			Zone *d = &_zones[ii];
+			Zone *z = &_zones[ii];
 
-			d->x = reader.readBits(16);
-			d->y = reader.readBits(16);
+			z->x = reader.readBits(16);
+			z->y = reader.readBits(16);
 
-			if (d->x >= _width || d->y >= _height) {
+			if (z->x >= _width || z->y >= _height) {
 				return RE_LP_CODES;
 			}
 
-			d->w = reader.readBits(8) + ZONEW;
-			d->h = reader.readBits(8) + ZONEH;
+			z->w = reader.readBits(8) + ZONEW;
+			z->h = reader.readBits(8) + ZONEH;
 
-			if ((u32)d->x + (u32)d->w >= _width || (u32)d->y + (u32)d->h >= _height) {
+			if ((u32)z->x + (u32)z->w >= _width || (u32)z->y + (u32)z->h >= _height) {
 				return RE_LP_CODES;
 			}
 
-			d->used = reader.readBits(4) + 1;
+			z->used = reader.readBits(4) + 1;
 
-			if (d->used >= MAX_COLORS) {
+			if (z->used > MAX_COLORS) {
 				return RE_LP_CODES;
 			}
 
 			// If at least two colors are present,
-			if (d->used > 1) {
-				d->decoder.init(d->used, reader, 8);
+			if (z->used > 1) {
+				z->decoder.init(z->used, reader, 8);
 			}
 
-			for (int jj = 0; jj < d->used; ++jj) {
+			for (int jj = 0; jj < z->used; ++jj) {
 				u32 colorIndex = reader.readBits(colorIndexBits);
 
 				if (colorIndex >= _colors_size) {
 					return RE_LP_CODES;
 				}
 
-				d->colors[jj] = _colors[colorIndex];
+				z->colors[jj] = _colors[colorIndex];
 			}
 		}
 	}
@@ -454,13 +469,13 @@ int ImageLPReader::read(ImageReader &reader) {
 #ifdef CAT_COLLECT_STATS
 
 bool ImageLPReader::dumpStats() {
-	CAT_INFO("stats") << "(LP Decode)   Initialization : " << Stats.initUsec << " usec (" << Stats.initUsec * 100.f / Stats.overallUsec << " %total)";
-	CAT_INFO("stats") << "(LP Decode) Read Color Table : " << Stats.readColorTableUsec << " usec (" << Stats.readColorTableUsec * 100.f / Stats.overallUsec << " %total)";
-	CAT_INFO("stats") << "(LP Decode)       Read Zones : " << Stats.readZonesUsec << " usec (" << Stats.readZonesUsec * 100.f / Stats.overallUsec << " %total)";
-	CAT_INFO("stats") << "(LP Decode)          Overall : " << Stats.overallUsec << " usec";
+	CAT_INANE("stats") << "(LP Decode)   Initialization : " << Stats.initUsec << " usec (" << Stats.initUsec * 100.f / Stats.overallUsec << " %total)";
+	CAT_INANE("stats") << "(LP Decode) Read Color Table : " << Stats.readColorTableUsec << " usec (" << Stats.readColorTableUsec * 100.f / Stats.overallUsec << " %total)";
+	CAT_INANE("stats") << "(LP Decode)       Read Zones : " << Stats.readZonesUsec << " usec (" << Stats.readZonesUsec * 100.f / Stats.overallUsec << " %total)";
+	CAT_INANE("stats") << "(LP Decode)          Overall : " << Stats.overallUsec << " usec";
 
-	CAT_INFO("stats") << "(LP Decode)       Zone Count : " << Stats.zoneCount << " zones (" << Stats.zoneBytes << " bytes)";
-	CAT_INFO("stats") << "(LP Decode)       Throughput : " << Stats.zoneBytes / Stats.overallUsec << " MBPS (output bytes/time)";
+	CAT_INANE("stats") << "(LP Decode)       Zone Count : " << Stats.zoneCount << " zones (" << Stats.zoneBytes << " bytes)";
+	CAT_INANE("stats") << "(LP Decode)       Throughput : " << Stats.zoneBytes / Stats.overallUsec << " MBPS (output bytes/time)";
 
 	return true;
 }

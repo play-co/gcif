@@ -249,7 +249,7 @@ int ImageLPWriter::match() {
 						goto abort;
 					}
 
-					u32 color = rgba[ii + jj * _width];
+					u32 color = p[ii + jj * _width];
 					bool found = false;
 
 					for (int kk = 0; kk < used; ++kk) {
@@ -353,7 +353,7 @@ void ImageLPWriter::write(ImageWriter &writer) {
 
 	// If there are enough colors to justify the expense,
 #ifdef CAT_COLLECT_STATS
-	u32 color_overhead = 32;
+	u32 color_overhead = 16;
 	Stats.total_palette_entries = ccnt;
 #endif
 	if (colors.size() >= HUFF_COLOR_THRESH) {
@@ -474,7 +474,7 @@ void ImageLPWriter::write(ImageWriter &writer) {
 	writer.writeBits(_exact_matches.size(), 16);
 
 #ifdef CAT_COLLECT_STATS
-	u32 overhead = 32;
+	u32 overhead = 16;
 	u32 pixelsize = 0;
 #endif
 
@@ -545,6 +545,8 @@ void ImageLPWriter::write(ImageWriter &writer) {
 #endif
 
 		// Encode zones
+		last_x = 0;
+		last_y = 0;
 		for (int ii = 0; ii < _exact_matches.size(); ++ii) {
 			Match *m = &_exact_matches[ii];
 
@@ -592,7 +594,7 @@ void ImageLPWriter::write(ImageWriter &writer) {
 			overhead += codelens[5][sym];
 #endif
 
-			if (m->used == 1) {
+			if (m->used <= 1) {
 				u16 ci = m->colorIndex[0];
 				writer.writeBits(index_codes[0][(u8)ci], index_codelens[0][(u8)ci]);
 #ifdef CAT_COLLECT_STATS
@@ -605,12 +607,14 @@ void ImageLPWriter::write(ImageWriter &writer) {
 #endif
 				}
 			} else {
+				const u32 *rgba = reinterpret_cast<const u32 *>( _rgba );
+
 				// Collect stats
 				FreqHistogram<MAX_HUFF_SYMS> hist;
 				for (int y = m->y, yend = m->y + m->h; y < yend; ++y) {
 					for (int x = m->x, xend = m->x + m->w; x < xend; ++x) {
-						u32 color = _rgba[x + y * _width];
-						int colorIndex = 0;
+						u32 color = rgba[x + y * _width];
+						int colorIndex = -1;
 
 						for (int jj = 0; jj < m->used; ++jj) {
 							u32 tc = m->colors[jj];
@@ -650,7 +654,7 @@ void ImageLPWriter::write(ImageWriter &writer) {
 				// Calculate the space taken
 				for (int y = m->y, yend = m->y + m->h; y < yend; ++y) {
 					for (int x = m->x, xend = m->x + m->w; x < xend; ++x) {
-						u32 color = _rgba[x + y * _width];
+						u32 color = rgba[x + y * _width];
 						int colorIndex = 0;
 
 						for (int jj = 0; jj < m->used; ++jj) {
@@ -688,11 +692,13 @@ void ImageLPWriter::write(ImageWriter &writer) {
 #endif
 
 			if (m->used > 1) {
+				const u32 *rgba = reinterpret_cast<const u32 *>( _rgba );
+
 				// Collect stats
 				FreqHistogram<MAX_HUFF_SYMS> hist;
 				for (int y = m->y, yend = m->y + m->h; y < yend; ++y) {
 					for (int x = m->x, xend = m->x + m->w; x < xend; ++x) {
-						u32 color = _rgba[x + y * _width];
+						u32 color = rgba[x + y * _width];
 						int colorIndex = 0;
 
 						for (int jj = 0; jj < m->used; ++jj) {
@@ -743,13 +749,13 @@ void ImageLPWriter::write(ImageWriter &writer) {
 #ifdef CAT_COLLECT_STATS
 
 bool ImageLPWriter::dumpStats() {
-	CAT_INFO("stats") << "(LP Compress) Color palette size : " << Stats.color_list_size << " colors collected from " << Stats.total_palette_entries << " total palette entries";
-	CAT_INFO("stats") << "(LP Compress) Color palette overhead : " << Stats.color_list_overhead/8 << " bytes";
-	CAT_INFO("stats") << "(LP Compress) Zone count : " << Stats.zone_count;
-	CAT_INFO("stats") << "(LP Compress) Zone list overhead : " << Stats.zone_list_overhead/8 << " bytes";
-	CAT_INFO("stats") << "(LP Compress) Pixels covered : " << Stats.pixels_covered << " of " << _width * _height << " (" << Stats.pixels_covered * 100. / (_width * _height) << " % covered)";
-	CAT_INFO("stats") << "(LP Compress) Pixel data size after encoding : " << Stats.pixel_overhead/8 << " bytes";
-	CAT_INFO("stats") << "(LP Compress) Compression ratio : " << Stats.compressionRatio << ":1 (" << Stats.overall_bytes << " bytes used overall)";
+	CAT_INANE("stats") << "(LP Compress) Color palette size : " << Stats.color_list_size << " colors collected from " << Stats.total_palette_entries << " total palette entries";
+	CAT_INANE("stats") << "(LP Compress) Color palette overhead : " << Stats.color_list_overhead/8 << " bytes";
+	CAT_INANE("stats") << "(LP Compress) Zone count : " << Stats.zone_count;
+	CAT_INANE("stats") << "(LP Compress) Zone list overhead : " << Stats.zone_list_overhead/8 << " bytes";
+	CAT_INANE("stats") << "(LP Compress) Pixels covered : " << Stats.pixels_covered << " of " << _width * _height << " (" << Stats.pixels_covered * 100. / (_width * _height) << " % covered)";
+	CAT_INANE("stats") << "(LP Compress) Pixel data size after encoding : " << Stats.pixel_overhead/8 << " bytes";
+	CAT_INANE("stats") << "(LP Compress) Compression ratio : " << Stats.compressionRatio << ":1 (" << Stats.overall_bytes << " bytes used overall)";
 
 	return true;
 }

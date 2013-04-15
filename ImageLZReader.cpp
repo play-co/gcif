@@ -327,13 +327,13 @@ int ImageLZReader::read(ImageReader &reader) {
 #ifdef CAT_COLLECT_STATS
 
 bool ImageLZReader::dumpStats() {
-	CAT_INFO("stats") << "(LZ Decode)     Initialization : " << Stats.initUsec << " usec (" << Stats.initUsec * 100.f / Stats.overallUsec << " %total)";
-	CAT_INFO("stats") << "(LZ Decode) Read Huffman Table : " << Stats.readCodelensUsec << " usec (" << Stats.readCodelensUsec * 100.f / Stats.overallUsec << " %total)";
-	CAT_INFO("stats") << "(LZ Decode)         Read Zones : " << Stats.readZonesUsec << " usec (" << Stats.readZonesUsec * 100.f / Stats.overallUsec << " %total)";
-	CAT_INFO("stats") << "(LZ Decode)            Overall : " << Stats.overallUsec << " usec";
+	CAT_INANE("stats") << "(LZ Decode)     Initialization : " << Stats.initUsec << " usec (" << Stats.initUsec * 100.f / Stats.overallUsec << " %total)";
+	CAT_INANE("stats") << "(LZ Decode) Read Huffman Table : " << Stats.readCodelensUsec << " usec (" << Stats.readCodelensUsec * 100.f / Stats.overallUsec << " %total)";
+	CAT_INANE("stats") << "(LZ Decode)         Read Zones : " << Stats.readZonesUsec << " usec (" << Stats.readZonesUsec * 100.f / Stats.overallUsec << " %total)";
+	CAT_INANE("stats") << "(LZ Decode)            Overall : " << Stats.overallUsec << " usec";
 
-	CAT_INFO("stats") << "(LZ Decode)         Zone Count : " << Stats.zoneCount << " zones (" << Stats.zoneBytes << " bytes)";
-	CAT_INFO("stats") << "(LZ Decode)         Throughput : " << Stats.zoneBytes / Stats.overallUsec << " MBPS (output bytes/time)";
+	CAT_INANE("stats") << "(LZ Decode)         Zone Count : " << Stats.zoneCount << " zones (" << Stats.zoneBytes << " bytes)";
+	CAT_INANE("stats") << "(LZ Decode)         Throughput : " << Stats.zoneBytes / Stats.overallUsec << " MBPS (output bytes/time)";
 
 	return true;
 }
