@@ -96,6 +96,11 @@ const char *gcif_read_errstr(int err) {
 		case RE_LZ_BAD:		// Bad data in LZ section
 			return "Bad data in LZ section";
 
+		case RE_LP_CODES:	// LP codelen read failed
+			return "LP codelen read failed";
+		case RE_LP_BAD:		// Bad data in LP section
+			return "Bad data in LP section";
+
 		case RE_CM_CODES:	// CM codelen read failed
 			return "CM codelen read failed";
 
