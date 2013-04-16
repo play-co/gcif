@@ -271,12 +271,19 @@ bool HuffmanDecoder::init(int num_syms, ImageReader &reader, u32 table_bits) {
 		break;
 	case 1:
 		{
-			u8 prev = 1;
+			u32 lag0 = 1, lag1 = 1;
 			for (int ii = 0; ii < num_syms; ++ii) {
 				u32 sym = table_decoder.next(reader);
 
-				u8 len = (sym + prev) % HUFF_SYMS;
-				prev = len;
+				u32 pred = (lag0 + lag1 + 1) >> 1;
+
+				if (ii >= 32) {
+					pred = 0;
+				}
+
+				u8 len = (sym + pred) % HUFF_SYMS;
+				lag1 = lag0;
+				lag0 = len;
 
 				if (len > 0) {
 					nonzero_count++;
@@ -289,21 +296,15 @@ bool HuffmanDecoder::init(int num_syms, ImageReader &reader, u32 table_bits) {
 		break;
 	case 2:
 		{
-			u8 prev = 1;
-			const int half = num_syms/2;
-			for (int ii = 0; ii < half; ++ii) {
+			u32 lag0 = 1, lag1 = 1;
+			for (int ii = 0; ii < num_syms; ++ii) {
 				u32 sym = table_decoder.next(reader);
 
-				u8 len = (sym + prev) % HUFF_SYMS;
-				prev = len;
+				u32 pred = (lag0 + lag1 + 1) >> 1;
 
-				codelens[ii] = len;
-			}
-			for (int ii = half; ii < num_syms; ++ii) {
-				u32 sym = table_decoder.next(reader);
-
-				u8 len = (prev - sym + HUFF_SYMS) % HUFF_SYMS;
-				prev = len;
+				u8 len = (sym + pred) % HUFF_SYMS;
+				lag1 = lag0;
+				lag0 = len;
 
 				if (len > 0) {
 					nonzero_count++;

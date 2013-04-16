@@ -534,8 +534,8 @@ int cat::writeCompressedHuffmanTable(int num_syms, u8 codelens[], ImageWriter &w
 	/*
 	 * Choose from one of four models of the codelens:
 	 * 00 : No modifications
-	 * 01 : Monotonically increasing: Subtract previous from next
-	 * 10 : Increasing then decreasing: Switch to next minus previous half way through
+	 * 01 : Smoothed average with a cutoff at 32 symbols
+	 * 10 : Monotonically increasing with a smoothed average of the last two, rounding up
 	 * 11 : Monotonically increasing with a smoothed average of the last two
 	 */
 
@@ -581,19 +581,27 @@ int cat::writeCompressedHuffmanTable(int num_syms, u8 codelens[], ImageWriter &w
 		}
 	}
 
-	// 01 : Monotonically increasing: Subtract previous from next
+	// 01 : Smoothed average with a cutoff at 32 symbols
 
 	{
 		// Collect statistics
 		u16 freqs[HUFF_SYMS] = {0};
-		u8 prev = 1;
+		u32 lag0 = 1, lag1 = 1;
 		for (int ii = 0; ii < num_syms; ++ii) {
 			u8 len = codelens[ii];
 
 			CAT_ENFORCE(len < HUFF_SYMS);
 
-			u8 sym = (len - prev + HUFF_SYMS) % HUFF_SYMS;
-			prev = len;
+			u32 pred = (lag0 + lag1 + 1) >> 1;
+
+			if (ii >= 32) {
+				pred = 0;
+			}
+
+			u8 sym = (len - pred + HUFF_SYMS) % HUFF_SYMS;
+
+			lag1 = lag0;
+			lag0 = len;
 
 			freqs[sym]++;
 		}
@@ -617,41 +625,42 @@ int cat::writeCompressedHuffmanTable(int num_syms, u8 codelens[], ImageWriter &w
 		}
 
 		// Add bitcount for symbols
-		prev = 1;
+		lag0 = 1, lag1 = 1;
 		for (int ii = 0; ii < num_syms; ++ii) {
 			u8 len = codelens[ii];
 
-			u8 sym = (len - prev + HUFF_SYMS) % HUFF_SYMS;
-			prev = len;
+			u32 pred = (lag0 + lag1 + 1) >> 1;
+
+			if (ii >= 32) {
+				pred = 0;
+			}
+
+			u8 sym = (len - pred + HUFF_SYMS) % HUFF_SYMS;
+
+			lag1 = lag0;
+			lag0 = len;
 
 			bitcount[1] += encoders[1].simulateWrite(sym);
 		}
 	}
 
-	// 10 : Increasing then decreasing: Switch to next minus previous half way through
+	// 10 : Monotonically increasing with a smoothed average of the last two, rounding up
 
 	{
 		// Collect statistics
 		u16 freqs[HUFF_SYMS] = {0};
-		u8 prev = 1;
-		const int half = num_syms/2;
-		for (int ii = 0; ii < half; ++ii) {
+		u32 lag0 = 1, lag1 = 1;
+		for (int ii = 0; ii < num_syms; ++ii) {
 			u8 len = codelens[ii];
 
 			CAT_ENFORCE(len < HUFF_SYMS);
 
-			u8 sym = (len - prev + HUFF_SYMS) % HUFF_SYMS;
-			prev = len;
+			u32 pred = (lag0 + lag1 + 1) >> 1;
 
-			freqs[sym]++;
-		}
-		for (int ii = half; ii < num_syms; ++ii) {
-			u8 len = codelens[ii];
+			u8 sym = (len - pred + HUFF_SYMS) % HUFF_SYMS;
 
-			CAT_ENFORCE(len < HUFF_SYMS);
-
-			u8 sym = (prev - len + HUFF_SYMS) % HUFF_SYMS;
-			prev = len;
+			lag1 = lag0;
+			lag0 = len;
 
 			freqs[sym]++;
 		}
@@ -675,20 +684,16 @@ int cat::writeCompressedHuffmanTable(int num_syms, u8 codelens[], ImageWriter &w
 		}
 
 		// Add bitcount for symbols
-		prev = 1;
-		for (int ii = 0; ii < half; ++ii) {
+		lag0 = 1, lag1 = 1;
+		for (int ii = 0; ii < num_syms; ++ii) {
 			u8 len = codelens[ii];
 
-			u8 sym = (len - prev + HUFF_SYMS) % HUFF_SYMS;
-			prev = len;
+			u32 pred = (lag0 + lag1 + 1) >> 1;
 
-			bitcount[2] += encoders[2].simulateWrite(sym);
-		}
-		for (int ii = half; ii < num_syms; ++ii) {
-			u8 len = codelens[ii];
+			u8 sym = (len - pred + HUFF_SYMS) % HUFF_SYMS;
 
-			u8 sym = (prev - len + HUFF_SYMS) % HUFF_SYMS;
-			prev = len;
+			lag1 = lag0;
+			lag0 = len;
 
 			bitcount[2] += encoders[2].simulateWrite(sym);
 		}
@@ -819,12 +824,20 @@ int cat::writeCompressedHuffmanTable(int num_syms, u8 codelens[], ImageWriter &w
 		break;
 	case 1:
 		{
-			u8 prev = 1;
+			u32 lag0 = 1, lag1 = 1;
 			for (int ii = 0; ii < num_syms; ++ii) {
 				u8 len = codelens[ii];
 
-				u8 sym = (len - prev + HUFF_SYMS) % HUFF_SYMS;
-				prev = len;
+				u32 pred = (lag0 + lag1 + 1) >> 1;
+
+				if (ii >= 32) {
+					pred = 0;
+				}
+
+				u8 sym = (len - pred + HUFF_SYMS) % HUFF_SYMS;
+
+				lag1 = lag0;
+				lag0 = len;
 
 				encoders[best].writeSymbol(sym, writer);
 			}
@@ -832,21 +845,16 @@ int cat::writeCompressedHuffmanTable(int num_syms, u8 codelens[], ImageWriter &w
 		break;
 	case 2:
 		{
-			u8 prev = 1;
-			const int half = num_syms/2;
-			for (int ii = 0; ii < half; ++ii) {
+			u32 lag0 = 1, lag1 = 1;
+			for (int ii = 0; ii < num_syms; ++ii) {
 				u8 len = codelens[ii];
 
-				u8 sym = (len - prev + HUFF_SYMS) % HUFF_SYMS;
-				prev = len;
+				u32 pred = (lag0 + lag1 + 1) >> 1;
 
-				encoders[best].writeSymbol(sym, writer);
-			}
-			for (int ii = half; ii < num_syms; ++ii) {
-				u8 len = codelens[ii];
+				u8 sym = (len - pred + HUFF_SYMS) % HUFF_SYMS;
 
-				u8 sym = (prev - len + HUFF_SYMS) % HUFF_SYMS;
-				prev = len;
+				lag1 = lag0;
+				lag0 = len;
 
 				encoders[best].writeSymbol(sym, writer);
 			}
