@@ -109,8 +109,7 @@ int ImageLZReader::readZones(ImageReader &reader) {
 		z->dy = dy;
 
 		// Input security checks
-		if (sy > dy ||
-			(sy == dy && sx >= dx)) {
+		if (sy > dy || (sy == dy && sx >= dx)) {
 			return RE_LZ_BAD;
 		}
 
@@ -146,7 +145,6 @@ int ImageLZReader::triggerX(u8 *p) {
 	Zone *zi = &_zones[ii];
 
 	// Copy scanline one at a time in case the pointers are aliased
-	CAT_WARN("TEST") << zi->sox << "," << zi->soy;
 	const u8 *src = p + (zi->sox + zi->soy * _width)*4;
 	for (int jj = 0, jjend = zi->w; jj < jjend; ++jj) {
 		p[0] = src[0];
