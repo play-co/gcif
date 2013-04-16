@@ -50,7 +50,6 @@ bool ImageMaskReader::decodeRLE(u8 *rle, int len) {
 	double t0 = m_clock->usec();
 #endif // CAT_COLLECT_STATS
 
-	u32 sum = 0;
 	u32 lastSum = 0;
 	bool rowStarted = false;
 	int rowLeft = 0;
@@ -61,9 +60,9 @@ bool ImageMaskReader::decodeRLE(u8 *rle, int len) {
 
 	const int offsetLimit = _stride * _height;
 
+	u32 sum = 0;
 	for (int ii = 0; ii < len; ++ii) {
 		u8 symbol = rle[ii];
-
 		if (symbol >= 255) {
 			sum += 255;
 			continue;
@@ -278,6 +277,9 @@ bool ImageMaskReader::decodeRLE(u8 *rle, int len) {
 				}
 			}
 		}
+
+		// Reset sum
+		sum = 0;
 	}
 
 #ifdef CAT_COLLECT_STATS
