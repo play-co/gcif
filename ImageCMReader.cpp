@@ -114,7 +114,7 @@ int ImageCMReader::readRGB(ImageReader &reader) {
 		u8 *last = _chaos;
 		SpatialFilterFunction sf;
 		YUV2RGBFilterFunction cf;
-		int lz_skip = 0, lp_skip = 0;
+		int lz_skip = 0;
 
 		// For each pixel,
 		for (int x = 0; x < width; ++x) {
@@ -148,12 +148,6 @@ int ImageCMReader::readRGB(ImageReader &reader) {
 					left[c] = last[c] = 0;
 				}
 				--lz_skip;
-			} else if (lp_skip > 0) {
-				// Record a zero here
-				for (int c = 0; c < PLANES; ++c) {
-					left[c] = last[c] = 0;
-				}
-				--lp_skip;
 			} else if (_mask->hasRGB(x, y)) {
 				// Write empty pixel
 				u32 *zp = reinterpret_cast<u32 *>( p );
