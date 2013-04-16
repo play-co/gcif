@@ -23,18 +23,8 @@ class ImageMaskReader {
 	u8 *_lz;
 	u8 *_rle;
 
-	int _sum, _lastSum;
-	int _rowLeft;
-	bool _rowStarted;
-	u32 *_row;
-
-	int _bitOffset;
-	bool _bitOn;
-	int _writeRow;
-
 	bool decodeRLE(u8 *rle, int len);
 	bool decodeLZ(HuffmanDecoder &decoder, ImageReader &reader);
-	bool readHuffmanCodelens(u8 codelens[256], ImageReader &reader);
 	void clear();
 
 	int init(const ImageHeader *header);

@@ -277,40 +277,19 @@ int ImageMaskWriter::initFromRGBA(const u8 *rgba, int width, int height) {
 }
 
 static CAT_INLINE void byteEncode(vector<unsigned char> &bytes, u32 data) {
-	unsigned char b0 = data;
-
-	if (data >>= 7) {
-		u8 b1 = data;
-
-		if (data >>= 7) {
-			u8 b2 = data;
-
-			if (data >>= 7) {
-				u8 b3 = data;
-
-				if (data >>= 7) {
-					u8 b4 = data;
-
-					bytes.push_back(b4 | 128);
-				}
-
-				bytes.push_back(b3 | 128);
-			}
-
-			bytes.push_back(b2 | 128);
-		}
-
-		bytes.push_back(b1 | 128);
+	while (data >= 255) {
+		bytes.push_back(255);
+		data -= 255;
 	}
-
-	bytes.push_back(b0 & 127);
+	bytes.push_back(data);
 }
 
 void ImageMaskWriter::performRLE(vector<u8> &rle) {
-	vector<int> deltas;
 
 	u32 *lagger = _filtered;
 	const int stride = _stride;
+
+	vector<int> deltas;
 
 	for (int ii = 0, iilen = _height; ii < iilen; ++ii) {
 		// for xdelta:
@@ -483,7 +462,7 @@ bool ImageMaskWriter::dumpStats() {
 
 	CAT_INANE("stats") << "(Mask Encoding) Throughput : " << Stats.compressedDataBits/8 / Stats.overallUsec << " MBPS (output bytes)";
 	CAT_INANE("stats") << "(Mask Encoding) Pixels covered : " << Stats.covered << " (" << Stats.covered * 100. / (_width * _height) << " %total)";
-	CAT_INANE("stats") << "(Mask Encoding) Compression ratio : " << Stats.compressionRatio << ":1";
+	CAT_INANE("stats") << "(Mask Encoding) Compression ratio : " << Stats.compressionRatio << ":1 (" << Stats.compressedDataBits/8 << " bytes used overall)";
 
 	return true;
 }
