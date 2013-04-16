@@ -188,7 +188,7 @@ bool HuffmanDecoder::init(int num_syms, ImageReader &reader, u32 table_bits) {
 	// Shaved?
 
 	if (reader.readBit()) {
-		int num_syms_bits = BSR32(num_syms - 1) + 1;
+		const int num_syms_bits = BSR32(num_syms - 1) + 1;
 
 		int shaved = reader.readBits(num_syms_bits) + 1;
 		if (shaved >= num_syms) {
@@ -220,14 +220,27 @@ bool HuffmanDecoder::init(int num_syms, ImageReader &reader, u32 table_bits) {
 
 	// Read the table decoder codelens
 	u8 table_codelens[HUFF_SYMS];
-	for (int ii = 0; ii < HUFF_SYMS; ++ii) {
-		u8 len = reader.readBits(4);
+	{
+		// Doubly-shaved?
+		int last_nzt;
 
-		if (len >= 15) {
-			len += reader.readBit();
+		if (reader.readBit()) {
+			last_nzt = reader.readBits(4) + 1;
+
+			for (int ii = last_nzt; ii < HUFF_SYMS; ++ii) {
+				table_codelens[ii] = 0;
+			}
 		}
 
-		table_codelens[ii] = len;
+		for (int ii = 0; ii < last_nzt; ++ii) {
+			u8 len = reader.readBits(4);
+
+			if (len >= 15) {
+				len += reader.readBit();
+			}
+
+			table_codelens[ii] = len;
+		}
 	}
 
 	// Initialize the table decoder

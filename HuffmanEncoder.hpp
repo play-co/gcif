@@ -133,11 +133,11 @@ public:
 
 
 template<int NUM_SYMS> class HuffmanEncoder {
+public:
 	u16 _codes[NUM_SYMS];
 	u8 _codelens[NUM_SYMS];
 	u32 _one_sym;
 
-public:
 	CAT_INLINE bool init(FreqHistogram<NUM_SYMS> &hist) {
 		u16 freqs[NUM_SYMS];
 
