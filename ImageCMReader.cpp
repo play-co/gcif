@@ -90,9 +90,6 @@ int ImageCMReader::readChaosTables(ImageReader &reader) {
 int ImageCMReader::readRGB(ImageReader &reader) {
 	const int width = _width;
 
-	// Initialize previous chaos scanline to zero
-	CAT_CLR(_chaos, width * PLANES);
-
 	// Get initial triggers
 	u16 trigger_y_lz = _lz->getTriggerY();
 	u16 trigger_x_lz = _lz->getTriggerX();
@@ -100,8 +97,10 @@ int ImageCMReader::readRGB(ImageReader &reader) {
 	// Start from upper-left of image
 	u8 *p = _rgba;
 
-	// For each scanline,
-	for (int y = 0; y < _height; ++y) {
+	// Unroll y = 0 scanline
+	{
+		const int y = 0;
+
 		// If LZ triggered,
 		if (y == trigger_y_lz) {
 			_lz->triggerY();
@@ -129,14 +128,163 @@ int ImageCMReader::readRGB(ImageReader &reader) {
 			if ((x & FILTER_ZONE_SIZE_MASK) == 0) {
 				FilterSelection *filter = &_filters[x >> FILTER_ZONE_SIZE_SHIFT];
 
+				// Read SF and CF for this zone
+				u8 sfi = reader.nextHuffmanSymbol(&_sf);
+				filter->sf = sf = SPATIAL_FILTERS[sfi];
+				filter->sfu = UNSAFE_SPATIAL_FILTERS[sfi];
+				u8 cfi = reader.nextHuffmanSymbol(&_cf);
+				filter->cf = cf = YUV2RGB_FILTERS[cfi];
+			}
+
+			if (lz_skip > 0) {
+				--lz_skip;
+
+				for (int c = 0; c < PLANES; ++c) {
+					left[c] = last[c] = 0;
+				}
+			} else if (_mask->hasRGB(x, y)) {
+				// Fully-transparent pixel
+				u32 *zp = reinterpret_cast<u32 *>( p );
+				*zp = 0;
+
+				for (int c = 0; c < PLANES; ++c) {
+					left[c] = last[c] = 0;
+				}
+			} else {
+				// Read YUV filtered pixel
+				u8 yuv[3], a;
+
+				left[0] = last[0] = yuv[0] = _decoder[0][CHAOS_TABLE[left[0]]].next(reader);
+				left[1] = last[1] = yuv[1] = _decoder[1][CHAOS_TABLE[left[1]]].next(reader);
+				left[2] = last[2] = yuv[2] = _decoder[2][CHAOS_TABLE[left[2]]].next(reader);
+				left[3] = last[3] = a = _decoder[3][CHAOS_TABLE[left[3]]].next(reader);
+
+				// Reverse color filter
+				u8 rgb[3];
+				cf(yuv, rgb);
+
+				// Reverse spatial filter
+				const u8 *pred = sf(p, x, y, width);
+				p[0] = rgb[0] + pred[0];
+				p[1] = rgb[1] + pred[1];
+				p[2] = rgb[2] + pred[2];
+				p[3] = 255 - a;
+			}
+
+			// Next pixel
+			last += PLANES;
+			p += 4;
+		}
+	}
+
+
+	// For each scanline,
+	for (int y = 1; y < _height; ++y) {
+		// If LZ triggered,
+		if (y == trigger_y_lz) {
+			_lz->triggerY();
+			trigger_x_lz = _lz->getTriggerX();
+			trigger_y_lz = _lz->getTriggerY();
+		}
+
+		// Restart for scanline
+		u8 left[PLANES];
+		u8 *last = _chaos;
+		SpatialFilterFunction sf;
+		YUV2RGBFilterFunction cf;
+		int lz_skip = 0;
+
+		// Unroll x = 0 pixel
+		{
+			const int x = 0;
+
+			// If LZ triggered,
+			if (x == trigger_x_lz) {
+				lz_skip = _lz->triggerX(p);
+				trigger_x_lz = _lz->getTriggerX();
+				trigger_y_lz = _lz->getTriggerY();
+			}
+
+			FilterSelection *filter = &_filters[x >> FILTER_ZONE_SIZE_SHIFT];
+
+			// If we are on a filter info scanline,
+			if ((y & FILTER_ZONE_SIZE_MASK) == 0) {
+				// Read SF and CF for this zone
+				u8 sfi = reader.nextHuffmanSymbol(&_sf);
+				filter->sf = sf = SPATIAL_FILTERS[sfi];
+				filter->sfu = UNSAFE_SPATIAL_FILTERS[sfi];
+				u8 cfi = reader.nextHuffmanSymbol(&_cf);
+				filter->cf = cf = YUV2RGB_FILTERS[cfi];
+			} else {
+				// Read filter from previous scanline
+				sf = filter->sf;
+				cf = filter->cf;
+			}
+
+			if (lz_skip > 0) {
+				--lz_skip;
+
+				for (int c = 0; c < PLANES; ++c) {
+					left[c] = last[c] = 0;
+				}
+			} else if (_mask->hasRGB(x, y)) {
+				// Fully-transparent pixel
+				u32 *zp = reinterpret_cast<u32 *>( p );
+				*zp = 0;
+
+				for (int c = 0; c < PLANES; ++c) {
+					left[c] = last[c] = 0;
+				}
+			} else {
+				// Read YUV filtered pixel
+				u8 yuv[3], a;
+
+				left[0] = last[0] = yuv[0] = _decoder[0][CHAOS_TABLE[last[0]]].next(reader);
+				left[1] = last[1] = yuv[1] = _decoder[1][CHAOS_TABLE[last[1]]].next(reader);
+				left[2] = last[2] = yuv[2] = _decoder[2][CHAOS_TABLE[last[2]]].next(reader);
+				left[3] = last[3] = a = _decoder[3][CHAOS_TABLE[last[3]]].next(reader);
+
+				// Reverse color filter
+				u8 rgb[3];
+				cf(yuv, rgb);
+
+				// Reverse spatial filter
+				const u8 *pred = sf(p, x, y, width);
+				p[0] = rgb[0] + pred[0];
+				p[1] = rgb[1] + pred[1];
+				p[2] = rgb[2] + pred[2];
+				p[3] = 255 - a;
+			}
+
+			// Next pixel
+			last += PLANES;
+			p += 4;
+		}
+
+		// For each pixel,
+		for (int x = 1, xend = width - 1; x < xend; ++x) {
+			// If LZ triggered,
+			if (x == trigger_x_lz) {
+				lz_skip = _lz->triggerX(p);
+				trigger_x_lz = _lz->getTriggerX();
+				trigger_y_lz = _lz->getTriggerY();
+			}
+
+			// If it is time to read the filter,
+			if ((x & FILTER_ZONE_SIZE_MASK) == 0) {
+				FilterSelection *filter = &_filters[x >> FILTER_ZONE_SIZE_SHIFT];
+
 				// If we are on a filter info scanline,
 				if ((y & FILTER_ZONE_SIZE_MASK) == 0) {
 					// Read SF and CF for this zone
-					filter->sf = sf = SPATIAL_FILTERS[reader.nextHuffmanSymbol(&_sf)];
-					filter->cf = cf = YUV2RGB_FILTERS[reader.nextHuffmanSymbol(&_cf)];
+					u8 sfi = reader.nextHuffmanSymbol(&_sf);
+					filter->sf = SPATIAL_FILTERS[sfi];
+					filter->sfu = sf = UNSAFE_SPATIAL_FILTERS[sfi];
+					u8 cfi = reader.nextHuffmanSymbol(&_cf);
+					filter->cf = cf = YUV2RGB_FILTERS[cfi];
 				} else {
 					// Read filter from previous scanline
-					sf = filter->sf;
+					sf = filter->sfu;
 					cf = filter->cf;
 				}
 			}
@@ -167,6 +315,61 @@ int ImageCMReader::readRGB(ImageReader &reader) {
 				// Reverse color filter
 				u8 rgb[3];
 				cf(yuv, rgb);
+
+				// Reverse spatial filter
+				const u8 *pred = sf(p, x, y, width);
+				p[0] = rgb[0] + pred[0];
+				p[1] = rgb[1] + pred[1];
+				p[2] = rgb[2] + pred[2];
+				p[3] = 255 - a;
+			}
+
+			// Next pixel
+			last += PLANES;
+			p += 4;
+		}
+
+		// For x = width-1,
+		{
+			const int x = width - 1;
+
+			// If LZ triggered,
+			if (x == trigger_x_lz) {
+				lz_skip = _lz->triggerX(p);
+				trigger_x_lz = _lz->getTriggerX();
+				trigger_y_lz = _lz->getTriggerY();
+			}
+
+			if (lz_skip > 0) {
+				--lz_skip;
+
+				for (int c = 0; c < PLANES; ++c) {
+					left[c] = last[c] = 0;
+				}
+			} else if (_mask->hasRGB(x, y)) {
+				// Fully-transparent pixel
+				u32 *zp = reinterpret_cast<u32 *>( p );
+				*zp = 0;
+
+				for (int c = 0; c < PLANES; ++c) {
+					left[c] = last[c] = 0;
+				}
+			} else {
+				// Read YUV filtered pixel
+				u8 yuv[3], a;
+
+				left[0] = last[0] = yuv[0] = _decoder[0][CHAOS_TABLE[left[0] + (u16)last[0]]].next(reader);
+				left[1] = last[1] = yuv[1] = _decoder[1][CHAOS_TABLE[left[1] + (u16)last[1]]].next(reader);
+				left[2] = last[2] = yuv[2] = _decoder[2][CHAOS_TABLE[left[2] + (u16)last[2]]].next(reader);
+				left[3] = last[3] = a = _decoder[3][CHAOS_TABLE[left[3] + (u16)last[3]]].next(reader);
+
+				// Reverse color filter
+				u8 rgb[3];
+				cf(yuv, rgb);
+
+				// Switch back to safe spatial filter
+				FilterSelection *filter = &_filters[x >> FILTER_ZONE_SIZE_SHIFT];
+				sf = filter->sf;
 
 				// Reverse spatial filter
 				const u8 *pred = sf(p, x, y, width);

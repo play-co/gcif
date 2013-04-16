@@ -47,8 +47,9 @@ protected:
 
 	struct FilterSelection {
 		SpatialFilterFunction sf;
+		SpatialFilterFunction sfu; // unsafe version
 		YUV2RGBFilterFunction cf;
-	} *_filters; // hi4bits: sf, lo4bits: cf
+	} *_filters;
 
 	ImageMaskReader *_mask;
 	ImageLZReader *_lz;

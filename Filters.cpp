@@ -460,6 +460,8 @@ static const u8 *SFF_PICK_LEFT(const u8 *p, int x, int y, int width) {
 	} else if (y > 0) {
 		return p - width*4; // B
 	}
+
+	return FPZ;
 }
 
 static const u8 *SFFU_PICK_LEFT(const u8 *p, int x, int y, int width) {
@@ -495,6 +497,8 @@ static const u8 *SFF_PRED_UR(const u8 *p, int x, int y, int width) {
 	} else if (y > 0) {
 		return p - width*4; // B
 	}
+
+	return FPZ;
 }
 
 static const u8 *SFFU_PRED_UR(const u8 *p, int x, int y, int width) {
