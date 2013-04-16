@@ -39,8 +39,6 @@ public:
 		double initUsec;
 		double lzUsec, rleUsec;
 		double overallUsec;
-
-		u32 originalDataBytes;
 	} Stats;
 #endif // CAT_COLLECT_STATS
 

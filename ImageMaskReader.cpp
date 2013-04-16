@@ -389,8 +389,6 @@ int ImageMaskReader::read(ImageReader &reader) {
 	Stats.initUsec = t1 - t0;
 	Stats.lzUsec = t2 - t1 - Stats.rleUsec;
 	Stats.overallUsec = t2 - t0;
-
-	Stats.originalDataBytes = _width * _height / 8;
 #endif // CAT_COLLECT_STATS
 
 #ifdef DUMP_MONOCHROME
@@ -423,9 +421,6 @@ bool ImageMaskReader::dumpStats() {
 	CAT_INANE("stats") << "(Mask Decode)     Huffman+LZ : " <<  Stats.lzUsec << " usec (" << Stats.lzUsec * 100.f / Stats.overallUsec << " %total)";
 	CAT_INANE("stats") << "(Mask Decode)     RLE+Filter : " <<  Stats.rleUsec << " usec (" << Stats.rleUsec * 100.f / Stats.overallUsec << " %total)";
 	CAT_INANE("stats") << "(Mask Decode)        Overall : " <<  Stats.overallUsec << " usec";
-
-	CAT_INANE("stats") << "(Mask Decode)  Original Size : " <<  Stats.originalDataBytes << " bytes";
-	CAT_INANE("stats") << "(Mask Decode)     Throughput : " << Stats.originalDataBytes / Stats.overallUsec << " MBPS (output bytes/time)";
 
 	return true;
 }
