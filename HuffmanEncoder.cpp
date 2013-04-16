@@ -762,6 +762,9 @@ int cat::writeCompressedHuffmanTable(int num_syms, u8 codelens[], ImageWriter &w
 			best = ii;
 		}
 	}
+	best = 0;
+
+	writer.writeWord(1234567);
 
 	// Write best table
 	{
@@ -802,6 +805,8 @@ int cat::writeCompressedHuffmanTable(int num_syms, u8 codelens[], ImageWriter &w
 			}
 		}
 	}
+
+	writer.writeWord(1234567);
 
 	// Finish initializing encoder
 	encoders[best].initCodes();
