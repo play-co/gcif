@@ -59,6 +59,7 @@ enum SpatialFilters {
 typedef const u8 *(*SpatialFilterFunction)(const u8 *p, int x, int y, int width);
 
 extern SpatialFilterFunction SPATIAL_FILTERS[];
+extern SpatialFilterFunction UNSAFE_SPATIAL_FILTERS[]; // Assumes x>0, y>0, and x<width-1
 
 
 //// Color Filters

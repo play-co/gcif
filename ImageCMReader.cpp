@@ -141,17 +141,17 @@ int ImageCMReader::readRGB(ImageReader &reader) {
 				}
 			}
 
-			// If fully transparent,
 			if (lz_skip > 0) {
-				// Record a zero here
+				--lz_skip;
+
 				for (int c = 0; c < PLANES; ++c) {
 					left[c] = last[c] = 0;
 				}
-				--lz_skip;
 			} else if (_mask->hasRGB(x, y)) {
-				// Write empty pixel
+				// Fully-transparent pixel
 				u32 *zp = reinterpret_cast<u32 *>( p );
 				*zp = 0;
+
 				for (int c = 0; c < PLANES; ++c) {
 					left[c] = last[c] = 0;
 				}
