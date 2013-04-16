@@ -757,7 +757,7 @@ int cat::writeCompressedHuffmanTable(int num_syms, u8 codelens[], ImageWriter &w
 	// Determine best option
 	int best = 0, bestScore = bitcount[0];
 	for (int ii = 1; ii < 4; ++ii) {
-		if (bestScore < bitcount[ii]) {
+		if (bestScore > bitcount[ii]) {
 			bestScore = bitcount[ii];
 			best = ii;
 		}
