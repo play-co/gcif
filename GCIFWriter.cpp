@@ -3,7 +3,6 @@
 #include "ImageMaskWriter.hpp"
 #include "ImageLZWriter.hpp"
 #include "ImageCMWriter.hpp"
-#include "ImageLPWriter.hpp"
 using namespace cat;
 
 
@@ -36,18 +35,9 @@ int gcif_write(const void *rgba, int width, int height, const char *output_file_
 	imageLZWriter.write(writer);
 	imageLZWriter.dumpStats();
 
-	// Local Palette
-	ImageLPWriter imageLPWriter;
-	if ((err = imageLPWriter.initFromRGBA(image, width, height, imageMaskWriter, imageLZWriter))) {
-		return err;
-	}
-
-	imageLPWriter.write(writer);
-	imageLPWriter.dumpStats();
-
 	// Context Modeling Decompression
 	ImageCMWriter imageCMWriter;
-	if ((err = imageCMWriter.initFromRGBA(image, width, height, imageMaskWriter, imageLZWriter, imageLPWriter))) {
+	if ((err = imageCMWriter.initFromRGBA(image, width, height, imageMaskWriter, imageLZWriter))) {
 		return err;
 	}
 

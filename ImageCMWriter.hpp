@@ -5,7 +5,6 @@
 #include "ImageWriter.hpp"
 #include "ImageMaskWriter.hpp"
 #include "ImageLZWriter.hpp"
-#include "ImageLPWriter.hpp"
 #include "ImageCMReader.hpp"
 #include "EntropyEncoder.hpp"
 #include "FilterScorer.hpp"
@@ -54,7 +53,6 @@ protected:
 	int _width, _height;
 	ImageMaskWriter *_mask;
 	ImageLZWriter *_lz;
-	ImageLPWriter *_lp;
 
 	// Filter Huffman codes
 	u16 _sf_codes[SF_COUNT];
@@ -116,7 +114,7 @@ public:
 		return _matrix[filterX + filterY * _w];
 	}
 
-	int initFromRGBA(const u8 *rgba, int width, int height, ImageMaskWriter &mask, ImageLZWriter &lz, ImageLPWriter &lp);
+	int initFromRGBA(const u8 *rgba, int width, int height, ImageMaskWriter &mask, ImageLZWriter &lz);
 	void write(ImageWriter &writer);
 
 #ifdef CAT_COLLECT_STATS

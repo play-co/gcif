@@ -6,7 +6,6 @@
 #include "HuffmanDecoder.hpp"
 #include "ImageMaskReader.hpp"
 #include "ImageLZReader.hpp"
-#include "ImageLPReader.hpp"
 #include "GCIFReader.hpp"
 #include "Filters.hpp"
 #include "EntropyDecoder.hpp"
@@ -53,7 +52,6 @@ protected:
 
 	ImageMaskReader *_mask;
 	ImageLZReader *_lz;
-	ImageLPReader *_lp;
 
 	HuffmanDecoder _sf, _cf;
 	EntropyDecoder _decoder[PLANES][CHAOS_LEVELS];
@@ -83,7 +81,7 @@ public:
 		clear();
 	}
 
-	int read(ImageReader &reader, ImageMaskReader &maskReader, ImageLZReader &lzReader, ImageLPReader &lpReader, GCIFImage *image);
+	int read(ImageReader &reader, ImageMaskReader &maskReader, ImageLZReader &lzReader, GCIFImage *image);
 
 #ifdef CAT_COLLECT_STATS
 	bool dumpStats();

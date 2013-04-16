@@ -103,8 +103,8 @@ int ImageLZReader::readZones(ImageReader &reader) {
 		dy += last_dy;
 		sy = dy - sy;
 
-		z->sox = (s16)dy - (s16)sx;
-		z->soy = (s16)dy - (s16)sy;
+		z->sox = (s16)sx - (s16)dx;
+		z->soy = (s16)sy - (s16)dy;
 		z->dx = dx;
 		z->dy = dy;
 
@@ -146,6 +146,7 @@ int ImageLZReader::triggerX(u8 *p) {
 	Zone *zi = &_zones[ii];
 
 	// Copy scanline one at a time in case the pointers are aliased
+	CAT_WARN("TEST") << zi->sox << "," << zi->soy;
 	const u8 *src = p + (zi->sox + zi->soy * _width)*4;
 	for (int jj = 0, jjend = zi->w; jj < jjend; ++jj) {
 		p[0] = src[0];

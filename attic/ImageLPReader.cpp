@@ -170,17 +170,14 @@ int ImageLPReader::readZones(ImageReader &reader) {
 			z->used = used;
 
 			if (z->x >= _width || z->y >= _height) {
-				CAT_WARN("TEST") << x << ", " << y;
 				return RE_LP_CODES;
 			}
 
 			if ((u32)z->x + (u32)z->w >= _width || (u32)z->y + (u32)z->h >= _height) {
-				CAT_WARN("TEST2");
 				return RE_LP_CODES;
 			}
 
 			if (z->used > MAX_COLORS) {
-				CAT_WARN("TEST3");
 				return RE_LP_CODES;
 			}
 
@@ -192,7 +189,6 @@ int ImageLPReader::readZones(ImageReader &reader) {
 				}
 
 				if (c >= _colors_size) {
-					CAT_WARN("TEST4");
 					return RE_LP_CODES;
 				}
 
@@ -210,7 +206,6 @@ int ImageLPReader::readZones(ImageReader &reader) {
 					}
 
 					if (c >= _colors_size) {
-						CAT_WARN("TEST5");
 						return RE_LP_CODES;
 					}
 
@@ -220,7 +215,6 @@ int ImageLPReader::readZones(ImageReader &reader) {
 
 			last_x = x;
 			last_y = y;
-			++z;
 		}
 	} else {
 		int colorIndexBits = (int)BSR32(_colors_size - 1) + 1;

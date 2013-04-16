@@ -22,8 +22,8 @@ gcif_objects += MappedFile.o SystemInfo.o HotRodHash.o ImageWriter.o
 gcif_objects += ImageReader.o ImageMaskWriter.o ImageMaskReader.o
 gcif_objects += ImageCMWriter.o EntropyEncoder.o FilterScorer.o Filters.o
 gcif_objects += ImageLZWriter.o ImageLZReader.o ImageCMReader.o
-gcif_objects += GCIFReader.o GCIFWriter.o EntropyDecoder.o ImageLPWriter.o
-gcif_objects += ImageLPReader.o
+gcif_objects += GCIFReader.o GCIFWriter.o EntropyDecoder.o
+#gcif_objects += ImageLPReader.o ImageLPWriter.o
 
 
 # List of source files
@@ -34,8 +34,8 @@ SRCS += MappedFile.cpp SystemInfo.cpp HotRodHash.cpp ImageWriter.cpp
 SRCS += ImageReader.cpp ImageMaskWriter.cpp ImageMaskReader.cpp
 SRCS += ImageCMWriter.cpp EntropyEncoder.cpp FilterScorer.cpp Filters.cpp
 SRCS += ImageLZWriter.cpp ImageLZReader.cpp ImageCMReader.cpp
-SRCS += GCIFReader.cpp GCIFWriter.cpp EntropyDecoder.cpp ImageLPWriter.cpp
-SRCS += ImageLPReader.cpp
+SRCS += GCIFReader.cpp GCIFWriter.cpp EntropyDecoder.cpp
+#SRCS += ImageLPReader.cpp ImageLPWriter.cpp
 
 
 # Default target: gcif executable
@@ -130,11 +130,11 @@ GCIFWriter.o : GCIFWriter.cpp
 EntropyDecoder.o : EntropyDecoder.cpp
 	$(CCPP) $(CPFLAGS) -c EntropyDecoder.cpp
 
-ImageLPWriter.o : ImageLPWriter.cpp
-	$(CCPP) $(CPFLAGS) -c ImageLPWriter.cpp
+#ImageLPWriter.o : ImageLPWriter.cpp
+#	$(CCPP) $(CPFLAGS) -c ImageLPWriter.cpp
 
-ImageLPReader.o : ImageLPReader.cpp
-	$(CCPP) $(CPFLAGS) -c ImageLPReader.cpp
+#ImageLPReader.o : ImageLPReader.cpp
+#	$(CCPP) $(CPFLAGS) -c ImageLPReader.cpp
 
 
 # Depend target

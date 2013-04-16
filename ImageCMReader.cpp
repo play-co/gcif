@@ -96,8 +96,6 @@ int ImageCMReader::readRGB(ImageReader &reader) {
 	// Get initial triggers
 	u16 trigger_y_lz = _lz->getTriggerY();
 	u16 trigger_x_lz = _lz->getTriggerX();
-	u16 trigger_y_lp = _lp->getTriggerY();
-	u16 trigger_x_lp = _lp->getTriggerX();
 
 	// Start from upper-left of image
 	u8 *p = _rgba;
@@ -109,12 +107,6 @@ int ImageCMReader::readRGB(ImageReader &reader) {
 			_lz->triggerY();
 			trigger_x_lz = _lz->getTriggerX();
 			trigger_y_lz = _lz->getTriggerY();
-		}
-		// If LP triggered,
-		if (y == trigger_y_lp) {
-			_lp->triggerY();
-			trigger_x_lp = _lp->getTriggerX();
-			trigger_y_lp = _lp->getTriggerY();
 		}
 
 		// Restart for scanline
@@ -131,12 +123,6 @@ int ImageCMReader::readRGB(ImageReader &reader) {
 				lz_skip = _lz->triggerX(p);
 				trigger_x_lz = _lz->getTriggerX();
 				trigger_y_lz = _lz->getTriggerY();
-			}
-			// If LP triggered,
-			if (x == trigger_x_lp) {
-				lp_skip = _lz->triggerX(p);
-				trigger_x_lp = _lp->getTriggerX();
-				trigger_y_lp = _lp->getTriggerY();
 			}
 
 			// If it is time to read the filter,
@@ -205,7 +191,7 @@ int ImageCMReader::readRGB(ImageReader &reader) {
 	return RE_OK;
 }
 
-int ImageCMReader::read(ImageReader &reader, ImageMaskReader &maskReader, ImageLZReader &lzReader, ImageLPReader &lpReader, GCIFImage *image) {
+int ImageCMReader::read(ImageReader &reader, ImageMaskReader &maskReader, ImageLZReader &lzReader, GCIFImage *image) {
 #ifdef CAT_COLLECT_STATS
 	m_clock = Clock::ref();
 
@@ -216,7 +202,6 @@ int ImageCMReader::read(ImageReader &reader, ImageMaskReader &maskReader, ImageL
 
 	_mask = &maskReader;
 	_lz = &lzReader;
-	_lp = &lpReader;
 
 	// Initialize
 	if ((err = init(image))) {
