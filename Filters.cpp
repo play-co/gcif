@@ -14,9 +14,9 @@ static const u8 *SFF_Z(const u8 *p, int x, int y, int width) {
 #define SFFU_Z SFF_Z
 
 static const u8 *SFF_D(const u8 *p, int x, int y, int width) {
-	if CAT_LIKELY(y > 0) {
+	if (y > 0) {
 		const u8 *fp = p - width*4; // B
-		if CAT_LIKELY(x < width-1) {
+		if (x < width-1) {
 			fp += 4; // D
 		}
 		return fp;
@@ -32,8 +32,8 @@ static const u8 *SFFU_D(const u8 *p, int x, int y, int width) {
 }
 
 static const u8 *SFF_C(const u8 *p, int x, int y, int width) {
-	if CAT_LIKELY(x > 0) {
-		if CAT_LIKELY(y > 0) {
+	if (x > 0) {
+		if (y > 0) {
 			return p - width*4 - 4; // C
 		} else {
 			return p - 4; // A
@@ -50,7 +50,7 @@ static const u8 *SFFU_C(const u8 *p, int x, int y, int width) {
 }
 
 static const u8 *SFF_B(const u8 *p, int x, int y, int width) {
-	if CAT_LIKELY(y > 0) {
+	if (y > 0) {
 		return p - width*4; // B
 	} else if (x > 0) {
 		return p - 4; // A
@@ -64,7 +64,7 @@ static const u8 *SFFU_B(const u8 *p, int x, int y, int width) {
 }
 
 static const u8 *SFF_A(const u8 *p, int x, int y, int width) {
-	if CAT_LIKELY(x > 0) {
+	if (x > 0) {
 		return p - 4; // A
 	} else if (y > 0) {
 		return p - width*4; // B
@@ -78,10 +78,10 @@ static const u8 *SFFU_A(const u8 *p, int x, int y, int width) {
 }
 
 static const u8 *SFF_AB(const u8 *p, int x, int y, int width) {
-	if CAT_LIKELY(x > 0) {
+	if (x > 0) {
 		const u8 *a = p - 4; // A
 
-		if CAT_LIKELY(y > 0) {
+		if (y > 0) {
 			const u8 *b = p - width*4; // B
 
 			FPT[0] = (a[0] + (u16)b[0]) >> 1;
@@ -111,10 +111,10 @@ static const u8 *SFFU_AB(const u8 *p, int x, int y, int width) {
 }
 
 static const u8 *SFF_BD(const u8 *p, int x, int y, int width) {
-	if CAT_LIKELY(y > 0) {
+	if (y > 0) {
 		const u8 *b = p - width*4; // B
 		const u8 *src = b; // B
-		if CAT_LIKELY(x < width-1) {
+		if (x < width-1) {
 			src += 4; // D
 		}
 
@@ -153,10 +153,10 @@ static CAT_INLINE u8 abcClamp(int a, int b, int c) {
 }
 
 static const u8 *SFF_ABC_CLAMP(const u8 *p, int x, int y, int width) {
-	if CAT_LIKELY(x > 0) {
+	if (x > 0) {
 		const u8 *a = p - 4; // A
 
-		if CAT_LIKELY(y > 0) {
+		if (y > 0) {
 			const u8 *b = p - width*4; // B
 			const u8 *c = b - 4; // C
 
@@ -204,10 +204,10 @@ static CAT_INLINE u8 paeth(int a, int b, int c) {
 }
 
 static const u8 *SFF_PAETH(const u8 *p, int x, int y, int width) {
-	if CAT_LIKELY(x > 0) {
+	if (x > 0) {
 		const u8 *a = p - 4; // A
 
-		if CAT_LIKELY(y > 0) {
+		if (y > 0) {
 			const u8 *b = p - width*4; // B
 			const u8 *c = b - 4; // C
 
@@ -259,10 +259,10 @@ static CAT_INLINE u8 abc_paeth(int a, int b, int c) {
 }
 
 static const u8 *SFF_ABC_PAETH(const u8 *p, int x, int y, int width) {
-	if CAT_LIKELY(x > 0) {
+	if (x > 0) {
 		const u8 *a = p - 4; // A
 
-		if CAT_LIKELY(y > 0) {
+		if (y > 0) {
 			const u8 *b = p - width*4; // B
 			const u8 *c = b - 4; // C
 
@@ -312,10 +312,10 @@ static CAT_INLINE u8 predLevel(int a, int b, int c) {
 }
 
 static const u8 *SFF_PL(const u8 *p, int x, int y, int width) {
-	if CAT_LIKELY(x > 0) {
+	if (x > 0) {
 		const u8 *a = p - 4; // A
 
-		if CAT_LIKELY(y > 0) {
+		if (y > 0) {
 			const u8 *b = p - width*4; // B
 			const u8 *c = b - 4; // C
 
@@ -347,14 +347,14 @@ static const u8 *SFFU_PL(const u8 *p, int x, int y, int width) {
 }
 
 static const u8 *SFF_PLO(const u8 *p, int x, int y, int width) {
-	if CAT_LIKELY(x > 0) {
+	if (x > 0) {
 		const u8 *a = p - 4; // A
 
-		if CAT_LIKELY(y > 0) {
+		if (y > 0) {
 			const u8 *b = p - width*4; // B
 
 			const u8 *src = b; // B
-			if CAT_LIKELY(x < width-1) {
+			if (x < width-1) {
 				src += 4; // D
 			}
 
@@ -386,15 +386,15 @@ static const u8 *SFFU_PLO(const u8 *p, int x, int y, int width) {
 }
 
 static const u8 *SFF_ABCD(const u8 *p, int x, int y, int width) {
-	if CAT_LIKELY(x > 0) {
+	if (x > 0) {
 		const u8 *a = p - 4; // A
 
-		if CAT_LIKELY(y > 0) {
+		if (y > 0) {
 			const u8 *b = p - width*4; // B
 			const u8 *c = b - 4; // C
 
 			const u8 *src = b; // B
-			if CAT_LIKELY(x < width-1) {
+			if (x < width-1) {
 				src += 4; // D
 			}
 
@@ -443,7 +443,7 @@ static CAT_INLINE u8 leftSel(int f, int c, int a) {
 }
 
 static const u8 *SFF_PICK_LEFT(const u8 *p, int x, int y, int width) {
-	if CAT_LIKELY(x > 1 && y > 1 && x < width - 2) {
+	if (x > 1 && y > 1 && x < width - 2) {
 		const u8 *a = p - 4;
 		const u8 *c = a - width*4;
 		const u8 *f = c - 4;
@@ -455,7 +455,7 @@ static const u8 *SFF_PICK_LEFT(const u8 *p, int x, int y, int width) {
 		return FPT;
 	}
 
-	if CAT_LIKELY(x > 0) {
+	if (x > 0) {
 		return p - 4; // A
 	} else if (y > 0) {
 		return p - width*4; // B
@@ -465,7 +465,7 @@ static const u8 *SFF_PICK_LEFT(const u8 *p, int x, int y, int width) {
 }
 
 static const u8 *SFFU_PICK_LEFT(const u8 *p, int x, int y, int width) {
-	if CAT_LIKELY(x < width - 2) {
+	if (x < width - 2) {
 		const u8 *a = p - 4;
 		const u8 *c = a - width*4;
 		const u8 *f = c - 4;
@@ -481,7 +481,7 @@ static const u8 *SFFU_PICK_LEFT(const u8 *p, int x, int y, int width) {
 }
 
 static const u8 *SFF_PRED_UR(const u8 *p, int x, int y, int width) {
-	if CAT_LIKELY(y > 1 && x < width - 2) {
+	if (y > 1 && x < width - 2) {
 		const u8 *d = p + 4 - width*4;
 		const u8 *e = d + 4 - width*4;
 
@@ -492,7 +492,7 @@ static const u8 *SFF_PRED_UR(const u8 *p, int x, int y, int width) {
 		return FPT;
 	}
 
-	if CAT_LIKELY(x > 0) {
+	if (x > 0) {
 		return p - 4; // A
 	} else if (y > 0) {
 		return p - width*4; // B
@@ -502,7 +502,7 @@ static const u8 *SFF_PRED_UR(const u8 *p, int x, int y, int width) {
 }
 
 static const u8 *SFFU_PRED_UR(const u8 *p, int x, int y, int width) {
-	if CAT_LIKELY(x < width - 2) {
+	if (x < width - 2) {
 		const u8 *d = p + 4 - width*4;
 		const u8 *e = d + 4 - width*4;
 
@@ -542,8 +542,8 @@ static CAT_INLINE u8 clampGrad(int b, int a, int c) {
 }
 
 static const u8 *SFF_CLAMP_GRAD(const u8 *p, int x, int y, int width) {
-	if CAT_LIKELY(y > 0) {
-		if CAT_LIKELY(x > 0) {
+	if (y > 0) {
+		if (x > 0) {
 			const u8 *a = p - 4; // A
 			const u8 *b = p - width*4; // B
 			const u8 *c = b - 4; // C
@@ -588,8 +588,8 @@ static u8 skewGrad(int b, int a, int c) {
 }
 
 static const u8 *SFF_SKEW_GRAD(const u8 *p, int x, int y, int width) {
-	if CAT_LIKELY(y > 0) {
-		if CAT_LIKELY(x > 0) {
+	if (y > 0) {
+		if (x > 0) {
 			const u8 *a = p - 4; // A
 			const u8 *b = p - width*4; // B
 			const u8 *c = b - 4; // C
@@ -623,12 +623,12 @@ static const u8 *SFFU_SKEW_GRAD(const u8 *p, int x, int y, int width) {
 }
 
 static const u8 *SFF_AD(const u8 *p, int x, int y, int width) {
-	if CAT_LIKELY(y > 0) {
-		if CAT_LIKELY(x > 0) {
+	if (y > 0) {
+		if (x > 0) {
 			const u8 *a = p - 4; // A
 
 			const u8 *src = p - width*4; // B
-			if CAT_LIKELY(x < width-1) {
+			if (x < width-1) {
 				src += 4; // D
 			}
 
@@ -662,10 +662,10 @@ static const u8 *SFFU_AD(const u8 *p, int x, int y, int width) {
 #if 0
 
 static const u8 *SFF_A_BC(const u8 *p, int x, int y, int width) {
-	if CAT_LIKELY(x > 0) {
+	if (x > 0) {
 		const u8 *a = p - 4; // A
 
-		if CAT_LIKELY(y > 0) {
+		if (y > 0) {
 			const u8 *b = p - width*4; // B
 			const u8 *c = b - 4; // C
 
@@ -685,10 +685,10 @@ static const u8 *SFF_A_BC(const u8 *p, int x, int y, int width) {
 }
 
 static const u8 *SFF_B_AC(const u8 *p, int x, int y, int width) {
-	if CAT_LIKELY(x > 0) {
+	if (x > 0) {
 		const u8 *a = p - 4; // A
 
-		if CAT_LIKELY(y > 0) {
+		if (y > 0) {
 			const u8 *b = p - width*4; // B
 			const u8 *c = b - 4; // C
 
