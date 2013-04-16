@@ -230,6 +230,8 @@ bool HuffmanDecoder::init(int num_syms, ImageReader &reader, u32 table_bits) {
 			for (int ii = last_nzt; ii < HUFF_SYMS; ++ii) {
 				table_codelens[ii] = 0;
 			}
+		} else {
+			last_nzt = HUFF_SYMS;
 		}
 
 		for (int ii = 0; ii < last_nzt; ++ii) {
