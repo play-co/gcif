@@ -1,0 +1,211 @@
+Word, Character, and Bit Based Compression Using Arithmetic Coding.
+-------------------------------------------------------------------
+
+Authors:
+
+John Carpinelli
+Alistair Moffat (alistair@cs.mu.oz.au)
+Radford Neal (radford@ai.toronto.edu)
+Wayne Salamonsen
+Lang Stuiver (langs@cs.mu.oz.au)
+Ian Witten (ihw@waikato.ac.nz)
+
+
+Contact:
+
+Alistair Moffat
+Department of Computer Science
+University of Melbourne
+Victoria, Australia 3052.
+
+Fax: +61 3 93481184
+
+alistair@cs.mu.oz.au
+http://www.cs.mu.oz.au/~alistair
+
+
+Based on:
+
+A. Moffat, R. Neal, I.H. Witten, "Arithmetic Coding Revisited", Proc. IEEE
+Data Compression Conference, Snowbird, Utah, March 1995, pages 202-211.
+Revised and extended July 1996, for details see
+http://www.cs.mu.oz.au/~alistair/abstracts/arith_coder.html
+
+P.M. Fenwick, "A New Data Structure for Cumulative Probability Tables",
+Software--Practice and Experience, 24(3):327-336, March 1994, and
+24(7):677-677, July 1994.
+
+
+See also:
+
+I.H. Witten, R. Neal, J.G. Cleary, "Arithmetic Coding for Data Compression",
+Comm ACM., 30(6):520-541, June 1987.
+ftp://ftp.cpsc.ucalgary.ca/pub/projects/ar.cod
+
+Radford M. Neal, Low-Precision Arithmetic Coding Implementation.
+ftp://ftp.cs.toronto.edu/pub/radford/lowp_ac.shar
+
+
+Thanks:
+
+To Mahesh Naik, Julian Seward, and the many other people who have provided
+feedback on the original version of this software.
+
+
+Overview:
+
+This package contains C source code for an illustrative implementation of
+arithmetic coding.  Three different models are included with the package: an
+adaptive zero-order word based model, an adaptive zero-order character based
+model and an adaptive fixed-context bit-based model.  The option of using
+shift/add operations to effect the necessary integer multiplication and
+division operations is also supported.  Use of the shift/add option may
+result in speed improvement on some architectures.
+
+Each of the three programs can be thought of as consisting of three
+sections:  model, statistics, and coder. Three different models have been
+provided, one statistics module, and one coder module (but with a compile
+time option to use hardware or software arithmetic).
+
+
+Models:
+
+The word model follows a strictly alternating sequence of reading a word then
+a non-word. After reading each word/non-word it uses a hashtable to find the
+corresponding ordinal word number which it then passes to the statistics
+module together with the corresponding word/non word context. A context
+stores the corresponding frequency for each ordinal symbol. This model
+illustrates the advantages of the new coder on large alphabets, and the
+manipulation of a number of ``contexts'' within a single program.
+
+The adaptive zero-order character-based model is broadly equivalent to the
+one presented in the CACM paper of Witten, Neal and Cleary.  Compression is
+relatively poor.
+
+The bit-based model takes one bit at a time from the input stream and passes
+it and the corresponding context into the statistics module.  The correct
+context is chosen based on the previous n bits, where 0 <= n <= 20 is
+specified as a commandline parameter.  Relatively good compression results
+when n is large, but it runs slowly. The intention is to illustrate the use
+of the arithmetic coding routines when restricted to a binary alphabet.
+
+
+Statistics:
+
+The statistics module interfaces the model and the coder.  It is responsible
+for probability estimation and generation of the parameters required by the
+coder.  It does so by adaptively counting symbol occurrences, and uses a
+tree-based structure to maintain cumulative frequencies. Accessing the
+structure takes O(log n) time per symbol, where n is the size of the
+alphabet, and so the cost is small even when n is very large. Just as
+important, it is space-economical, and requires just n words of storage
+compared to the 3n words required by the CACM structure.
+
+
+Coder:
+
+The default coder uses shift/add integer arithmetic in its calculations, as
+described in "Arithmetic Coding Revisited". The compile time option
+"-DMULT_DIV" forces the use of multiplications and divisions.  The low
+precision that is required allows, on some architectures, faster execution
+with shift/add.
+
+One notable feature about the coder is that by using a limited precision
+implementation, the total frequency can be up to 30 bits (assuming 32 bit
+integers, or more generally n-2 for n-bit integers).  That is, the total
+frequency may reach a value as large as 1,073,741,824 before frequencies need
+be halved. The number of bits used for frequency counts can be set as a
+command line argument allowing one to use fewer bits for more precise coding.
+The default number of bits used for frequency counts is 27.
+
+The use of large values for the F_bits parameter also allows faster
+execution, since much of the arithmetic can be done to low precision.  Very
+large values for F_bits do, however, introduce rounding effects in the coder
+that may negate the gain of using more accurate model probabilities.  See the
+paper for analysis of these rounding effects.
+
+
+The package:
+
+The package consists of 21 files: 8 source files (.c), 5 header files (.h), 1
+include file (.i), a makefile, 4 man pages (.1), a WHATSNEW file, and this
+README file.
+
+arith_coder.c:	Front end to the program.
+
+word.c:		Driving code for the word based compression model.
+
+char.c: 	Driving code for the character based compression model.
+
+bits.c:		Driving code for the bit based compression model.
+
+bitio.c:	Input output functions (bit and byte level)
+
+stats.c: 	Functions for maintaining frequency counts.
+
+arith.c: 	Functions associated with arithmetic coding.  
+
+hashtable.c: 	Functions associated with maintaining the hash table 
+             	used to convert words to ordinal word numbers
+
+arith.h:	Function prototypes exported from arith.c, #defines used in
+ 		arith.c
+
+stats.h:	Function prototypes exported from stats.c, #defines used in
+		stats.c
+
+bitio.h:	Input / output macros (bit and byte level)
+
+arith_coder.h:	Function prototypes #defines used in arith_coder.c, char.c,
+		bits.c, word.c.
+
+hashtable.h:	Function prototypes exported from hashtable.c, #defines used
+		in hashtable.c
+
+unroll.i:	Generic include file to unroll loops / repeat code fragments.
+
+arith_coder.1:	Manual page
+
+char.1, word.1,
+bits.1:		Pointers to arith_coder.1 man page.
+
+
+Usage:  
+
+The programs share a common interface (and are in fact the same program).
+Output is written to stdout. If no input file is specified, input is taken
+from stdin. One of -e or -d must be specified, to encode or decode.
+
+For help on usage, type "arith_coder -h".  For more detail refer to the man
+page.
+
+Here is a sample output of arith_coder -h:
+
+Usage: arith_coder [-e [-t s] [-f n] [-b n] [-m n] [-c n] | -d] [-v] [file]
+
+-e: Encode
+    -t s    Encoding method               (char, word, bits, default = char)
+    -b n    Code bits to use              (27, fixed at compile time)
+    -f n    Frequency bits to use         (32, fixed at compile time)
+    -m n    Memory size to use (Mbytes)   (1..255, default = 1)    bits & word
+    -c n    Bits of context to use        (0..20, default = 16)    bits only
+-d: Decode
+-v: Verbose Give timing, compression, and memory usage information.
+
+
+
+Conditions:
+
+These programs are supplied free of charge for research purposes only, and
+may not sold or incorporated into any commercial product.  There is
+ABSOLUTELY NO WARRANTY of any sort, nor any undertaking that they are fit for
+ANY PURPOSE WHATSOEVER.  Use them at your own risk.  If you do happen to find
+a bug, or have modifications to suggest, please report the same to Alistair
+Moffat at the address above.
+
+
+Have fun!
+
+
+Alistair Moffat and Lang Stuiver,
+August 1996

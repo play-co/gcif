@@ -1,0 +1,40 @@
+BCCDIR=c:\borland\bcc55
+CC=$(BCCDIR)\bin\bcc32
+RC=$(BCCDIR)\bin\brcc32
+LN=$(BCCDIR)\bin\ilink32
+CFLAGS=-O2
+LFLAGS=-Tpe -ap -Gn
+ENCODER = encmrp.exe
+ENCOBJ = encmrp.obj common.obj rc.obj
+DECODER = decmrp.exe
+DECOBJ = decmrp.obj common.obj rc.obj
+
+
+all : $(ENCODER) $(DECODER)
+
+$(ENCODER) : $(ENCOBJ)
+	$(LN) $(LFLAGS) @&&|
+c0x32 $(ENCOBJ)
+$*
+nul
+import32 cw32
+|
+
+$(DECODER) : $(DECOBJ)
+	$(LN) $(LFLAGS) @&&|
+c0x32 $(DECOBJ)
+$*
+nul
+import32 cw32
+|
+
+.c.obj :
+	$(CC) $(CFLAG) -c $<
+
+encmrp.obj : encmrp.c mrp.h
+decmrp.obj : decmrp.c mrp.h
+common.obj : common.c mrp.h
+rc.obj : rc.c mrp.h
+
+clean:
+	rm -f $(ENCODER) $(DECODER) $(ENCOBJ) $(DECOBJ)
