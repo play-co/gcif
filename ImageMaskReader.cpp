@@ -43,7 +43,7 @@ void ImageMaskReader::clear() {
 
 bool ImageMaskReader::decodeRLE(u8 *rle, int len) {
 	if CAT_UNLIKELY(len <= 0) {
-		return false;
+		return RE_MASK_LZ;
 	}
 
 #ifdef CAT_COLLECT_STATS
@@ -78,7 +78,7 @@ bool ImageMaskReader::decodeRLE(u8 *rle, int len) {
 
 			// If new write offset is outside of the mask,
 			if (newOffset >= offsetLimit) {
-				return false;
+				return RE_MASK_LZ;
 			}
 
 			// If at the first row,
@@ -221,7 +221,7 @@ bool ImageMaskReader::decodeRLE(u8 *rle, int len) {
 					double t1 = m_clock->usec();
 					Stats.rleUsec += t1 - t0;
 #endif // CAT_COLLECT_STATS
-					return true;
+					return RE_OK;
 				}
 
 				rowStarted = false;
@@ -252,7 +252,7 @@ bool ImageMaskReader::decodeRLE(u8 *rle, int len) {
 					double t1 = m_clock->usec();
 					Stats.rleUsec += t1 - t0;
 #endif // CAT_COLLECT_STATS
-					return true;
+					return RE_OK;
 				}
 
 				row += stride;
@@ -287,33 +287,46 @@ bool ImageMaskReader::decodeRLE(u8 *rle, int len) {
 	Stats.rleUsec += t1 - t0;
 #endif // CAT_COLLECT_STATS
 
-	return false;
+	return RE_MASK_LZ;
 }
 
 
-bool ImageMaskReader::decodeLZ(HuffmanDecoder &decoder, ImageReader &reader) {
+int ImageMaskReader::decodeLZ(ImageReader &reader) {
 	u32 rleSize = reader.readWord();
 	u32 lzSize = reader.readWord();
 
 	_rle = new u8[rleSize];
 	_lz = new u8[lzSize];
 
-	for (int ii = 0; ii < lzSize; ++ii) {
-		_lz[ii] = reader.nextHuffmanSymbol(&decoder);
+	if (lzSize >= HUFF_THRESH) {
+		static const int NUM_SYMS = 256;
+
+		HuffmanDecoder decoder;
+		if (!decoder.init(NUM_SYMS, reader, 8)) {
+			return RE_MASK_DECI;
+		}
+
+		for (int ii = 0; ii < lzSize; ++ii) {
+			_lz[ii] = reader.nextHuffmanSymbol(&decoder);
+		}
+	} else {
+		for (int ii = 0; ii < lzSize; ++ii) {
+			_lz[ii] = reader.readBits(8);
+		}
 	}
 
 	if (reader.eof()) {
-		return false;
+		return RE_MASK_LZ;
 	}
 
 	int result = LZ4_uncompress_unknownOutputSize(reinterpret_cast<const char *>( _lz ), reinterpret_cast<char *>( _rle ), lzSize, rleSize);
 
 	if (result != rleSize) {
-		return false;
+		return RE_MASK_LZ;
 	}
 
 	if (reader.eof()) {
-		return false;
+		return RE_MASK_LZ;
 	}
 
 	return decodeRLE(_rle, rleSize);
@@ -348,8 +361,6 @@ int ImageMaskReader::init(const ImageHeader *header) {
 }
 
 int ImageMaskReader::read(ImageReader &reader) {
-	static const int NUM_SYMS = 256;
-
 #ifdef CAT_COLLECT_STATS
 	m_clock = Clock::ref();
 
@@ -364,30 +375,20 @@ int ImageMaskReader::read(ImageReader &reader) {
 
 #ifdef CAT_COLLECT_STATS
 	double t1 = m_clock->usec();
+
+	Stats.rleUsec = 0;
 #endif // CAT_COLLECT_STATS
 
-	HuffmanDecoder decoder;
-	if (!decoder.init(NUM_SYMS, reader, 8)) {
-		return RE_MASK_DECI;
+	if ((err = decodeLZ(reader))) {
+		return err;
 	}
 
 #ifdef CAT_COLLECT_STATS
 	double t2 = m_clock->usec();
 
-	Stats.rleUsec = 0;
-#endif // CAT_COLLECT_STATS
-
-	if (!decodeLZ(decoder, reader)) {
-		return RE_MASK_LZ;
-	}
-
-#ifdef CAT_COLLECT_STATS
-	double t3 = m_clock->usec();
-
 	Stats.initUsec = t1 - t0;
-	Stats.initHuffmanUsec = t2 - t1;
-	Stats.lzUsec = t3 - t2 - Stats.rleUsec;
-	Stats.overallUsec = t3 - t0;
+	Stats.lzUsec = t2 - t1 - Stats.rleUsec;
+	Stats.overallUsec = t2 - t0;
 
 	Stats.originalDataBytes = _width * _height / 8;
 #endif // CAT_COLLECT_STATS
@@ -419,7 +420,6 @@ int ImageMaskReader::read(ImageReader &reader) {
 
 bool ImageMaskReader::dumpStats() {
 	CAT_INANE("stats") << "(Mask Decode) Initialization : " <<  Stats.initUsec << " usec (" << Stats.initUsec * 100.f / Stats.overallUsec << " %total)";
-	CAT_INANE("stats") << "(Mask Decode)  Setup Huffman : " <<  Stats.initHuffmanUsec << " usec (" << Stats.initHuffmanUsec * 100.f / Stats.overallUsec << " %total)";
 	CAT_INANE("stats") << "(Mask Decode)     Huffman+LZ : " <<  Stats.lzUsec << " usec (" << Stats.lzUsec * 100.f / Stats.overallUsec << " %total)";
 	CAT_INANE("stats") << "(Mask Decode)     RLE+Filter : " <<  Stats.rleUsec << " usec (" << Stats.rleUsec * 100.f / Stats.overallUsec << " %total)";
 	CAT_INANE("stats") << "(Mask Decode)        Overall : " <<  Stats.overallUsec << " usec";

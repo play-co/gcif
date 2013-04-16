@@ -332,7 +332,7 @@ void ImageLZWriter::write(ImageWriter &writer) {
 
 #ifdef CAT_COLLECT_STATS
 	u32 bitcount = 16;
-	Stats.bytes_overhead_uncompressed = match_count * 10;
+	Stats.match_count = match_count;
 #endif
 
 	writer.writeBits(match_count, 16);
@@ -464,11 +464,10 @@ void ImageLZWriter::write(ImageWriter &writer) {
 #ifdef CAT_COLLECT_STATS
 
 bool ImageLZWriter::dumpStats() {
-	CAT_INANE("stats") << "(LZ Compress) Initial matches : " << Stats.initial_matches;
 	CAT_INANE("stats") << "(LZ Compress) Initial collisions : " << Stats.collisions;
+	CAT_INANE("stats") << "(LZ Compress) Initial matches : " << Stats.initial_matches << " used " << Stats.match_count;
 	CAT_INANE("stats") << "(LZ Compress) Matched amount : " << Stats.covered_percent << "% of file is redundant (" << Stats.covered << " of " << _width * _height << " pixels)";
 	CAT_INANE("stats") << "(LZ Compress) Bytes saved : " << Stats.bytes_saved << " bytes";
-	CAT_INANE("stats") << "(LZ Compress) Raw overhead : " << Stats.bytes_overhead_uncompressed << " bytes before compression";
 	CAT_INANE("stats") << "(LZ Compress) Compressed overhead : " << Stats.bytes_overhead << " bytes to transmit";
 	CAT_INANE("stats") << "(LZ Compress) Compression ratio : " << Stats.compression_ratio << ":1";
 

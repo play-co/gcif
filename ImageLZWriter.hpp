@@ -95,7 +95,7 @@ public:
 		u32 covered, collisions, initial_matches;
 		double covered_percent;
 
-		u32 bytes_saved, bytes_overhead, bytes_overhead_uncompressed;
+		u32 bytes_saved, bytes_overhead, match_count;
 		double compression_ratio;
 
 		u32 huff_bits;

@@ -77,7 +77,6 @@ public:
 		double overallUsec;
 
 		int zoneCount;
-		int zoneBytes;
 	} Stats;
 #endif
 

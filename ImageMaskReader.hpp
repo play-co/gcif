@@ -15,6 +15,10 @@ namespace cat {
 //// ImageMaskReader
 
 class ImageMaskReader {
+public:
+	static const int HUFF_THRESH = 60;
+
+protected:
 	u32 *_mask;
 	int _width;
 	int _height;
@@ -24,7 +28,7 @@ class ImageMaskReader {
 	u8 *_rle;
 
 	bool decodeRLE(u8 *rle, int len);
-	bool decodeLZ(HuffmanDecoder &decoder, ImageReader &reader);
+	int decodeLZ(ImageReader &reader);
 	void clear();
 
 	int init(const ImageHeader *header);
@@ -32,7 +36,7 @@ class ImageMaskReader {
 #ifdef CAT_COLLECT_STATS
 public:
 	struct _Stats {
-		double initUsec, initHuffmanUsec;
+		double initUsec;
 		double lzUsec, rleUsec;
 		double overallUsec;
 

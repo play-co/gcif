@@ -3,6 +3,7 @@
 
 #include "Platform.hpp"
 #include "ImageWriter.hpp"
+#include "ImageMaskReader.hpp"
 #include "Filters.hpp"
 
 #include <vector>
@@ -23,6 +24,8 @@ namespace cat {
 //// ImageMaskWriter
 
 class ImageMaskWriter {
+	static const int HUFF_THRESH = ImageMaskReader::HUFF_THRESH;
+
 	u32 _value;
 
 	u32 *_mask;

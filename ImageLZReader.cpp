@@ -317,7 +317,6 @@ int ImageLZReader::read(ImageReader &reader) {
 	Stats.readZonesUsec = t3 - t2;
 	Stats.zoneCount = _zones_size;
 	Stats.overallUsec = t3 - t0;
-	Stats.zoneBytes = Stats.zoneCount * 10;
 #endif // CAT_COLLECT_STATS
 
 	return RE_OK;
@@ -331,8 +330,7 @@ bool ImageLZReader::dumpStats() {
 	CAT_INANE("stats") << "(LZ Decode)         Read Zones : " << Stats.readZonesUsec << " usec (" << Stats.readZonesUsec * 100.f / Stats.overallUsec << " %total)";
 	CAT_INANE("stats") << "(LZ Decode)            Overall : " << Stats.overallUsec << " usec";
 
-	CAT_INANE("stats") << "(LZ Decode)         Zone Count : " << Stats.zoneCount << " zones (" << Stats.zoneBytes << " bytes)";
-	CAT_INANE("stats") << "(LZ Decode)         Throughput : " << Stats.zoneBytes / Stats.overallUsec << " MBPS (output bytes/time)";
+	CAT_INANE("stats") << "(LZ Decode)         Zone Count : " << Stats.zoneCount << " zones read";
 
 	return true;
 }
