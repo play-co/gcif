@@ -129,10 +129,10 @@ int ImageCMReader::readRGB(ImageReader &reader) {
 				FilterSelection *filter = &_filters[x >> FILTER_ZONE_SIZE_SHIFT];
 
 				// Read SF and CF for this zone
-				u8 sfi = reader.nextHuffmanSymbol(&_sf);
+				u8 sfi = _sf.next(reader);
 				filter->sf = sf = SPATIAL_FILTERS[sfi];
 				filter->sfu = UNSAFE_SPATIAL_FILTERS[sfi];
-				u8 cfi = reader.nextHuffmanSymbol(&_cf);
+				u8 cfi = _cf.next(reader);
 				filter->cf = cf = YUV2RGB_FILTERS[cfi];
 			}
 
@@ -210,10 +210,10 @@ int ImageCMReader::readRGB(ImageReader &reader) {
 			// If we are on a filter info scanline,
 			if ((y & FILTER_ZONE_SIZE_MASK) == 0) {
 				// Read SF and CF for this zone
-				u8 sfi = reader.nextHuffmanSymbol(&_sf);
+				u8 sfi = _sf.next(reader);
 				filter->sf = sf = SPATIAL_FILTERS[sfi];
 				filter->sfu = UNSAFE_SPATIAL_FILTERS[sfi];
-				u8 cfi = reader.nextHuffmanSymbol(&_cf);
+				u8 cfi = _cf.next(reader);
 				filter->cf = cf = YUV2RGB_FILTERS[cfi];
 			} else {
 				// Read filter from previous scanline
@@ -277,10 +277,10 @@ int ImageCMReader::readRGB(ImageReader &reader) {
 				// If we are on a filter info scanline,
 				if ((y & FILTER_ZONE_SIZE_MASK) == 0) {
 					// Read SF and CF for this zone
-					u8 sfi = reader.nextHuffmanSymbol(&_sf);
+					u8 sfi = _sf.next(reader);
 					filter->sf = SPATIAL_FILTERS[sfi];
 					filter->sfu = sf = UNSAFE_SPATIAL_FILTERS[sfi];
-					u8 cfi = reader.nextHuffmanSymbol(&_cf);
+					u8 cfi = _cf.next(reader);
 					filter->cf = cf = YUV2RGB_FILTERS[cfi];
 				} else {
 					// Read filter from previous scanline

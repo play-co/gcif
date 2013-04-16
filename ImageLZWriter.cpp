@@ -331,7 +331,6 @@ void ImageLZWriter::write(ImageWriter &writer) {
 	int match_count = (int)_exact_matches.size();
 
 #ifdef CAT_COLLECT_STATS
-	u32 bitcount = 16;
 	Stats.match_count = match_count;
 #endif
 
@@ -373,14 +372,11 @@ void ImageLZWriter::write(ImageWriter &writer) {
 		last_dy = m->dy;
 	}
 
-	u16 codes[256];
-	u8 codelens[256];
-	hist.generateHuffman(codes, codelens);
+	HuffmanEncoder<256> encoder;
 
-	int huffbits = writeHuffmanTable(256, codelens, writer);
-#ifdef CAT_COLLECT_STATS
-	bitcount += huffbits;
-#endif
+	encoder.init(hist);
+
+	int bits = encoder.writeTable(writer) + 16;
 
 	// Reset last for encoding
 	last_dx = 0;
@@ -398,65 +394,35 @@ void ImageLZWriter::write(ImageWriter &writer) {
 		}
 
 		u8 sym = (u8)m->sx;
-		writer.writeBits(codes[sym], codelens[sym]);
-#ifdef CAT_COLLECT_STATS
-		bitcount += codelens[sym];
-#endif
+		bits += encoder.writeSymbol(sym, writer);
 		sym = (u8)(m->sx >> 8);
-		writer.writeBits(codes[sym], codelens[sym]);
-#ifdef CAT_COLLECT_STATS
-		bitcount += codelens[sym];
-#endif
+		bits += encoder.writeSymbol(sym, writer);
 		sym = (u8)esy;
-		writer.writeBits(codes[sym], codelens[sym]);
-#ifdef CAT_COLLECT_STATS
-		bitcount += codelens[sym];
-#endif
+		bits += encoder.writeSymbol(sym, writer);
 		sym = (u8)(esy >> 8);
-		writer.writeBits(codes[sym], codelens[sym]);
-#ifdef CAT_COLLECT_STATS
-		bitcount += codelens[sym];
-#endif
+		bits += encoder.writeSymbol(sym, writer);
 		sym = (u8)edx;
-		writer.writeBits(codes[sym], codelens[sym]);
-#ifdef CAT_COLLECT_STATS
-		bitcount += codelens[sym];
-#endif
+		bits += encoder.writeSymbol(sym, writer);
 		sym = (u8)(edx >> 8);
-		writer.writeBits(codes[sym], codelens[sym]);
-#ifdef CAT_COLLECT_STATS
-		bitcount += codelens[sym];
-#endif
+		bits += encoder.writeSymbol(sym, writer);
 		sym = (u8)edy;
-		writer.writeBits(codes[sym], codelens[sym]);
-#ifdef CAT_COLLECT_STATS
-		bitcount += codelens[sym];
-#endif
+		bits += encoder.writeSymbol(sym, writer);
 		sym = (u8)(edy >> 8);
-		writer.writeBits(codes[sym], codelens[sym]);
-#ifdef CAT_COLLECT_STATS
-		bitcount += codelens[sym];
-#endif
+		bits += encoder.writeSymbol(sym, writer);
 		sym = m->w;
-		writer.writeBits(codes[sym], codelens[sym]);
-#ifdef CAT_COLLECT_STATS
-		bitcount += codelens[sym];
-#endif
+		bits += encoder.writeSymbol(sym, writer);
 		sym = m->h;
-		writer.writeBits(codes[sym], codelens[sym]);
-#ifdef CAT_COLLECT_STATS
-		bitcount += codelens[sym];
-#endif
+		bits += encoder.writeSymbol(sym, writer);
 
 		last_dx = m->dx;
 		last_dy = m->dy;
 	}
 
 #ifdef CAT_COLLECT_STATS
-	Stats.huff_bits = bitcount;
+	Stats.huff_bits = bits;
 	Stats.covered_percent = Stats.covered * 100. / (double)(_width * _height);
 	Stats.bytes_saved = Stats.covered * 4;
-	Stats.bytes_overhead = bitcount / 8;
+	Stats.bytes_overhead = bits / 8;
 	Stats.compression_ratio = Stats.bytes_saved / (double)Stats.bytes_overhead;
 #endif
 }

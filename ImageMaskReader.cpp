@@ -307,7 +307,7 @@ int ImageMaskReader::decodeLZ(ImageReader &reader) {
 		}
 
 		for (int ii = 0; ii < lzSize; ++ii) {
-			_lz[ii] = reader.nextHuffmanSymbol(&decoder);
+			_lz[ii] = decoder.next(reader);
 		}
 	} else {
 		for (int ii = 0; ii < lzSize; ++ii) {

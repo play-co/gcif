@@ -3,6 +3,7 @@
 
 #include "Platform.hpp"
 #include "ImageReader.hpp"
+#include "HuffmanDecoder.hpp"
 
 /*
  * Game Closure 2D LZ (GC-2D-LZ) Decompression

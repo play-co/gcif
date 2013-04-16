@@ -188,7 +188,9 @@ static void calculate_minimum_redundancy(int A[], int n) {
 }
 
 
-bool huffman::generate_huffman_codes(huffman_work_tables *state, u32 num_syms, const u16 *pFreq, u8 *pCodesizes, u32 &max_code_size, u32 &total_freq_ret) {
+bool huffman::generate_huffman_codes(huffman_work_tables *state, u32 num_syms, const u16 *pFreq, u8 *pCodesizes, u32 &max_code_size, u32 &total_freq_ret, u32 &one_sym) {
+	one_sym = 0;
+
 	if ((!num_syms) || (num_syms > cHuffmanMaxSupportedSyms)) {
 		return false;
 	}
@@ -217,8 +219,7 @@ bool huffman::generate_huffman_codes(huffman_work_tables *state, u32 num_syms, c
 	total_freq_ret = total_freq;
 
 	if (num_used_syms == 1) {
-		pCodesizes[state->syms0[0].left] = 1;
-		max_code_size = 1;
+		one_sym = state->syms0[0].left - 1;
 
 		return true;
 	}
@@ -479,20 +480,7 @@ void cat::collectArrayFreqs(int num_syms, int data_size, u8 data[], u16 freqs[])
 	normalizeFreqs(max_freq, num_syms, hist, freqs);
 }
 
-void cat::generateHuffmanCodes(int num_syms, u16 freqs[], u16 codes[], u8 codelens[]) {
-	huffman::huffman_work_tables state;
-	u32 max_code_size, total_freq;
-
-	huffman::generate_huffman_codes(&state, num_syms, freqs, codelens, max_code_size, total_freq);
-
-	if (max_code_size > HuffmanDecoder::MAX_CODE_SIZE) {
-		huffman::limit_max_code_size(num_syms, codelens, HuffmanDecoder::MAX_CODE_SIZE);
-	}
-
-	huffman::generate_codes(num_syms, codelens, codes);
-}
-
-int cat::writeHuffmanTable(int num_syms, u8 codelens[], ImageWriter &writer) {
+int cat::writeCompressedHuffmanTable(int num_syms, u8 codelens[], ImageWriter &writer) {
 	static const int HUFF_SYMS = HuffmanDecoder::MAX_CODE_SIZE + 1;
 
 	CAT_ENFORCE(HUFF_SYMS == 17);
@@ -552,8 +540,7 @@ int cat::writeHuffmanTable(int num_syms, u8 codelens[], ImageWriter &writer) {
 	 */
 
 	int bitcount[4] = { 0 };
-	u16 table_codes[4][HUFF_SYMS];
-	u8 table_codelens[4][HUFF_SYMS];
+	HuffmanEncoder<HUFF_SYMS> encoders[4];
 
 	// 00 : No modifications
 
@@ -569,11 +556,13 @@ int cat::writeHuffmanTable(int num_syms, u8 codelens[], ImageWriter &writer) {
 		}
 
 		// Generate candidate codes
-		generateHuffmanCodes(HUFF_SYMS, freqs, table_codes[0], table_codelens[0]);
+		if (!encoders[0].initCodelens(freqs)) {
+			return false;
+		}
 
 		// Add bitcount for table
 		for (int ii = 0; ii < HUFF_SYMS; ++ii) {
-			u8 len = table_codelens[0][ii];
+			u8 len = encoders[0].simulateWrite(ii);
 
 			CAT_ENFORCE(len < HUFF_SYMS);
 
@@ -588,7 +577,7 @@ int cat::writeHuffmanTable(int num_syms, u8 codelens[], ImageWriter &writer) {
 		for (int ii = 0; ii < num_syms; ++ii) {
 			u8 sym = codelens[ii];
 
-			bitcount[0] += table_codelens[0][sym];
+			bitcount[0] += encoders[0].simulateWrite(sym);
 		}
 	}
 
@@ -610,11 +599,13 @@ int cat::writeHuffmanTable(int num_syms, u8 codelens[], ImageWriter &writer) {
 		}
 
 		// Generate candidate codes
-		generateHuffmanCodes(HUFF_SYMS, freqs, table_codes[1], table_codelens[1]);
+		if (!encoders[1].initCodelens(freqs)) {
+			return false;
+		}
 
 		// Add bitcount for table
 		for (int ii = 0; ii < HUFF_SYMS; ++ii) {
-			u8 len = table_codelens[1][ii];
+			u8 len = encoders[1].simulateWrite(ii);
 
 			CAT_ENFORCE(len < HUFF_SYMS);
 
@@ -633,7 +624,7 @@ int cat::writeHuffmanTable(int num_syms, u8 codelens[], ImageWriter &writer) {
 			u8 sym = (len - prev + HUFF_SYMS) % HUFF_SYMS;
 			prev = len;
 
-			bitcount[1] += table_codelens[1][sym];
+			bitcount[1] += encoders[1].simulateWrite(sym);
 		}
 	}
 
@@ -666,11 +657,13 @@ int cat::writeHuffmanTable(int num_syms, u8 codelens[], ImageWriter &writer) {
 		}
 
 		// Generate candidate codes
-		generateHuffmanCodes(HUFF_SYMS, freqs, table_codes[2], table_codelens[2]);
+		if (!encoders[2].initCodelens(freqs)) {
+			return false;
+		}
 
 		// Add bitcount for table
 		for (int ii = 0; ii < HUFF_SYMS; ++ii) {
-			u8 len = table_codelens[2][ii];
+			u8 len = encoders[2].simulateWrite(ii);
 
 			CAT_ENFORCE(len < HUFF_SYMS);
 
@@ -689,7 +682,7 @@ int cat::writeHuffmanTable(int num_syms, u8 codelens[], ImageWriter &writer) {
 			u8 sym = (len - prev + HUFF_SYMS) % HUFF_SYMS;
 			prev = len;
 
-			bitcount[2] += table_codelens[2][sym];
+			bitcount[2] += encoders[2].simulateWrite(sym);
 		}
 		for (int ii = half; ii < num_syms; ++ii) {
 			u8 len = codelens[ii];
@@ -697,7 +690,7 @@ int cat::writeHuffmanTable(int num_syms, u8 codelens[], ImageWriter &writer) {
 			u8 sym = (prev - len + HUFF_SYMS) % HUFF_SYMS;
 			prev = len;
 
-			bitcount[2] += table_codelens[2][sym];
+			bitcount[2] += encoders[2].simulateWrite(sym);
 		}
 	}
 
@@ -723,11 +716,13 @@ int cat::writeHuffmanTable(int num_syms, u8 codelens[], ImageWriter &writer) {
 		}
 
 		// Generate candidate codes
-		generateHuffmanCodes(HUFF_SYMS, freqs, table_codes[3], table_codelens[3]);
+		if (!encoders[3].initCodelens(freqs)) {
+			return false;
+		}
 
 		// Add bitcount for table
 		for (int ii = 0; ii < HUFF_SYMS; ++ii) {
-			u8 len = table_codelens[3][ii];
+			u8 len = encoders[3].simulateWrite(ii);
 
 			CAT_ENFORCE(len < HUFF_SYMS);
 
@@ -750,7 +745,7 @@ int cat::writeHuffmanTable(int num_syms, u8 codelens[], ImageWriter &writer) {
 			lag1 = lag0;
 			lag0 = len;
 
-			bitcount[3] += table_codelens[3][sym];
+			bitcount[3] += encoders[3].simulateWrite(sym);
 		}
 	}
 
@@ -765,16 +760,10 @@ int cat::writeHuffmanTable(int num_syms, u8 codelens[], ImageWriter &writer) {
 	bc += 2 + bitcount[best];
 
 	// Write best table
-	for (int ii = 0; ii < HUFF_SYMS; ++ii) {
-		u8 len = table_codelens[best][ii];
+	encoders[best].writeTable(writer);
 
-		if (len >= 15) {
-			writer.writeBits(15, 4);
-			writer.writeBit(len - 15);
-		} else {
-			writer.writeBits(len, 4);
-		}
-	}
+	// Finish initializing encoder
+	encoders[best].initCodes();
 
 	// Write best method
 	writer.writeBits(best, 2);
@@ -787,7 +776,7 @@ int cat::writeHuffmanTable(int num_syms, u8 codelens[], ImageWriter &writer) {
 			for (int ii = 0; ii < num_syms; ++ii) {
 				u8 sym = codelens[ii];
 
-				writer.writeBits(table_codes[0][sym], table_codelens[0][sym]);
+				encoders[best].writeSymbol(sym, writer);
 			}
 		}
 		break;
@@ -800,7 +789,7 @@ int cat::writeHuffmanTable(int num_syms, u8 codelens[], ImageWriter &writer) {
 				u8 sym = (len - prev + HUFF_SYMS) % HUFF_SYMS;
 				prev = len;
 
-				writer.writeBits(table_codes[1][sym], table_codelens[1][sym]);
+				encoders[best].writeSymbol(sym, writer);
 			}
 		}
 		break;
@@ -814,7 +803,7 @@ int cat::writeHuffmanTable(int num_syms, u8 codelens[], ImageWriter &writer) {
 				u8 sym = (len - prev + HUFF_SYMS) % HUFF_SYMS;
 				prev = len;
 
-				writer.writeBits(table_codes[2][sym], table_codelens[2][sym]);
+				encoders[best].writeSymbol(sym, writer);
 			}
 			for (int ii = half; ii < num_syms; ++ii) {
 				u8 len = codelens[ii];
@@ -822,7 +811,7 @@ int cat::writeHuffmanTable(int num_syms, u8 codelens[], ImageWriter &writer) {
 				u8 sym = (prev - len + HUFF_SYMS) % HUFF_SYMS;
 				prev = len;
 
-				writer.writeBits(table_codes[2][sym], table_codelens[2][sym]);
+				encoders[best].writeSymbol(sym, writer);
 			}
 		}
 		break;
@@ -839,7 +828,7 @@ int cat::writeHuffmanTable(int num_syms, u8 codelens[], ImageWriter &writer) {
 				lag1 = lag0;
 				lag0 = len;
 
-				writer.writeBits(table_codes[3][sym], table_codelens[3][sym]);
+				encoders[best].writeSymbol(sym, writer);
 			}
 		}
 		break;

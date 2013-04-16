@@ -11,12 +11,6 @@ using namespace std;
 //// EntropyEncoder
 
 void EntropyEncoder::reset() {
-	CAT_OBJCLR(histBZ);
-	maxBZ = 0;
-#ifdef USE_AZ
-	CAT_OBJCLR(histAZ);
-	maxAZ = 0;
-#endif
 	zeroRun = 0;
 	runList.clear();
 #ifdef ADAPTIVE_ZRLE
@@ -37,20 +31,20 @@ void EntropyEncoder::push(u8 symbol) {
 	} else {
 		if (zeroRun > 0) {
 			if (zeroRun < FILTER_RLE_SYMS) {
-				histBZ[255 + zeroRun]++;
+				bz_hist.add(255 + zeroRun);
 			} else {
-				histBZ[BZ_SYMS - 1]++;
+				bz_hist.add(BZ_SYMS - 1);
 			}
 
 			runList.push_back(zeroRun);
 			zeroRun = 0;
 #ifdef USE_AZ
-			histAZ[symbol]++;
+			az_hist.add(symbol);
 #else
-			histBZ[symbol]++;
+			bz_hist.add(symbol);
 #endif
 		} else {
-			histBZ[symbol]++;
+			bz_hist.add(symbol);
 		}
 	}
 }
@@ -60,9 +54,9 @@ void EntropyEncoder::endSymbols() {
 		runList.push_back(zeroRun);
 
 		if (zeroRun < FILTER_RLE_SYMS) {
-			histBZ[255 + zeroRun]++;
+			bz_hist.add(255 + zeroRun);
 		} else {
-			histBZ[BZ_SYMS - 1]++;
+			bz_hist.add(BZ_SYMS - 1);
 		}
 
 		zeroRun = 0;
@@ -78,18 +72,12 @@ void EntropyEncoder::finalize() {
 
 	endSymbols();
 
-	u16 freqBZ[BZ_SYMS];
-#ifdef USE_AZ
-	u16 freqAZ[AZ_SYMS];
-#endif
-
 #ifdef ADAPTIVE_ZRLE
 	if (zeros * 100 / total >= ADAPTIVE_ZRLE_THRESH) {
 		usingZ = true;
 #endif
 
-		normalizeFreqs(maxBZ, BZ_SYMS, histBZ, freqBZ);
-		generateHuffmanCodes(BZ_SYMS, freqBZ, codesBZ, codelensBZ);
+		bz_encoder.init(bz_hist);
 #ifdef ADAPTIVE_ZRLE
 	} else {
 		usingZ = false;
@@ -103,18 +91,17 @@ void EntropyEncoder::finalize() {
 #endif
 
 #ifdef USE_AZ
-	normalizeFreqs(maxAZ, AZ_SYMS, histAZ, freqAZ);
-	generateHuffmanCodes(AZ_SYMS, freqAZ, codesAZ, codelensAZ);
+	az_encoder.init(az_hist);
 #endif
 
 	runListReadIndex = 0;
 }
 
 u32 EntropyEncoder::writeOverhead(ImageWriter &writer) {
-	u32 bitcount = writeHuffmanTable(BZ_SYMS, codelensBZ, writer);
+	u32 bitcount = bz_encoder.writeTable(writer);
 
 #ifdef USE_AZ
-	bitcount += writeHuffmanTable(AZ_SYMS, codelensAZ, writer);
+	bitcount += az_encoder.writeTable(writer);
 #endif
 
 	return bitcount;
@@ -138,21 +125,17 @@ u32 EntropyEncoder::encode(u8 symbol, ImageWriter &writer) {
 			if (zeroRun > 0) {
 				zeroRun = 0;
 #ifdef USE_AZ
-				writer.writeBits(codesAZ[symbol], codelensAZ[symbol]);
-				bits += codelensAZ[symbol];
+				bits += az_encoder.writeSymbol(symbol, writer);
 #else
-				writer.writeBits(codesBZ[symbol], codelensBZ[symbol]);
-				bits += codelensBZ[symbol];
+				bits += bz_encoder.writeSymbol(symbol, writer);
 #endif
 			} else {
-				writer.writeBits(codesBZ[symbol], codelensBZ[symbol]);
-				bits += codelensBZ[symbol];
+				bits += bz_encoder.writeSymbol(symbol, writer);
 			}
 		}
 #ifdef ADAPTIVE_ZRLE
 	} else {
-		writer.writeBits(codesAZ[symbol], codelensAZ[symbol]);
-		bits += codelensAZ[symbol];
+		bits += az_encoder.writeSymbol(symbol, writer);
 	}
 #endif
 
@@ -164,7 +147,7 @@ int EntropyEncoder::writeZeroRun(int run, ImageWriter &writer) {
 		return 0;
 	}
 
-	int bits, zsym;
+	int zsym;
 	bool rider = false;
 
 	if (run < FILTER_RLE_SYMS) {
@@ -174,8 +157,7 @@ int EntropyEncoder::writeZeroRun(int run, ImageWriter &writer) {
 		rider = true;
 	}
 
-	writer.writeBits(codesBZ[zsym], codelensBZ[zsym]);
-	bits = codelensBZ[zsym];
+	int bits = bz_encoder.writeSymbol(zsym, writer);
 
 	if (rider) {
 		run -= FILTER_RLE_SYMS;

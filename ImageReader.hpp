@@ -2,7 +2,6 @@
 #define IMAGE_READER_HPP
 
 #include "Platform.hpp"
-#include "HuffmanDecoder.hpp"
 #include "HotRodHash.hpp"
 #include "MappedFile.hpp"
 
@@ -100,9 +99,6 @@ public:
 		_bits = 0;
 		return bits;
 	}
-
-	// Efficient static Huffman symbol decoding
-	u32 nextHuffmanSymbol(HuffmanDecoder *dec);
 
 	// No bits left to read?
 	CAT_INLINE bool eof() {

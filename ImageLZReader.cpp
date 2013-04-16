@@ -77,24 +77,24 @@ int ImageLZReader::readZones(ImageReader &reader) {
 	u16 last_dx = 0, last_dy = 0;
 	Zone *z = _zones;
 	for (int ii = 0; ii < match_count; ++ii, ++z) {
-		u8 b0 = (u8)reader.nextHuffmanSymbol(&_huffman);
-		u8 b1 = (u8)reader.nextHuffmanSymbol(&_huffman);
+		u8 b0 = (u8)_huffman.next(reader);
+		u8 b1 = (u8)_huffman.next(reader);
 		u16 sx = ((u16)b1 << 8) | b0;
 
-		b0 = (u8)reader.nextHuffmanSymbol(&_huffman);
-		b1 = (u8)reader.nextHuffmanSymbol(&_huffman);
+		b0 = (u8)_huffman.next(reader);
+		b1 = (u8)_huffman.next(reader);
 		u16 sy = ((u16)b1 << 8) | b0;
 
-		b0 = (u8)reader.nextHuffmanSymbol(&_huffman);
-		b1 = (u8)reader.nextHuffmanSymbol(&_huffman);
+		b0 = (u8)_huffman.next(reader);
+		b1 = (u8)_huffman.next(reader);
 		u16 dx = ((u16)b1 << 8) | b0;
 
-		b0 = (u8)reader.nextHuffmanSymbol(&_huffman);
-		b1 = (u8)reader.nextHuffmanSymbol(&_huffman);
+		b0 = (u8)_huffman.next(reader);
+		b1 = (u8)_huffman.next(reader);
 		u16 dy = ((u16)b1 << 8) | b0;
 
-		z->w = (u32)reader.nextHuffmanSymbol(&_huffman) + ZONEW;
-		z->h = (u32)reader.nextHuffmanSymbol(&_huffman) + ZONEH;
+		z->w = _huffman.next(reader) + ZONEW;
+		z->h = _huffman.next(reader) + ZONEH;
 
 		// Reverse CM
 		if (dy == 0) {

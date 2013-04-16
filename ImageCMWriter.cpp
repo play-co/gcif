@@ -403,7 +403,7 @@ int ImageCMWriter::initFromRGBA(const u8 *rgba, int width, int height, ImageMask
 	return WE_OK;
 }
 
-void ImageCMWriter::writeFilters(ImageWriter &writer) {
+bool ImageCMWriter::writeFilters(ImageWriter &writer) {
 	FreqHistogram<SF_COUNT> sf_hist;
 	FreqHistogram<CF_COUNT> cf_hist;
 	u32 unused_count = 0;
@@ -454,16 +454,22 @@ void ImageCMWriter::writeFilters(ImageWriter &writer) {
 	cf_hist.addMore(_cf_unused_sym, unused_count);
 
 	// Geneerate huffman codes from final histogram
-	sf_hist.generateHuffman(_sf_codes, _sf_codelens);
-	cf_hist.generateHuffman(_cf_codes, _cf_codelens);
+	if (!_sf_encoder.init(sf_hist)) {
+		return false;
+	}
+	if (!_cf_encoder.init(cf_hist)) {
+		return false;
+	}
 
 	// Write out filter huffman tables
-	int sf_table_bits = writeHuffmanTable(SF_COUNT, _sf_codelens, writer);
-	int cf_table_bits = writeHuffmanTable(CF_COUNT, _cf_codelens, writer);
+	int sf_table_bits = _sf_encoder.writeTable(writer);
+	int cf_table_bits = _cf_encoder.writeTable(writer);
 #ifdef CAT_COLLECT_STATS
 	Stats.filter_table_bits[0] = sf_table_bits;
 	Stats.filter_table_bits[1] = cf_table_bits;
 #endif // CAT_COLLECT_STATS
+
+	return true;
 }
 
 bool ImageCMWriter::writeChaos(ImageWriter &writer) {
@@ -511,11 +517,11 @@ bool ImageCMWriter::writeChaos(ImageWriter &writer) {
 					cf = (u8)filter;
 				}
 
-				writer.writeBits(_sf_codes[sf], _sf_codelens[sf]);
-				writer.writeBits(_cf_codes[cf], _cf_codelens[cf]);
+				int sf_bits = _sf_encoder.writeSymbol(sf, writer);
+				int cf_bits = _cf_encoder.writeSymbol(cf, writer);
 #ifdef CAT_COLLECT_STATS
-				filter_table_bits[0] += _sf_codelens[sf];
-				filter_table_bits[1] += _cf_codelens[cf];
+				filter_table_bits[0] += sf_bits;
+				filter_table_bits[1] += cf_bits;
 #endif
 			}
 

@@ -141,14 +141,3 @@ int ImageReader::init(const void *buffer, int fileSize) {
 	return RE_OK;
 }
 
-u32 ImageReader::nextHuffmanSymbol(HuffmanDecoder *dec) {
-	u32 code = peek(16);
-
-	u32 len;
-	u32 sym = dec->get(code, len);
-
-	eat(len);
-
-	return sym;
-}
-

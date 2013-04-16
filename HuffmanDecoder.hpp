@@ -2,13 +2,11 @@
 #define CAT_HUFFMAN_DECODER_HPP
 
 #include "Platform.hpp"
+#include "ImageReader.hpp"
 
 // See copyright notice at the top of HuffmanEncoder.hpp
 
 namespace cat {
-
-
-class ImageReader;
 
 
 //// HuffmanDecoder
@@ -39,6 +37,8 @@ protected:
 
 	u32 _table_shift;
 
+	u32 _one_sym;
+
 	void clear();
 
 	bool init(int num_syms, const u8 codelens[], u32 table_bits);
@@ -57,41 +57,7 @@ public:
 
 	bool init(int num_syms, ImageReader &reader, u32 table_bits);
 
-	// Returns symbol, bitlength
-	CAT_INLINE u32 get(u32 code, u32 &bitLength) {
-		u32 k = static_cast<u32>((code >> 16) + 1);
-		u32 sym, len;
-
-		if CAT_LIKELY(k <= _table_max_code) {
-			u32 t = _lookup[code >> (32 - _table_bits)];
-
-			sym = static_cast<u16>( t );
-			len = static_cast<u16>( t >> 16 );
-		}
-		else {
-			len = _decode_start_code_size;
-
-			const u32 *max_codes = _max_codes;
-
-			for (;;) {
-				if CAT_LIKELY(k <= max_codes[len - 1])
-					break;
-				len++;
-			}
-
-			int val_ptr = _val_ptrs[len - 1] + static_cast<int>((code >> (32 - len)));
-
-			if CAT_UNLIKELY(((u32)val_ptr >= _num_syms)) {
-				bitLength = len;
-				return 0;
-			}
-
-			sym = _sorted_symbol_order[val_ptr];
-		}
-
-		bitLength = len;
-		return sym;
-	}
+	u32 next(ImageReader &reader);
 };
 
 

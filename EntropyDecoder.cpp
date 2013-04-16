@@ -34,11 +34,11 @@ u8 EntropyDecoder::next(ImageReader &reader) {
 
 #ifdef USE_AZ
 		if (_afterZero) {
-			sym = (u16)reader.nextHuffmanSymbol(&_az);
+			sym = (u16)_az.next(reader);
 			_afterZero = false;
 		} else {
 #endif
-			sym = (u16)reader.nextHuffmanSymbol(&_bz);
+			sym = (u16)_bz.next(reader);
 #ifdef USE_AZ
 		}
 #endif

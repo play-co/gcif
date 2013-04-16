@@ -55,12 +55,9 @@ protected:
 	ImageLZWriter *_lz;
 
 	// Filter Huffman codes
-	u16 _sf_codes[SF_COUNT];
-	u8 _sf_codelens[SF_COUNT];
-	u8 _sf_unused_sym;
-	u16 _cf_codes[CF_COUNT];
-	u8 _cf_codelens[CF_COUNT];
-	u8 _cf_unused_sym;
+	HuffmanEncoder<SF_COUNT> _sf_encoder;
+	HuffmanEncoder<CF_COUNT> _cf_encoder;
+	u8 _sf_unused_sym, _cf_unused_sym;
 
 	EntropyEncoder _encoder[PLANES][CHAOS_LEVELS];
 
@@ -68,7 +65,7 @@ protected:
 	void decideFilters();
 	void chaosStats();
 
-	void writeFilters(ImageWriter &writer);
+	bool writeFilters(ImageWriter &writer);
 	bool writeChaos(ImageWriter &writer);
 
 #ifdef CAT_COLLECT_STATS

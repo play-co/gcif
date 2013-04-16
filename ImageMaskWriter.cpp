@@ -347,7 +347,7 @@ void ImageMaskWriter::performLZ(const std::vector<u8> &rle, std::vector<u8> &lz)
 }
 
 
-void ImageMaskWriter::writeEncodedLZ(const std::vector<u8> &lz, u16 codes[256], u8 codelens[256], ImageWriter &writer) {
+void ImageMaskWriter::writeEncodedLZ(const std::vector<u8> &lz, HuffmanEncoder<256> &encoder, ImageWriter &writer) {
 	const int lzSize = static_cast<int>( lz.size() );
 
 #ifdef CAT_COLLECT_STATS
@@ -358,9 +358,9 @@ void ImageMaskWriter::writeEncodedLZ(const std::vector<u8> &lz, u16 codes[256], 
 		for (int ii = 0; ii < lzSize; ++ii) {
 			u8 sym = lz[ii];
 
-			writer.writeBits(codes[sym], codelens[sym]);
+			int bits = encoder.writeSymbol(sym, writer);
 #ifdef CAT_COLLECT_STATS
-			data_bits += codelens[sym];
+			data_bits += bits;
 #endif // CAT_COLLECT_STATS
 		}
 	} else {
@@ -414,18 +414,19 @@ void ImageMaskWriter::write(ImageWriter &writer) {
 	double t4 = clock->usec();
 #endif // CAT_COLLECT_STATS
 
-	u8 codelens[256];
-	u16 codes[256];
-	generateHuffmanCodes(256, freqs, codes, codelens);
+	HuffmanEncoder<256> encoder;
+
+	if (!encoder.init(freqs)) {
+		return;
+	}
 
 #ifdef CAT_COLLECT_STATS
 	double t5 = clock->usec();
 #endif // CAT_COLLECT_STATS
 
 	int table_bits = 0;
-
 	if (lz.size() >= HUFF_THRESH) {
-		table_bits = writeHuffmanTable(256, codelens, writer);
+		table_bits = encoder.writeTable(writer);
 	}
 
 #ifdef CAT_COLLECT_STATS
@@ -434,7 +435,7 @@ void ImageMaskWriter::write(ImageWriter &writer) {
 	double t6 = clock->usec();
 #endif // CAT_COLLECT_STATS
 
-	writeEncodedLZ(lz, codes, codelens, writer);
+	writeEncodedLZ(lz, encoder, writer);
 
 #ifdef CAT_COLLECT_STATS
 	double t7 = clock->usec();

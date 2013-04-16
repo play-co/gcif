@@ -4,6 +4,7 @@
 #include "Platform.hpp"
 #include "ImageWriter.hpp"
 #include "EntropyDecoder.hpp"
+#include "HuffmanEncoder.hpp"
 #include <vector>
 
 namespace cat {
@@ -18,9 +19,9 @@ class EntropyEncoder {
 	static const int BZ_SYMS = EntropyDecoder::BZ_SYMS;
 	static const int FILTER_RLE_SYMS = EntropyDecoder::FILTER_RLE_SYMS;
 
-	u32 histBZ[BZ_SYMS], maxBZ;
+	FreqHistogram<BZ_SYMS> bz_hist;
 #ifdef USE_AZ
-	u32 histAZ[AZ_SYMS], maxAZ;
+	FreqHistogram<AZ_SYMS> az_hist;
 #endif
 	u32 zeroRun;
 
@@ -32,12 +33,10 @@ class EntropyEncoder {
 	bool usingZ;
 #endif
 
-	u16 codesBZ[BZ_SYMS];
-	u8 codelensBZ[BZ_SYMS];
+	HuffmanEncoder<BZ_SYMS> bz_encoder;
 
 #ifdef USE_AZ
-	u16 codesAZ[AZ_SYMS];
-	u8 codelensAZ[AZ_SYMS];
+	HuffmanEncoder<AZ_SYMS> az_encoder;
 #endif
 
 	void reset();
