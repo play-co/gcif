@@ -261,7 +261,7 @@ int ImageCMReader::readRGB(ImageReader &reader) {
 			p += 4;
 		}
 
-		// For each pixel,
+		// For each pixel,  (THIS IS THE BIG INNER LOOP)
 		for (int x = 1, xend = width - 1; x < xend; ++x) {
 			// If LZ triggered,
 			if (x == trigger_x_lz) {
