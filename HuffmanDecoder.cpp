@@ -95,6 +95,11 @@ bool HuffmanDecoder::init(int count, const u8 *codelens, u32 table_bits) {
 		}
 	}
 
+	for (u16 sym = 0; sym < count; ++sym) {
+		int len = codelens[sym];
+		CAT_WARN("CODELENS") << sym << " => " << len;
+	}
+
 	if (total_used_syms == 1) {
 		for (u16 sym = 0; sym < count; ++sym) {
 			int len = codelens[sym];
@@ -359,6 +364,8 @@ u32 HuffmanDecoder::next(ImageReader &reader) {
 	else {
 		// Handle longer codelens outside of table
 		len = _decode_start_code_size;
+		CAT_ENFORCE(len <= 16);
+
 		const u32 *max_codes = _max_codes;
 
 		for (;;) {

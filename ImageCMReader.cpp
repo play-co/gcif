@@ -77,6 +77,7 @@ int ImageCMReader::readChaosTables(ImageReader &reader) {
 	for (int ii = 0; ii < PLANES; ++ii) {
 		// For each chaos level,
 		for (int jj = 0; jj < CHAOS_LEVELS; ++jj) {
+			CAT_WARN("TABLE") << ii << " : " << jj;
 			// Read the decoder table
 			if (!_decoder[ii][jj].init(reader)) {
 				return RE_CM_CODES;
