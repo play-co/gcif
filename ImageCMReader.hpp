@@ -46,6 +46,7 @@ protected:
 
 	int _width, _height;
 	u8 *_chaos;
+	u32 _chaos_size;
 
 	struct FilterSelection {
 		SpatialFilterFunction sf;
