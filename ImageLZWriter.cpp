@@ -1,6 +1,6 @@
 #include "ImageLZWriter.hpp"
 #include "EndianNeutral.hpp"
-#include "HuffmanEncoder.hpp"
+#include "EntropyEncoder.hpp"
 #include "ImageLZReader.hpp"
 #include "Log.hpp"
 #include "GCIFWriter.hpp"
@@ -342,9 +342,25 @@ void ImageLZWriter::write(ImageWriter &writer) {
 		return;
 	}
 
+	if (match_count < HUFF_THRESH) {
+		for (int ii = 0; ii < match_count; ++ii) {
+			Match *m = &_exact_matches[ii];
+
+			writer.writeBits(m->sx, 16);
+			writer.writeBits(m->sy, 16);
+			writer.writeBits(m->dx, 16);
+			writer.writeBits(m->dy, 16);
+			writer.writeBits(m->w, 8);
+			writer.writeBits(m->h, 8);
+		}
+
+		return;
+	}
+
 	// Collect frequency statistics
 	u16 last_dx = 0, last_dy = 0;
-	FreqHistogram<256> hist;
+
+	EntropyEncoder<256, ENCODER_ZRLE_SYMS> encoder;
 
 	for (int ii = 0; ii < match_count; ++ii) {
 		Match *m = &_exact_matches[ii];
@@ -357,26 +373,24 @@ void ImageLZWriter::write(ImageWriter &writer) {
 			edx -= last_dx;
 		}
 
-		hist.add((u8)m->sx);
-		hist.add((u8)(m->sx >> 8));
-		hist.add((u8)esy);
-		hist.add((u8)(esy >> 8));
-		hist.add((u8)edx);
-		hist.add((u8)(edx >> 8));
-		hist.add((u8)edy);
-		hist.add((u8)(edy >> 8));
-		hist.add(m->w);
-		hist.add(m->h);
+		encoder.add((u8)m->sx);
+		encoder.add((u8)(m->sx >> 8));
+		encoder.add((u8)esy);
+		encoder.add((u8)(esy >> 8));
+		encoder.add((u8)edx);
+		encoder.add((u8)(edx >> 8));
+		encoder.add((u8)edy);
+		encoder.add((u8)(edy >> 8));
+		encoder.add(m->w);
+		encoder.add(m->h);
 
 		last_dx = m->dx;
 		last_dy = m->dy;
 	}
 
-	HuffmanEncoder<256> encoder;
+	encoder.finalize();
 
-	encoder.init(hist);
-
-	int bits = encoder.writeTable(writer) + 16;
+	int bits = encoder.writeTables(writer) + 16;
 
 	// Reset last for encoding
 	last_dx = 0;

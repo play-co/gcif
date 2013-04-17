@@ -55,7 +55,7 @@ int ImageLZReader::readHuffmanTable(ImageReader &reader) {
 	}
 
 	// If not able to init Huffman decoder
-	if (!_huffman.init(NUM_SYMS, reader, 8)) {
+	if (!_decoder.init(reader)) {
 		return RE_LZ_CODES;
 	}
 
@@ -73,28 +73,67 @@ int ImageLZReader::readZones(ImageReader &reader) {
 	// Allocate space for zones
 	_zones = new Zone[match_count];
 
+	if (match_count < HUFF_THRESH) {
+		for (int ii = 0; ii < match_count; ++ii) {
+			Zone *z = &_zones[ii];
+
+			int sx = reader.readBits(16);
+			int sy = reader.readBits(16);
+			int dx = reader.readBits(16);
+			int dy = reader.readBits(16);
+
+			z->dx = dx;
+			z->dy = dy;
+			z->sox = sx - dx;
+			z->soy = sy - dy;
+			z->w = reader.readBits(8) + ZONEW;
+			z->h = reader.readBits(8) + ZONEH;
+
+			// Input security checks
+			if (sy > dy || (sy == dy && sx >= dx)) {
+				return RE_LZ_BAD;
+			}
+
+			if ((u32)sx + (u32)z->w > _width ||
+					(u32)sy + (u32)z->h > _height) {
+				return RE_LZ_BAD;
+			}
+
+			if ((u32)z->dx + (u32)z->w > _width ||
+					(u32)z->dy + (u32)z->h > _height) {
+				return RE_LZ_BAD;
+			}
+		}
+
+		if (reader.eof()) {
+			return RE_LZ_BAD;
+		}
+
+		return RE_OK;
+	}
+
 	// For each zone to read,
 	u16 last_dx = 0, last_dy = 0;
 	Zone *z = _zones;
 	for (int ii = 0; ii < match_count; ++ii, ++z) {
-		u8 b0 = (u8)_huffman.next(reader);
-		u8 b1 = (u8)_huffman.next(reader);
+		u8 b0 = (u8)_decoder.next(reader);
+		u8 b1 = (u8)_decoder.next(reader);
 		u16 sx = ((u16)b1 << 8) | b0;
 
-		b0 = (u8)_huffman.next(reader);
-		b1 = (u8)_huffman.next(reader);
+		b0 = (u8)_decoder.next(reader);
+		b1 = (u8)_decoder.next(reader);
 		u16 sy = ((u16)b1 << 8) | b0;
 
-		b0 = (u8)_huffman.next(reader);
-		b1 = (u8)_huffman.next(reader);
+		b0 = (u8)_decoder.next(reader);
+		b1 = (u8)_decoder.next(reader);
 		u16 dx = ((u16)b1 << 8) | b0;
 
-		b0 = (u8)_huffman.next(reader);
-		b1 = (u8)_huffman.next(reader);
+		b0 = (u8)_decoder.next(reader);
+		b1 = (u8)_decoder.next(reader);
 		u16 dy = ((u16)b1 << 8) | b0;
 
-		z->w = _huffman.next(reader) + ZONEW;
-		z->h = _huffman.next(reader) + ZONEH;
+		z->w = _decoder.next(reader) + ZONEW;
+		z->h = _decoder.next(reader) + ZONEH;
 
 		// Reverse CM
 		if (dy == 0) {

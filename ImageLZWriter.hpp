@@ -59,6 +59,8 @@ class ImageLZWriter {
 	static const int MAXH = 255 + ZONEH;
 	static const int MIN_SCORE = 16;
 	static const int ZERO_COEFF = 4; // Count zeroes as being worth 1/4 of a normal match
+	static const int ENCODER_ZRLE_SYMS = ImageLZReader::ENCODER_ZRLE_SYMS;
+	static const int HUFF_THRESH = ImageLZReader::HUFF_THRESH;
 
 	const u8 *_rgba;
 	int _width, _height;

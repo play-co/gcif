@@ -1,9 +1,8 @@
 #ifndef IMAGE_LZ_READER_HPP
 #define IMAGE_LZ_READER_HPP
 
-#include "Platform.hpp"
 #include "ImageReader.hpp"
-#include "HuffmanDecoder.hpp"
+#include "EntropyDecoder.hpp"
 
 /*
  * Game Closure 2D LZ (GC-2D-LZ) Decompression
@@ -40,6 +39,8 @@ public:
 	static const int ZONEW = 3;
 	static const int ZONEH = 3;
 	static const u32 MAX_ZONE_COUNT = 65535;
+	static const int ENCODER_ZRLE_SYMS = 16;
+	static const int HUFF_THRESH = 15;
 
 protected:
 	static const u16 ZONE_NULL = 0xffff;
@@ -61,7 +62,7 @@ protected:
 	u16 _zone_trigger_y;	// Next trigger y for _zone_next_y
 	u16 _zone_next_y;		// Start of next row of same-y items to merge
 
-	HuffmanDecoder _huffman;
+	EntropyDecoder<256, ENCODER_ZRLE_SYMS> _decoder;
 
 	void clear();
 

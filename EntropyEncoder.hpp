@@ -97,7 +97,7 @@ public:
 	CAT_INLINE virtual ~EntropyEncoder() {
 	}
 
-	void addStats(u8 symbol) {
+	void add(u8 symbol) {
 		if (symbol == 0) {
 			++_zeroRun;
 		} else {
@@ -120,7 +120,7 @@ public:
 		}
 	}
 
-	void finalizeStats() {
+	void finalize() {
 		const int zeroRun = _zeroRun;
 
 		// If a zero run is in progress at the end,
