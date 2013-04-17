@@ -486,6 +486,8 @@ int cat::writeCompressedHuffmanTable(int num_syms, u8 codelens[], ImageWriter &w
 	CAT_ENFORCE(HUFF_SYMS == 17);
 	CAT_ENFORCE(num_syms >= 2);
 
+	writer.writeWord(1234555);
+
 	int bc = 0;
 
 	// Find last non-zero symbol
@@ -509,6 +511,8 @@ int cat::writeCompressedHuffmanTable(int num_syms, u8 codelens[], ImageWriter &w
 		writer.writeBit(0);
 	}
 	bc++;
+
+	writer.writeWord(1234567);
 
 	// If the symbol count is low,
 	if (num_syms <= 20) {
@@ -762,9 +766,8 @@ int cat::writeCompressedHuffmanTable(int num_syms, u8 codelens[], ImageWriter &w
 			best = ii;
 		}
 	}
-	best = 0;
 
-	writer.writeWord(1234567);
+	writer.writeWord(1234568);
 
 	// Write best table
 	{
@@ -806,7 +809,7 @@ int cat::writeCompressedHuffmanTable(int num_syms, u8 codelens[], ImageWriter &w
 		}
 	}
 
-	writer.writeWord(1234567);
+	writer.writeWord(1234569);
 
 	// Finish initializing encoder
 	encoders[best].initCodes();
@@ -883,6 +886,8 @@ int cat::writeCompressedHuffmanTable(int num_syms, u8 codelens[], ImageWriter &w
 		}
 		break;
 	}
+
+	writer.writeWord(1234567);
 
 	return bc;
 }

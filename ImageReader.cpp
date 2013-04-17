@@ -22,7 +22,11 @@ u32 ImageReader::refill() {
 	int readBits = 32 - bitsLeft;
 
 	if CAT_LIKELY(nextLeft >= readBits) {
-		nextWord <<= readBits;
+		if (readBits == 32) {
+			nextWord = 0;
+		} else {
+			nextWord <<= readBits;
+		}
 		nextLeft -= readBits;
 		_bitsLeft = 32;
 	} else {
@@ -43,6 +47,8 @@ u32 ImageReader::refill() {
 			nextLeft = bitsLeft;
 			_bitsLeft = 32;
 		} else {
+			_bitsLeft += nextLeft;
+
 			nextWord = 0;
 			nextLeft = 0;
 

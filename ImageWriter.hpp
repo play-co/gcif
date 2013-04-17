@@ -5,6 +5,7 @@
 #include "HotRodHash.hpp"
 #include "ImageReader.hpp"
 #include "EndianNeutral.hpp"
+#include "Log.hpp"
 
 namespace cat {
 
@@ -110,6 +111,8 @@ public:
 
 	// Only works for 1-bit code, and code must not have dirty high bits
 	CAT_INLINE void writeBit(u32 code) {
+		CAT_ENFORCE(code < 2);
+
 		const int bits = _bits;
 		const int available = 31 - bits;
 
@@ -124,6 +127,8 @@ public:
 
 	// Only works with len in [1..32], and code must not have dirty high bits
 	CAT_INLINE void writeBits(u32 code, int len) {
+		CAT_ENFORCE((code >> len) == 0);
+
 		const int bits = _bits;
 		const int available = 32 - bits;
 
