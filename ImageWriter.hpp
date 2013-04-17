@@ -127,12 +127,15 @@ public:
 
 	// Only works with len in [1..32], and code must not have dirty high bits
 	CAT_INLINE void writeBits(u32 code, int len) {
+		CAT_ENFORCE(len >= 1 && len <= 32);
 		CAT_ENFORCE((code >> len) == 0);
 
 		const int bits = _bits;
 		const int available = 32 - bits;
 
 		if CAT_LIKELY(available > len) {
+			CAT_ENFORCE((available - len) < 32);
+
 			_work |= code << (available - len);
 
 			_bits = bits + len;
@@ -144,6 +147,8 @@ public:
 	// Write a whole 32-bit word at once
 	CAT_INLINE void writeWord(u32 word) {
 		const int shift = _bits;
+
+		CAT_ENFORCE(shift != 32);
 
 		const u32 pushWord = _work | (word >> shift);
 

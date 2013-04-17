@@ -126,13 +126,10 @@ void ImageWriter::writeBitPush(u32 code) {
 void ImageWriter::writeBitsPush(u32 code, int len, int available) {
 	const int shift = len - available;
 
-	if (shift == 32) {
-		_words.push(_work);
-	} else {
-		const u32 pushWord = _work | (code >> shift);
+	CAT_ENFORCE(shift < 32);
 
-		_words.push(pushWord);
-	}
+	const u32 pushWord = _work | (code >> shift);
+	_words.push(pushWord);
 
 	if (shift) {
 		_work = code << (32 - shift);
