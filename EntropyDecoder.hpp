@@ -19,7 +19,7 @@ namespace cat {
 
 class EntropyDecoder {
 public:
-	static const int RECENT_SYMS = 32; // Number of symbols set apart for recent palette
+	static const int RECENT_SYMS = 11; // Number of symbols set apart for recent palette
 	static const int FILTER_RLE_SYMS = 128; // Number of symbols set apart for zRLE
 	static const int BZ_SYMS = 256 + RECENT_SYMS + FILTER_RLE_SYMS;
 #ifdef USE_AZ
