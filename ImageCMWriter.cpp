@@ -304,7 +304,11 @@ void ImageCMWriter::chaosStats() {
 				// Apply color filter
 				u8 yuv[PLANES];
 				RGB2YUV_FILTERS[cf](temp, yuv);
-				yuv[3] = 255 - p[3];
+				if (x > 0) {
+					yuv[3] = p[-1] - p[3];
+				} else {
+					yuv[3] = 255 - p[3];
+				}
 
 				int match = -1;
 				int nonzero = (yuv[0] != 0) + (yuv[1] != 0) + (yuv[2] != 0) + (yuv[3] != 0);
@@ -566,7 +570,11 @@ bool ImageCMWriter::writeChaos(ImageWriter &writer) {
 				// Apply color filter
 				u8 yuv[PLANES];
 				RGB2YUV_FILTERS[cf](temp, yuv);
-				yuv[3] = 255 - p[3];
+				if (x > 0) {
+					yuv[3] = p[-1] - p[3];
+				} else {
+					yuv[3] = 255 - p[3];
+				}
 
 				int match = -1;
 				int nonzero = (yuv[0] != 0) + (yuv[1] != 0) + (yuv[2] != 0) + (yuv[3] != 0);
