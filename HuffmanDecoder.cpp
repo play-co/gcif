@@ -200,8 +200,6 @@ bool HuffmanDecoder::init(int num_syms, ImageReader &reader, u32 table_bits) {
 	CAT_ENFORCE(num_syms >= 2);
 
 	// Shaved?
-	CAT_WARN("START") << reader.readWord();
-
 	if (reader.readBit()) {
 		const int num_syms_bits = BSR32(num_syms - 1) + 1;
 
@@ -218,8 +216,6 @@ bool HuffmanDecoder::init(int num_syms, ImageReader &reader, u32 table_bits) {
 		num_syms = shaved;
 	}
 
-	CAT_WARN("TEST2") << reader.readWord() << " ---------- " << num_syms;
-
 	// If the symbol count is low,
 	if (num_syms <= 20) {
 		for (int ii = 0; ii < num_syms; ++ii) {
@@ -232,11 +228,8 @@ bool HuffmanDecoder::init(int num_syms, ImageReader &reader, u32 table_bits) {
 			codelens[ii] = len;
 		}
 
-		CAT_WARN("SHORT");
 		return init(num_syms, codelens, table_bits);
 	}
-
-	CAT_WARN("TEST3") << reader.readWord();
 
 	// Read the table decoder codelens
 	u8 table_codelens[HUFF_SYMS];
@@ -250,11 +243,8 @@ bool HuffmanDecoder::init(int num_syms, ImageReader &reader, u32 table_bits) {
 			for (int ii = last_nzt; ii < HUFF_SYMS; ++ii) {
 				table_codelens[ii] = 0;
 			}
-
-			CAT_WARN("TRUNC") << last_nzt;
 		} else {
 			last_nzt = HUFF_SYMS;
-			CAT_WARN("SOLID") << last_nzt;
 		}
 
 		for (int ii = 0; ii < last_nzt; ++ii) {
@@ -267,8 +257,6 @@ bool HuffmanDecoder::init(int num_syms, ImageReader &reader, u32 table_bits) {
 			table_codelens[ii] = len;
 		}
 	}
-
-	CAT_WARN("INIT DECODER") << reader.readWord();
 
 	// Initialize the table decoder
 	HuffmanDecoder table_decoder;
@@ -342,8 +330,6 @@ bool HuffmanDecoder::init(int num_syms, ImageReader &reader, u32 table_bits) {
 		}
 		break;
 	}
-
-	CAT_WARN("TEST") << reader.readWord();
 
 	// If only one symbol,
 	return init(num_syms, codelens, table_bits);

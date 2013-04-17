@@ -115,7 +115,7 @@ int ImageWriter::init(int width, int height) {
 }
 
 void ImageWriter::writeBitPush(u32 code) {
-	const u32 pushWord = _work | (code << 31);
+	const u32 pushWord = _work | code;
 
 	_words.push(pushWord);
 

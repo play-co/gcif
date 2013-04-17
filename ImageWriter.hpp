@@ -30,7 +30,7 @@ namespace cat {
  */
 
 class WriteVector {
-	static const int HEAD_SIZE = 128; // Words in head
+	static const int HEAD_SIZE = 4096; // Words in head
 	static const int WORD_BYTES = static_cast<int>( sizeof(u32) );
 	static const int PTR_BYTES = static_cast<int>( sizeof(u32 *) );
 	static const int PTR_WORDS = PTR_BYTES / WORD_BYTES;
