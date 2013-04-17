@@ -280,7 +280,7 @@ void ImageCMWriter::chaosStats() {
 	// For each scanline,
 	const u8 *p = _rgba;
 	u8 *lastStart = _chaos + RECENT_SYMS * PLANES;
-	CAT_CLR(lastStart, _chaos_size);
+	CAT_CLR(_chaos, _chaos_size);
 
 	for (int y = 0; y < _height; ++y) {
 		u8 *last = lastStart;
@@ -523,7 +523,7 @@ bool ImageCMWriter::writeChaos(ImageWriter &writer) {
 	// For each scanline,
 	const u8 *p = _rgba;
 	u8 *lastStart = _chaos + RECENT_SYMS * PLANES;
-	CAT_CLR(lastStart, _chaos_size);
+	CAT_CLR(_chaos, _chaos_size);
 
 	for (int y = 0; y < _height; ++y) {
 		u8 *last = lastStart;

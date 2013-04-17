@@ -219,7 +219,7 @@ bool huffman::generate_huffman_codes(huffman_work_tables *state, u32 num_syms, c
 	total_freq_ret = total_freq;
 
 	if (num_used_syms == 1) {
-		one_sym = state->syms0[0].left - 1;
+		one_sym = state->syms0[0].left + 1;
 
 		return true;
 	}

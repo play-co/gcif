@@ -44,7 +44,7 @@ protected:
 	static const int PLANES = 4;
 	static const int RECENT_SYMS = ImageCMReader::RECENT_SYMS;
 	static const int RECENT_AHEAD = ImageCMReader::RECENT_AHEAD;
-	static const int RECENT_MIN_NONZERO = 2;
+	static const int RECENT_MIN_NONZERO = 1;
 
 	int _w, _h;
 	u16 *_matrix;
