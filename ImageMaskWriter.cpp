@@ -109,13 +109,8 @@ int ImageMaskWriter::initFromRGBA(const u8 *rgba, int width, int height) {
 
 	clear();
 
-#ifdef LOWRES_MASK
-	const int maskWidth = width >> FILTER_ZONE_SIZE_SHIFT;
-	const int maskHeight = height >> FILTER_ZONE_SIZE_SHIFT;
-#else
 	const int maskWidth = width;
 	const int maskHeight = height;
-#endif
 
 	// Init mask bitmatrix
 	_width = maskWidth;
@@ -132,53 +127,6 @@ int ImageMaskWriter::initFromRGBA(const u8 *rgba, int width, int height) {
 	u32 *writer = _mask;
 
 	// Set from full-transparent alpha:
-
-#ifdef LOWRES_MASK
-
-	// For each block,
-	const u8 *alpha = (const u8*)&rgba[0] + 3;
-	for (int y = 0; y < _height; ++y) {
-		u32 bits = 0;
-		int filled = 0;
-
-		const u8 *col = alpha; 
-		for (int x = 0; x < _width; ++x) {
-			// For each block pixel,
-			u32 on = 1;
-
-			const u8 *pixel = col;
-			for (int ii = 0; ii < FILTER_ZONE_SIZE; ++ii) {
-				for (int jj = 0; jj < FILTER_ZONE_SIZE; ++jj) {
-					if (pixel[jj * 4]) {
-						on = 0;
-						ii = FILTER_ZONE_SIZE;
-						break;
-					}
-				}
-
-				pixel += width * 4;
-			}
-
-			bits <<= 1;
-			bits |= on;
-
-			if (++filled >= 32) {
-				*writer++ = bits;
-				filled = 0;
-				bits = 0;
-			}
-
-			col += FILTER_ZONE_SIZE * 4;
-		}
-
-		if (filled > 0) {
-			*writer++ = bits;
-		}
-
-		alpha += width * 4 * FILTER_ZONE_SIZE;
-	}
-
-#else
 
 	u32 covered = 0;
 
@@ -244,8 +192,6 @@ int ImageMaskWriter::initFromRGBA(const u8 *rgba, int width, int height) {
 #ifdef CAT_COLLECT_STATS
 	Stats.covered = covered;
 #endif // CAT_COLLECT_STATS
-
-#endif
 
 #ifdef DUMP_FILTER_OUTPUT
 		{

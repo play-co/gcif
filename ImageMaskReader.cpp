@@ -343,13 +343,8 @@ int ImageMaskReader::init(const ImageHeader *header) {
 		return RE_BAD_DIMS;
 	}
 
-#ifdef LOWRES_MASK
-	const int maskWidth = header->width >> FILTER_ZONE_SIZE_SHIFT;
-	const int maskHeight = header->height >> FILTER_ZONE_SIZE_SHIFT;
-#else
 	const int maskWidth = header->width;
 	const int maskHeight = header->height;
-#endif
 
 	_stride = (maskWidth + 31) >> 5;
 	_width = maskWidth;

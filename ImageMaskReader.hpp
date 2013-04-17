@@ -55,13 +55,8 @@ public:
 	int read(ImageReader &reader);
 
 	CAT_INLINE bool hasRGB(int x, int y) {
-#ifdef LOWRES_MASK
-		const int maskX = x >> FILTER_ZONE_SIZE_SHIFT;
-		const int maskY = y >> FILTER_ZONE_SIZE_SHIFT;
-#else
 		const int maskX = x;
 		const int maskY = y;
-#endif
 		const u32 word = _mask[(maskX >> 5) + maskY * _stride];
 		return (word >> (31 - (maskX & 31))) & 1;
 	}

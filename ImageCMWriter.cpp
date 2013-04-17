@@ -100,9 +100,6 @@ void ImageCMWriter::decideFilters() {
 			int bestSF = 0, bestCF = 0;
 
 			// If filter zone has RGB data,
-#ifdef LOWRES_MASK
-			if (!_mask->hasRGB(x, y))
-#endif
 			{
 				// Lower compression level that is a lot faster:
 				if (compressLevel == 0) {
@@ -112,11 +109,9 @@ void ImageCMWriter::decideFilters() {
 					for (int yy = 0; yy < FILTER_ZONE_SIZE; ++yy) {
 						for (int xx = 0; xx < FILTER_ZONE_SIZE; ++xx) {
 							int px = x + xx, py = y + yy;
-#ifndef LOWRES_MASK
 							if (_mask->hasRGB(px, py)) {
 								continue;
 							}
-#endif
 							if (_lz->visited(px, py)) {
 								continue;
 							}
@@ -157,11 +152,9 @@ void ImageCMWriter::decideFilters() {
 					for (int yy = 0; yy < FILTER_ZONE_SIZE; ++yy) {
 						for (int xx = 0; xx < FILTER_ZONE_SIZE; ++xx) {
 							int px = x + xx, py = y + yy;
-#ifndef LOWRES_MASK
 							if (_mask->hasRGB(px, py)) {
 								continue;
 							}
-#endif
 							if (_lz->visited(px, py)) {
 								continue;
 							}
@@ -212,11 +205,9 @@ void ImageCMWriter::decideFilters() {
 							for (int yy = 0; yy < FILTER_ZONE_SIZE; ++yy) {
 								for (int xx = 0; xx < FILTER_ZONE_SIZE; ++xx) {
 									int px = x + xx, py = y + yy;
-#ifndef LOWRES_MASK
 									if (_mask->hasRGB(px, py)) {
 										continue;
 									}
-#endif
 									if (_lz->visited(px, py)) {
 										continue;
 									}
@@ -403,9 +394,6 @@ bool ImageCMWriter::writeFilters(ImageWriter &writer) {
 		for (int x = 0, width = _width; x < width; x += FILTER_ZONE_SIZE) {
 			// Encode SF and CF separately and combine consecutive filters
 			// together for the smallest representation
-#ifdef LOWRES_MASK
-			if (!_mask->hasRGB(x, y))
-#else
 			bool on = false;
 
 			for (int ii = 0; ii < FILTER_ZONE_SIZE; ++ii) {
@@ -419,7 +407,6 @@ bool ImageCMWriter::writeFilters(ImageWriter &writer) {
 			}
 
 			if (on)
-#endif
 			{
 				u16 filter = getFilter(x, y);
 				u8 cf = (u8)filter;
