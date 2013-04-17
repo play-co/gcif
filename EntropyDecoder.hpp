@@ -45,7 +45,7 @@ public:
 
 	bool init(ImageReader &reader);
 
-	u8 next(ImageReader &reader);
+	u16 next(ImageReader &reader);
 };
 
 } // namespace cat

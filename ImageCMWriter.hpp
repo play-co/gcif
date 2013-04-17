@@ -61,7 +61,6 @@ protected:
 	// Filter Huffman codes
 	HuffmanEncoder<SF_COUNT> _sf_encoder;
 	HuffmanEncoder<CF_COUNT> _cf_encoder;
-	u8 _sf_unused_sym, _cf_unused_sym;
 
 	EntropyEncoder _encoder[PLANES][CHAOS_LEVELS];
 

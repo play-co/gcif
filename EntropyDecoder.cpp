@@ -25,7 +25,7 @@ bool EntropyDecoder::init(ImageReader &reader) {
 	return true;
 }
 
-u8 EntropyDecoder::next(ImageReader &reader) {
+u16 EntropyDecoder::next(ImageReader &reader) {
 	if (_zeroRun) {
 		--_zeroRun;
 		return 0;
@@ -44,19 +44,27 @@ u8 EntropyDecoder::next(ImageReader &reader) {
 #endif
 
 		// If zero,
-		if (sym > 255) {
+		if (sym >= 256 + RECENT_SYMS) {
 			// If it is represented by rider bytes,
 			if (sym >= BZ_SYMS - 1) {
 				// Read riders
 				u32 run = FILTER_RLE_SYMS, s;
-				do {
+
+				s = reader.readBits(8);
+				run += s;
+
+				if (s == 255) {
 					s = reader.readBits(8);
 					run += s;
-				} while (s == 255); // eof => 0 so this is safe
+
+					if (s == 255) {
+						run += reader.readBits(16);
+					}
+				}
 
 				_zeroRun = run - 1;
 			} else {
-				_zeroRun = sym - 256;
+				_zeroRun = sym - (256 + RECENT_SYMS);
 			}
 #ifdef USE_AZ
 			_afterZero = true;

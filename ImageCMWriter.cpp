@@ -474,14 +474,6 @@ bool ImageCMWriter::writeFilters(ImageWriter &writer) {
 		}
 	}
 
-	// Use most common symbol as unused symbol
-	_sf_unused_sym = sf_hist.firstHighestPeak();
-	_cf_unused_sym = cf_hist.firstHighestPeak();
-
-	// Add unused count onto it
-	sf_hist.addMore(_sf_unused_sym, unused_count);
-	cf_hist.addMore(_cf_unused_sym, unused_count);
-
 	// Geneerate huffman codes from final histogram
 	if (!_sf_encoder.init(sf_hist)) {
 		return false;
@@ -535,15 +527,11 @@ bool ImageCMWriter::writeChaos(ImageWriter &writer) {
 				(y & FILTER_ZONE_SIZE_MASK) == 0) {
 
 				u16 filter = getFilter(x, y);
-				u8 sf, cf;
 
 				// If filter is unused,
-				if (filter == UNUSED_FILTER) {
-					sf = _sf_unused_sym;
-					cf = _cf_unused_sym;
-				} else {
-					sf = filter >> 8;
-					cf = (u8)filter;
+				if (filter != UNUSED_FILTER) {
+					u8 sf = filter >> 8;
+					u8 cf = (u8)filter;
 
 					int sf_bits = _sf_encoder.writeSymbol(sf, writer);
 					int cf_bits = _cf_encoder.writeSymbol(cf, writer);
@@ -558,6 +546,7 @@ bool ImageCMWriter::writeChaos(ImageWriter &writer) {
 			if (!_lz->visited(x, y) && !_mask->hasRGB(x, y)) {
 				// Get filter for this pixel
 				u16 filter = getFilter(x, y);
+				CAT_ENFORCE(filter != UNUSED_FILTER);
 				u8 cf = (u8)filter;
 				u8 sf = (u8)(filter >> 8);
 
@@ -622,6 +611,8 @@ bool ImageCMWriter::writeChaos(ImageWriter &writer) {
 				chaos_count++;
 #endif
 			} else {
+				CAT_ENFORCE(getFilter(x, y) == UNUSED_FILTER);
+
 				for (int c = 0; c < PLANES; ++c) {
 					last[c] = 0;
 				}

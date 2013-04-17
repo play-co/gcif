@@ -161,14 +161,24 @@ int EntropyEncoder::writeZeroRun(int run, ImageWriter &writer) {
 
 	if (rider) {
 		run -= FILTER_RLE_SYMS;
-		while (run >= 255) {
-			writer.writeBits(255, 8);
-			bits += 8;
-			run -= 255;
-		}
 
-		writer.writeBits(run, 8);
-		bits += 8;
+		if (run >= 510) {
+			writer.writeBits(255, 8);
+			writer.writeBits(255, 8);
+
+			run -= 510;
+			writer.writeBits(run, 16);
+			bits += 16 + 8 + 8;
+		} else {
+			while (run >= 255) {
+				writer.writeBits(255, 8);
+				bits += 8;
+				run -= 255;
+			}
+
+			writer.writeBits(run, 8);
+			bits += 8;
+		}
 	}
 
 	return bits;
