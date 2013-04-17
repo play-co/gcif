@@ -157,10 +157,21 @@ int ImageCMReader::readRGB(ImageReader &reader) {
 				// Read YUV filtered pixel
 				u8 yuv[3], a;
 
-				last[0] = yuv[0] = _decoder[0][CHAOS_TABLE[chaosScore(last[-4])]].next(reader);
-				last[1] = yuv[1] = _decoder[1][CHAOS_TABLE[chaosScore(last[-3])]].next(reader);
-				last[2] = yuv[2] = _decoder[2][CHAOS_TABLE[chaosScore(last[-2])]].next(reader);
-				last[3] = a = _decoder[3][CHAOS_TABLE[chaosScore(last[-1])]].next(reader);
+				u32 y = _decoder[0][CHAOS_TABLE[chaosScore(last[-4])]].next(reader);
+
+				// If pixel is a recent palette entry,
+				if (y >= 256) {
+					u8 *src = p - (y - 256 - RECENT_AHEAD) * 4;
+					last[0] = yuv[0] = src[0];
+					last[1] = yuv[1] = src[1];
+					last[2] = yuv[2] = src[2];
+					last[3] = a = src[3];
+				} else {
+					last[0] = yuv[0] = y;
+					last[1] = yuv[1] = _decoder[1][CHAOS_TABLE[chaosScore(last[-3])]].next(reader);
+					last[2] = yuv[2] = _decoder[2][CHAOS_TABLE[chaosScore(last[-2])]].next(reader);
+					last[3] = a = _decoder[3][CHAOS_TABLE[chaosScore(last[-1])]].next(reader);
+				}
 
 				// Reverse color filter
 				u8 rgb[3];
@@ -245,10 +256,21 @@ int ImageCMReader::readRGB(ImageReader &reader) {
 				// Read YUV filtered pixel
 				u8 yuv[3], a;
 
-				last[0] = yuv[0] = _decoder[0][CHAOS_TABLE[chaosScore(last[0])]].next(reader);
-				last[1] = yuv[1] = _decoder[1][CHAOS_TABLE[chaosScore(last[1])]].next(reader);
-				last[2] = yuv[2] = _decoder[2][CHAOS_TABLE[chaosScore(last[2])]].next(reader);
-				last[3] = a = _decoder[3][CHAOS_TABLE[chaosScore(last[3])]].next(reader);
+				u32 y = _decoder[0][CHAOS_TABLE[chaosScore(last[0])]].next(reader);
+
+				// If pixel is a recent palette entry,
+				if (y >= 256) {
+					u8 *src = p - (y - 256 - RECENT_AHEAD) * 4;
+					last[0] = yuv[0] = src[0];
+					last[1] = yuv[1] = src[1];
+					last[2] = yuv[2] = src[2];
+					last[3] = a = src[3];
+				} else {
+					last[0] = yuv[0] = y;
+					last[1] = yuv[1] = _decoder[1][CHAOS_TABLE[chaosScore(last[1])]].next(reader);
+					last[2] = yuv[2] = _decoder[2][CHAOS_TABLE[chaosScore(last[2])]].next(reader);
+					last[3] = a = _decoder[3][CHAOS_TABLE[chaosScore(last[3])]].next(reader);
+				}
 
 				// Reverse color filter
 				u8 rgb[3];
@@ -313,10 +335,21 @@ int ImageCMReader::readRGB(ImageReader &reader) {
 				// Read YUV filtered pixel
 				u8 yuv[3], a;
 
-				last[0] = yuv[0] = _decoder[0][CHAOS_TABLE[chaosScore(last[-4]) + chaosScore(last[0])]].next(reader);
-				last[1] = yuv[1] = _decoder[1][CHAOS_TABLE[chaosScore(last[-3]) + chaosScore(last[1])]].next(reader);
-				last[2] = yuv[2] = _decoder[2][CHAOS_TABLE[chaosScore(last[-2]) + chaosScore(last[2])]].next(reader);
-				last[3] = a = _decoder[3][CHAOS_TABLE[chaosScore(last[-1]) + chaosScore(last[3])]].next(reader);
+				u32 y = _decoder[0][CHAOS_TABLE[chaosScore(last[-4]) + chaosScore(last[0])]].next(reader);
+
+				// If pixel is a recent palette entry,
+				if (y >= 256) {
+					u8 *src = p - (y - 256 - RECENT_AHEAD) * 4;
+					last[0] = yuv[0] = src[0];
+					last[1] = yuv[1] = src[1];
+					last[2] = yuv[2] = src[2];
+					last[3] = a = src[3];
+				} else {
+					last[0] = yuv[0] = y;
+					last[1] = yuv[1] = _decoder[1][CHAOS_TABLE[chaosScore(last[-3]) + chaosScore(last[1])]].next(reader);
+					last[2] = yuv[2] = _decoder[2][CHAOS_TABLE[chaosScore(last[-2]) + chaosScore(last[2])]].next(reader);
+					last[3] = a = _decoder[3][CHAOS_TABLE[chaosScore(last[-1]) + chaosScore(last[3])]].next(reader);
+				}
 
 				// Reverse color filter
 				u8 rgb[3];
@@ -364,10 +397,21 @@ int ImageCMReader::readRGB(ImageReader &reader) {
 				// Read YUV filtered pixel
 				u8 yuv[3], a;
 
-				last[0] = yuv[0] = _decoder[0][CHAOS_TABLE[chaosScore(last[-4]) + chaosScore(last[0])]].next(reader);
-				last[1] = yuv[1] = _decoder[1][CHAOS_TABLE[chaosScore(last[-3]) + chaosScore(last[1])]].next(reader);
-				last[2] = yuv[2] = _decoder[2][CHAOS_TABLE[chaosScore(last[-2]) + chaosScore(last[2])]].next(reader);
-				last[3] = a = _decoder[3][CHAOS_TABLE[chaosScore(last[-1]) + chaosScore(last[3])]].next(reader);
+				u32 y = _decoder[0][CHAOS_TABLE[chaosScore(last[-4]) + chaosScore(last[0])]].next(reader);
+
+				// If pixel is a recent palette entry,
+				if (y >= 256) {
+					u8 *src = p - (y - 256 - RECENT_AHEAD) * 4;
+					last[0] = yuv[0] = src[0];
+					last[1] = yuv[1] = src[1];
+					last[2] = yuv[2] = src[2];
+					last[3] = a = src[3];
+				} else {
+					last[0] = yuv[0] = y;
+					last[1] = yuv[1] = _decoder[1][CHAOS_TABLE[chaosScore(last[-3]) + chaosScore(last[1])]].next(reader);
+					last[2] = yuv[2] = _decoder[2][CHAOS_TABLE[chaosScore(last[-2]) + chaosScore(last[2])]].next(reader);
+					last[3] = a = _decoder[3][CHAOS_TABLE[chaosScore(last[-1]) + chaosScore(last[3])]].next(reader);
+				}
 
 				// Reverse color filter
 				u8 rgb[3];
