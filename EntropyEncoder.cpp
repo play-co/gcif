@@ -31,7 +31,7 @@ void EntropyEncoder::push(u8 symbol) {
 	} else {
 		if (zeroRun > 0) {
 			if (zeroRun < FILTER_RLE_SYMS) {
-				bz_hist.add(255 + zeroRun);
+				bz_hist.add(255 + RECENT_SYMS + zeroRun);
 			} else {
 				bz_hist.add(BZ_SYMS - 1);
 			}
@@ -54,7 +54,7 @@ void EntropyEncoder::endSymbols() {
 		runList.push_back(zeroRun);
 
 		if (zeroRun < FILTER_RLE_SYMS) {
-			bz_hist.add(255 + zeroRun);
+			bz_hist.add(255 + RECENT_SYMS + zeroRun);
 		} else {
 			bz_hist.add(BZ_SYMS - 1);
 		}
@@ -143,7 +143,7 @@ u32 EntropyEncoder::encode(u8 symbol, ImageWriter &writer) {
 }
 
 int EntropyEncoder::writeZeroRun(int run, ImageWriter &writer) {
-	if (run < 0) {
+	if (run <= 0) {
 		return 0;
 	}
 
@@ -151,7 +151,7 @@ int EntropyEncoder::writeZeroRun(int run, ImageWriter &writer) {
 	bool rider = false;
 
 	if (run < FILTER_RLE_SYMS) {
-		zsym = 255 + run;
+		zsym = 255 + RECENT_SYMS + run;
 	} else {
 		zsym = BZ_SYMS - 1;
 		rider = true;

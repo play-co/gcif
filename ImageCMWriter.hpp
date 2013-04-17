@@ -37,16 +37,18 @@ namespace cat {
 
 class ImageCMWriter {
 protected:
-	static const int RECENT_SYMS = ImageCMReader::RECENT_SYMS;
 	static const int CHAOS_LEVELS = ImageCMReader::CHAOS_LEVELS;
-	static const int FILTER_SELECT_FUZZ = 16;
+	static const int FILTER_SELECT_FUZZ = 20;
 	static const int COMPRESS_LEVEL = 1;
 	static const u16 UNUSED_FILTER = 0xffff;
 	static const int PLANES = 4;
+	static const int RECENT_SYMS = ImageCMReader::RECENT_SYMS;
+	static const int RECENT_AHEAD = ImageCMReader::RECENT_AHEAD;
 
 	int _w, _h;
 	u16 *_matrix;
 	u8 *_chaos;
+	int _chaos_size;
 
 	void clear();
 

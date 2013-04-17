@@ -18,6 +18,7 @@ class EntropyEncoder {
 #endif
 	static const int BZ_SYMS = EntropyDecoder::BZ_SYMS;
 	static const int FILTER_RLE_SYMS = EntropyDecoder::FILTER_RLE_SYMS;
+	static const int RECENT_SYMS = EntropyDecoder::RECENT_SYMS;
 
 	FreqHistogram<BZ_SYMS> bz_hist;
 #ifdef USE_AZ
