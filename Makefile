@@ -20,9 +20,9 @@ gcif_objects = gcif.o lodepng.o Log.o Mutex.o Clock.o Thread.o
 gcif_objects += EndianNeutral.o lz4.o lz4hc.o HuffmanDecoder.o HuffmanEncoder.o
 gcif_objects += MappedFile.o SystemInfo.o HotRodHash.o ImageWriter.o
 gcif_objects += ImageReader.o ImageMaskWriter.o ImageMaskReader.o
-gcif_objects += ImageCMWriter.o EntropyEncoder.o FilterScorer.o Filters.o
+gcif_objects += ImageCMWriter.o FilterScorer.o Filters.o
 gcif_objects += ImageLZWriter.o ImageLZReader.o ImageCMReader.o
-gcif_objects += GCIFReader.o GCIFWriter.o EntropyDecoder.o
+gcif_objects += GCIFReader.o GCIFWriter.o
 #gcif_objects += ImageLPReader.o ImageLPWriter.o
 
 
@@ -32,9 +32,9 @@ SRCS = gcif.cpp lodepng.cpp Log.cpp Mutex.cpp Clock.cpp Thread.cpp
 SRCS += EndianNeutral.cpp lz4.c lz4hc.c HuffmanDecoder.cpp HuffmanEncoder.cpp
 SRCS += MappedFile.cpp SystemInfo.cpp HotRodHash.cpp ImageWriter.cpp
 SRCS += ImageReader.cpp ImageMaskWriter.cpp ImageMaskReader.cpp
-SRCS += ImageCMWriter.cpp EntropyEncoder.cpp FilterScorer.cpp Filters.cpp
+SRCS += ImageCMWriter.cpp FilterScorer.cpp Filters.cpp
 SRCS += ImageLZWriter.cpp ImageLZReader.cpp ImageCMReader.cpp
-SRCS += GCIFReader.cpp GCIFWriter.cpp EntropyDecoder.cpp
+SRCS += GCIFReader.cpp GCIFWriter.cpp
 #SRCS += ImageLPReader.cpp ImageLPWriter.cpp
 
 
@@ -103,9 +103,6 @@ ImageMaskWriter.o : ImageMaskWriter.cpp
 ImageCMWriter.o : ImageCMWriter.cpp
 	$(CCPP) $(CPFLAGS) -c ImageCMWriter.cpp
 
-EntropyEncoder.o : EntropyEncoder.cpp
-	$(CCPP) $(CPFLAGS) -c EntropyEncoder.cpp
-
 FilterScorer.o : FilterScorer.cpp
 	$(CCPP) $(CPFLAGS) -c FilterScorer.cpp
 
@@ -126,9 +123,6 @@ GCIFReader.o : GCIFReader.cpp
 
 GCIFWriter.o : GCIFWriter.cpp
 	$(CCPP) $(CPFLAGS) -c GCIFWriter.cpp
-
-EntropyDecoder.o : EntropyDecoder.cpp
-	$(CCPP) $(CPFLAGS) -c EntropyDecoder.cpp
 
 #ImageLPWriter.o : ImageLPWriter.cpp
 #	$(CCPP) $(CPFLAGS) -c ImageLPWriter.cpp
