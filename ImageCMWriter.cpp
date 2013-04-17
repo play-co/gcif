@@ -533,6 +533,7 @@ bool ImageCMWriter::writeChaos(ImageWriter &writer) {
 			// If it is time to write out a filter,
 			if ((x & FILTER_ZONE_SIZE_MASK) == 0 &&
 				(y & FILTER_ZONE_SIZE_MASK) == 0) {
+
 				u16 filter = getFilter(x, y);
 				u8 sf, cf;
 
@@ -543,14 +544,14 @@ bool ImageCMWriter::writeChaos(ImageWriter &writer) {
 				} else {
 					sf = filter >> 8;
 					cf = (u8)filter;
-				}
 
-				int sf_bits = _sf_encoder.writeSymbol(sf, writer);
-				int cf_bits = _cf_encoder.writeSymbol(cf, writer);
+					int sf_bits = _sf_encoder.writeSymbol(sf, writer);
+					int cf_bits = _cf_encoder.writeSymbol(cf, writer);
 #ifdef CAT_COLLECT_STATS
-				filter_table_bits[0] += sf_bits;
-				filter_table_bits[1] += cf_bits;
+					filter_table_bits[0] += sf_bits;
+					filter_table_bits[1] += cf_bits;
 #endif
+				}
 			}
 
 			// If not masked out,
