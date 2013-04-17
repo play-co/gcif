@@ -67,12 +67,15 @@ int ImageCMWriter::init(int width, int height) {
 		return WE_BAD_DIMS;
 	}
 
+	_width = width;
+	_height = height;
+
 	_w = width >> FILTER_ZONE_SIZE_SHIFT;
 	_h = height >> FILTER_ZONE_SIZE_SHIFT;
 	_matrix = new u16[_w * _h];
 
 	// And last row of chaos data
-	_chaos = new u8[(_width + RECENT_SYMS) * PLANES];
+	_chaos = new u8[(width + RECENT_SYMS) * PLANES];
 
 	// Clear left
 	for (int ii = 0, iiend = RECENT_SYMS * PLANES; ii <= iiend; ++ii) {
@@ -389,8 +392,6 @@ int ImageCMWriter::initFromRGBA(const u8 *rgba, int width, int height, ImageMask
 		return err;
 	}
 
-	_width = width;
-	_height = height;
 	_rgba = rgba;
 	_mask = &mask;
 	_lz = &lz;
