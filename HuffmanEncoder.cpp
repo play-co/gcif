@@ -810,8 +810,6 @@ int cat::writeCompressedHuffmanTable(int num_syms, u8 codelens[], ImageWriter &w
 	writer.writeBits(best, 2);
 	bc += 2;
 
-	CAT_WARN("TEST") << num_syms;
-
 	// Write best symbols
 	switch (best) {
 	default:
