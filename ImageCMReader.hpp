@@ -38,6 +38,7 @@ class ImageCMReader {
 public:
 	static const int CHAOS_LEVELS = 8;
 	static const int PLANES = 4;
+	static const int RECENT_SYMS = EntropyDecoder::RECENT_SYMS;
 
 protected:
 	u8 *_rgba;

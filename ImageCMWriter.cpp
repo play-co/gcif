@@ -70,7 +70,14 @@ int ImageCMWriter::init(int width, int height) {
 	_w = width >> FILTER_ZONE_SIZE_SHIFT;
 	_h = height >> FILTER_ZONE_SIZE_SHIFT;
 	_matrix = new u16[_w * _h];
-	_chaos = new u8[width * PLANES];
+
+	// And last row of chaos data
+	_chaos = new u8[(_width + RECENT_SYMS) * PLANES];
+
+	// Clear left
+	for (int ii = 0, iiend = RECENT_SYMS * PLANES; ii <= iiend; ++ii) {
+		_chaos[ii] = 0;
+	}
 
 	return WE_OK;
 }
@@ -271,14 +278,12 @@ void ImageCMWriter::chaosStats() {
 
 	const int width = _width;
 
-	// Initialize previous chaos scanline to zero
-	CAT_CLR(_chaos, width * PLANES);
-
 	// For each scanline,
 	const u8 *p = _rgba;
+	u8 *lastStart = _chaos + RECENT_SYMS * PLANES;
+
 	for (int y = 0; y < _height; ++y) {
-		u8 left[PLANES] = {0};
-		u8 *last = _chaos;
+		u8 *last = lastStart;
 
 		// For each pixel,
 		for (int x = 0; x < width; ++x) {
@@ -304,22 +309,22 @@ void ImageCMWriter::chaosStats() {
 				// For each color,
 				for (int c = 0; c < PLANES; ++c) {
 					// Measure context chaos
-					u8 chaos = CHAOS_TABLE[left[c] + (u16)last[c]];
+					u8 chaos = CHAOS_TABLE[last[c - 4] + (u16)last[c]];
 
 					// Record YUV
 					_encoder[c][chaos].push(yuv[c]);
 
 					// Store chaos score for next time
-					last[c] = left[c] = chaosScore(yuv[c]);
+					last[c] = chaosScore(yuv[c]);
 				}
 			} else {
 				for (int c = 0; c < PLANES; ++c) {
-					last[c] = left[c] = 0;
+					last[c] = 0;
 				}
 			}
 
 			// Next pixel
-			last += 4;
+			last += PLANES;
 			p += 4;
 		}
 	}
@@ -491,14 +496,12 @@ bool ImageCMWriter::writeChaos(ImageWriter &writer) {
 
 	const int width = _width;
 
-	// Initialize previous chaos scanline to zero
-	CAT_CLR(_chaos, width * PLANES);
-
 	// For each scanline,
 	const u8 *p = _rgba;
+	u8 *lastStart = _chaos + RECENT_SYMS * PLANES;
+
 	for (int y = 0; y < _height; ++y) {
-		u8 left[PLANES] = {0};
-		u8 *last = _chaos;
+		u8 *last = lastStart;
 
 		// For each pixel,
 		for (int x = 0; x < width; ++x) {
@@ -547,7 +550,7 @@ bool ImageCMWriter::writeChaos(ImageWriter &writer) {
 				// For each color,
 				for (int c = 0; c < PLANES; ++c) {
 					// Measure context chaos
-					u8 chaos = CHAOS_TABLE[left[c] + (u16)last[c]];
+					u8 chaos = CHAOS_TABLE[last[c - 4] + (u16)last[c]];
 
 					// Record YUV
 					int bits = _encoder[c][chaos].encode(yuv[c], writer);
@@ -556,19 +559,19 @@ bool ImageCMWriter::writeChaos(ImageWriter &writer) {
 #endif
 
 					// Store chaos score for next time
-					last[c] = left[c] = chaosScore(yuv[c]);
+					last[c] = chaosScore(yuv[c]);
 				}
 #ifdef CAT_COLLECT_STATS
 				chaos_count++;
 #endif
 			} else {
 				for (int c = 0; c < PLANES; ++c) {
-					last[c] = left[c] = 0;
+					last[c] = 0;
 				}
 			}
 
 			// Next pixel
-			last += 4;
+			last += PLANES;
 			p += 4;
 		}
 	}
