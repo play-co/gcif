@@ -1,10 +1,13 @@
 #include "FilterScorer.hpp"
+#include "Log.hpp"
 using namespace cat;
 
 
 //// FilterScorer
 
 int FilterScorer::partitionTop(int left, int right, int pivotIndex) {
+	CAT_ENFORCE(left >= 0 && right >= 0 && left <= right && pivotIndex >= left && pivotIndex <= right);
+
 	int pivotValue = _list[pivotIndex].score;
 
 	// Move pivot to end
@@ -36,6 +39,8 @@ void FilterScorer::clear() {
 void FilterScorer::init(int count) {
 	clear();
 
+	CAT_ENFORCE(count > 0);
+
 	_list = new Score[count];
 	_count = count;
 }
@@ -64,6 +69,8 @@ FilterScorer::Score *FilterScorer::getLowest() {
 }
 
 FilterScorer::Score *FilterScorer::getTop(int k) {
+	CAT_ENFORCE(k >= 1);
+
 	if (k > _count) {
 		k = _count;
 	}

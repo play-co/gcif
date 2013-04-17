@@ -1,4 +1,5 @@
 #include "Filters.hpp"
+#include "Log.hpp"
 using namespace cat;
 
 
@@ -28,6 +29,8 @@ static const u8 *SFF_D(const u8 *p, int x, int y, int width) {
 }
 
 static const u8 *SFFU_D(const u8 *p, int x, int y, int width) {
+	CAT_DEBUG_ENFORCE(y > 0 && x < width-1);
+
 	return p - width*4 + 4; // D
 }
 
@@ -46,6 +49,8 @@ static const u8 *SFF_C(const u8 *p, int x, int y, int width) {
 }
 
 static const u8 *SFFU_C(const u8 *p, int x, int y, int width) {
+	CAT_DEBUG_ENFORCE(x > 0 && y > 0);
+
 	return p - width*4 - 4; // C
 }
 
@@ -60,6 +65,8 @@ static const u8 *SFF_B(const u8 *p, int x, int y, int width) {
 }
 
 static const u8 *SFFU_B(const u8 *p, int x, int y, int width) {
+	CAT_DEBUG_ENFORCE(y > 0);
+
 	return p - width*4; // B
 }
 
@@ -74,6 +81,8 @@ static const u8 *SFF_A(const u8 *p, int x, int y, int width) {
 }
 
 static const u8 *SFFU_A(const u8 *p, int x, int y, int width) {
+	CAT_DEBUG_ENFORCE(x > 0);
+
 	return p - 4; // A
 }
 
@@ -100,6 +109,8 @@ static const u8 *SFF_AB(const u8 *p, int x, int y, int width) {
 }
 
 static const u8 *SFFU_AB(const u8 *p, int x, int y, int width) {
+	CAT_DEBUG_ENFORCE(x > 0 && y > 0);
+
 	const u8 *a = p - 4; // A
 	const u8 *b = p - width*4; // B
 
@@ -131,6 +142,8 @@ static const u8 *SFF_BD(const u8 *p, int x, int y, int width) {
 }
 
 static const u8 *SFFU_BD(const u8 *p, int x, int y, int width) {
+	CAT_DEBUG_ENFORCE(y > 0 && x < width-1);
+
 	const u8 *b = p - width*4; // B
 	const u8 *src = b + 4; // D
 
@@ -176,6 +189,8 @@ static const u8 *SFF_ABC_CLAMP(const u8 *p, int x, int y, int width) {
 }
 
 static const u8 *SFFU_ABC_CLAMP(const u8 *p, int x, int y, int width) {
+	CAT_DEBUG_ENFORCE(x > 0 && y > 0);
+
 	const u8 *a = p - 4; // A
 	const u8 *b = p - width*4; // B
 	const u8 *c = b - 4; // C
@@ -227,6 +242,8 @@ static const u8 *SFF_PAETH(const u8 *p, int x, int y, int width) {
 }
 
 static const u8 *SFFU_PAETH(const u8 *p, int x, int y, int width) {
+	CAT_DEBUG_ENFORCE(x > 0 && y > 0);
+
 	const u8 *a = p - 4; // A
 	const u8 *b = p - width*4; // B
 	const u8 *c = b - 4; // C
@@ -282,6 +299,8 @@ static const u8 *SFF_ABC_PAETH(const u8 *p, int x, int y, int width) {
 }
 
 static const u8 *SFFU_ABC_PAETH(const u8 *p, int x, int y, int width) {
+	CAT_DEBUG_ENFORCE(x > 0 && y > 0);
+
 	const u8 *a = p - 4; // A
 	const u8 *b = p - width*4; // B
 	const u8 *c = b - 4; // C
@@ -335,6 +354,8 @@ static const u8 *SFF_PL(const u8 *p, int x, int y, int width) {
 }
 
 static const u8 *SFFU_PL(const u8 *p, int x, int y, int width) {
+	CAT_DEBUG_ENFORCE(x > 0 && y > 0);
+
 	const u8 *a = p - 4; // A
 	const u8 *b = p - width*4; // B
 	const u8 *c = b - 4; // C
@@ -374,6 +395,8 @@ static const u8 *SFF_PLO(const u8 *p, int x, int y, int width) {
 }
 
 static const u8 *SFFU_PLO(const u8 *p, int x, int y, int width) {
+	CAT_DEBUG_ENFORCE(x > 0 && y > 0 && x < width-1);
+
 	const u8 *a = p - 4; // A
 	const u8 *b = p - width*4; // B
 	const u8 *src = b + 4; // D
@@ -422,6 +445,8 @@ static const u8 *SFF_ABCD(const u8 *p, int x, int y, int width) {
 }
 
 static const u8 *SFFU_ABCD(const u8 *p, int x, int y, int width) {
+	CAT_DEBUG_ENFORCE(x > 0 && y > 0 && x < width-1);
+
 	const u8 *a = p - 4; // A
 	const u8 *b = p - width*4; // B
 	const u8 *c = b - 4; // C
@@ -443,7 +468,7 @@ static CAT_INLINE u8 leftSel(int f, int c, int a) {
 }
 
 static const u8 *SFF_PICK_LEFT(const u8 *p, int x, int y, int width) {
-	if (x > 1 && y > 1 && x < width - 2) {
+	if (x > 1 && y > 0) {
 		const u8 *a = p - 4;
 		const u8 *c = a - width*4;
 		const u8 *f = c - 4;
@@ -465,7 +490,9 @@ static const u8 *SFF_PICK_LEFT(const u8 *p, int x, int y, int width) {
 }
 
 static const u8 *SFFU_PICK_LEFT(const u8 *p, int x, int y, int width) {
-	if (x < width - 2) {
+	CAT_DEBUG_ENFORCE(x > 0 && y > 0 && x < width-1);
+
+	if (x > 1) {
 		const u8 *a = p - 4;
 		const u8 *c = a - width*4;
 		const u8 *f = c - 4;
@@ -501,20 +528,7 @@ static const u8 *SFF_PRED_UR(const u8 *p, int x, int y, int width) {
 	return FPZ;
 }
 
-static const u8 *SFFU_PRED_UR(const u8 *p, int x, int y, int width) {
-	if (x < width - 2) {
-		const u8 *d = p + 4 - width*4;
-		const u8 *e = d + 4 - width*4;
-
-		FPT[0] = d[0] * 2 - e[0];
-		FPT[1] = d[1] * 2 - e[1];
-		FPT[2] = d[2] * 2 - e[2];
-
-		return FPT;
-	}
-
-	return p - 4; // A
-}
+#define SFFU_PRED_UR SFF_PRED_UR
 
 static CAT_INLINE u8 clampGrad(int b, int a, int c) {
 	int grad = (int)b + (int)a - (int)c;
@@ -565,6 +579,8 @@ static const u8 *SFF_CLAMP_GRAD(const u8 *p, int x, int y, int width) {
 }
 
 static const u8 *SFFU_CLAMP_GRAD(const u8 *p, int x, int y, int width) {
+	CAT_DEBUG_ENFORCE(x > 0 && y > 0 && x < width-1);
+
 	const u8 *a = p - 4; // A
 	const u8 *b = p - width*4; // B
 	const u8 *c = b - 4; // C
@@ -611,6 +627,8 @@ static const u8 *SFF_SKEW_GRAD(const u8 *p, int x, int y, int width) {
 }
 
 static const u8 *SFFU_SKEW_GRAD(const u8 *p, int x, int y, int width) {
+	CAT_DEBUG_ENFORCE(x > 0 && y > 0 && x < width-1);
+
 	const u8 *a = p - 4; // A
 	const u8 *b = p - width*4; // B
 	const u8 *c = b - 4; // C
@@ -649,6 +667,8 @@ static const u8 *SFF_AD(const u8 *p, int x, int y, int width) {
 }
 
 static const u8 *SFFU_AD(const u8 *p, int x, int y, int width) {
+	CAT_DEBUG_ENFORCE(x > 0 && y > 0 && x < width-1);
+
 	const u8 *a = p - 4; // A
 	const u8 *src = p - width*4 + 4; // D
 

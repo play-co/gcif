@@ -31,8 +31,6 @@ int ImageLZReader::init(const ImageHeader *header) {
 }
 
 int ImageLZReader::readHuffmanTable(ImageReader &reader) {
-	static const int NUM_SYMS = 256;
-
 	// Read and validate match count
 	const u32 match_count = reader.readBits(16);
 	_zones_size = match_count;
