@@ -408,25 +408,25 @@ void ImageLZWriter::write(ImageWriter &writer) {
 		}
 
 		u8 sym = (u8)m->sx;
-		bits += encoder.writeSymbol(sym, writer);
+		bits += encoder.write(sym, writer);
 		sym = (u8)(m->sx >> 8);
-		bits += encoder.writeSymbol(sym, writer);
+		bits += encoder.write(sym, writer);
 		sym = (u8)esy;
-		bits += encoder.writeSymbol(sym, writer);
+		bits += encoder.write(sym, writer);
 		sym = (u8)(esy >> 8);
-		bits += encoder.writeSymbol(sym, writer);
+		bits += encoder.write(sym, writer);
 		sym = (u8)edx;
-		bits += encoder.writeSymbol(sym, writer);
+		bits += encoder.write(sym, writer);
 		sym = (u8)(edx >> 8);
-		bits += encoder.writeSymbol(sym, writer);
+		bits += encoder.write(sym, writer);
 		sym = (u8)edy;
-		bits += encoder.writeSymbol(sym, writer);
+		bits += encoder.write(sym, writer);
 		sym = (u8)(edy >> 8);
-		bits += encoder.writeSymbol(sym, writer);
+		bits += encoder.write(sym, writer);
 		sym = m->w;
-		bits += encoder.writeSymbol(sym, writer);
+		bits += encoder.write(sym, writer);
 		sym = m->h;
-		bits += encoder.writeSymbol(sym, writer);
+		bits += encoder.write(sym, writer);
 
 		last_dx = m->dx;
 		last_dy = m->dy;

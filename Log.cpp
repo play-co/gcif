@@ -146,9 +146,9 @@ void Log::InvokeBackendAndUnlock(EventSeverity severity, const char *source, con
 
 void Log::FatalStop(const char *message)
 {
-	CAT_ARTIFICIAL_BREAKPOINT;
-
 	Log::ref()->InvokeBackend(LVL_FATAL, "FatalStop", message);
+
+	CAT_ARTIFICIAL_BREAKPOINT;
 
 	std::exit(EXIT_FAILURE);
 }

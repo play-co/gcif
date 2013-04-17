@@ -1,7 +1,6 @@
 #ifndef IMAGE_FILTER_WRITER_HPP
 #define IMAGE_FILTER_WRITER_HPP
 
-#include "Platform.hpp"
 #include "ImageWriter.hpp"
 #include "ImageMaskWriter.hpp"
 #include "ImageLZWriter.hpp"
@@ -18,16 +17,16 @@
  * http://www.dsi.unifi.it/DRIIA/RaccoltaTesi/Brocchi.pdf
  *
  * Notable improvements:
- * + Better compression ratios
+ * + Much better compression ratios
  * + Maintainable codebase for future improvements
- * + 2D Local Palette, 2D LZ Exact Match, and Fully-Transparent Alpha Mask integration
+ * + 2D LZ Exact Match and Fully-Transparent Alpha Mask integration
  * + Uses 4x4 zones instead of 8x8
  * + More spatial and color filters supported
  * + Top (FILTER_SELECT_FUZZ) filters are submitted to entropy-based selection
- * + Better filter matrix compression
  * + Only 8 chaos levels
  * + Encodes zero runs > ~256 without emitting more symbols for better AZ stats
- * + Better chaos/color Huffman table compression
+ * + Better Huffman table compression
+ * + Recent color palette extra symbols
  */
 
 namespace cat {
@@ -42,9 +41,14 @@ protected:
 	static const int COMPRESS_LEVEL = 1;
 	static const u16 UNUSED_FILTER = 0xffff;
 	static const int PLANES = 4;
-	static const int RECENT_SYMS = ImageCMReader::RECENT_SYMS;
-	static const int RECENT_AHEAD = ImageCMReader::RECENT_AHEAD;
-	static const int RECENT_MIN_NONZERO = 0;
+	static const int RECENT_SYMS_Y = ImageCMReader::RECENT_SYMS_Y; // >= U
+	static const int RECENT_SYMS_U = ImageCMReader::RECENT_SYMS_U;
+	static const int RECENT_AHEAD_Y = ImageCMReader::RECENT_AHEAD_Y;
+	static const int RECENT_AHEAD_U = ImageCMReader::RECENT_AHEAD_U;
+	static const int ZRLE_SYMS_Y = ImageCMReader::ZRLE_SYMS_Y;
+	static const int ZRLE_SYMS_U = ImageCMReader::ZRLE_SYMS_U;
+	static const int ZRLE_SYMS_V = ImageCMReader::ZRLE_SYMS_V;
+	static const int ZRLE_SYMS_A = ImageCMReader::ZRLE_SYMS_A;
 
 	int _w, _h;
 	u16 *_matrix;
@@ -62,7 +66,10 @@ protected:
 	HuffmanEncoder<SF_COUNT> _sf_encoder;
 	HuffmanEncoder<CF_COUNT> _cf_encoder;
 
-	EntropyEncoder _encoder[PLANES][CHAOS_LEVELS];
+	EntropyEncoder<256 + RECENT_SYMS_Y, ZRLE_SYMS_Y> _y_encoder[CHAOS_LEVELS];
+	EntropyEncoder<256 + RECENT_SYMS_U, ZRLE_SYMS_U> _u_encoder[CHAOS_LEVELS];
+	EntropyEncoder<256, ZRLE_SYMS_V> _v_encoder[CHAOS_LEVELS];
+	EntropyEncoder<256, ZRLE_SYMS_A> _a_encoder[CHAOS_LEVELS];
 
 	int init(int width, int height);
 	void decideFilters();

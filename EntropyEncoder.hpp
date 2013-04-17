@@ -110,7 +110,7 @@ public:
 					_bz_hist.add(BZ_TAIL_SYM);
 				}
 
-				runList.push_back(zeroRun);
+				_runList.push_back(zeroRun);
 				_zeroRun = 0;
 
 				_az_hist.add(symbol);
@@ -154,7 +154,7 @@ public:
 		return bitcount;
 	}
 
-	int writeSymbol(u8 symbol, ImageWriter &writer) {
+	int write(u8 symbol, ImageWriter &writer) {
 		int bits = 0;
 
 		// If zero,

@@ -1,9 +1,7 @@
 #ifndef IMAGE_CM_READER_HPP
 #define IMAGE_CM_READER_HPP
 
-#include "Platform.hpp"
 #include "ImageReader.hpp"
-#include "HuffmanDecoder.hpp"
 #include "ImageMaskReader.hpp"
 #include "ImageLZReader.hpp"
 #include "GCIFReader.hpp"
@@ -38,8 +36,14 @@ class ImageCMReader {
 public:
 	static const int CHAOS_LEVELS = 8;
 	static const int PLANES = 4;
-	static const int RECENT_SYMS = EntropyDecoder::RECENT_SYMS;
-	static const int RECENT_AHEAD = 2;
+	static const int RECENT_SYMS_Y = 7;
+	static const int RECENT_SYMS_U = 7;
+	static const int RECENT_AHEAD_Y = 2;
+	static const int RECENT_AHEAD_U = 2;
+	static const int ZRLE_SYMS_Y = 128;
+	static const int ZRLE_SYMS_U = 128;
+	static const int ZRLE_SYMS_V = 128;
+	static const int ZRLE_SYMS_A = 128;
 
 protected:
 	u8 *_rgba;
@@ -58,7 +62,10 @@ protected:
 	ImageLZReader *_lz;
 
 	HuffmanDecoder _sf, _cf;
-	EntropyDecoder _decoder[PLANES][CHAOS_LEVELS];
+	EntropyDecoder<256 + RECENT_SYMS_Y, ZRLE_SYMS_Y> _y_decoder[CHAOS_LEVELS];
+	EntropyDecoder<256 + RECENT_SYMS_U, ZRLE_SYMS_U> _u_decoder[CHAOS_LEVELS];
+	EntropyDecoder<256, ZRLE_SYMS_V> _v_decoder[CHAOS_LEVELS];
+	EntropyDecoder<256, ZRLE_SYMS_A> _a_decoder[CHAOS_LEVELS];
 
 	void clear();
 
