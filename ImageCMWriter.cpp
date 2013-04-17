@@ -313,7 +313,7 @@ void ImageCMWriter::chaosStats() {
 				int match = -1;
 				int nonzero = (yuv[0] != 0) + (yuv[1] != 0) + (yuv[2] != 0) + (yuv[3] != 0);
 
-				if (nonzero >= RECENT_MIN_NONZERO) {
+				if (nonzero >= RECENT_MIN_NONZERO && yuv[0] != 0) {
 					for (int ii = 0; ii < RECENT_SYMS; ++ii) {
 						const int offset = ii - RECENT_AHEAD;
 
@@ -579,7 +579,7 @@ bool ImageCMWriter::writeChaos(ImageWriter &writer) {
 				int match = -1;
 				int nonzero = (yuv[0] != 0) + (yuv[1] != 0) + (yuv[2] != 0) + (yuv[3] != 0);
 
-				if (nonzero >= RECENT_MIN_NONZERO) {
+				if (nonzero >= RECENT_MIN_NONZERO && yuv[0] != 0) {
 					for (int ii = 0; ii < RECENT_SYMS; ++ii) {
 						const int offset = ii - RECENT_AHEAD;
 
