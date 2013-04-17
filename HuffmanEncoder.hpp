@@ -4,6 +4,7 @@
 #include "Platform.hpp"
 #include "ImageWriter.hpp"
 #include "HuffmanDecoder.hpp"
+#include "Log.hpp"
 #include <vector>
 
 /*
@@ -148,6 +149,7 @@ public:
 
 	CAT_INLINE bool init(u16 freqs[]) {
 		if (!initCodelens(freqs)) {
+			CAT_EXCEPTION();
 			return false;
 		}
 
@@ -161,6 +163,7 @@ public:
 		u32 max_code_size, total_freq;
 
 		if (!huffman::generate_huffman_codes(&state, NUM_SYMS, freqs, _codelens, max_code_size, total_freq, _one_sym)) {
+			CAT_EXCEPTION();
 			return false;
 		}
 

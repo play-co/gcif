@@ -27,6 +27,7 @@ bool HuffmanDecoder::init(int count, const u8 *codelens, u32 table_bits) {
 	u32 min_codes[MAX_CODE_SIZE];
 
 	if (count <= 0 || (table_bits > MAX_TABLE_BITS)) {
+		CAT_DEBUG_ENFORCE(false);
 		return false;
 	}
 
@@ -95,11 +96,6 @@ bool HuffmanDecoder::init(int count, const u8 *codelens, u32 table_bits) {
 		}
 	}
 
-	for (u16 sym = 0; sym < count; ++sym) {
-		int len = codelens[sym];
-		CAT_WARN("CODELENS") << sym << " => " << len;
-	}
-
 	if (total_used_syms == 1) {
 		for (u16 sym = 0; sym < count; ++sym) {
 			int len = codelens[sym];
@@ -109,6 +105,7 @@ bool HuffmanDecoder::init(int count, const u8 *codelens, u32 table_bits) {
 			}
 		}
 
+		CAT_DEBUG_ENFORCE(false);
 		return false;
 	} else {
 		_one_sym = 0;
@@ -193,7 +190,6 @@ bool HuffmanDecoder::init(int count, const u8 *codelens, u32 table_bits) {
 	_val_ptrs[MAX_CODE_SIZE] = 0xFFFFF;
 
 	_table_shift = 32 - _table_bits;
-
 	return true;
 }
 
@@ -211,6 +207,7 @@ bool HuffmanDecoder::init(int num_syms, ImageReader &reader, u32 table_bits) {
 		int shaved = reader.readBits(num_syms_bits) + 1;
 		if (shaved >= num_syms) {
 			// Invalid input
+			CAT_DEBUG_ENFORCE(false);
 			return false;
 		}
 
@@ -267,6 +264,7 @@ bool HuffmanDecoder::init(int num_syms, ImageReader &reader, u32 table_bits) {
 	HuffmanDecoder table_decoder;
 	if (!table_decoder.init(HUFF_SYMS, table_codelens, 8)) {
 		// Init fail
+		CAT_DEBUG_ENFORCE(false);
 		return false;
 	}
 
@@ -378,6 +376,7 @@ u32 HuffmanDecoder::next(ImageReader &reader) {
 		int val_ptr = _val_ptrs[len - 1] + static_cast<int>((code >> (32 - len)));
 
 		if CAT_UNLIKELY(((u32)val_ptr >= _num_syms)) {
+			CAT_DEBUG_ENFORCE(false);
 			return 0;
 		}
 

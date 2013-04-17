@@ -2,6 +2,7 @@
 #define HOTROD_HASH_HPP
 
 #include "Platform.hpp"
+#include "Log.hpp"
 
 namespace cat {
 
@@ -34,6 +35,8 @@ public:
 	}
 
 	CAT_INLINE void hashWords(u32 *keys, int wc) {
+		CAT_DEBUG_ENFORCE(keys != 0);
+
 		for (int ii = 0; ii < wc; ++ii) {
 			hashWord(keys[ii]);
 		}
@@ -46,6 +49,8 @@ public:
 	}
 
 	static CAT_INLINE u32 hash(void *data, int bytes) {
+		CAT_DEBUG_ENFORCE(data != 0 && bytes >= 0);
+
 		HotRodHash h;
 		h.init(123456789);
 		h.hashBytes(reinterpret_cast<u8*>( data ), bytes);

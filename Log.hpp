@@ -237,8 +237,10 @@ public:
 
 #if defined(CAT_DEBUG)
 # define CAT_DEBUG_ENFORCE(exp) CAT_ENFORCE(exp)
+# define CAT_DEBUG_EXCEPTION() CAT_EXCEPTION()
 #else
 # define CAT_DEBUG_ENFORCE(exp) while (false) CAT_ENFORCE(1) /* hopefully will be optimized out of existence */
+# define CAT_DEBUG_EXCEPTION()
 #endif
 
 
