@@ -103,7 +103,7 @@ public:
 	// Skip the number of pixels returned
 	// Returns pixel count which is always at least 1
 	// p: Pointer to first byte of current RGBA pixel
-	int triggerX(u8 *p);
+	int triggerX(u8 *p, int &lz_lines_left);
 
 	// Call when y reaches next trigger y before looping over x values
 	void triggerY();

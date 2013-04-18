@@ -110,7 +110,8 @@ void testColorFilters();
 
 //// Chaos
 
-extern const u8 CHAOS_TABLE[512];
+extern const u8 CHAOS_TABLE_1[512];
+extern const u8 CHAOS_TABLE_8[512];
 
 static CAT_INLINE int chaosScore(u8 p) {
 	if (p < 128) {

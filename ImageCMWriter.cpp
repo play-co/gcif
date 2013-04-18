@@ -266,12 +266,40 @@ void ImageCMWriter::chaosStats() {
 	GenerateChaosTable();
 #endif
 
+	// Find number of pixels to encode
+	int chaos_count = 0;
+	for (int y = 0; y < _height; ++y) {
+		for (int x = 0; x < _width; ++x) {
+			if (!_lz->visited(x, y) && !_mask->hasRGB(x, y)) {
+				++chaos_count;
+			}
+		}
+	}
+
+#ifdef CAT_COLLECT_STATS
+	Stats.chaos_count = chaos_count;
+#endif
+
+	// If it is above a threshold,
+	if (chaos_count >= CHAOS_THRESH) {
+		CAT_DEBUG_ENFORCE(CHAOS_LEVELS_MAX == 8);
+
+		// Use more chaos levels for better compression
+		_chaos_levels = CHAOS_LEVELS_MAX;
+		_chaos_table = CHAOS_TABLE_8;
+	} else {
+		_chaos_levels = 1;
+		_chaos_table = CHAOS_TABLE_1;
+	}
+
 	const int width = _width;
 
 	// For each scanline,
 	const u8 *p = _rgba;
 	u8 *lastStart = _chaos + RECENT_SYMS_Y * PLANES;
 	CAT_CLR(_chaos, _chaos_size);
+
+	const u8 *CHAOS_TABLE = _chaos_table;
 
 	for (int y = 0; y < _height; ++y) {
 		u8 *last = lastStart;
@@ -367,7 +395,7 @@ void ImageCMWriter::chaosStats() {
 	}
 
 	// Finalize
-	for (int jj = 0; jj < CHAOS_LEVELS; ++jj) {
+	for (int jj = 0; jj < _chaos_levels; ++jj) {
 		_y_encoder[jj].finalize();
 		_u_encoder[jj].finalize();
 		_v_encoder[jj].finalize();
@@ -410,12 +438,16 @@ bool ImageCMWriter::writeFilters(ImageWriter &writer) {
 			// together for the smallest representation
 			bool on = false;
 
-			for (int ii = 0; ii < FILTER_ZONE_SIZE; ++ii) {
-				for (int jj = 0; jj < FILTER_ZONE_SIZE; ++jj) {
-					if (!_lz->visited(x + ii, y + jj) && !_mask->hasRGB(x + ii, y + jj)) {
-						on = true;
-						ii = FILTER_ZONE_SIZE;
-						break;
+			int w, h;
+			if (!_lz->findExtent(x, y, w, h) ||
+				w < FILTER_ZONE_SIZE || h < FILTER_ZONE_SIZE) {
+				for (int ii = 0; ii < FILTER_ZONE_SIZE; ++ii) {
+					for (int jj = 0; jj < FILTER_ZONE_SIZE; ++jj) {
+						if (!_mask->hasRGB(x + ii, y + jj)) {
+							on = true;
+							ii = FILTER_ZONE_SIZE;
+							break;
+						}
 					}
 				}
 			}
@@ -459,12 +491,16 @@ bool ImageCMWriter::writeChaos(ImageWriter &writer) {
 #ifdef CAT_COLLECT_STATS
 	int overhead_bits = 0;
 	int bitcount[PLANES] = {0};
-	int chaos_count = 0;
 	int filter_table_bits[2] = {0};
 #endif
 
-	int bits = 0;
-	for (int jj = 0; jj < CHAOS_LEVELS; ++jj) {
+	CAT_DEBUG_ENFORCE(_chaos_levels <= 8);
+
+	writer.writeBits(_chaos_levels - 1, 3);
+
+	int bits = 3;
+
+	for (int jj = 0; jj < _chaos_levels; ++jj) {
 		bits += _y_encoder[jj].writeTables(writer);
 		bits += _u_encoder[jj].writeTables(writer);
 		bits += _v_encoder[jj].writeTables(writer);
@@ -480,6 +516,8 @@ bool ImageCMWriter::writeChaos(ImageWriter &writer) {
 	const u8 *p = _rgba;
 	u8 *lastStart = _chaos + RECENT_SYMS_Y * PLANES;
 	CAT_CLR(_chaos, _chaos_size);
+
+	const u8 *CHAOS_TABLE = _chaos_table;
 
 	for (int y = 0; y < _height; ++y) {
 		u8 *last = lastStart;
@@ -601,9 +639,6 @@ bool ImageCMWriter::writeChaos(ImageWriter &writer) {
 #endif
 				}
 
-#ifdef CAT_COLLECT_STATS
-				chaos_count++;
-#endif
 				for (int c = 0; c < PLANES; ++c) {
 					last[c] = yuv[c];
 				}
@@ -624,7 +659,6 @@ bool ImageCMWriter::writeChaos(ImageWriter &writer) {
 		Stats.rgb_bits[ii] = bitcount[ii];
 	}
 	Stats.chaos_overhead_bits = overhead_bits;
-	Stats.chaos_count = chaos_count;
 	Stats.filter_compressed_bits[0] = filter_table_bits[0];
 	Stats.filter_compressed_bits[1] = filter_table_bits[1];
 #endif

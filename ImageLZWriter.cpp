@@ -339,6 +339,13 @@ void ImageLZWriter::write(ImageWriter &writer) {
 	// If no matches to record,
 	if (match_count <= 0) {
 		// Just stop here
+#ifdef CAT_COLLECT_STATS
+		Stats.huff_bits = 16;
+		Stats.covered_percent = 0;
+		Stats.bytes_saved = 0;
+		Stats.bytes_overhead = Stats.huff_bits / 8;
+		Stats.compression_ratio = 0;
+#endif
 		return;
 	}
 
@@ -353,6 +360,13 @@ void ImageLZWriter::write(ImageWriter &writer) {
 			writer.writeBits(m->w, 8);
 			writer.writeBits(m->h, 8);
 		}
+#ifdef CAT_COLLECT_STATS
+		Stats.huff_bits = (32+32+16) * match_count + 16;
+		Stats.covered_percent = Stats.covered * 100. / (double)(_width * _height);
+		Stats.bytes_saved = Stats.covered * 4;
+		Stats.bytes_overhead = Stats.huff_bits / 8;
+		Stats.compression_ratio = Stats.bytes_saved / (double)Stats.bytes_overhead;
+#endif
 
 		return;
 	}
@@ -439,6 +453,20 @@ void ImageLZWriter::write(ImageWriter &writer) {
 	Stats.bytes_overhead = bits / 8;
 	Stats.compression_ratio = Stats.bytes_saved / (double)Stats.bytes_overhead;
 #endif
+}
+
+bool ImageLZWriter::findExtent(int x, int y, int &w, int &h) {
+	for (int ii = 0; ii < _exact_matches.size(); ++ii) {
+		Match *m = &_exact_matches[ii];
+
+		if (m->dx <= x && m->dy <= y && m->dx + m->w > x && m->dy + m->h > y) {
+			w = m->w + m->dx - x;
+			h = m->h + m->dy - y;
+			return true;
+		}
+	}
+
+	return false;
 }
 
 #ifdef CAT_COLLECT_STATS

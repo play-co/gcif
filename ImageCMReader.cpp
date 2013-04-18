@@ -74,8 +74,21 @@ int ImageCMReader::readFilterTables(ImageReader &reader) {
 }
 
 int ImageCMReader::readChaosTables(ImageReader &reader) {
+	_chaos_levels = reader.readBits(3) + 1;
+
+	switch (_chaos_levels) {
+		case 1:
+			_chaos_table = CHAOS_TABLE_1;
+			break;
+		case 8:
+			_chaos_table = CHAOS_TABLE_8;
+			break;
+		default:
+			return RE_CM_CODES;
+	}
+
 	// For each chaos level,
-	for (int jj = 0; jj < CHAOS_LEVELS; ++jj) {
+	for (int jj = 0; jj < _chaos_levels; ++jj) {
 		// Read the decoder tables
 		if (!_y_decoder[jj].init(reader)) {
 			return RE_CM_CODES;
@@ -106,6 +119,8 @@ int ImageCMReader::readRGB(ImageReader &reader) {
 	u8 *lastStart = _chaos + RECENT_SYMS_Y * PLANES;
 	CAT_CLR(_chaos, _chaos_size);
 
+	const u8 *CHAOS_TABLE = _chaos_table;
+
 	// Unroll y = 0 scanline
 	{
 		const int y = 0;
@@ -121,13 +136,13 @@ int ImageCMReader::readRGB(ImageReader &reader) {
 		u8 *last = lastStart;
 		SpatialFilterFunction sf;
 		YUV2RGBFilterFunction cf;
-		int lz_skip = 0;
+		int lz_skip = 0, lz_lines_left = 0;
 
 		// For each pixel,
 		for (int x = 0; x < width; ++x) {
 			// If LZ triggered,
 			if (x == trigger_x_lz) {
-				lz_skip = _lz->triggerX(p);
+				lz_skip = _lz->triggerX(p, lz_lines_left);
 				trigger_x_lz = _lz->getTriggerX();
 				trigger_y_lz = _lz->getTriggerY();
 			}
@@ -135,18 +150,20 @@ int ImageCMReader::readRGB(ImageReader &reader) {
 			// If it is time to read the filter,
 			if ((x & FILTER_ZONE_SIZE_MASK) == 0) {
 				// If at least one pixel requires these filters,
-				for (int ii = 0; ii < FILTER_ZONE_SIZE; ++ii) {
-					for (int jj = 0; jj < FILTER_ZONE_SIZE; ++jj) {
-						if (!_mask->hasRGB(x + jj, y + ii)) {
-							// Read SF and CF for this zone
-							FilterSelection *filter = &_filters[x >> FILTER_ZONE_SIZE_SHIFT];
+				if (lz_skip < FILTER_ZONE_SIZE || lz_lines_left < FILTER_ZONE_SIZE) {
+					for (int ii = 0; ii < FILTER_ZONE_SIZE; ++ii) {
+						for (int jj = 0; jj < FILTER_ZONE_SIZE; ++jj) {
+							if (!_mask->hasRGB(x + jj, y + ii)) {
+								// Read SF and CF for this zone
+								FilterSelection *filter = &_filters[x >> FILTER_ZONE_SIZE_SHIFT];
 
-							u8 sfi = _sf.next(reader);
-							filter->sf = sf = SPATIAL_FILTERS[sfi];
-							filter->sfu = UNSAFE_SPATIAL_FILTERS[sfi];
-							u8 cfi = _cf.next(reader);
-							filter->cf = cf = YUV2RGB_FILTERS[cfi];
-							goto y0_had_filter;
+								u8 sfi = _sf.next(reader);
+								filter->sf = sf = SPATIAL_FILTERS[sfi];
+								filter->sfu = UNSAFE_SPATIAL_FILTERS[sfi];
+								u8 cfi = _cf.next(reader);
+								filter->cf = cf = YUV2RGB_FILTERS[cfi];
+								goto y0_had_filter;
+							}
 						}
 					}
 				}
@@ -173,6 +190,7 @@ y0_had_filter:;
 
 				u32 Y = _y_decoder[CHAOS_TABLE[chaosScore(last[-4])]].next(reader);
 
+#if 0
 				// If pixel is a recent palette entry,
 				if (Y >= 256) {
 					u8 *src = p - (Y - 256 - RECENT_AHEAD_Y) * 4;
@@ -181,19 +199,24 @@ y0_had_filter:;
 					last[2] = YUV[2] = src[2];
 					last[3] = A = src[3];
 				} else {
+#endif
 					last[0] = YUV[0] = Y;
 					u32 U = _u_decoder[CHAOS_TABLE[chaosScore(last[-3])]].next(reader);
+#if 0
 					if (U >= 256) {
 						u8 *src = p - (Y - 256 - RECENT_AHEAD_U) * 4;
 						last[1] = YUV[1] = src[1];
 						last[2] = YUV[2] = src[2];
 						last[3] = A = src[3];
 					} else {
+#endif
 						last[1] = YUV[1] = U;
 						last[2] = YUV[2] = _v_decoder[CHAOS_TABLE[chaosScore(last[-2])]].next(reader);
 						last[3] = A = _a_decoder[CHAOS_TABLE[chaosScore(last[-1])]].next(reader);
+#if 0
 					}
 				}
+#endif
 
 				// Reverse color filter
 				u8 RGB[3];
@@ -231,7 +254,7 @@ y0_had_filter:;
 		u8 *last = lastStart;
 		SpatialFilterFunction sf;
 		YUV2RGBFilterFunction cf;
-		int lz_skip = 0;
+		int lz_skip = 0, lz_lines_left = 0;
 
 		// Unroll x = 0 pixel
 		{
@@ -239,7 +262,7 @@ y0_had_filter:;
 
 			// If LZ triggered,
 			if (x == trigger_x_lz) {
-				lz_skip = _lz->triggerX(p);
+				lz_skip = _lz->triggerX(p, lz_lines_left);
 				trigger_x_lz = _lz->getTriggerX();
 				trigger_y_lz = _lz->getTriggerY();
 			}
@@ -249,18 +272,20 @@ y0_had_filter:;
 			// If we are on a filter info scanline,
 			if ((y & FILTER_ZONE_SIZE_MASK) == 0) {
 				// If at least one pixel requires these filters,
-				for (int ii = 0; ii < FILTER_ZONE_SIZE; ++ii) {
-					for (int jj = 0; jj < FILTER_ZONE_SIZE; ++jj) {
-						if (!_mask->hasRGB(x + jj, y + ii)) {
-							// Read SF and CF for this zone
-							FilterSelection *filter = &_filters[x >> FILTER_ZONE_SIZE_SHIFT];
+				if (lz_skip < FILTER_ZONE_SIZE || lz_lines_left < FILTER_ZONE_SIZE) {
+					for (int ii = 0; ii < FILTER_ZONE_SIZE; ++ii) {
+						for (int jj = 0; jj < FILTER_ZONE_SIZE; ++jj) {
+							if (!_mask->hasRGB(x + jj, y + ii)) {
+								// Read SF and CF for this zone
+								FilterSelection *filter = &_filters[x >> FILTER_ZONE_SIZE_SHIFT];
 
-							u8 sfi = _sf.next(reader);
-							filter->sf = sf = SPATIAL_FILTERS[sfi];
-							filter->sfu = UNSAFE_SPATIAL_FILTERS[sfi];
-							u8 cfi = _cf.next(reader);
-							filter->cf = cf = YUV2RGB_FILTERS[cfi];
-							goto x0_had_filter;
+								u8 sfi = _sf.next(reader);
+								filter->sf = sf = SPATIAL_FILTERS[sfi];
+								filter->sfu = UNSAFE_SPATIAL_FILTERS[sfi];
+								u8 cfi = _cf.next(reader);
+								filter->cf = cf = YUV2RGB_FILTERS[cfi];
+								goto x0_had_filter;
+							}
 						}
 					}
 				}
@@ -291,6 +316,7 @@ x0_had_filter:;
 
 				u32 Y = _y_decoder[CHAOS_TABLE[chaosScore(last[0])]].next(reader);
 
+#if 0
 				// If pixel is a recent palette entry,
 				if (Y >= 256) {
 					u8 *src = p - (Y - 256 - RECENT_AHEAD_Y) * 4;
@@ -299,19 +325,24 @@ x0_had_filter:;
 					last[2] = YUV[2] = src[2];
 					last[3] = A = src[3];
 				} else {
+#endif
 					last[0] = YUV[0] = Y;
 					u32 U = _u_decoder[CHAOS_TABLE[chaosScore(last[1])]].next(reader);
+#if 0
 					if (U >= 256) {
 						u8 *src = p - (Y - 256 - RECENT_AHEAD_U) * 4;
 						last[1] = YUV[1] = src[1];
 						last[2] = YUV[2] = src[2];
 						last[3] = A = src[3];
 					} else {
+#endif
 						last[1] = YUV[1] = U;
 						last[2] = YUV[2] = _v_decoder[CHAOS_TABLE[chaosScore(last[2])]].next(reader);
 						last[3] = A = _a_decoder[CHAOS_TABLE[chaosScore(last[3])]].next(reader);
+#if 0
 					}
 				}
+#endif
 
 				// Reverse color filter
 				u8 RGB[3];
@@ -334,7 +365,7 @@ x0_had_filter:;
 		for (int x = 1, xend = width - 1; x < xend; ++x) {
 			// If LZ triggered,
 			if (x == trigger_x_lz) {
-				lz_skip = _lz->triggerX(p);
+				lz_skip = _lz->triggerX(p, lz_lines_left);
 				trigger_x_lz = _lz->getTriggerX();
 				trigger_y_lz = _lz->getTriggerY();
 			}
@@ -346,18 +377,20 @@ x0_had_filter:;
 				// If we are on a filter info scanline,
 				if ((y & FILTER_ZONE_SIZE_MASK) == 0) {
 					// If at least one pixel requires these filters,
-					for (int ii = 0; ii < FILTER_ZONE_SIZE; ++ii) {
-						for (int jj = 0; jj < FILTER_ZONE_SIZE; ++jj) {
-							if (!_mask->hasRGB(x + jj, y + ii)) {
-								// Read SF and CF for this zone
-								FilterSelection *filter = &_filters[x >> FILTER_ZONE_SIZE_SHIFT];
+					if (lz_skip < FILTER_ZONE_SIZE || lz_lines_left < FILTER_ZONE_SIZE) {
+						for (int ii = 0; ii < FILTER_ZONE_SIZE; ++ii) {
+							for (int jj = 0; jj < FILTER_ZONE_SIZE; ++jj) {
+								if (!_mask->hasRGB(x + jj, y + ii)) {
+									// Read SF and CF for this zone
+									FilterSelection *filter = &_filters[x >> FILTER_ZONE_SIZE_SHIFT];
 
-								u8 sfi = _sf.next(reader);
-								filter->sf = SPATIAL_FILTERS[sfi];
-								filter->sfu = sf = UNSAFE_SPATIAL_FILTERS[sfi];
-								u8 cfi = _cf.next(reader);
-								filter->cf = cf = YUV2RGB_FILTERS[cfi];
-								goto had_filter;
+									u8 sfi = _sf.next(reader);
+									filter->sf = SPATIAL_FILTERS[sfi];
+									filter->sfu = sf = UNSAFE_SPATIAL_FILTERS[sfi];
+									u8 cfi = _cf.next(reader);
+									filter->cf = cf = YUV2RGB_FILTERS[cfi];
+									goto had_filter;
+								}
 							}
 						}
 					}
@@ -389,6 +422,7 @@ had_filter:;
 
 				u32 Y = _y_decoder[CHAOS_TABLE[chaosScore(last[-4]) + chaosScore(last[0])]].next(reader);
 
+#if 0
 				// If pixel is a recent palette entry,
 				if (Y >= 256) {
 					u8 *src = p - (Y - 256 - RECENT_AHEAD_Y) * 4;
@@ -397,19 +431,24 @@ had_filter:;
 					last[2] = YUV[2] = src[2];
 					last[3] = A = src[3];
 				} else {
+#endif
 					last[0] = YUV[0] = Y;
 					u32 U = _u_decoder[CHAOS_TABLE[chaosScore(last[-3]) + chaosScore(last[1])]].next(reader);
+#if 0
 					if (U >= 256) {
 						u8 *src = p - (Y - 256 - RECENT_AHEAD_U) * 4;
 						last[1] = YUV[1] = src[1];
 						last[2] = YUV[2] = src[2];
 						last[3] = A = src[3];
 					} else {
+#endif
 						last[1] = YUV[1] = U;
 						last[2] = YUV[2] = _v_decoder[CHAOS_TABLE[chaosScore(last[-2]) + chaosScore(last[2])]].next(reader);
 						last[3] = A = _a_decoder[CHAOS_TABLE[chaosScore(last[-1]) + chaosScore(last[3])]].next(reader);
+#if 0
 					}
 				}
+#endif
 
 				// Reverse color filter
 				u8 RGB[3];
@@ -434,7 +473,7 @@ had_filter:;
 
 			// If LZ triggered,
 			if (x == trigger_x_lz) {
-				lz_skip = _lz->triggerX(p);
+				lz_skip = _lz->triggerX(p, lz_lines_left);
 				trigger_x_lz = _lz->getTriggerX();
 				trigger_y_lz = _lz->getTriggerY();
 			}
@@ -458,7 +497,7 @@ had_filter:;
 				u8 YUV[3], A;
 
 				u32 Y = _y_decoder[CHAOS_TABLE[chaosScore(last[-4]) + chaosScore(last[0])]].next(reader);
-
+#if 0
 				// If pixel is a recent palette entry,
 				if (Y >= 256) {
 					u8 *src = p - (Y - 256 - RECENT_AHEAD_Y) * 4;
@@ -467,19 +506,24 @@ had_filter:;
 					last[2] = YUV[2] = src[2];
 					last[3] = A = src[3];
 				} else {
+#endif
 					last[0] = YUV[0] = Y;
 					u32 U = _u_decoder[CHAOS_TABLE[chaosScore(last[-3]) + chaosScore(last[1])]].next(reader);
+#if 0
 					if (U >= 256) {
 						u8 *src = p - (Y - 256 - RECENT_AHEAD_U) * 4;
 						last[1] = YUV[1] = src[1];
 						last[2] = YUV[2] = src[2];
 						last[3] = A = src[3];
 					} else {
+#endif
 						last[1] = YUV[1] = U;
 						last[2] = YUV[2] = _v_decoder[CHAOS_TABLE[chaosScore(last[-2]) + chaosScore(last[2])]].next(reader);
 						last[3] = A = _a_decoder[CHAOS_TABLE[chaosScore(last[-1]) + chaosScore(last[3])]].next(reader);
+#if 0
 					}
 				}
+#endif
 
 				// Reverse color filter
 				u8 RGB[3];

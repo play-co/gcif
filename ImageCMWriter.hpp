@@ -38,7 +38,7 @@ namespace cat {
 
 class ImageCMWriter {
 protected:
-	static const int CHAOS_LEVELS = ImageCMReader::CHAOS_LEVELS;
+	static const int CHAOS_LEVELS_MAX = ImageCMReader::CHAOS_LEVELS_MAX;
 	static const int FILTER_SELECT_FUZZ = 20;
 	static const int COMPRESS_LEVEL = 1;
 	static const u16 UNUSED_FILTER = 0xffff;
@@ -52,11 +52,15 @@ protected:
 	static const int ZRLE_SYMS_V = ImageCMReader::ZRLE_SYMS_V;
 	static const int ZRLE_SYMS_A = ImageCMReader::ZRLE_SYMS_A;
 	static const int PALETTE_MIN = 2;
+	static const int CHAOS_THRESH = 2000; // Number of chaos-encoded pixels required to use chaos levels
 
 	int _w, _h;
 	u16 *_matrix;
 	u8 *_chaos;
 	int _chaos_size;
+
+	int _chaos_levels;
+	const u8 *_chaos_table;
 
 	void clear();
 
@@ -69,10 +73,10 @@ protected:
 	HuffmanEncoder<SF_COUNT> _sf_encoder;
 	HuffmanEncoder<CF_COUNT> _cf_encoder;
 
-	EntropyEncoder<256 + RECENT_SYMS_Y, ZRLE_SYMS_Y> _y_encoder[CHAOS_LEVELS];
-	EntropyEncoder<256 + RECENT_SYMS_U, ZRLE_SYMS_U> _u_encoder[CHAOS_LEVELS];
-	EntropyEncoder<256, ZRLE_SYMS_V> _v_encoder[CHAOS_LEVELS];
-	EntropyEncoder<256, ZRLE_SYMS_A> _a_encoder[CHAOS_LEVELS];
+	EntropyEncoder<256 + RECENT_SYMS_Y, ZRLE_SYMS_Y> _y_encoder[CHAOS_LEVELS_MAX];
+	EntropyEncoder<256 + RECENT_SYMS_U, ZRLE_SYMS_U> _u_encoder[CHAOS_LEVELS_MAX];
+	EntropyEncoder<256, ZRLE_SYMS_V> _v_encoder[CHAOS_LEVELS_MAX];
+	EntropyEncoder<256, ZRLE_SYMS_A> _a_encoder[CHAOS_LEVELS_MAX];
 
 	int init(int width, int height);
 	void decideFilters();

@@ -176,7 +176,7 @@ int ImageLZReader::readZones(ImageReader &reader) {
 	return RE_OK;
 }
 
-int ImageLZReader::triggerX(u8 *p) {
+int ImageLZReader::triggerX(u8 *p, int &lz_lines_left) {
 	// Just triggered a line from zi
 	u16 ii = _zone_next_x;
 	Zone *zi = &_zones[ii];
@@ -203,6 +203,8 @@ int ImageLZReader::triggerX(u8 *p) {
 		// Set it to the next trigger dx
 		_zone_trigger_x = _zones[_zone_next_x].dx;
 	}
+
+	lz_lines_left = zi->h;
 
 	// If this is zi's last scanline,
 	if (--zi->h <= 0) {

@@ -129,6 +129,10 @@ public:
 		return false;
 	}
 #endif
+
+	// Returns false if no LZ destination region under x,y
+	// w,h : number of pixels left in region including the pixel at x,y
+	bool findExtent(int x, int y, int &w, int &h);
 };
 
 

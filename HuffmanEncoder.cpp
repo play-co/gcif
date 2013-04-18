@@ -840,7 +840,7 @@ int cat::writeCompressedHuffmanTable(int num_syms, u8 codelens[], ImageWriter &w
 			for (int ii = 0; ii < num_syms; ++ii) {
 				u8 sym = codelens[ii];
 
-				encoders[best].writeSymbol(sym, writer);
+				bc += encoders[best].writeSymbol(sym, writer);
 			}
 		}
 		break;
@@ -861,7 +861,7 @@ int cat::writeCompressedHuffmanTable(int num_syms, u8 codelens[], ImageWriter &w
 				lag1 = lag0;
 				lag0 = len;
 
-				encoders[best].writeSymbol(sym, writer);
+				bc += encoders[best].writeSymbol(sym, writer);
 			}
 		}
 		break;
@@ -878,7 +878,7 @@ int cat::writeCompressedHuffmanTable(int num_syms, u8 codelens[], ImageWriter &w
 				lag1 = lag0;
 				lag0 = len;
 
-				encoders[best].writeSymbol(sym, writer);
+				bc += encoders[best].writeSymbol(sym, writer);
 			}
 		}
 		break;
@@ -895,7 +895,7 @@ int cat::writeCompressedHuffmanTable(int num_syms, u8 codelens[], ImageWriter &w
 				lag1 = lag0;
 				lag0 = len;
 
-				encoders[best].writeSymbol(sym, writer);
+				bc += encoders[best].writeSymbol(sym, writer);
 			}
 		}
 		break;

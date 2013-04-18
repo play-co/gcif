@@ -94,7 +94,7 @@ namespace cat {
 #define CAT_UDP_SEND_ALLOCATOR
 
 // When not in debug mode, enable/disable levels of logging
-#define CAT_RELEASE_DISABLE_INANE
+//#define CAT_RELEASE_DISABLE_INANE
 //#define CAT_RELEASE_DISABLE_INFO
 //#define CAT_RELEASE_DISABLE_WARN
 //#define CAT_RELEASE_DISABLE_OOPS

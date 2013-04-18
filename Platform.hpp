@@ -257,19 +257,9 @@ namespace cat {
 
 //// Debug Flag ////
 
-#if defined(CAT_COMPILER_MSVC)
-
-# if defined(_DEBUG)
+# if defined(_DEBUG) || defined(DEBUG)
 #  define CAT_DEBUG
 # endif
-
-#else
-
-# if !defined(NDEBUG)
-#  define CAT_DEBUG
-# endif
-
-#endif
 
 
 //// Instruction Set Architecture ////
