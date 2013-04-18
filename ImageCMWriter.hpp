@@ -32,6 +32,8 @@
 namespace cat {
 
 
+//#define USE_RECENT_PALETTE
+
 //// ImageCMWriter
 
 class ImageCMWriter {
