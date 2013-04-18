@@ -6,7 +6,7 @@ using namespace cat;
 //// FilterScorer
 
 int FilterScorer::partitionTop(int left, int right, int pivotIndex) {
-	CAT_DEBUG_ENFORCE(left >= 0 && right >= 0 && left <= right && pivotIndex >= left && pivotIndex <= right);
+	CAT_DEBUG_ENFORCE(left >= 0 && right >= 0 && left <= right);
 
 	int pivotValue = _list[pivotIndex].score;
 
