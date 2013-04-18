@@ -69,9 +69,11 @@ protected:
 				run -= 255 + 255;
 				bits += 8 + 8;
 				while (run >= 65535) {
-					writer.writeBits(run, 16);
+					writer.writeBits(65535, 16);
 					bits += 16;
+					run -= 65535;
 				}
+				writer.writeBits(run, 16);
 			} else {
 				// Write out FF bytes
 				while (run >= 255) {
