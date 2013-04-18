@@ -17,14 +17,14 @@ u32 ImageReader::refill() {
 	u32 nextWord = _nextWord;
 	int nextLeft = _nextLeft;
 
-	CAT_ENFORCE(bitsLeft < 32);
+	CAT_DEBUG_ENFORCE(bitsLeft < 32);
 
 	bits |= nextWord >> bitsLeft;
 
 	int readBits = 32 - bitsLeft;
 
 	if CAT_LIKELY(nextLeft >= readBits) {
-		CAT_ENFORCE(readBits < 32);
+		CAT_DEBUG_ENFORCE(readBits < 32);
 		nextWord <<= readBits;
 		nextLeft -= readBits;
 		_bitsLeft = 32;
@@ -36,7 +36,7 @@ u32 ImageReader::refill() {
 			_hash.hashWord(nextWord);
 
 			bitsLeft += nextLeft;
-			CAT_ENFORCE(bitsLeft < 32);
+			CAT_DEBUG_ENFORCE(bitsLeft < 32);
 			bits |= nextWord >> bitsLeft;
 
 			if (bitsLeft == 0) {

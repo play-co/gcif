@@ -496,7 +496,7 @@ bool ImageCMWriter::writeChaos(ImageWriter &writer) {
 			if (!_lz->visited(x, y) && !_mask->hasRGB(x, y)) {
 				// Get filter for this pixel
 				u16 filter = getFilter(x, y);
-				CAT_ENFORCE(filter != UNUSED_FILTER);
+				CAT_DEBUG_ENFORCE(filter != UNUSED_FILTER);
 				u8 cf = (u8)filter;
 				u8 sf = (u8)(filter >> 8);
 
@@ -581,7 +581,7 @@ bool ImageCMWriter::writeChaos(ImageWriter &writer) {
 				chaos_count++;
 #endif
 			} else {
-				CAT_ENFORCE(getFilter(x, y) == UNUSED_FILTER);
+				CAT_DEBUG_ENFORCE(getFilter(x, y) == UNUSED_FILTER);
 
 				for (int c = 0; c < PLANES; ++c) {
 					last[c] = 0;

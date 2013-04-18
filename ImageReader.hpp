@@ -77,7 +77,7 @@ public:
 
 	// After peeking, consume up to 31 bits
 	CAT_INLINE void eat(int len) {
-		CAT_ENFORCE(len <= 31);
+		CAT_DEBUG_ENFORCE(len <= 31);
 
 		_bits <<= len;
 		_bitsLeft -= len;
@@ -85,7 +85,7 @@ public:
 
 	// Read up to 31 bits
 	CAT_INLINE u32 readBits(int len) {
-		CAT_ENFORCE(len >= 1 && len <= 31);
+		CAT_DEBUG_ENFORCE(len >= 1 && len <= 31);
 
 		const u32 bits = peek(len);
 		eat(len);
