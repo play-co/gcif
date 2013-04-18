@@ -197,8 +197,8 @@ bool HuffmanDecoder::init(int num_syms, ImageReader &reader, u32 table_bits) {
 	static const int HUFF_SYMS = MAX_CODE_SIZE + 1;
 	u8 codelens[huffman::cHuffmanMaxSupportedSyms];
 
-	CAT_ENFORCE(HUFF_SYMS == 17);
-	CAT_ENFORCE(num_syms >= 2);
+	CAT_DEBUG_ENFORCE(HUFF_SYMS == 17);
+	CAT_DEBUG_ENFORCE(num_syms >= 2);
 
 	// Shaved?
 	if (reader.readBit()) {
@@ -362,7 +362,7 @@ u32 HuffmanDecoder::next(ImageReader &reader) {
 	else {
 		// Handle longer codelens outside of table
 		len = _decode_start_code_size;
-		CAT_ENFORCE(len <= 16);
+		CAT_DEBUG_ENFORCE(len <= 16);
 
 		const u32 *max_codes = _max_codes;
 

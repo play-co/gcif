@@ -496,12 +496,15 @@ int cat::writeCompressedHuffmanTable(int num_syms, u8 codelens[], ImageWriter &w
 	int bc = 0;
 
 	// Find last non-zero symbol
-	int last_non_zero = 0;
-	for (int ii = 1; ii < num_syms; ++ii) {
+	int last_non_zero = 0, nonzero_syms = 0;
+	for (int ii = 0; ii < num_syms; ++ii) {
 		if (codelens[ii] > 0) {
 			last_non_zero = ii;
+			++nonzero_syms;
 		}
 	}
+
+	CAT_DEBUG_ENFORCE(nonzero_syms > 0);
 
 	// Determine if it is worth shaving
 	int shaved = num_syms - last_non_zero - 1;

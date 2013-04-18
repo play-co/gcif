@@ -97,7 +97,9 @@ public:
 	CAT_INLINE virtual ~EntropyEncoder() {
 	}
 
-	void add(u8 symbol) {
+	void add(u16 symbol) {
+		CAT_DEBUG_ENFORCE(symbol < NUM_SYMS);
+
 		if (symbol == 0) {
 			++_zeroRun;
 		} else {
@@ -154,14 +156,16 @@ public:
 		return bitcount;
 	}
 
-	int write(u8 symbol, ImageWriter &writer) {
+	int write(u16 symbol, ImageWriter &writer) {
+		CAT_DEBUG_ENFORCE(symbol < NUM_SYMS);
+
 		int bits = 0;
 
 		// If zero,
 		if (symbol == 0) {
 			// If starting a zero run,
 			if (_zeroRun == 0) {
-				CAT_ENFORCE(_runListReadIndex < _runList.size());
+				CAT_DEBUG_ENFORCE(_runListReadIndex < _runList.size());
 
 				// Write stored zero run
 				int runLength = _runList[_runListReadIndex++];
