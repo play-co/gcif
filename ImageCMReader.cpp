@@ -169,45 +169,45 @@ y0_had_filter:;
 				}
 			} else {
 				// Read YUV filtered pixel
-				u8 yuv[3], a;
+				u8 YUV[3], A;
 
-				u32 y = _y_decoder[CHAOS_TABLE[chaosScore(last[-4])]].next(reader);
+				u32 Y = _y_decoder[CHAOS_TABLE[chaosScore(last[-4])]].next(reader);
 
 				// If pixel is a recent palette entry,
-				if (y >= 256) {
-					u8 *src = p - (y - 256 - RECENT_AHEAD_Y) * 4;
-					last[0] = yuv[0] = src[0];
-					last[1] = yuv[1] = src[1];
-					last[2] = yuv[2] = src[2];
-					last[3] = a = src[3];
+				if (Y >= 256) {
+					u8 *src = p - (Y - 256 - RECENT_AHEAD_Y) * 4;
+					last[0] = YUV[0] = src[0];
+					last[1] = YUV[1] = src[1];
+					last[2] = YUV[2] = src[2];
+					last[3] = A = src[3];
 				} else {
-					last[0] = yuv[0] = y;
-					u32 u = _u_decoder[CHAOS_TABLE[chaosScore(last[-3])]].next(reader);
-					if (u >= 256) {
-						u8 *src = p - (y - 256 - RECENT_AHEAD_U) * 4;
-						last[1] = yuv[1] = src[1];
-						last[2] = yuv[2] = src[2];
-						last[3] = a = src[3];
+					last[0] = YUV[0] = Y;
+					u32 U = _u_decoder[CHAOS_TABLE[chaosScore(last[-3])]].next(reader);
+					if (U >= 256) {
+						u8 *src = p - (Y - 256 - RECENT_AHEAD_U) * 4;
+						last[1] = YUV[1] = src[1];
+						last[2] = YUV[2] = src[2];
+						last[3] = A = src[3];
 					} else {
-						last[1] = yuv[1] = u;
-						last[2] = yuv[2] = _v_decoder[CHAOS_TABLE[chaosScore(last[-2])]].next(reader);
-						last[3] = a = _a_decoder[CHAOS_TABLE[chaosScore(last[-1])]].next(reader);
+						last[1] = YUV[1] = U;
+						last[2] = YUV[2] = _v_decoder[CHAOS_TABLE[chaosScore(last[-2])]].next(reader);
+						last[3] = A = _a_decoder[CHAOS_TABLE[chaosScore(last[-1])]].next(reader);
 					}
 				}
 
 				// Reverse color filter
-				u8 rgb[3];
-				cf(yuv, rgb);
+				u8 RGB[3];
+				cf(YUV, RGB);
 
 				// Reverse spatial filter
 				const u8 *pred = sf(p, x, y, width);
-				p[0] = rgb[0] + pred[0];
-				p[1] = rgb[1] + pred[1];
-				p[2] = rgb[2] + pred[2];
+				p[0] = RGB[0] + pred[0];
+				p[1] = RGB[1] + pred[1];
+				p[2] = RGB[2] + pred[2];
 				if (x > 0) {
-					p[3] = p[-1] - a;
+					p[3] = p[-1] - A;
 				} else {
-					p[3] = 255 - a;
+					p[3] = 255 - A;
 				}
 			}
 
@@ -287,42 +287,42 @@ x0_had_filter:;
 				}
 			} else {
 				// Read YUV filtered pixel
-				u8 yuv[3], a;
+				u8 YUV[3], A;
 
-				u32 y = _y_decoder[CHAOS_TABLE[chaosScore(last[0])]].next(reader);
+				u32 Y = _y_decoder[CHAOS_TABLE[chaosScore(last[0])]].next(reader);
 
 				// If pixel is a recent palette entry,
-				if (y >= 256) {
-					u8 *src = p - (y - 256 - RECENT_AHEAD_Y) * 4;
-					last[0] = yuv[0] = src[0];
-					last[1] = yuv[1] = src[1];
-					last[2] = yuv[2] = src[2];
-					last[3] = a = src[3];
+				if (Y >= 256) {
+					u8 *src = p - (Y - 256 - RECENT_AHEAD_Y) * 4;
+					last[0] = YUV[0] = src[0];
+					last[1] = YUV[1] = src[1];
+					last[2] = YUV[2] = src[2];
+					last[3] = A = src[3];
 				} else {
-					last[0] = yuv[0] = y;
-					u32 u = _u_decoder[CHAOS_TABLE[chaosScore(last[1])]].next(reader);
-					if (u >= 256) {
-						u8 *src = p - (y - 256 - RECENT_AHEAD_U) * 4;
-						last[1] = yuv[1] = src[1];
-						last[2] = yuv[2] = src[2];
-						last[3] = a = src[3];
+					last[0] = YUV[0] = Y;
+					u32 U = _u_decoder[CHAOS_TABLE[chaosScore(last[1])]].next(reader);
+					if (U >= 256) {
+						u8 *src = p - (Y - 256 - RECENT_AHEAD_U) * 4;
+						last[1] = YUV[1] = src[1];
+						last[2] = YUV[2] = src[2];
+						last[3] = A = src[3];
 					} else {
-						last[1] = yuv[1] = u;
-						last[2] = yuv[2] = _v_decoder[CHAOS_TABLE[chaosScore(last[2])]].next(reader);
-						last[3] = a = _a_decoder[CHAOS_TABLE[chaosScore(last[3])]].next(reader);
+						last[1] = YUV[1] = U;
+						last[2] = YUV[2] = _v_decoder[CHAOS_TABLE[chaosScore(last[2])]].next(reader);
+						last[3] = A = _a_decoder[CHAOS_TABLE[chaosScore(last[3])]].next(reader);
 					}
 				}
 
 				// Reverse color filter
-				u8 rgb[3];
-				cf(yuv, rgb);
+				u8 RGB[3];
+				cf(YUV, RGB);
 
 				// Reverse spatial filter
 				const u8 *pred = sf(p, x, y, width);
-				p[0] = rgb[0] + pred[0];
-				p[1] = rgb[1] + pred[1];
-				p[2] = rgb[2] + pred[2];
-				p[3] = 255 - a;
+				p[0] = RGB[0] + pred[0];
+				p[1] = RGB[1] + pred[1];
+				p[2] = RGB[2] + pred[2];
+				p[3] = 255 - A;
 			}
 
 			// Next pixel
@@ -385,42 +385,42 @@ had_filter:;
 				}
 			} else {
 				// Read YUV filtered pixel
-				u8 yuv[3], a;
+				u8 YUV[3], A;
 
-				u32 y = _y_decoder[CHAOS_TABLE[chaosScore(last[-4]) + chaosScore(last[0])]].next(reader);
+				u32 Y = _y_decoder[CHAOS_TABLE[chaosScore(last[-4]) + chaosScore(last[0])]].next(reader);
 
 				// If pixel is a recent palette entry,
-				if (y >= 256) {
-					u8 *src = p - (y - 256 - RECENT_AHEAD_Y) * 4;
-					last[0] = yuv[0] = src[0];
-					last[1] = yuv[1] = src[1];
-					last[2] = yuv[2] = src[2];
-					last[3] = a = src[3];
+				if (Y >= 256) {
+					u8 *src = p - (Y - 256 - RECENT_AHEAD_Y) * 4;
+					last[0] = YUV[0] = src[0];
+					last[1] = YUV[1] = src[1];
+					last[2] = YUV[2] = src[2];
+					last[3] = A = src[3];
 				} else {
-					last[0] = yuv[0] = y;
-					u32 u = _u_decoder[CHAOS_TABLE[chaosScore(last[-3]) + chaosScore(last[1])]].next(reader);
-					if (u >= 256) {
-						u8 *src = p - (y - 256 - RECENT_AHEAD_U) * 4;
-						last[1] = yuv[1] = src[1];
-						last[2] = yuv[2] = src[2];
-						last[3] = a = src[3];
+					last[0] = YUV[0] = Y;
+					u32 U = _u_decoder[CHAOS_TABLE[chaosScore(last[-3]) + chaosScore(last[1])]].next(reader);
+					if (U >= 256) {
+						u8 *src = p - (Y - 256 - RECENT_AHEAD_U) * 4;
+						last[1] = YUV[1] = src[1];
+						last[2] = YUV[2] = src[2];
+						last[3] = A = src[3];
 					} else {
-						last[1] = yuv[1] = u;
-						last[2] = yuv[2] = _v_decoder[CHAOS_TABLE[chaosScore(last[-2]) + chaosScore(last[2])]].next(reader);
-						last[3] = a = _a_decoder[CHAOS_TABLE[chaosScore(last[-1]) + chaosScore(last[3])]].next(reader);
+						last[1] = YUV[1] = U;
+						last[2] = YUV[2] = _v_decoder[CHAOS_TABLE[chaosScore(last[-2]) + chaosScore(last[2])]].next(reader);
+						last[3] = A = _a_decoder[CHAOS_TABLE[chaosScore(last[-1]) + chaosScore(last[3])]].next(reader);
 					}
 				}
 
 				// Reverse color filter
-				u8 rgb[3];
-				cf(yuv, rgb);
+				u8 RGB[3];
+				cf(YUV, RGB);
 
 				// Reverse spatial filter
 				const u8 *pred = sf(p, x, y, width);
-				p[0] = rgb[0] + pred[0];
-				p[1] = rgb[1] + pred[1];
-				p[2] = rgb[2] + pred[2];
-				p[3] = p[-1] - a;
+				p[0] = RGB[0] + pred[0];
+				p[1] = RGB[1] + pred[1];
+				p[2] = RGB[2] + pred[2];
+				p[3] = p[-1] - A;
 			}
 
 			// Next pixel
@@ -455,35 +455,35 @@ had_filter:;
 				}
 			} else {
 				// Read YUV filtered pixel
-				u8 yuv[3], a;
+				u8 YUV[3], A;
 
-				u32 y = _y_decoder[CHAOS_TABLE[chaosScore(last[-4]) + chaosScore(last[0])]].next(reader);
+				u32 Y = _y_decoder[CHAOS_TABLE[chaosScore(last[-4]) + chaosScore(last[0])]].next(reader);
 
 				// If pixel is a recent palette entry,
-				if (y >= 256) {
-					u8 *src = p - (y - 256 - RECENT_AHEAD_Y) * 4;
-					last[0] = yuv[0] = src[0];
-					last[1] = yuv[1] = src[1];
-					last[2] = yuv[2] = src[2];
-					last[3] = a = src[3];
+				if (Y >= 256) {
+					u8 *src = p - (Y - 256 - RECENT_AHEAD_Y) * 4;
+					last[0] = YUV[0] = src[0];
+					last[1] = YUV[1] = src[1];
+					last[2] = YUV[2] = src[2];
+					last[3] = A = src[3];
 				} else {
-					last[0] = yuv[0] = y;
-					u32 u = _u_decoder[CHAOS_TABLE[chaosScore(last[-3]) + chaosScore(last[1])]].next(reader);
-					if (u >= 256) {
-						u8 *src = p - (y - 256 - RECENT_AHEAD_U) * 4;
-						last[1] = yuv[1] = src[1];
-						last[2] = yuv[2] = src[2];
-						last[3] = a = src[3];
+					last[0] = YUV[0] = Y;
+					u32 U = _u_decoder[CHAOS_TABLE[chaosScore(last[-3]) + chaosScore(last[1])]].next(reader);
+					if (U >= 256) {
+						u8 *src = p - (Y - 256 - RECENT_AHEAD_U) * 4;
+						last[1] = YUV[1] = src[1];
+						last[2] = YUV[2] = src[2];
+						last[3] = A = src[3];
 					} else {
-						last[1] = yuv[1] = u;
-						last[2] = yuv[2] = _v_decoder[CHAOS_TABLE[chaosScore(last[-2]) + chaosScore(last[2])]].next(reader);
-						last[3] = a = _a_decoder[CHAOS_TABLE[chaosScore(last[-1]) + chaosScore(last[3])]].next(reader);
+						last[1] = YUV[1] = U;
+						last[2] = YUV[2] = _v_decoder[CHAOS_TABLE[chaosScore(last[-2]) + chaosScore(last[2])]].next(reader);
+						last[3] = A = _a_decoder[CHAOS_TABLE[chaosScore(last[-1]) + chaosScore(last[3])]].next(reader);
 					}
 				}
 
 				// Reverse color filter
-				u8 rgb[3];
-				cf(yuv, rgb);
+				u8 RGB[3];
+				cf(YUV, RGB);
 
 				// Switch back to safe spatial filter
 				FilterSelection *filter = &_filters[x >> FILTER_ZONE_SIZE_SHIFT];
@@ -491,10 +491,10 @@ had_filter:;
 
 				// Reverse spatial filter
 				const u8 *pred = sf(p, x, y, width);
-				p[0] = rgb[0] + pred[0];
-				p[1] = rgb[1] + pred[1];
-				p[2] = rgb[2] + pred[2];
-				p[3] = p[-1] - a;
+				p[0] = RGB[0] + pred[0];
+				p[1] = RGB[1] + pred[1];
+				p[2] = RGB[2] + pred[2];
+				p[3] = p[-1] - A;
 			}
 
 			// Next pixel

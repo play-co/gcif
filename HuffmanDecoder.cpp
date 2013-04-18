@@ -71,6 +71,25 @@ bool HuffmanDecoder::init(int count, const u8 *codelens, u32 table_bits) {
 		next_code <<= 1;
 	}
 
+	// Added this to handle degenerate but useful cases -cat
+	if (total_used_syms <= 1) {
+		_one_sym = 1;
+
+		for (u16 sym = 0; sym < count; ++sym) {
+			int len = codelens[sym];
+			if (len > 0) {
+				_one_sym = sym + 1;
+				break;
+			}
+		}
+
+		return true;
+	}
+
+	_one_sym = 0;
+
+	CAT_DEBUG_ENFORCE(total_used_syms > 1) << total_used_syms;
+
 	_total_used_syms = total_used_syms;
 
 	if (total_used_syms > _cur_sorted_symbol_order_size) {
@@ -82,7 +101,7 @@ bool HuffmanDecoder::init(int count, const u8 *codelens, u32 table_bits) {
 			_cur_sorted_symbol_order_size = count < nextPOT ? count : nextPOT;
 		}
 
-		_sorted_symbol_order = new u16[_cur_sorted_symbol_order_size + 6000];
+		_sorted_symbol_order = new u16[_cur_sorted_symbol_order_size];
 	}
 
 	_min_code_size = static_cast<u8>( min_code_size );
@@ -96,21 +115,6 @@ bool HuffmanDecoder::init(int count, const u8 *codelens, u32 table_bits) {
 		}
 	}
 
-	if (total_used_syms == 1) {
-		for (u16 sym = 0; sym < count; ++sym) {
-			int len = codelens[sym];
-			if (len > 0) {
-				_one_sym = sym + 1;
-				return true;
-			}
-		}
-
-		CAT_DEBUG_ENFORCE(false);
-		return false;
-	} else {
-		_one_sym = 0;
-	}
-
 	if (table_bits <= _min_code_size) {
 		table_bits = 0;
 	}
@@ -122,7 +126,7 @@ bool HuffmanDecoder::init(int count, const u8 *codelens, u32 table_bits) {
 		if (_cur_lookup_size < table_size) {
 			_cur_lookup_size = table_size;
 
-			_lookup = new u32[table_size + 6000];
+			_lookup = new u32[table_size];
 		}
 
 		memset(_lookup, 0xFF, 4 << table_bits);
