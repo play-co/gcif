@@ -49,6 +49,7 @@ protected:
 	static const int ZRLE_SYMS_U = ImageCMReader::ZRLE_SYMS_U;
 	static const int ZRLE_SYMS_V = ImageCMReader::ZRLE_SYMS_V;
 	static const int ZRLE_SYMS_A = ImageCMReader::ZRLE_SYMS_A;
+	static const int PALETTE_MIN = 2;
 
 	int _w, _h;
 	u16 *_matrix;
