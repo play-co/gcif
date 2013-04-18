@@ -127,14 +127,13 @@ static void calculate_minimum_redundancy(int A[], int n) {
 
 	/* check for pathological cases */
 	if (n == 0) {
-		CAT_EXCEPTION();
 		return;
 	}
-	if (n == 1) {
-		A[0] = 0;
-		CAT_EXCEPTION();
-		return;
-	}
+	CAT_DEBUG_ENFORCE(n != 1); // Not handled here
+	//if (n == 1) {
+	//	A[0] = 0;
+	//	return;
+	//}
 
 	/* first pass, left to right, setting parent pointers */
 	A[0] += A[1];
@@ -503,8 +502,6 @@ int cat::writeCompressedHuffmanTable(int num_syms, u8 codelens[], ImageWriter &w
 			++nonzero_syms;
 		}
 	}
-
-	CAT_DEBUG_ENFORCE(nonzero_syms > 0);
 
 	// Determine if it is worth shaving
 	int shaved = num_syms - last_non_zero - 1;
