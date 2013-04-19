@@ -15,6 +15,7 @@ class HuffmanDecoder {
 public:
 	static const u32 MAX_CODE_SIZE = 16; // Max bits per Huffman code (16 is upper limit)
 	static const u32 MAX_TABLE_BITS = 11; // Time-memory tradeoff LUT optimization limit
+	static const int TABLE_THRESH = 20; // Number of symbols before table is compressed
 
 protected:
 	u32 _num_syms;
@@ -58,6 +59,20 @@ public:
 	bool init(int num_syms, ImageReader &reader, u32 table_bits);
 
 	u32 next(ImageReader &reader);
+};
+
+
+// Decoder for Huffman tables
+class HuffmanTableDecoder {
+	static const int NUM_SYMS = HuffmanDecoder::MAX_CODE_SIZE + 2;
+
+	HuffmanDecoder _decoder;
+	int _zeroRun;
+
+public:
+	bool init(ImageReader &reader);
+
+	u8 next(ImageReader &reader);
 };
 
 

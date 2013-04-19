@@ -488,6 +488,7 @@ void cat::collectArrayFreqs(int num_syms, int data_size, u8 data[], u16 freqs[])
 
 int cat::writeCompressedHuffmanTable(int num_syms, u8 codelens[], ImageWriter &writer) {
 	static const int HUFF_SYMS = HuffmanDecoder::MAX_CODE_SIZE + 1;
+	static const int TABLE_THRESH = HuffmanDecoder::TABLE_THRESH;
 
 	CAT_DEBUG_ENFORCE(HUFF_SYMS == 17);
 	CAT_DEBUG_ENFORCE(num_syms >= 2);
@@ -518,7 +519,7 @@ int cat::writeCompressedHuffmanTable(int num_syms, u8 codelens[], ImageWriter &w
 	bc++;
 
 	// If the symbol count is low,
-	if (num_syms <= 20) {
+	if (num_syms <= TABLE_THRESH) {
 		// Encode the symbols directly
 		for (int ii = 0; ii < num_syms; ++ii) {
 			u8 len = codelens[ii];
