@@ -488,6 +488,7 @@ void cat::collectArrayFreqs(int num_syms, int data_size, u8 data[], u16 freqs[])
 
 int cat::writeCompressedHuffmanTable(int num_syms, u8 codelens[], ImageWriter &writer) {
 	static const int HUFF_SYMS = HuffmanDecoder::MAX_CODE_SIZE + 1;
+	static const int ZRLE_SYMS = 16;
 
 	CAT_DEBUG_ENFORCE(HUFF_SYMS == 17);
 	CAT_DEBUG_ENFORCE(num_syms >= 2);
@@ -547,39 +548,21 @@ int cat::writeCompressedHuffmanTable(int num_syms, u8 codelens[], ImageWriter &w
 	 */
 
 	int bitcount[4] = { 0 };
-	HuffmanEncoder<HUFF_SYMS> encoders[4];
+	HuffmanTableEncoder<ZRLE_SYMS> encoders[4];
 
 	// 00 : No modifications
 
 	{
 		// Collect statistics
-		u16 freqs[HUFF_SYMS] = {0};
 		for (int ii = 0; ii < num_syms; ++ii) {
 			u8 len = codelens[ii];
 
 			CAT_DEBUG_ENFORCE(len < HUFF_SYMS);
 
-			freqs[len]++;
+			encoders[0].add(len);
 		}
 
-		// Generate candidate codes
-		if (!encoders[0].initCodelens(freqs)) {
-			CAT_EXCEPTION();
-			return 0;
-		}
-
-		// Add bitcount for table
-		for (int ii = 0; ii < HUFF_SYMS; ++ii) {
-			u8 len = encoders[0].simulateWrite(ii);
-
-			CAT_DEBUG_ENFORCE(len < HUFF_SYMS);
-
-			if (len >= 15) {
-				bitcount[0] += 5;
-			} else {
-				bitcount[0] += 4;
-			}
-		}
+		encoders[0].finalize();
 
 		// Add bitcount for symbols
 		for (int ii = 0; ii < num_syms; ++ii) {
@@ -595,7 +578,6 @@ int cat::writeCompressedHuffmanTable(int num_syms, u8 codelens[], ImageWriter &w
 
 	{
 		// Collect statistics
-		u16 freqs[HUFF_SYMS] = {0};
 		u32 lag0 = 1, lag1 = 1;
 		for (int ii = 0; ii < num_syms; ++ii) {
 			u8 len = codelens[ii];
@@ -613,27 +595,10 @@ int cat::writeCompressedHuffmanTable(int num_syms, u8 codelens[], ImageWriter &w
 			lag1 = lag0;
 			lag0 = len;
 
-			freqs[sym]++;
+			encoders[1].add(sym);
 		}
 
-		// Generate candidate codes
-		if (!encoders[1].initCodelens(freqs)) {
-			CAT_EXCEPTION();
-			return 0;
-		}
-
-		// Add bitcount for table
-		for (int ii = 0; ii < HUFF_SYMS; ++ii) {
-			u8 len = encoders[1].simulateWrite(ii);
-
-			CAT_DEBUG_ENFORCE(len < HUFF_SYMS);
-
-			if (len >= 15) {
-				bitcount[1] += 5;
-			} else {
-				bitcount[1] += 4;
-			}
-		}
+		encoders[1].finalize();
 
 		// Add bitcount for symbols
 		lag0 = 1, lag1 = 1;
@@ -661,7 +626,6 @@ int cat::writeCompressedHuffmanTable(int num_syms, u8 codelens[], ImageWriter &w
 
 	{
 		// Collect statistics
-		u16 freqs[HUFF_SYMS] = {0};
 		u32 lag0 = 1, lag1 = 1;
 		for (int ii = 0; ii < num_syms; ++ii) {
 			u8 len = codelens[ii];
@@ -675,27 +639,10 @@ int cat::writeCompressedHuffmanTable(int num_syms, u8 codelens[], ImageWriter &w
 			lag1 = lag0;
 			lag0 = len;
 
-			freqs[sym]++;
+			encoders[2].add(sym);
 		}
 
-		// Generate candidate codes
-		if (!encoders[2].initCodelens(freqs)) {
-			CAT_EXCEPTION();
-			return 0;
-		}
-
-		// Add bitcount for table
-		for (int ii = 0; ii < HUFF_SYMS; ++ii) {
-			u8 len = encoders[2].simulateWrite(ii);
-
-			CAT_DEBUG_ENFORCE(len < HUFF_SYMS);
-
-			if (len >= 15) {
-				bitcount[2] += 5;
-			} else {
-				bitcount[2] += 4;
-			}
-		}
+		encoders[2].finalize();
 
 		// Add bitcount for symbols
 		lag0 = 1, lag1 = 1;
@@ -719,7 +666,6 @@ int cat::writeCompressedHuffmanTable(int num_syms, u8 codelens[], ImageWriter &w
 
 	{
 		// Collect statistics
-		u16 freqs[HUFF_SYMS] = {0};
 		u32 lag0 = 1, lag1 = 1;
 		for (int ii = 0; ii < num_syms; ++ii) {
 			u8 len = codelens[ii];
@@ -733,27 +679,10 @@ int cat::writeCompressedHuffmanTable(int num_syms, u8 codelens[], ImageWriter &w
 			lag1 = lag0;
 			lag0 = len;
 
-			freqs[sym]++;
+			encoders[3].add(sym);
 		}
 
-		// Generate candidate codes
-		if (!encoders[3].initCodelens(freqs)) {
-			CAT_EXCEPTION();
-			return 0;
-		}
-
-		// Add bitcount for table
-		for (int ii = 0; ii < HUFF_SYMS; ++ii) {
-			u8 len = encoders[3].simulateWrite(ii);
-
-			CAT_DEBUG_ENFORCE(len < HUFF_SYMS);
-
-			if (len >= 15) {
-				bitcount[3] += 5;
-			} else {
-				bitcount[3] += 4;
-			}
-		}
+		encoders[3].finalize();
 
 		// Add bitcount for symbols
 		lag0 = 1, lag1 = 1;
@@ -782,51 +711,9 @@ int cat::writeCompressedHuffmanTable(int num_syms, u8 codelens[], ImageWriter &w
 		}
 	}
 
-	// Write best table
-	{
-		u8 *table_codelens = encoders[best]._codelens;
+	bc += encoders[best].writeTables(writer);
 
-		// Find last non-zero symbol
-		int last_nzt = 0, nonzeroes = 0;
-		for (int ii = 0; ii < HUFF_SYMS; ++ii) {
-			if (table_codelens[ii] > 0) {
-				last_nzt = ii;
-				++nonzeroes;
-			}
-		}
-
-		CAT_DEBUG_ENFORCE(nonzeroes > 0);
-
-		// Determine if it is worth shaving
-		if (last_nzt <= 14) {
-			writer.writeBit(1);
-			writer.writeBits(last_nzt, 4);
-			bc += 4;
-		} else {
-			writer.writeBit(0);
-			last_nzt = HUFF_SYMS - 1;
-		}
-		bc++;
-
-		// Encode the symbols directly
-		for (int ii = 0; ii <= last_nzt; ++ii) {
-			u8 len = table_codelens[ii];
-
-			CAT_DEBUG_ENFORCE(len < HUFF_SYMS);
-
-			if (len >= 15) {
-				writer.writeBits(15, 4);
-				writer.writeBit(len - 15);
-				bc += 5;
-			} else {
-				writer.writeBits(len, 4);
-				bc += 4;
-			}
-		}
-	}
-
-	// Finish initializing encoder
-	encoders[best].initCodes();
+	encoders[best].reset();
 
 	// Write best method
 	writer.writeBits(best, 2);

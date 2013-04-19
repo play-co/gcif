@@ -52,7 +52,7 @@ protected:
 	static const int ZRLE_SYMS_V = ImageCMReader::ZRLE_SYMS_V;
 	static const int ZRLE_SYMS_A = ImageCMReader::ZRLE_SYMS_A;
 	static const int PALETTE_MIN = 2;
-	static const int CHAOS_THRESH = 2000; // Number of chaos-encoded pixels required to use chaos levels
+	static const int CHAOS_THRESH = 4000; // Number of chaos-encoded pixels required to use chaos levels
 
 	int _w, _h;
 	u16 *_matrix;

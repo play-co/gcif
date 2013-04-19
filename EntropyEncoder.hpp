@@ -74,6 +74,7 @@ protected:
 					run -= 65535;
 				}
 				writer.writeBits(run, 16);
+				bits += 16;
 			} else {
 				// Write out FF bytes
 				while (run >= 255) {
