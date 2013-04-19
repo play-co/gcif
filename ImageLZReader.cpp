@@ -192,19 +192,10 @@ int ImageLZReader::triggerX(u8 *p, int &lz_lines_left) {
 		src += 4;
 	}
 
+	lz_lines_left = zi->h;
+
 	// Iterate ahead to next in work list
 	_zone_next_x = zi->next;
-
-	// If work list is exhausted,
-	if (_zone_next_x == ZONE_NULL) {
-		// Disable x trigger
-		_zone_trigger_x = ZONE_NULL;
-	} else {
-		// Set it to the next trigger dx
-		_zone_trigger_x = _zones[_zone_next_x].dx;
-	}
-
-	lz_lines_left = zi->h;
 
 	// If this is zi's last scanline,
 	if (--zi->h <= 0) {
@@ -224,6 +215,21 @@ int ImageLZReader::triggerX(u8 *p, int &lz_lines_left) {
 			// Link it back through to previous
 			_zones[zi->next].prev = zi->prev;
 		}
+	}
+
+	// If work list is exhausted,
+	if (_zone_next_x == ZONE_NULL) {
+		// Loop back to front of remaining list
+		_zone_next_x = _zone_work_head;
+	}
+
+	// If list just emptied,
+	if (_zone_next_x == ZONE_NULL) {
+		// Disable triggers
+		_zone_trigger_x = ZONE_NULL;
+	} else {
+		// Set it to the next trigger dx
+		_zone_trigger_x = _zones[_zone_next_x].dx;
 	}
 
 	return zi->w;
