@@ -63,10 +63,11 @@ public:
 
 // Decoder for Huffman tables
 class HuffmanTableDecoder {
-	static const int NUM_SYMS = HuffmanDecoder::MAX_CODE_SIZE + 2;
+	static const int NUM_SYMS = HuffmanDecoder::MAX_CODE_SIZE + 1;
 
 	HuffmanDecoder _decoder;
 	int _zeroRun;
+	bool _lastZero;
 
 public:
 	bool init(ImageReader &reader);

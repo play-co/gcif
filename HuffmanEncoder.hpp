@@ -220,7 +220,7 @@ public:
 class HuffmanTableEncoder {
 public:
 	static const int NUM_SYMS = HuffmanDecoder::MAX_CODE_SIZE + 1;
-	static const int BZ_SYMS = NUM_SYMS + 1;
+	static const int BZ_SYMS = NUM_SYMS;
 
 protected:
 	FreqHistogram<BZ_SYMS> _bz_hist;
