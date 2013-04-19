@@ -967,7 +967,7 @@ int HuffmanTableEncoder::simulateWrite(u16 symbol) {
 	// If zero,
 	if (symbol == 0) {
 		// If starting a zero run,
-		if (_zeroRun <= 1) {
+		if (_zeroRun == 0) {
 			CAT_DEBUG_ENFORCE(_runListReadIndex < _runList.size());
 
 			// Write stored zero run
