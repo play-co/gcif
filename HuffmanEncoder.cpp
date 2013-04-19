@@ -788,8 +788,6 @@ int cat::writeCompressedHuffmanTable(int num_syms, u8 codelens[], ImageWriter &w
 		break;
 	}
 
-	writer.writeWord(1234567);
-
 	return bc;
 }
 
@@ -869,7 +867,7 @@ void HuffmanTableEncoder::add(u16 symbol) {
 	} else {
 		recordZeroRun();
 
-		_bz_hist.add(symbol);
+		_bz_hist.add(symbol + 1);
 	}
 }
 
