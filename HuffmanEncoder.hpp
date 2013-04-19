@@ -83,7 +83,8 @@ void collectFreqs(int num_syms, const std::vector<u8> &lz, u16 freqs[]);
 int writeCompressedHuffmanTable(int num_syms, u8 codelens[], ImageWriter &writer);
 
 
-// Convenience class
+//// FreqHistogram
+
 template<int NUM_SYMS> class FreqHistogram {
 public:
 	u32 hist[NUM_SYMS];
@@ -132,6 +133,8 @@ public:
 	}
 };
 
+
+//// HuffmanEncoder
 
 template<int NUM_SYMS> class HuffmanEncoder {
 public:
@@ -212,6 +215,8 @@ public:
 };
 
 
+//// HuffmanTableEncoder
+
 class HuffmanTableEncoder {
 public:
 	static const int NUM_SYMS = HuffmanDecoder::MAX_CODE_SIZE + 1;
@@ -226,202 +231,26 @@ protected:
 	std::vector<int> _runList;
 	int _runListReadIndex;
 
-	int simulateZeroRun(int run) {
-		if (run <= 0) {
-			return 0;
-		}
+	int simulateZeroRun(int run);
+	int writeZeroRun(int run, ImageWriter &writer);
 
-		int bits;
-
-		if (run <= 1) {
-			bits = _bz.simulateWrite(0);
-		} else {
-			bits = _bz.simulateWrite(1);
-
-			run -= 2;
-
-			while (run >= 7) {
-				run -= 7;
-				bits += 3;
-			}
-			bits += 3;
-		}
-
-		return bits;
-	}
-
-	int writeZeroRun(int run, ImageWriter &writer) {
-		if (run <= 0) {
-			return 0;
-		}
-
-		int bits;
-
-		if (run <= 1) {
-			bits = _bz.writeSymbol(0, writer);
-		} else {
-			bits = _bz.writeSymbol(1, writer);
-
-			run -= 2;
-
-			while (run >= 7) {
-				writer.writeBits(7, 3);
-				run -= 7;
-				bits += 3;
-			}
-			writer.writeBits(run, 3);
-			bits += 3;
-		}
-
-		return bits;
-	}
-
-	void recordZeroRun() {
-		const int zeroRun = _zeroRun;
-
-		if (zeroRun > 0) {
-			if (zeroRun <= 1) {
-				_bz_hist.add(0);
-			} else {
-				_bz_hist.add(1);
-			}
-
-			_runList.push_back(zeroRun);
-			_zeroRun = 0;
-		}
-	}
+	void recordZeroRun();
 
 public:
 	CAT_INLINE HuffmanTableEncoder() {
 		_zeroRun = 0;
 	}
-
 	CAT_INLINE virtual ~HuffmanTableEncoder() {
 	}
 
-	void add(u16 symbol) {
-		CAT_DEBUG_ENFORCE(symbol < NUM_SYMS);
+	void add(u16 symbol);
+	void finalize();
 
-		if (symbol == 0) {
-			++_zeroRun;
-		} else {
-			recordZeroRun();
+	int writeTables(ImageWriter &writer);
 
-			_bz_hist.add(symbol);
-		}
-	}
-
-	void finalize() {
-		recordZeroRun();
-
-		// Initialize Huffman encoders with histograms
-		_bz.init(_bz_hist);
-
-		reset();
-	}
-
-	int writeTables(ImageWriter &writer) {
-		u8 *table_codelens = _bz._codelens;
-		int bc = 0;
-
-		// Find last non-zero symbol
-		int last_nzt = 0, nonzeroes = 0;
-		for (int ii = 0; ii < BZ_SYMS; ++ii) {
-			if (table_codelens[ii] > 0) {
-				last_nzt = ii;
-				++nonzeroes;
-			}
-		}
-
-		CAT_DEBUG_ENFORCE(nonzeroes > 0);
-
-		// Determine if it is worth shaving
-		if (last_nzt <= 15) {
-			writer.writeBit(1);
-			writer.writeBits(last_nzt, 4);
-			bc += 4;
-		} else {
-			writer.writeBit(0);
-			last_nzt = BZ_SYMS - 1;
-		}
-		bc++;
-
-		// Encode the symbols directly
-		for (int ii = 0; ii <= last_nzt; ++ii) {
-			u8 len = table_codelens[ii];
-
-			CAT_DEBUG_ENFORCE(len < NUM_SYMS);
-
-			if (len >= 15) {
-				writer.writeBits(15, 4);
-				writer.writeBit(len - 15);
-				bc += 5;
-			} else {
-				writer.writeBits(len, 4);
-				bc += 4;
-			}
-		}
-
-		return bc;
-	}
-
-	void reset() {
-		// Set the run list read index for writing
-		_runListReadIndex = 0;
-		_zeroRun = 0;
-	}
-
-	int simulateWrite(u16 symbol) {
-		CAT_DEBUG_ENFORCE(symbol < NUM_SYMS);
-
-		int bits = 0;
-
-		// If zero,
-		if (symbol == 0) {
-			// If starting a zero run,
-			if (_zeroRun == 0) {
-				CAT_DEBUG_ENFORCE(_runListReadIndex < _runList.size());
-
-				// Write stored zero run
-				int runLength = _runList[_runListReadIndex++];
-
-				bits += simulateZeroRun(runLength);
-			}
-
-			++_zeroRun;
-		} else {
-			_zeroRun = 0;
-			bits += _bz.simulateWrite(symbol + 1);
-		}
-
-		return bits;
-	}
-
-	int writeSymbol(u16 symbol, ImageWriter &writer) {
-		CAT_DEBUG_ENFORCE(symbol < NUM_SYMS);
-
-		int bits = 0;
-
-		// If zero,
-		if (symbol == 0) {
-			// If starting a zero run,
-			if (_zeroRun == 0) {
-				CAT_DEBUG_ENFORCE(_runListReadIndex < _runList.size());
-
-				// Write stored zero run
-				int runLength = _runList[_runListReadIndex++];
-
-				bits += writeZeroRun(runLength, writer);
-			}
-
-			++_zeroRun;
-		} else {
-			_zeroRun = 0;
-			bits += _bz.writeSymbol(symbol + 1, writer);
-		}
-
-		return bits;
-	}
+	int simulateWrite(u16 symbol);
+	void reset();
+	int writeSymbol(u16 symbol, ImageWriter &writer);
 };
 
 

@@ -310,6 +310,8 @@ bool HuffmanDecoder::init(int num_syms_orig, ImageReader &reader, u32 table_bits
 		break;
 	}
 
+	CAT_WARN("TEST") << reader.readWord();
+
 	// If only one symbol,
 	return init(num_syms_orig, codelens, table_bits);
 }
