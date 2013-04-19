@@ -202,7 +202,7 @@ bool HuffmanDecoder::init(int num_syms_orig, ImageReader &reader, u32 table_bits
 	u8 codelens[huffman::cHuffmanMaxSupportedSyms];
 
 	CAT_DEBUG_ENFORCE(HUFF_SYMS == 17);
-	CAT_DEBUG_ENFORCE(num_syms >= 2);
+	CAT_DEBUG_ENFORCE(num_syms_orig >= 2);
 
 	// Shaved?
 	int num_syms = num_syms_orig;

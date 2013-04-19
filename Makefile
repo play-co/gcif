@@ -4,13 +4,6 @@ CCPP = clang++
 CC = clang
 
 CFLAGS = -Wall -fstrict-aliasing -I.
-
-ifeq ($(DEBUG),1)
-CFLAGS += -g -O0
-else
-CFLAGS += -O4
-endif
-
 CPFLAGS = $(CFLAGS)
 
 
@@ -38,7 +31,19 @@ SRCS += GCIFReader.cpp GCIFWriter.cpp
 #SRCS += ImageLPReader.cpp ImageLPWriter.cpp
 
 
-# Default target: gcif executable
+# Release target (default)
+
+release : CFLAGS += -O4
+release : gcif
+
+
+# Debug target
+
+debug : CFLAGS += -g -O0 -DDEBUG
+debug : gcif
+
+
+# gcif executable
 
 gcif : $(gcif_objects)
 	$(CCPP) -o gcif $(gcif_objects)
