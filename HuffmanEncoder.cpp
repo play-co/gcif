@@ -488,7 +488,6 @@ void cat::collectArrayFreqs(int num_syms, int data_size, u8 data[], u16 freqs[])
 
 int cat::writeCompressedHuffmanTable(int num_syms, u8 codelens[], ImageWriter &writer) {
 	static const int HUFF_SYMS = HuffmanDecoder::MAX_CODE_SIZE + 1;
-	static const int ZRLE_SYMS = 16;
 
 	CAT_DEBUG_ENFORCE(HUFF_SYMS == 17);
 	CAT_DEBUG_ENFORCE(num_syms >= 2);
@@ -548,7 +547,7 @@ int cat::writeCompressedHuffmanTable(int num_syms, u8 codelens[], ImageWriter &w
 	 */
 
 	int bitcount[4] = { 0 };
-	HuffmanTableEncoder<ZRLE_SYMS> encoders[4];
+	HuffmanTableEncoder encoders[4];
 
 	// 00 : No modifications
 

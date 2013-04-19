@@ -212,12 +212,10 @@ public:
 };
 
 
-template<int ZRLE_SYMS> class HuffmanTableEncoder {
+class HuffmanTableEncoder {
 public:
 	static const int NUM_SYMS = HuffmanDecoder::MAX_CODE_SIZE + 1;
-	static const int BZ_SYMS = NUM_SYMS + ZRLE_SYMS;
-	static const int BZ_ZERO_OFF = NUM_SYMS - 1;
-	static const int BZ_TAIL_SYM = BZ_SYMS - 1;
+	static const int BZ_SYMS = NUM_SYMS + 1;
 
 protected:
 	FreqHistogram<BZ_SYMS> _bz_hist;
@@ -227,7 +225,6 @@ protected:
 	int _zeroRun;
 	std::vector<int> _runList;
 	int _runListReadIndex;
-	int _runListReadIndexSim;
 
 	int simulateZeroRun(int run) {
 		if (run <= 0) {
@@ -236,34 +233,18 @@ protected:
 
 		int bits;
 
-		if (run < ZRLE_SYMS) {
-			bits = _bz.simulateWrite(BZ_ZERO_OFF + run);
+		if (run <= 1) {
+			bits = _bz.simulateWrite(0);
 		} else {
-			bits = _bz.simulateWrite(BZ_TAIL_SYM);
+			bits = _bz.simulateWrite(1);
 
-			run -= ZRLE_SYMS;
+			run -= 2;
 
-			// If multiple FF bytes will be emitted,
-			if (run >= 255 + 255) {
-
-				// Step it up to 16-bit words
-				run -= 255 + 255;
-				bits += 8 + 8;
-				while (run >= 65535) {
-					bits += 16;
-					run -= 65535;
-				}
-				bits += 16;
-			} else {
-				// Write out FF bytes
-				while (run >= 255) {
-					bits += 8;
-					run -= 255;
-				}
-
-				// Write out last byte
-				bits += 8;
+			while (run >= 7) {
+				run -= 7;
+				bits += 3;
 			}
+			bits += 3;
 		}
 
 		return bits;
@@ -276,42 +257,38 @@ protected:
 
 		int bits;
 
-		if (run < ZRLE_SYMS) {
-			bits = _bz.writeSymbol(BZ_ZERO_OFF + run, writer);
+		if (run <= 1) {
+			bits = _bz.writeSymbol(0, writer);
 		} else {
-			bits = _bz.writeSymbol(BZ_TAIL_SYM, writer);
+			bits = _bz.writeSymbol(1, writer);
 
-			run -= ZRLE_SYMS;
+			run -= 2;
 
-			// If multiple FF bytes will be emitted,
-			if (run >= 255 + 255) {
-				writer.writeBits(255, 8);
-				writer.writeBits(255, 8);
-
-				// Step it up to 16-bit words
-				run -= 255 + 255;
-				bits += 8 + 8;
-				while (run >= 65535) {
-					writer.writeBits(65535, 16);
-					bits += 16;
-					run -= 65535;
-				}
-				writer.writeBits(run, 16);
-			} else {
-				// Write out FF bytes
-				while (run >= 255) {
-					writer.writeBits(255, 8);
-					bits += 8;
-					run -= 255;
-				}
-
-				// Write out last byte
-				writer.writeBits(run, 8);
-				bits += 8;
+			while (run >= 7) {
+				writer.writeBits(7, 3);
+				run -= 7;
+				bits += 3;
 			}
+			writer.writeBits(run, 3);
+			bits += 3;
 		}
 
 		return bits;
+	}
+
+	void recordZeroRun() {
+		const int zeroRun = _zeroRun;
+
+		if (zeroRun > 0) {
+			if (zeroRun <= 1) {
+				_bz_hist.add(0);
+			} else {
+				_bz_hist.add(1);
+			}
+
+			_runList.push_back(zeroRun);
+			_zeroRun = 0;
+		}
 	}
 
 public:
@@ -328,38 +305,14 @@ public:
 		if (symbol == 0) {
 			++_zeroRun;
 		} else {
-			const int zeroRun = _zeroRun;
-
-			if (zeroRun > 0) {
-				if (zeroRun < ZRLE_SYMS) {
-					_bz_hist.add(BZ_ZERO_OFF + zeroRun);
-				} else {
-					_bz_hist.add(BZ_TAIL_SYM);
-				}
-
-				_runList.push_back(zeroRun);
-				_zeroRun = 0;
-			}
+			recordZeroRun();
 
 			_bz_hist.add(symbol);
 		}
 	}
 
 	void finalize() {
-		const int zeroRun = _zeroRun;
-
-		// If a zero run is in progress at the end,
-		if (zeroRun > 0) {
-			// Record it
-			_runList.push_back(zeroRun);
-
-			// Record symbols that will be emitted
-			if (zeroRun < ZRLE_SYMS) {
-				_bz_hist.add(BZ_ZERO_OFF + zeroRun);
-			} else {
-				_bz_hist.add(BZ_TAIL_SYM);
-			}
-		}
+		recordZeroRun();
 
 		// Initialize Huffman encoders with histograms
 		_bz.init(_bz_hist);
@@ -383,7 +336,7 @@ public:
 		CAT_DEBUG_ENFORCE(nonzeroes > 0);
 
 		// Determine if it is worth shaving
-		if (last_nzt <= 14) {
+		if (last_nzt <= 15) {
 			writer.writeBit(1);
 			writer.writeBits(last_nzt, 4);
 			bc += 4;
@@ -438,7 +391,7 @@ public:
 			++_zeroRun;
 		} else {
 			_zeroRun = 0;
-			bits += _bz.simulateWrite(symbol);
+			bits += _bz.simulateWrite(symbol + 1);
 		}
 
 		return bits;
@@ -464,7 +417,7 @@ public:
 			++_zeroRun;
 		} else {
 			_zeroRun = 0;
-			bits += _bz.writeSymbol(symbol, writer);
+			bits += _bz.writeSymbol(symbol + 1, writer);
 		}
 
 		return bits;
