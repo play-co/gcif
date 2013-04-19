@@ -42,8 +42,6 @@ protected:
 
 	void clear();
 
-	bool init(int num_syms, const u8 codelens[], u32 table_bits);
-
 public:
 	CAT_INLINE HuffmanDecoder() {
 		_cur_sorted_symbol_order_size = 0;
@@ -56,6 +54,7 @@ public:
 		clear();
 	}
 
+	bool init(int num_syms, const u8 codelens[], u32 table_bits);
 	bool init(int num_syms, ImageReader &reader, u32 table_bits);
 
 	u32 next(ImageReader &reader);

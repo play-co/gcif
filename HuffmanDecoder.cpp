@@ -394,7 +394,7 @@ bool HuffmanTableDecoder::init(ImageReader &reader) {
 
 	_zeroRun = 0;
 
-	return _decoder.init(NUM_SYMS, reader, 8);
+	return _decoder.init(NUM_SYMS, table_codelens, 8);
 }
 
 u8 HuffmanTableDecoder::next(ImageReader &reader) {
