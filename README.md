@@ -46,7 +46,7 @@ Specification
 
 Starting from the BCIF spec we decided to make some improvements.
 
-To optimize for low decompression time, we restricted ourself to considering
+To optimize for low decompression time, we restricted ourselves to considering
 only the fastest compression primitives: Filtering, LZ, and static Huffman.
 
 BCIF does filtering and static Huffman coding, but left out LZ, which we feel
