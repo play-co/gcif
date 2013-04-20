@@ -181,6 +181,9 @@ public:
 	CAT_INLINE void initCodes() {
 		if (!_one_sym) {
 			huffman::generate_codes(NUM_SYMS, _codelens, _codes);
+		} else {
+			CAT_OBJCLR(_codelens);
+			_codelens[_one_sym - 1] = 1;
 		}
 	}
 

@@ -53,7 +53,7 @@ int ImageCMReader::init(GCIFImage *image) {
 	_filters = new FilterSelection[_width >> FILTER_ZONE_SIZE_SHIFT];
 
 	// And last row of chaos data
-	_chaos_size = (_width + RECENT_SYMS_Y) * PLANES;
+	_chaos_size = (_width + 1) * PLANES;
 	_chaos = new u8[_chaos_size];
 
 	return RE_OK;
@@ -90,15 +90,19 @@ int ImageCMReader::readChaosTables(ImageReader &reader) {
 	// For each chaos level,
 	for (int jj = 0; jj < _chaos_levels; ++jj) {
 		// Read the decoder tables
+		CAT_WARN("Y") << jj;
 		if (!_y_decoder[jj].init(reader)) {
 			return RE_CM_CODES;
 		}
+		CAT_WARN("U") << jj;
 		if (!_u_decoder[jj].init(reader)) {
 			return RE_CM_CODES;
 		}
+		CAT_WARN("V") << jj;
 		if (!_v_decoder[jj].init(reader)) {
 			return RE_CM_CODES;
 		}
+		CAT_WARN("A") << jj;
 		if (!_a_decoder[jj].init(reader)) {
 			return RE_CM_CODES;
 		}
@@ -116,7 +120,7 @@ int ImageCMReader::readRGB(ImageReader &reader) {
 
 	// Start from upper-left of image
 	u8 *p = _rgba;
-	u8 *lastStart = _chaos + RECENT_SYMS_Y * PLANES;
+	u8 *lastStart = _chaos + PLANES;
 	CAT_CLR(_chaos, _chaos_size);
 
 	const u8 *CHAOS_TABLE = _chaos_table;
@@ -478,6 +482,9 @@ had_filter:;
 						last[1] = YUV[1] = U;
 						last[2] = YUV[2] = _v_decoder[CHAOS_TABLE[chaosScore(last[-2]) + chaosScore(last[2])]].next(reader);
 						if (y == 2) CAT_WARN("CHAOS") << x << " : " << (int)CHAOS_TABLE[chaosScore(last[-1]) + chaosScore(last[3])] << " from " << (int)last[-1] << " and " << (int)last[3] << " - " << (int)(last - lastStart);
+						if (y == 2 && x == 1) {
+							int x = 0;
+						}
 						last[3] = A = _a_decoder[CHAOS_TABLE[chaosScore(last[-1]) + chaosScore(last[3])]].next(reader);
 #if 0
 					}

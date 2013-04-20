@@ -75,8 +75,11 @@ bool HuffmanDecoder::init(int count, const u8 *codelens, u32 table_bits) {
 	if (total_used_syms <= 1) {
 		_one_sym = 1;
 
+		CAT_WARN("TEST") << "Total used symbols = " << total_used_syms;
+
 		for (u16 sym = 0; sym < count; ++sym) {
 			int len = codelens[sym];
+			CAT_WARN("TEST") << sym << " : " << len;
 			if (len > 0) {
 				_one_sym = sym + 1;
 				break;
@@ -204,6 +207,8 @@ bool HuffmanDecoder::init(int num_syms_orig, ImageReader &reader, u32 table_bits
 	CAT_DEBUG_ENFORCE(HUFF_SYMS == 17);
 	CAT_DEBUG_ENFORCE(num_syms_orig >= 2);
 
+	CAT_WARN("DEC") << "Decoding table with " << num_syms_orig;
+
 	// Shaved?
 	int num_syms = num_syms_orig;
 	if (reader.readBit()) {
@@ -222,8 +227,11 @@ bool HuffmanDecoder::init(int num_syms_orig, ImageReader &reader, u32 table_bits
 		num_syms = shaved;
 	}
 
+	CAT_WARN("DEC") << "Num syms now " << num_syms;
+
 	// If the symbol count is low,
 	if (num_syms <= TABLE_THRESH) {
+		CAT_WARN("DEC") << "Decoding short table directly";
 		for (int ii = 0; ii < num_syms; ++ii) {
 			u8 len = reader.readBits(4);
 

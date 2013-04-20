@@ -75,7 +75,7 @@ int ImageCMWriter::init(int width, int height) {
 	_matrix = new u16[_w * _h];
 
 	// And last row of chaos data
-	_chaos_size = (width + RECENT_SYMS_Y) * PLANES;
+	_chaos_size = (width + 1) * PLANES;
 	_chaos = new u8[_chaos_size];
 
 	return WE_OK;
@@ -296,7 +296,7 @@ void ImageCMWriter::chaosStats() {
 
 	// For each scanline,
 	const u8 *p = _rgba;
-	u8 *lastStart = _chaos + RECENT_SYMS_Y * PLANES;
+	u8 *lastStart = _chaos + PLANES;
 	CAT_CLR(_chaos, _chaos_size);
 
 	const u8 *CHAOS_TABLE = _chaos_table;
@@ -376,6 +376,7 @@ void ImageCMWriter::chaosStats() {
 					chaos = CHAOS_TABLE[chaosScore(last[2 - 4]) + chaosScore(last[2])];
 					_v_encoder[chaos].add(yuv[2]);
 					chaos = CHAOS_TABLE[chaosScore(last[3 - 4]) + chaosScore(last[3])];
+					if (y == 2 && x == 1) CAT_WARN("STATS") << x << "," << y << " : " << (int)chaos << " from " << (int)last[-1] << " and " << (int)last[3] << " writing " << (int)yuv[3];
 					_a_encoder[chaos].add(yuv[3]);
 				}
 
@@ -502,9 +503,13 @@ bool ImageCMWriter::writeChaos(ImageWriter &writer) {
 	int bits = 3;
 
 	for (int jj = 0; jj < _chaos_levels; ++jj) {
+		CAT_WARN("Y") << jj;
 		bits += _y_encoder[jj].writeTables(writer);
+		CAT_WARN("U") << jj;
 		bits += _u_encoder[jj].writeTables(writer);
+		CAT_WARN("V") << jj;
 		bits += _v_encoder[jj].writeTables(writer);
+		CAT_WARN("A") << jj;
 		bits += _a_encoder[jj].writeTables(writer);
 	}
 #ifdef CAT_COLLECT_STATS
@@ -515,7 +520,7 @@ bool ImageCMWriter::writeChaos(ImageWriter &writer) {
 
 	// For each scanline,
 	const u8 *p = _rgba;
-	u8 *lastStart = _chaos + RECENT_SYMS_Y * PLANES;
+	u8 *lastStart = _chaos + PLANES;
 	CAT_CLR(_chaos, _chaos_size);
 
 	const u8 *CHAOS_TABLE = _chaos_table;

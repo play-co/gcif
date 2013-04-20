@@ -36,10 +36,12 @@ public:
 	}
 
 	bool init(ImageReader &reader) {
+		//CAT_WARN("TEST") << "Decoding BZ table";
 		if (!_bz.init(BZ_SYMS, reader, HUFF_LUT_BITS)) {
 			return false;
 		}
 
+		//CAT_WARN("TEST") << "Decoding AZ table";
 		if (!_az.init(AZ_SYMS, reader, HUFF_LUT_BITS)) {
 			return false;
 		}
@@ -53,12 +55,14 @@ public:
 	u16 next(ImageReader &reader) {
 		// If in a zero run,
 		if (_zeroRun > 0) {
+			//CAT_WARN("ED") << "ZERO RUN " << _zeroRun;
 			--_zeroRun;
 			return 0;
 		}
 
 		// If after zero,
 		if (_afterZero) {
+			//CAT_WARN("ED") << "AFTER ZERO RUN";
 			_afterZero = false;
 			return _az.next(reader);
 		}
@@ -68,6 +72,7 @@ public:
 
 		// If not a zero run,
 		if (sym < NUM_SYMS) {
+			//CAT_WARN("ED") << "READING NONZERO " << sym;
 			return sym;
 		}
 
@@ -75,6 +80,7 @@ public:
 		if (sym < BZ_TAIL_SYM) {
 			// Decode zero run from symbol
 			_zeroRun = sym - NUM_SYMS;
+			//CAT_WARN("ED") << "ZERO RUN STARTED " << _zeroRun;
 		} else {
 			// Read riders
 			u32 run = ZRLE_SYMS - 1, s;
@@ -96,6 +102,7 @@ public:
 				}
 			}
 
+			//CAT_WARN("ED") << "LONGGGG ZERO RUN STARTED " << _zeroRun;
 			_zeroRun = run;
 		}
 

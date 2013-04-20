@@ -43,10 +43,12 @@ protected:
 	static const int COMPRESS_LEVEL = 1;
 	static const u16 UNUSED_FILTER = 0xffff;
 	static const int PLANES = 4;
+#if 0
 	static const int RECENT_SYMS_Y = ImageCMReader::RECENT_SYMS_Y; // >= U
 	static const int RECENT_SYMS_U = ImageCMReader::RECENT_SYMS_U;
 	static const int RECENT_AHEAD_Y = ImageCMReader::RECENT_AHEAD_Y;
 	static const int RECENT_AHEAD_U = ImageCMReader::RECENT_AHEAD_U;
+#endif
 	static const int ZRLE_SYMS_Y = ImageCMReader::ZRLE_SYMS_Y;
 	static const int ZRLE_SYMS_U = ImageCMReader::ZRLE_SYMS_U;
 	static const int ZRLE_SYMS_V = ImageCMReader::ZRLE_SYMS_V;
@@ -73,8 +75,8 @@ protected:
 	HuffmanEncoder<SF_COUNT> _sf_encoder;
 	HuffmanEncoder<CF_COUNT> _cf_encoder;
 
-	EntropyEncoder<256 + RECENT_SYMS_Y, ZRLE_SYMS_Y> _y_encoder[CHAOS_LEVELS_MAX];
-	EntropyEncoder<256 + RECENT_SYMS_U, ZRLE_SYMS_U> _u_encoder[CHAOS_LEVELS_MAX];
+	EntropyEncoder<256, ZRLE_SYMS_Y> _y_encoder[CHAOS_LEVELS_MAX];
+	EntropyEncoder<256, ZRLE_SYMS_U> _u_encoder[CHAOS_LEVELS_MAX];
 	EntropyEncoder<256, ZRLE_SYMS_V> _v_encoder[CHAOS_LEVELS_MAX];
 	EntropyEncoder<256, ZRLE_SYMS_A> _a_encoder[CHAOS_LEVELS_MAX];
 

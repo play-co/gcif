@@ -493,6 +493,8 @@ int cat::writeCompressedHuffmanTable(int num_syms, u8 codelens[], ImageWriter &w
 	CAT_DEBUG_ENFORCE(HUFF_SYMS == 17);
 	CAT_DEBUG_ENFORCE(num_syms >= 2);
 
+	CAT_WARN("ENC") << "Encoding table with " << num_syms;
+
 	int bc = 0;
 
 	// Find last non-zero symbol
@@ -505,9 +507,8 @@ int cat::writeCompressedHuffmanTable(int num_syms, u8 codelens[], ImageWriter &w
 	}
 
 	// Determine if it is worth shaving
-	int shaved = num_syms - last_non_zero - 1;
 	int num_syms_bits = BSR32(num_syms - 1) + 1;
-	if (shaved >= num_syms_bits) {
+	if (num_syms - last_non_zero - 1 > num_syms_bits / 4) {
 		writer.writeBit(1);
 		writer.writeBits(last_non_zero, num_syms_bits);
 		bc += num_syms_bits;
@@ -518,8 +519,11 @@ int cat::writeCompressedHuffmanTable(int num_syms, u8 codelens[], ImageWriter &w
 	}
 	bc++;
 
+	CAT_WARN("ENC") << "Now with " << num_syms;
+
 	// If the symbol count is low,
 	if (num_syms <= TABLE_THRESH) {
+		CAT_WARN("ENC") << "SHORT TABLE";
 		// Encode the symbols directly
 		for (int ii = 0; ii < num_syms; ++ii) {
 			u8 len = codelens[ii];

@@ -36,10 +36,12 @@ class ImageCMReader {
 public:
 	static const int CHAOS_LEVELS_MAX = 8;
 	static const int PLANES = 4;
+#if 0
 	static const int RECENT_SYMS_Y = 7;
 	static const int RECENT_SYMS_U = 7;
 	static const int RECENT_AHEAD_Y = 2;
 	static const int RECENT_AHEAD_U = 2;
+#endif
 	static const int ZRLE_SYMS_Y = 128;
 	static const int ZRLE_SYMS_U = 128;
 	static const int ZRLE_SYMS_V = 128;
@@ -65,8 +67,8 @@ protected:
 	ImageLZReader *_lz;
 
 	HuffmanDecoder _sf, _cf;
-	EntropyDecoder<256 + RECENT_SYMS_Y, ZRLE_SYMS_Y> _y_decoder[CHAOS_LEVELS_MAX];
-	EntropyDecoder<256 + RECENT_SYMS_U, ZRLE_SYMS_U> _u_decoder[CHAOS_LEVELS_MAX];
+	EntropyDecoder<256, ZRLE_SYMS_Y> _y_decoder[CHAOS_LEVELS_MAX];
+	EntropyDecoder<256, ZRLE_SYMS_U> _u_decoder[CHAOS_LEVELS_MAX];
 	EntropyDecoder<256, ZRLE_SYMS_V> _v_decoder[CHAOS_LEVELS_MAX];
 	EntropyDecoder<256, ZRLE_SYMS_A> _a_decoder[CHAOS_LEVELS_MAX];
 
