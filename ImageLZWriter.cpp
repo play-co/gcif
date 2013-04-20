@@ -324,6 +324,39 @@ int ImageLZWriter::match() {
 		}
 	}
 
+
+	u8 prev[4][256];
+	CAT_OBJCLR(prev);
+
+	u8 *p = (u8*)_rgba;
+	for (int y = 0; y < _height; ++y) {
+		u8 l[4] = {0};
+		for (int x = 0; x < _width; ++x) {
+			for (int c = 0; c < 4; ++c) {
+				u8 r = p[c];
+				u8 y = r;
+				u8 lr = l[c];
+				u8 x = prev[c][lr];
+
+				if (x == r) {
+					y = lr - 1;
+				} else if (r == 4) {
+					y = x;
+				} else if (r < lr && r > 4) {
+					y = r - 1;
+				}
+
+				prev[c][lr] = r;
+
+				l[c] = r;
+
+				p[c] = y;
+			}
+
+			p += 4;
+		}
+	}
+
 	return WE_OK;
 }
 
