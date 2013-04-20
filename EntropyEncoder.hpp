@@ -32,7 +32,6 @@ template<int NUM_SYMS, int ZRLE_SYMS> class EntropyEncoder {
 public:
 	static const int BZ_SYMS = NUM_SYMS + ZRLE_SYMS;
 	static const int AZ_SYMS = NUM_SYMS;
-	static const int BZ_ZERO_OFF = NUM_SYMS - 1;
 	static const int BZ_TAIL_SYM = BZ_SYMS - 1;
 
 protected:
@@ -54,7 +53,7 @@ protected:
 		int bits;
 
 		if (run < ZRLE_SYMS) {
-			bits = _bz.writeSymbol(BZ_ZERO_OFF + run, writer);
+			bits = _bz.writeSymbol(NUM_SYMS + run - 1, writer);
 		} else {
 			bits = _bz.writeSymbol(BZ_TAIL_SYM, writer);
 
@@ -77,7 +76,7 @@ protected:
 				bits += 16;
 			} else {
 				// Write out FF bytes
-				while (run >= 255) {
+				if (run >= 255) {
 					writer.writeBits(255, 8);
 					bits += 8;
 					run -= 255;
@@ -110,7 +109,7 @@ public:
 
 			if (zeroRun > 0) {
 				if (zeroRun < ZRLE_SYMS) {
-					_bz_hist.add(BZ_ZERO_OFF + zeroRun);
+					_bz_hist.add(NUM_SYMS + zeroRun - 1);
 				} else {
 					_bz_hist.add(BZ_TAIL_SYM);
 				}
@@ -135,7 +134,7 @@ public:
 
 			// Record symbols that will be emitted
 			if (zeroRun < ZRLE_SYMS) {
-				_bz_hist.add(BZ_ZERO_OFF + zeroRun);
+				_bz_hist.add(NUM_SYMS + zeroRun - 1);
 			} else {
 				_bz_hist.add(BZ_TAIL_SYM);
 			}

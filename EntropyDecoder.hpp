@@ -26,8 +26,7 @@ public:
 
 protected:
 	int _zeroRun;
-	HuffmanDecoder _bz;
-	HuffmanDecoder _az;
+	HuffmanDecoder _bz, _az;
 	bool _afterZero;
 
 public:

@@ -634,12 +634,12 @@ bool ImageCMWriter::writeChaos(ImageWriter &writer) {
 					bitcount[1] += bits;
 #endif
 					chaos = CHAOS_TABLE[chaosScore(last[2 - 4]) + chaosScore(last[2])];
-					if (y == 2) CAT_WARN("CHAOS") << x << " : " << (int)chaos << " from " << (int)last[2 - 4] << " and " << (int)last[2] << " - " << (int)(last - lastStart);
 					bits = _v_encoder[chaos].write(YUVA[2], writer);
 #ifdef CAT_COLLECT_STATS
 					bitcount[2] += bits;
 #endif
 					chaos = CHAOS_TABLE[chaosScore(last[3 - 4]) + chaosScore(last[3])];
+					if (y == 2) CAT_WARN("CHAOS") << x << " : " << (int)chaos << " from " << (int)last[3 - 4] << " and " << (int)last[3] << " - " << (int)(last - lastStart);
 					bits = _a_encoder[chaos].write(YUVA[3], writer);
 #ifdef CAT_COLLECT_STATS
 					bitcount[3] += bits;
@@ -657,6 +657,8 @@ bool ImageCMWriter::writeChaos(ImageWriter &writer) {
 					last[c] = 0;
 				}
 			}
+
+			writer.writeWord(7654321);
 
 			// Next pixel
 			last += PLANES;

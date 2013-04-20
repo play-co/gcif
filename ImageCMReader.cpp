@@ -237,6 +237,11 @@ y0_had_filter:;
 				}
 			}
 
+			if (reader.readWord() != 7654321) {
+				CAT_EXCEPTION();
+				return 1;
+			}
+
 			// Next pixel
 			last += PLANES;
 			p += 4;
@@ -354,7 +359,7 @@ x0_had_filter:;
 #endif
 						last[1] = YUV[1] = U;
 						last[2] = YUV[2] = _v_decoder[CHAOS_TABLE[chaosScore(last[2])]].next(reader);
-						if (y == 2) CAT_WARN("CHAOS") << x << " : " << (int)CHAOS_TABLE[chaosScore(last[2])];
+						if (y == 2) CAT_WARN("CHAOS") << x << " : " << (int)CHAOS_TABLE[chaosScore(last[3])];
 						last[3] = A = _a_decoder[CHAOS_TABLE[chaosScore(last[3])]].next(reader);
 #if 0
 					}
@@ -373,6 +378,11 @@ x0_had_filter:;
 				p[1] = RGB[1] + pred[1];
 				p[2] = RGB[2] + pred[2];
 				p[3] = 255 - A;
+			}
+
+			if (reader.readWord() != 7654321) {
+				CAT_EXCEPTION();
+				return 1;
 			}
 
 			// Next pixel
@@ -466,8 +476,8 @@ had_filter:;
 					} else {
 #endif
 						last[1] = YUV[1] = U;
-						if (y == 2) CAT_WARN("CHAOS") << x << " : " << (int)CHAOS_TABLE[chaosScore(last[-2]) + chaosScore(last[2])] << " from " << (int)last[-2] << " and " << (int)last[2] << " - " << (int)(last - lastStart);
 						last[2] = YUV[2] = _v_decoder[CHAOS_TABLE[chaosScore(last[-2]) + chaosScore(last[2])]].next(reader);
+						if (y == 2) CAT_WARN("CHAOS") << x << " : " << (int)CHAOS_TABLE[chaosScore(last[-1]) + chaosScore(last[3])] << " from " << (int)last[-1] << " and " << (int)last[3] << " - " << (int)(last - lastStart);
 						last[3] = A = _a_decoder[CHAOS_TABLE[chaosScore(last[-1]) + chaosScore(last[3])]].next(reader);
 #if 0
 					}
@@ -486,6 +496,11 @@ had_filter:;
 				p[1] = RGB[1] + pred[1];
 				p[2] = RGB[2] + pred[2];
 				p[3] = p[-1] - A;
+			}
+
+			if (reader.readWord() != 7654321) {
+				CAT_EXCEPTION();
+				return 1;
 			}
 
 			// Next pixel
@@ -549,7 +564,7 @@ had_filter:;
 #endif
 						last[1] = YUV[1] = U;
 						last[2] = YUV[2] = _v_decoder[CHAOS_TABLE[chaosScore(last[-2]) + chaosScore(last[2])]].next(reader);
-						if (y == 2) CAT_WARN("CHAOS") << x << " : " << (int)CHAOS_TABLE[chaosScore(last[-2]) + chaosScore(last[2])];
+						if (y == 2) CAT_WARN("CHAOS") << x << " : " << (int)CHAOS_TABLE[chaosScore(last[-1]) + chaosScore(last[3])] << " from " << (int)last[-1] << " and " << (int)last[3] << " - " << (int)(last - lastStart);
 						last[3] = A = _a_decoder[CHAOS_TABLE[chaosScore(last[-1]) + chaosScore(last[3])]].next(reader);
 #if 0
 					}
@@ -572,6 +587,11 @@ had_filter:;
 				p[1] = RGB[1] + pred[1];
 				p[2] = RGB[2] + pred[2];
 				p[3] = p[-1] - A;
+			}
+
+			if (reader.readWord() != 7654321) {
+				CAT_EXCEPTION();
+				return 1;
 			}
 
 			// Next pixel
