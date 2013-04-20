@@ -466,10 +466,12 @@ void ImageLZWriter::write(ImageWriter &writer) {
 bool ImageLZWriter::findExtent(int x, int y, int &w, int &h) {
 	for (int ii = 0; ii < _exact_matches.size(); ++ii) {
 		Match *m = &_exact_matches[ii];
+		const int mw = m->w + ZONEW;
+		const int mh = m->h + ZONEH;
 
-		if (m->dx <= x && m->dy <= y && m->dx + m->w > x && m->dy + m->h > y) {
-			w = m->w + m->dx - x;
-			h = m->h + m->dy - y;
+		if (m->dx <= x && m->dy <= y && m->dx + mw > x && m->dy + mh > y) {
+			w = mw + m->dx - x;
+			h = mh + m->dy - y;
 			return true;
 		}
 	}

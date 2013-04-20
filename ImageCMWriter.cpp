@@ -436,7 +436,7 @@ bool ImageCMWriter::writeFilters(ImageWriter &writer) {
 		for (int x = 0, width = _width; x < width; x += FILTER_ZONE_SIZE) {
 			// Encode SF and CF separately and combine consecutive filters
 			// together for the smallest representation
-			bool on = false;
+			bool on = true;
 
 			int w, h;
 			if (!_lz->findExtent(x, y, w, h) ||
@@ -444,7 +444,7 @@ bool ImageCMWriter::writeFilters(ImageWriter &writer) {
 				for (int ii = 0; ii < FILTER_ZONE_SIZE; ++ii) {
 					for (int jj = 0; jj < FILTER_ZONE_SIZE; ++jj) {
 						if (!_mask->hasRGB(x + ii, y + jj)) {
-							on = true;
+							on = false;
 							ii = FILTER_ZONE_SIZE;
 							break;
 						}
@@ -452,7 +452,7 @@ bool ImageCMWriter::writeFilters(ImageWriter &writer) {
 				}
 			}
 
-			if (on)
+			if (!on)
 			{
 				u16 filter = getFilter(x, y);
 				u8 cf = (u8)filter;
@@ -461,6 +461,7 @@ bool ImageCMWriter::writeFilters(ImageWriter &writer) {
 				sf_hist.add(sf);
 				cf_hist.add(cf);
 			} else {
+				if (y == 0) CAT_WARN("TEST") << x << "," << y;
 				setFilter(x, y, UNUSED_FILTER);
 
 				unused_count++;
@@ -522,6 +523,8 @@ bool ImageCMWriter::writeChaos(ImageWriter &writer) {
 	for (int y = 0; y < _height; ++y) {
 		u8 *last = lastStart;
 
+		writer.writeWord(1234567);
+
 		// For each pixel,
 		for (int x = 0; x < width; ++x) {
 			// If it is time to write out a filter,
@@ -530,7 +533,7 @@ bool ImageCMWriter::writeChaos(ImageWriter &writer) {
 
 				u16 filter = getFilter(x, y);
 
-				// If filter is unused,
+				// If filter is not unused,
 				if (filter != UNUSED_FILTER) {
 					u8 sf = filter >> 8;
 					u8 cf = (u8)filter;
@@ -541,6 +544,7 @@ bool ImageCMWriter::writeChaos(ImageWriter &writer) {
 					filter_table_bits[0] += sf_bits;
 					filter_table_bits[1] += cf_bits;
 #endif
+					if (y == 1) CAT_WARN("COMP") << x << " : FILTER " << (int)sf << "," << (int)cf;
 				}
 			}
 
@@ -552,6 +556,8 @@ bool ImageCMWriter::writeChaos(ImageWriter &writer) {
 				u8 cf = (u8)filter;
 				u8 sf = (u8)(filter >> 8);
 
+				if (y == 2) CAT_WARN("COMP") << x << " : ORIG " << (int)p[0] << "," << (int)p[1] << "," << (int)p[2] << "," << (int)p[3];
+
 				// Apply spatial filter
 				const u8 *pred = SPATIAL_FILTERS[sf](p, x, y, width);
 				u8 temp[3];
@@ -560,26 +566,26 @@ bool ImageCMWriter::writeChaos(ImageWriter &writer) {
 				}
 
 				// Apply color filter
-				u8 yuv[PLANES];
-				RGB2YUV_FILTERS[cf](temp, yuv);
+				u8 YUVA[PLANES];
+				RGB2YUV_FILTERS[cf](temp, YUVA);
 				if (x > 0) {
-					yuv[3] = p[-1] - p[3];
+					YUVA[3] = p[-1] - p[3];
 				} else {
-					yuv[3] = 255 - p[3];
+					YUVA[3] = 255 - p[3];
 				}
 
 				bool matched = false;
 				u8 chaos = CHAOS_TABLE[chaosScore(last[0 - 4]) + chaosScore(last[0])];
 #ifdef USE_RECENT_PALETTE
-				if (yuv[0] != 0) {
+				if (YUVA[0] != 0) {
 					for (int ii = 0; ii < RECENT_SYMS_Y; ++ii) {
 						const int offset = ii - RECENT_AHEAD_Y;
 
-						if (yuv[0] == last[0 - offset * 4] &&
-							yuv[1] == last[1 - offset * 4] &&
-							yuv[2] == last[2 - offset * 4] &&
-							yuv[3] == last[3 - offset * 4]) {
-							if ((yuv[0] != 0) + (yuv[1] != 0) + (yuv[2] != 0) + (yuv[3] != 0) < PALETTE_MIN) {
+						if (YUVA[0] == last[0 - offset * 4] &&
+							YUVA[1] == last[1 - offset * 4] &&
+							YUVA[2] == last[2 - offset * 4] &&
+							YUVA[3] == last[3 - offset * 4]) {
+							if ((YUVA[0] != 0) + (YUVA[1] != 0) + (YUVA[2] != 0) + (YUVA[3] != 0) < PALETTE_MIN) {
 								continue;
 							}
 							int bits = _y_encoder[chaos].write(256 + ii, writer);
@@ -591,14 +597,14 @@ bool ImageCMWriter::writeChaos(ImageWriter &writer) {
 						}
 					}
 #if 1
-				} else if (yuv[1] != 0) {
+				} else if (YUVA[1] != 0) {
 					for (int ii = 0; ii < RECENT_SYMS_U; ++ii) {
 						const int offset = ii - RECENT_AHEAD_U;
 
-						if (yuv[1] == last[1 - offset * 4] &&
-							yuv[2] == last[2 - offset * 4] &&
-							yuv[3] == last[3 - offset * 4]) {
-							if ((yuv[0] != 0) + (yuv[1] != 0) + (yuv[2] != 0) + (yuv[3] != 0) < PALETTE_MIN) {
+						if (YUVA[1] == last[1 - offset * 4] &&
+							YUVA[2] == last[2 - offset * 4] &&
+							YUVA[3] == last[3 - offset * 4]) {
+							if ((YUVA[0] != 0) + (YUVA[1] != 0) + (YUVA[2] != 0) + (YUVA[3] != 0) < PALETTE_MIN) {
 								continue;
 							}
 							int bits = _y_encoder[chaos].write(0, writer);
@@ -618,31 +624,35 @@ bool ImageCMWriter::writeChaos(ImageWriter &writer) {
 #endif
 
 				if (!matched) {
-					int bits = _y_encoder[chaos].write(yuv[0], writer);
+					int bits = _y_encoder[chaos].write(YUVA[0], writer);
 #ifdef CAT_COLLECT_STATS
 					bitcount[0] += bits;
 #endif
 					chaos = CHAOS_TABLE[chaosScore(last[1 - 4]) + chaosScore(last[1])];
-					bits = _u_encoder[chaos].write(yuv[1], writer);
+					bits = _u_encoder[chaos].write(YUVA[1], writer);
 #ifdef CAT_COLLECT_STATS
 					bitcount[1] += bits;
 #endif
 					chaos = CHAOS_TABLE[chaosScore(last[2 - 4]) + chaosScore(last[2])];
-					bits = _v_encoder[chaos].write(yuv[2], writer);
+					if (y == 2) CAT_WARN("CHAOS") << x << " : " << (int)chaos << " from " << (int)last[2 - 4] << " and " << (int)last[2] << " - " << (int)(last - lastStart);
+					bits = _v_encoder[chaos].write(YUVA[2], writer);
 #ifdef CAT_COLLECT_STATS
 					bitcount[2] += bits;
 #endif
 					chaos = CHAOS_TABLE[chaosScore(last[3 - 4]) + chaosScore(last[3])];
-					bits = _a_encoder[chaos].write(yuv[3], writer);
+					bits = _a_encoder[chaos].write(YUVA[3], writer);
 #ifdef CAT_COLLECT_STATS
 					bitcount[3] += bits;
 #endif
 				}
 
+				if (y == 2) CAT_WARN("COMP") << x << " : READ " << (int)YUVA[0] << "," << (int)YUVA[1] << "," << (int)YUVA[2] << "," << (int)YUVA[3];
+
 				for (int c = 0; c < PLANES; ++c) {
-					last[c] = yuv[c];
+					last[c] = YUVA[c];
 				}
 			} else {
+				if (y == 2) CAT_WARN("COMP") << x << " : LZ/ALPHA SKIP";
 				for (int c = 0; c < PLANES; ++c) {
 					last[c] = 0;
 				}

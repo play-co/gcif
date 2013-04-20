@@ -125,6 +125,8 @@ int ImageCMReader::readRGB(ImageReader &reader) {
 	{
 		const int y = 0;
 
+		CAT_WARN("CHECK") << reader.readWord();
+
 		// If LZ triggered,
 		if (y == trigger_y_lz) {
 			_lz->triggerY();
@@ -162,6 +164,8 @@ int ImageCMReader::readRGB(ImageReader &reader) {
 								filter->sfu = UNSAFE_SPATIAL_FILTERS[sfi];
 								u8 cfi = _cf.next(reader);
 								filter->cf = cf = YUV2RGB_FILTERS[cfi];
+
+								CAT_WARN("FILTER") << x << " : FILTER " << (int)sfi << "," << (int)cfi;
 								goto y0_had_filter;
 							}
 						}
@@ -217,7 +221,6 @@ y0_had_filter:;
 					}
 				}
 #endif
-
 				// Reverse color filter
 				u8 RGB[3];
 				cf(YUV, RGB);
@@ -243,6 +246,15 @@ y0_had_filter:;
 
 	// For each scanline,
 	for (int y = 1; y < _height; ++y) {
+		CAT_WARN("CHECK") << reader.readWord();
+
+		if (y < 3) {
+			CAT_WARN("Y") << y;
+			for (int ii = 0; ii < _width; ++ii) {
+				CAT_WARN("X") << ii << " = " << (int)lastStart[ii*4 + 2];
+			}
+		}
+
 		// If LZ triggered,
 		if (y == trigger_y_lz) {
 			_lz->triggerY();
@@ -302,6 +314,8 @@ x0_had_filter:;
 				for (int c = 0; c < PLANES; ++c) {
 					last[c] = 0;
 				}
+
+				if (y == 2) CAT_WARN("TEST") << x << " : LZ SKIP";
 			} else if (_mask->hasRGB(x, y)) {
 				// Fully-transparent pixel
 				u32 *zp = reinterpret_cast<u32 *>( p );
@@ -310,6 +324,8 @@ x0_had_filter:;
 				for (int c = 0; c < PLANES; ++c) {
 					last[c] = 0;
 				}
+
+				if (y == 2) CAT_WARN("TEST") << x << " : ALPHA SKIP";
 			} else {
 				// Read YUV filtered pixel
 				u8 YUV[3], A;
@@ -338,11 +354,14 @@ x0_had_filter:;
 #endif
 						last[1] = YUV[1] = U;
 						last[2] = YUV[2] = _v_decoder[CHAOS_TABLE[chaosScore(last[2])]].next(reader);
+						if (y == 2) CAT_WARN("CHAOS") << x << " : " << (int)CHAOS_TABLE[chaosScore(last[2])];
 						last[3] = A = _a_decoder[CHAOS_TABLE[chaosScore(last[3])]].next(reader);
 #if 0
 					}
 				}
 #endif
+
+				if (y == 2) CAT_WARN("TEST") << x << " : READ " << (int)YUV[0] << "," << (int)YUV[1] << "," << (int)YUV[2] << "," << (int)A;
 
 				// Reverse color filter
 				u8 RGB[3];
@@ -408,6 +427,8 @@ had_filter:;
 				for (int c = 0; c < PLANES; ++c) {
 					last[c] = 0;
 				}
+
+				if (y == 2) CAT_WARN("TEST") << x << " : LZ SKIP";
 			} else if (_mask->hasRGB(x, y)) {
 				// Fully-transparent pixel
 				u32 *zp = reinterpret_cast<u32 *>( p );
@@ -416,6 +437,8 @@ had_filter:;
 				for (int c = 0; c < PLANES; ++c) {
 					last[c] = 0;
 				}
+
+				if (y == 2) CAT_WARN("TEST") << x << " : ALPHA SKIP";
 			} else {
 				// Read YUV filtered pixel
 				u8 YUV[3], A;
@@ -443,12 +466,15 @@ had_filter:;
 					} else {
 #endif
 						last[1] = YUV[1] = U;
+						if (y == 2) CAT_WARN("CHAOS") << x << " : " << (int)CHAOS_TABLE[chaosScore(last[-2]) + chaosScore(last[2])] << " from " << (int)last[-2] << " and " << (int)last[2] << " - " << (int)(last - lastStart);
 						last[2] = YUV[2] = _v_decoder[CHAOS_TABLE[chaosScore(last[-2]) + chaosScore(last[2])]].next(reader);
 						last[3] = A = _a_decoder[CHAOS_TABLE[chaosScore(last[-1]) + chaosScore(last[3])]].next(reader);
 #if 0
 					}
 				}
 #endif
+
+				if (y == 2) CAT_WARN("TEST") << x << " : READ " << (int)YUV[0] << "," << (int)YUV[1] << "," << (int)YUV[2] << "," << (int)A;
 
 				// Reverse color filter
 				u8 RGB[3];
@@ -484,6 +510,8 @@ had_filter:;
 				for (int c = 0; c < PLANES; ++c) {
 					last[c] = 0;
 				}
+
+				if (y == 2) CAT_WARN("TEST") << x << " : LZ SKIP";
 			} else if (_mask->hasRGB(x, y)) {
 				// Fully-transparent pixel
 				u32 *zp = reinterpret_cast<u32 *>( p );
@@ -492,6 +520,8 @@ had_filter:;
 				for (int c = 0; c < PLANES; ++c) {
 					last[c] = 0;
 				}
+
+				if (y == 2) CAT_WARN("TEST") << x << " : ALPHA SKIP";
 			} else {
 				// Read YUV filtered pixel
 				u8 YUV[3], A;
@@ -519,11 +549,14 @@ had_filter:;
 #endif
 						last[1] = YUV[1] = U;
 						last[2] = YUV[2] = _v_decoder[CHAOS_TABLE[chaosScore(last[-2]) + chaosScore(last[2])]].next(reader);
+						if (y == 2) CAT_WARN("CHAOS") << x << " : " << (int)CHAOS_TABLE[chaosScore(last[-2]) + chaosScore(last[2])];
 						last[3] = A = _a_decoder[CHAOS_TABLE[chaosScore(last[-1]) + chaosScore(last[3])]].next(reader);
 #if 0
 					}
 				}
 #endif
+
+				if (y == 2) CAT_WARN("TEST") << x << " : READ " << (int)YUV[0] << "," << (int)YUV[1] << "," << (int)YUV[2] << "," << (int)A;
 
 				// Reverse color filter
 				u8 RGB[3];
