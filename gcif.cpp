@@ -101,13 +101,13 @@ static int benchfile(BenchStats &stats, string filename) {
 	}
 
 	double t2 = Clock::ref()->usec();
-/*
+
 	GCIFImage outimage;
 	if ((err = gcif_read(BENCHFILE, &outimage))) {
 		CAT_WARN("main") << "Error while decompressing the image: " << gcif_read_errstr(err) << " for " << filename;
 		return err;
 	}
-*/
+
 	double t3 = Clock::ref()->usec();
 
 #if 0

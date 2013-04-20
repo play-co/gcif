@@ -82,6 +82,8 @@ class ImageLZWriter {
 		u8 w, h; // 0 = ZONE, 1 = ZONE+1, ...
 	};
 
+	static bool matchSortCompare(const Match &i, const Match &j);
+
 	std::vector<Match> _exact_matches;
 
 	void clear();
@@ -90,6 +92,7 @@ class ImageLZWriter {
 	u32 score(int x, int y, int w, int h);
 	void add(int unused, u16 sx, u16 sy, u16 dx, u16 dy, u16 w, u16 h);
 	int match();
+	void sortMatches();
 
 #ifdef CAT_COLLECT_STATS
 public:

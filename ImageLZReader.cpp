@@ -238,11 +238,12 @@ int ImageLZReader::triggerX(u8 *p, int &lz_lines_left) {
 void ImageLZReader::triggerY() {
 	// Merge y trigger zone and its same-y friends into the work list in order
 	const u16 same_dy = _zone_trigger_y;
-	u16 ii = _zone_next_y, jj;
+	u16 ii = _zone_next_y, jj = ZONE_NULL, jnext;
 	Zone *zi = &_zones[ii], *zj = 0;
 
 	// Find insertion point for all same-y zones
-	for (jj = _zone_work_head; jj != ZONE_NULL; jj = zj->next) {
+	for (jnext = _zone_work_head; jnext != ZONE_NULL; jnext = zj->next) {
+		jj = jnext;
 		zj = &_zones[jj];
 
 		// If existing item is to the right of where we want to insert,
@@ -291,7 +292,7 @@ void ImageLZReader::triggerY() {
 		zi->prev = jj;
 
 		// If the list is not empty,
-		if (zj) {
+		if (jj != ZONE_NULL) {
 			// Insert at end of list
 			zj->next = ii;
 		} else {

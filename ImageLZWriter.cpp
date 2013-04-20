@@ -327,8 +327,16 @@ int ImageLZWriter::match() {
 	return WE_OK;
 }
 
+bool ImageLZWriter::matchSortCompare(const Match &i, const Match &j) {
+	return i.dy < j.dy || (i.dy == j.dy && i.dx < j.dx);
+}
+
+void ImageLZWriter::sortMatches() {
+	std::sort(_exact_matches.begin(), _exact_matches.end(), matchSortCompare);
+}
+
 void ImageLZWriter::write(ImageWriter &writer) {
-	int match_count = (int)_exact_matches.size();
+	const int match_count = (int)_exact_matches.size();
 
 #ifdef CAT_COLLECT_STATS
 	Stats.match_count = match_count;
