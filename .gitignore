@@ -1,2 +1,10 @@
 *.o
 output.png
+*.vcxproj.*
+Debug/*
+Release/*
+*.suo
+*.sdf
+*.opensdf
+ipch/*
+
