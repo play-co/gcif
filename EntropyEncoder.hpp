@@ -151,10 +151,7 @@ public:
 	}
 
 	int writeTables(ImageWriter &writer) {
-		CAT_WARN("TABLE") << "BZ";
 		int bitcount = _bz.writeTable(writer);
-
-		CAT_WARN("TABLE") << "AZ";
 		bitcount += _az.writeTable(writer);
 
 		return bitcount;

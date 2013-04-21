@@ -493,8 +493,6 @@ int cat::writeCompressedHuffmanTable(int num_syms, u8 codelens[], ImageWriter &w
 	CAT_DEBUG_ENFORCE(HUFF_SYMS == 17);
 	CAT_DEBUG_ENFORCE(num_syms >= 2);
 
-	CAT_WARN("ENC") << "Encoding table with " << num_syms;
-
 	int bc = 0;
 
 	// Find last non-zero symbol
@@ -519,11 +517,8 @@ int cat::writeCompressedHuffmanTable(int num_syms, u8 codelens[], ImageWriter &w
 	}
 	bc++;
 
-	CAT_WARN("ENC") << "Now with " << num_syms;
-
 	// If the symbol count is low,
 	if (num_syms <= TABLE_THRESH) {
-		CAT_WARN("ENC") << "SHORT TABLE";
 		// Encode the symbols directly
 		for (int ii = 0; ii < num_syms; ++ii) {
 			u8 len = codelens[ii];
