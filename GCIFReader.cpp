@@ -52,7 +52,8 @@ int gcif_read(const char *input_file_path, GCIFImage *image) {
 
 	// Verify hash
 	if (!reader.finalizeCheckHash()) {
-		return 0;
+		CAT_WARN("FAIL") << "Final image hash did not match.";
+		//return RE_BAD_HASH;
 	}
 
 	return 0;
@@ -87,6 +88,9 @@ const char *gcif_read_errstr(int err) {
 
 		case RE_CM_CODES:	// CM codelen read failed
 			return "CM codelen read failed";
+
+		case RE_BAD_HASH:	// Image hash does not match
+			return "Image hash does not match";
 
 		default:
 			break;

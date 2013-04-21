@@ -110,13 +110,12 @@ static int benchfile(BenchStats &stats, string filename) {
 
 	double t3 = Clock::ref()->usec();
 
-#if 0
 	for (u32 ii = 0; ii < width * height * 4; ++ii) {
 		if (outimage.rgba[ii] != image[ii]) {
-			CAT_WARN("main") << "Output image does not match input image: " << gcif_read_errstr(err) << " for " << filename;
+			CAT_WARN("main") << "Output image does not match input image for " << filename;
+			break;
 		}
 	}
-#endif
 
 	struct stat png, gci;
 	stat(filename.c_str(), &png);
