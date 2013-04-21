@@ -145,8 +145,6 @@ int ImageLZReader::readZones(ImageReader &reader) {
 		z->dx = dx;
 		z->dy = dy;
 
-		CAT_WARN("ZONE READ") << z->dx << "," << z->dy;
-
 		// Input security checks
 		if (sy > dy || (sy == dy && sx >= dx)) {
 			return RE_LZ_BAD;
