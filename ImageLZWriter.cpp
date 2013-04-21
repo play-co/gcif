@@ -6,6 +6,8 @@
 #include "GCIFWriter.hpp"
 using namespace cat;
 
+#include <algorithm> // std::sort
+
 
 //// ImageLZWriter
 
@@ -464,7 +466,7 @@ void ImageLZWriter::write(ImageWriter &writer) {
 }
 
 bool ImageLZWriter::findExtent(int x, int y, int &w, int &h) {
-	for (int ii = 0; ii < _exact_matches.size(); ++ii) {
+	for (int ii = 0, iiend = _exact_matches.size(); ii < iiend; ++ii) {
 		Match *m = &_exact_matches[ii];
 		const int mw = m->w + ZONEW;
 		const int mh = m->h + ZONEH;

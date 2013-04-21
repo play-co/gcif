@@ -27,7 +27,7 @@ protected:
 	u8 *_lz;
 	u8 *_rle;
 
-	bool decodeRLE(u8 *rle, int len);
+	int decodeRLE(u8 *rle, int len);
 	int decodeLZ(ImageReader &reader);
 	void clear();
 

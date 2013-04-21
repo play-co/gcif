@@ -43,7 +43,7 @@ protected:
 	static const int COMPRESS_LEVEL = 1;
 	static const u16 UNUSED_FILTER = 0xffff;
 	static const u16 TODO_FILTER = 0;
-	static const int PLANES = 4;
+	static const int COLOR_PLANES = ImageCMReader::COLOR_PLANES;
 #if 0
 	static const int RECENT_SYMS_Y = ImageCMReader::RECENT_SYMS_Y; // >= U
 	static const int RECENT_SYMS_U = ImageCMReader::RECENT_SYMS_U;
@@ -100,7 +100,7 @@ public:
 		int chaos_overhead_bits;
 
 		// RGB data
-		int rgb_bits[PLANES];
+		int rgb_bits[COLOR_PLANES];
 
 		int chaos_bits;
 		int total_bits;

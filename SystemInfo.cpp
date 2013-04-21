@@ -34,6 +34,7 @@ using namespace cat;
 
 #if defined(CAT_OS_WINDOWS)
 # include "BitMath.hpp"
+# include "WindowsInclude.hpp"
 # include <WinIoCtl.h>
 	typedef BOOL (WINAPI* PGetLogicalProcessorInformation)(PSYSTEM_LOGICAL_PROCESSOR_INFORMATION, PDWORD);
 #elif defined(CAT_OS_LINUX) || defined(CAT_OS_AIX) || defined(CAT_OS_SOLARIS) || defined(CAT_OS_IRIX)

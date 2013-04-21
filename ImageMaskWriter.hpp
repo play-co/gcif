@@ -76,7 +76,7 @@ public:
 		const int maskX = x;
 		const int maskY = y;
 		const u32 word = _mask[(maskX >> 5) + maskY * _stride];
-		return (word << (maskX & 31)) >> 31;
+		return ((word << (maskX & 31)) >> 31) != 0;
 	}
 
 #ifdef CAT_COLLECT_STATS

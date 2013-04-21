@@ -763,13 +763,6 @@ private: \
 } // namespace cat
 
 
-//// Windows Headers ////
-
-#if defined(CAT_OS_WINDOWS)
-#include <cat/port/WindowsInclude.hpp>
-#endif
-
-
 //// Memory Leaks ////
 
 #define CAT_DEBUG_MEM_FLAGS()

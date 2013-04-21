@@ -41,7 +41,7 @@ void ImageMaskReader::clear() {
 	}
 }
 
-bool ImageMaskReader::decodeRLE(u8 *rle, int len) {
+int ImageMaskReader::decodeRLE(u8 *rle, int len) {
 	if CAT_UNLIKELY(len <= 0) {
 		return RE_MASK_LZ;
 	}

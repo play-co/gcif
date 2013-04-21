@@ -75,7 +75,7 @@ int ImageCMWriter::init(int width, int height) {
 	_matrix = new u16[_w * _h];
 
 	// And last row of chaos data
-	_chaos_size = (width + 1) * PLANES;
+	_chaos_size = (width + 1) * COLOR_PLANES;
 	_chaos = new u8[_chaos_size];
 
 	return WE_OK;
@@ -360,7 +360,7 @@ void ImageCMWriter::chaosStats() {
 
 	// For each scanline,
 	const u8 *p = _rgba;
-	u8 *lastStart = _chaos + PLANES;
+	u8 *lastStart = _chaos + COLOR_PLANES;
 	CAT_CLR(_chaos, _chaos_size);
 
 	const u8 *CHAOS_TABLE = _chaos_table;
@@ -385,7 +385,7 @@ void ImageCMWriter::chaosStats() {
 				}
 
 				// Apply color filter
-				u8 yuv[PLANES];
+				u8 yuv[COLOR_PLANES];
 				RGB2YUV_FILTERS[cf](temp, yuv);
 				if (x > 0) {
 					yuv[3] = p[-1] - p[3];
@@ -443,17 +443,17 @@ void ImageCMWriter::chaosStats() {
 					_a_encoder[chaos].add(yuv[3]);
 				}
 
-				for (int c = 0; c < PLANES; ++c) {
+				for (int c = 0; c < COLOR_PLANES; ++c) {
 					last[c] = yuv[c];
 				}
 			} else {
-				for (int c = 0; c < PLANES; ++c) {
+				for (int c = 0; c < COLOR_PLANES; ++c) {
 					last[c] = 0;
 				}
 			}
 
 			// Next pixel
-			last += PLANES;
+			last += COLOR_PLANES;
 			p += 4;
 		}
 	}
@@ -511,7 +511,7 @@ bool ImageCMWriter::writeFilters(ImageWriter &writer) {
 bool ImageCMWriter::writeChaos(ImageWriter &writer) {
 #ifdef CAT_COLLECT_STATS
 	int overhead_bits = 0;
-	int bitcount[PLANES] = {0};
+	int bitcount[COLOR_PLANES] = {0};
 	int filter_table_bits[2] = {0};
 #endif
 
@@ -535,7 +535,7 @@ bool ImageCMWriter::writeChaos(ImageWriter &writer) {
 
 	// For each scanline,
 	const u8 *p = _rgba;
-	u8 *lastStart = _chaos + PLANES;
+	u8 *lastStart = _chaos + COLOR_PLANES;
 	CAT_CLR(_chaos, _chaos_size);
 
 	const u8 *CHAOS_TABLE = _chaos_table;
@@ -582,7 +582,7 @@ bool ImageCMWriter::writeChaos(ImageWriter &writer) {
 				}
 
 				// Apply color filter
-				u8 YUVA[PLANES];
+				u8 YUVA[COLOR_PLANES];
 				RGB2YUV_FILTERS[cf](temp, YUVA);
 				if (x > 0) {
 					YUVA[3] = p[-1] - p[3];
@@ -661,23 +661,23 @@ bool ImageCMWriter::writeChaos(ImageWriter &writer) {
 #endif
 				}
 
-				for (int c = 0; c < PLANES; ++c) {
+				for (int c = 0; c < COLOR_PLANES; ++c) {
 					last[c] = YUVA[c];
 				}
 			} else {
-				for (int c = 0; c < PLANES; ++c) {
+				for (int c = 0; c < COLOR_PLANES; ++c) {
 					last[c] = 0;
 				}
 			}
 
 			// Next pixel
-			last += PLANES;
+			last += COLOR_PLANES;
 			p += 4;
 		}
 	}
 
 #ifdef CAT_COLLECT_STATS
-	for (int ii = 0; ii < PLANES; ++ii) {
+	for (int ii = 0; ii < COLOR_PLANES; ++ii) {
 		Stats.rgb_bits[ii] = bitcount[ii];
 	}
 	Stats.chaos_overhead_bits = overhead_bits;
@@ -699,7 +699,7 @@ void ImageCMWriter::write(ImageWriter &writer) {
 		total += Stats.filter_table_bits[ii];
 		total += Stats.filter_compressed_bits[ii];
 	}
-	for (int ii = 0; ii < PLANES; ++ii) {
+	for (int ii = 0; ii < COLOR_PLANES; ++ii) {
 		total += Stats.rgb_bits[ii];
 	}
 	total += Stats.chaos_overhead_bits;
@@ -710,7 +710,7 @@ void ImageCMWriter::write(ImageWriter &writer) {
 
 	Stats.overall_compression_ratio = _width * _height * 4 * 8 / (double)Stats.total_bits;
 
-	Stats.chaos_compression_ratio = Stats.chaos_count * PLANES * 8 / (double)Stats.chaos_bits;
+	Stats.chaos_compression_ratio = Stats.chaos_count * COLOR_PLANES * 8 / (double)Stats.chaos_bits;
 #endif
 }
 

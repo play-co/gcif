@@ -135,7 +135,11 @@ static int benchfile(BenchStats &stats, string filename) {
 	return 0;
 }
 
+#ifdef CAT_COMPILER_MSVC
+#include "msvc/dirent.h"
+#else
 #include <dirent.h>
+#endif
 
 static int benchmark(const char *path) {
 	DIR *dir;

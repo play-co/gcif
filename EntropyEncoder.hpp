@@ -166,7 +166,7 @@ public:
 		if (symbol == 0) {
 			// If starting a zero run,
 			if (_zeroRun == 0) {
-				CAT_DEBUG_ENFORCE(_runListReadIndex < _runList.size());
+				CAT_DEBUG_ENFORCE(_runListReadIndex < (int)_runList.size());
 
 				// Write stored zero run
 				int runLength = _runList[_runListReadIndex++];

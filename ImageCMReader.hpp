@@ -35,7 +35,7 @@ namespace cat {
 class ImageCMReader {
 public:
 	static const int CHAOS_LEVELS_MAX = 8;
-	static const int PLANES = 4;
+	static const int COLOR_PLANES = 4;
 #if 0
 	static const int RECENT_SYMS_Y = 7;
 	static const int RECENT_SYMS_U = 7;

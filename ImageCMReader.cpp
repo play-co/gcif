@@ -53,7 +53,7 @@ int ImageCMReader::init(GCIFImage *image) {
 	_filters = new FilterSelection[_width >> FILTER_ZONE_SIZE_SHIFT];
 
 	// And last row of chaos data
-	_chaos_size = (_width + 1) * PLANES;
+	_chaos_size = (_width + 1) * COLOR_PLANES;
 	_chaos = new u8[_chaos_size];
 
 	return RE_OK;
@@ -116,7 +116,7 @@ int ImageCMReader::readRGB(ImageReader &reader) {
 
 	// Start from upper-left of image
 	u8 *p = _rgba;
-	u8 *lastStart = _chaos + PLANES;
+	u8 *lastStart = _chaos + COLOR_PLANES;
 	CAT_CLR(_chaos, _chaos_size);
 
 	const u8 *CHAOS_TABLE = _chaos_table;
@@ -174,7 +174,7 @@ y0_had_filter:;
 			if (lz_skip > 0) {
 				--lz_skip;
 
-				for (int c = 0; c < PLANES; ++c) {
+				for (int c = 0; c < COLOR_PLANES; ++c) {
 					last[c] = 0;
 				}
 			} else if (_mask->hasRGB(x, y)) {
@@ -182,7 +182,7 @@ y0_had_filter:;
 				u32 *zp = reinterpret_cast<u32 *>( p );
 				*zp = 0;
 
-				for (int c = 0; c < PLANES; ++c) {
+				for (int c = 0; c < COLOR_PLANES; ++c) {
 					last[c] = 0;
 				}
 			} else {
@@ -235,7 +235,7 @@ y0_had_filter:;
 			}
 
 			// Next pixel
-			last += PLANES;
+			last += COLOR_PLANES;
 			p += 4;
 		}
 	}
@@ -299,7 +299,7 @@ x0_had_filter:;
 			if (lz_skip > 0) {
 				--lz_skip;
 
-				for (int c = 0; c < PLANES; ++c) {
+				for (int c = 0; c < COLOR_PLANES; ++c) {
 					last[c] = 0;
 				}
 			} else if (_mask->hasRGB(x, y)) {
@@ -307,7 +307,7 @@ x0_had_filter:;
 				u32 *zp = reinterpret_cast<u32 *>( p );
 				*zp = 0;
 
-				for (int c = 0; c < PLANES; ++c) {
+				for (int c = 0; c < COLOR_PLANES; ++c) {
 					last[c] = 0;
 				}
 			} else {
@@ -357,7 +357,7 @@ x0_had_filter:;
 			}
 
 			// Next pixel
-			last += PLANES;
+			last += COLOR_PLANES;
 			p += 4;
 		}
 
@@ -405,7 +405,7 @@ had_filter:;
 			if (lz_skip > 0) {
 				--lz_skip;
 
-				for (int c = 0; c < PLANES; ++c) {
+				for (int c = 0; c < COLOR_PLANES; ++c) {
 					last[c] = 0;
 				}
 			} else if (_mask->hasRGB(x, y)) {
@@ -413,7 +413,7 @@ had_filter:;
 				u32 *zp = reinterpret_cast<u32 *>( p );
 				*zp = 0;
 
-				for (int c = 0; c < PLANES; ++c) {
+				for (int c = 0; c < COLOR_PLANES; ++c) {
 					last[c] = 0;
 				}
 			} else {
@@ -463,7 +463,7 @@ had_filter:;
 			}
 
 			// Next pixel
-			last += PLANES;
+			last += COLOR_PLANES;
 			p += 4;
 		}
 
@@ -481,7 +481,7 @@ had_filter:;
 			if (lz_skip > 0) {
 				--lz_skip;
 
-				for (int c = 0; c < PLANES; ++c) {
+				for (int c = 0; c < COLOR_PLANES; ++c) {
 					last[c] = 0;
 				}
 			} else if (_mask->hasRGB(x, y)) {
@@ -489,7 +489,7 @@ had_filter:;
 				u32 *zp = reinterpret_cast<u32 *>( p );
 				*zp = 0;
 
-				for (int c = 0; c < PLANES; ++c) {
+				for (int c = 0; c < COLOR_PLANES; ++c) {
 					last[c] = 0;
 				}
 			} else {
@@ -542,7 +542,7 @@ had_filter:;
 			}
 
 			// Next pixel
-			last += PLANES;
+			last += COLOR_PLANES;
 			p += 4;
 		}
 	}

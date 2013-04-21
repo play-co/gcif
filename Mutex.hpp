@@ -33,6 +33,8 @@
 
 #if !defined(CAT_OS_WINDOWS)
 # include <pthread.h>
+#else
+# include "WindowsInclude.hpp"
 #endif
 
 namespace cat {
