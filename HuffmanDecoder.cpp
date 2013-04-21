@@ -96,7 +96,7 @@ bool HuffmanDecoder::init(int count, const u8 *codelens, u32 table_bits) {
 		_cur_sorted_symbol_order_size = total_used_syms;
 
 		if (!CAT_IS_POWER_OF_2(total_used_syms)) {
-			u32 nextPOT = NextHighestPow2(total_used_syms);
+			int nextPOT = NextHighestPow2(total_used_syms);
 
 			_cur_sorted_symbol_order_size = count < nextPOT ? count : nextPOT;
 		}

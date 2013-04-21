@@ -320,7 +320,7 @@ CAT_INLINE bool BTS32(u32 *x, u32 bit)
 {
 #if defined(CAT_COMPILER_MSVC) && !defined(CAT_DEBUG)
 
-	return !!_bittestandset((LONG*)x, bit);
+	return !!_bittestandset((long *)x, bit);
 
 #elif defined(CAT_ASM_INTEL) && defined(CAT_WORD_32) && defined(CAT_ISA_X86)
 
@@ -363,7 +363,7 @@ CAT_INLINE bool BTS64(u64 *x, u32 bit)
 {
 #if defined(CAT_COMPILER_MSVC) && defined(CAT_WORD_64) && !defined(CAT_DEBUG)
 
-	return !!_bittestandset64((LONG64*)x, bit);
+	return !!_bittestandset64((long long *)x, bit);
 
 #elif defined(CAT_ASM_ATT) && defined(CAT_WORD_64) && defined(CAT_ISA_X86)
 

@@ -211,9 +211,9 @@ y0_had_filter:;
 						last[3] = A = src[3];
 					} else {
 #endif
-						last[1] = YUV[1] = U;
-						last[2] = YUV[2] = _v_decoder[CHAOS_TABLE[chaosScore(last[-2])]].next(reader);
-						last[3] = A = _a_decoder[CHAOS_TABLE[chaosScore(last[-1])]].next(reader);
+						last[1] = YUV[1] = (u8)U;
+						last[2] = YUV[2] = (u8)_v_decoder[CHAOS_TABLE[chaosScore(last[-2])]].next(reader);
+						last[3] = A = (u8)_a_decoder[CHAOS_TABLE[chaosScore(last[-1])]].next(reader);
 #if 0
 					}
 				}
@@ -326,7 +326,7 @@ x0_had_filter:;
 					last[3] = A = src[3];
 				} else {
 #endif
-					last[0] = YUV[0] = Y;
+					last[0] = YUV[0] = (u8)Y;
 					u32 U = _u_decoder[CHAOS_TABLE[chaosScore(last[1])]].next(reader);
 #if 0
 					if (U >= 256) {
@@ -336,9 +336,9 @@ x0_had_filter:;
 						last[3] = A = src[3];
 					} else {
 #endif
-						last[1] = YUV[1] = U;
-						last[2] = YUV[2] = _v_decoder[CHAOS_TABLE[chaosScore(last[2])]].next(reader);
-						last[3] = A = _a_decoder[CHAOS_TABLE[chaosScore(last[3])]].next(reader);
+						last[1] = YUV[1] = (u8)U;
+						last[2] = YUV[2] = (u8)_v_decoder[CHAOS_TABLE[chaosScore(last[2])]].next(reader);
+						last[3] = A = (u8)_a_decoder[CHAOS_TABLE[chaosScore(last[3])]].next(reader);
 #if 0
 					}
 				}
@@ -432,7 +432,7 @@ had_filter:;
 					last[3] = A = src[3];
 				} else {
 #endif
-					last[0] = YUV[0] = Y;
+					last[0] = YUV[0] = (u8)Y;
 					u32 U = _u_decoder[CHAOS_TABLE[chaosScore(last[-3]) + chaosScore(last[1])]].next(reader);
 #if 0
 					if (U >= 256) {
@@ -442,9 +442,9 @@ had_filter:;
 						last[3] = A = src[3];
 					} else {
 #endif
-						last[1] = YUV[1] = U;
-						last[2] = YUV[2] = _v_decoder[CHAOS_TABLE[chaosScore(last[-2]) + chaosScore(last[2])]].next(reader);
-						last[3] = A = _a_decoder[CHAOS_TABLE[chaosScore(last[-1]) + chaosScore(last[3])]].next(reader);
+						last[1] = YUV[1] = (u8)U;
+						last[2] = YUV[2] = (u8)_v_decoder[CHAOS_TABLE[chaosScore(last[-2]) + chaosScore(last[2])]].next(reader);
+						last[3] = A = (u8)_a_decoder[CHAOS_TABLE[chaosScore(last[-1]) + chaosScore(last[3])]].next(reader);
 #if 0
 					}
 				}
@@ -507,7 +507,7 @@ had_filter:;
 					last[3] = A = src[3];
 				} else {
 #endif
-					last[0] = YUV[0] = Y;
+					last[0] = YUV[0] = (u8)Y;
 					u32 U = _u_decoder[CHAOS_TABLE[chaosScore(last[-3]) + chaosScore(last[1])]].next(reader);
 #if 0
 					if (U >= 256) {
@@ -517,9 +517,9 @@ had_filter:;
 						last[3] = A = src[3];
 					} else {
 #endif
-						last[1] = YUV[1] = U;
-						last[2] = YUV[2] = _v_decoder[CHAOS_TABLE[chaosScore(last[-2]) + chaosScore(last[2])]].next(reader);
-						last[3] = A = _a_decoder[CHAOS_TABLE[chaosScore(last[-1]) + chaosScore(last[3])]].next(reader);
+						last[1] = YUV[1] = (u8)U;
+						last[2] = YUV[2] = (u8)_v_decoder[CHAOS_TABLE[chaosScore(last[-2]) + chaosScore(last[2])]].next(reader);
+						last[3] = A = (u8)_a_decoder[CHAOS_TABLE[chaosScore(last[-1]) + chaosScore(last[3])]].next(reader);
 #if 0
 					}
 				}

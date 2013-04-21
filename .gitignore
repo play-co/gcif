@@ -3,6 +3,7 @@ output.png
 *.vcxproj.*
 Debug/*
 Release/*
+x64/*
 *.suo
 *.sdf
 *.opensdf

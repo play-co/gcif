@@ -92,13 +92,13 @@ int ImageLZReader::readZones(ImageReader &reader) {
 				return RE_LZ_BAD;
 			}
 
-			if ((u32)sx + (u32)z->w > _width ||
-					(u32)sy + (u32)z->h > _height) {
+			if ((u32)sx + (u32)z->w > (u32)_width ||
+					(u32)sy + (u32)z->h > (u32)_height) {
 				return RE_LZ_BAD;
 			}
 
-			if ((u32)z->dx + (u32)z->w > _width ||
-					(u32)z->dy + (u32)z->h > _height) {
+			if ((u32)z->dx + (u32)z->w > (u32)_width ||
+					(u32)z->dy + (u32)z->h > (u32)_height) {
 				return RE_LZ_BAD;
 			}
 		}
@@ -150,13 +150,13 @@ int ImageLZReader::readZones(ImageReader &reader) {
 			return RE_LZ_BAD;
 		}
 
-		if ((u32)sx + (u32)z->w > _width ||
-			(u32)sy + (u32)z->h > _height) {
+		if ((u32)sx + (u32)z->w > (u32)_width ||
+			(u32)sy + (u32)z->h > (u32)_height) {
 			return RE_LZ_BAD;
 		}
 
-		if ((u32)z->dx + (u32)z->w > _width ||
-			(u32)z->dy + (u32)z->h > _height) {
+		if ((u32)z->dx + (u32)z->w > (u32)_width ||
+			(u32)z->dy + (u32)z->h > (u32)_height) {
 			return RE_LZ_BAD;
 		}
 
