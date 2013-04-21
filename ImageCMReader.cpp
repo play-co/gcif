@@ -234,11 +234,6 @@ y0_had_filter:;
 				}
 			}
 
-			if (reader.readWord() != 7654321) {
-				CAT_EXCEPTION();
-				return 1;
-			}
-
 			// Next pixel
 			last += PLANES;
 			p += 4;
@@ -361,11 +356,6 @@ x0_had_filter:;
 				p[3] = 255 - A;
 			}
 
-			if (reader.readWord() != 7654321) {
-				CAT_EXCEPTION();
-				return 1;
-			}
-
 			// Next pixel
 			last += PLANES;
 			p += 4;
@@ -472,11 +462,6 @@ had_filter:;
 				p[3] = p[-1] - A;
 			}
 
-			if (reader.readWord() != 7654321) {
-				CAT_EXCEPTION();
-				return 1;
-			}
-
 			// Next pixel
 			last += PLANES;
 			p += 4;
@@ -554,11 +539,6 @@ had_filter:;
 				p[1] = RGB[1] + pred[1];
 				p[2] = RGB[2] + pred[2];
 				p[3] = p[-1] - A;
-			}
-
-			if (reader.readWord() != 7654321) {
-				CAT_EXCEPTION();
-				return 1;
 			}
 
 			// Next pixel

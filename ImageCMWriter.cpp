@@ -543,8 +543,6 @@ bool ImageCMWriter::writeChaos(ImageWriter &writer) {
 	for (int y = 0; y < _height; ++y) {
 		u8 *last = lastStart;
 
-		writer.writeWord(1234567);
-
 		// For each pixel,
 		for (int x = 0; x < width; ++x) {
 			// If it is time to write out a filter,
@@ -671,8 +669,6 @@ bool ImageCMWriter::writeChaos(ImageWriter &writer) {
 					last[c] = 0;
 				}
 			}
-
-			writer.writeWord(7654321);
 
 			// Next pixel
 			last += PLANES;
