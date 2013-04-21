@@ -90,19 +90,15 @@ int ImageCMReader::readChaosTables(ImageReader &reader) {
 	// For each chaos level,
 	for (int jj = 0; jj < _chaos_levels; ++jj) {
 		// Read the decoder tables
-		CAT_WARN("Y") << jj;
 		if (!_y_decoder[jj].init(reader)) {
 			return RE_CM_CODES;
 		}
-		CAT_WARN("U") << jj;
 		if (!_u_decoder[jj].init(reader)) {
 			return RE_CM_CODES;
 		}
-		CAT_WARN("V") << jj;
 		if (!_v_decoder[jj].init(reader)) {
 			return RE_CM_CODES;
 		}
-		CAT_WARN("A") << jj;
 		if (!_a_decoder[jj].init(reader)) {
 			return RE_CM_CODES;
 		}
@@ -128,8 +124,6 @@ int ImageCMReader::readRGB(ImageReader &reader) {
 	// Unroll y = 0 scanline
 	{
 		const int y = 0;
-
-		CAT_WARN("CHECK") << reader.readWord();
 
 		// If LZ triggered,
 		if (y == trigger_y_lz) {
@@ -254,8 +248,6 @@ y0_had_filter:;
 
 	// For each scanline,
 	for (int y = 1; y < _height; ++y) {
-		CAT_WARN("CHECK") << reader.readWord();
-
 		// If LZ triggered,
 		if (y == trigger_y_lz) {
 			_lz->triggerY();
@@ -297,7 +289,6 @@ y0_had_filter:;
 								filter->sfu = UNSAFE_SPATIAL_FILTERS[sfi];
 								u8 cfi = _cf.next(reader);
 								filter->cf = cf = YUV2RGB_FILTERS[cfi];
-								if (y == 60) CAT_WARN("FILTER") << x << " : FILTER " << (int)sfi << "," << (int)cfi;
 								goto x0_had_filter;
 							}
 						}
@@ -316,8 +307,6 @@ x0_had_filter:;
 				for (int c = 0; c < PLANES; ++c) {
 					last[c] = 0;
 				}
-
-				if (y == 63) CAT_WARN("TEST") << x << " : LZ SKIP";
 			} else if (_mask->hasRGB(x, y)) {
 				// Fully-transparent pixel
 				u32 *zp = reinterpret_cast<u32 *>( p );
@@ -326,8 +315,6 @@ x0_had_filter:;
 				for (int c = 0; c < PLANES; ++c) {
 					last[c] = 0;
 				}
-
-				if (y == 63) CAT_WARN("TEST") << x << " : ALPHA SKIP";
 			} else {
 				// Read YUV filtered pixel
 				u8 YUV[3], A;
@@ -356,14 +343,11 @@ x0_had_filter:;
 #endif
 						last[1] = YUV[1] = U;
 						last[2] = YUV[2] = _v_decoder[CHAOS_TABLE[chaosScore(last[2])]].next(reader);
-						if (y == 63) CAT_WARN("CHAOS") << x << " : " << (int)CHAOS_TABLE[chaosScore(last[3])];
 						last[3] = A = _a_decoder[CHAOS_TABLE[chaosScore(last[3])]].next(reader);
 #if 0
 					}
 				}
 #endif
-
-				if (y == 63) CAT_WARN("TEST") << x << " : READ " << (int)YUV[0] << "," << (int)YUV[1] << "," << (int)YUV[2] << "," << (int)A;
 
 				// Reverse color filter
 				u8 RGB[3];
@@ -415,7 +399,6 @@ x0_had_filter:;
 									filter->sfu = sf = UNSAFE_SPATIAL_FILTERS[sfi];
 									u8 cfi = _cf.next(reader);
 									filter->cf = cf = YUV2RGB_FILTERS[cfi];
-									if (y == 60) CAT_WARN("FILTER") << x << " : FILTER " << (int)sfi << "," << (int)cfi;
 									goto had_filter;
 								}
 							}
@@ -435,8 +418,6 @@ had_filter:;
 				for (int c = 0; c < PLANES; ++c) {
 					last[c] = 0;
 				}
-
-				if (y == 63) CAT_WARN("TEST") << x << " : LZ SKIP";
 			} else if (_mask->hasRGB(x, y)) {
 				// Fully-transparent pixel
 				u32 *zp = reinterpret_cast<u32 *>( p );
@@ -445,8 +426,6 @@ had_filter:;
 				for (int c = 0; c < PLANES; ++c) {
 					last[c] = 0;
 				}
-
-				if (y == 63) CAT_WARN("TEST") << x << " : ALPHA SKIP";
 			} else {
 				// Read YUV filtered pixel
 				u8 YUV[3], A;
@@ -475,17 +454,11 @@ had_filter:;
 #endif
 						last[1] = YUV[1] = U;
 						last[2] = YUV[2] = _v_decoder[CHAOS_TABLE[chaosScore(last[-2]) + chaosScore(last[2])]].next(reader);
-						if (y == 63) CAT_WARN("CHAOS") << x << " : " << (int)CHAOS_TABLE[chaosScore(last[-1]) + chaosScore(last[3])] << " from " << (int)last[-1] << " and " << (int)last[3] << " - " << (int)(last - lastStart);
-						if (y == 2 && x == 1) {
-							int x = 0;
-						}
 						last[3] = A = _a_decoder[CHAOS_TABLE[chaosScore(last[-1]) + chaosScore(last[3])]].next(reader);
 #if 0
 					}
 				}
 #endif
-
-				if (y == 63) CAT_WARN("TEST") << x << " : READ " << (int)YUV[0] << "," << (int)YUV[1] << "," << (int)YUV[2] << "," << (int)A;
 
 				// Reverse color filter
 				u8 RGB[3];
@@ -526,8 +499,6 @@ had_filter:;
 				for (int c = 0; c < PLANES; ++c) {
 					last[c] = 0;
 				}
-
-				if (y == 63) CAT_WARN("TEST") << x << " : LZ SKIP";
 			} else if (_mask->hasRGB(x, y)) {
 				// Fully-transparent pixel
 				u32 *zp = reinterpret_cast<u32 *>( p );
@@ -536,8 +507,6 @@ had_filter:;
 				for (int c = 0; c < PLANES; ++c) {
 					last[c] = 0;
 				}
-
-				if (y == 63) CAT_WARN("TEST") << x << " : ALPHA SKIP";
 			} else {
 				// Read YUV filtered pixel
 				u8 YUV[3], A;
@@ -565,14 +534,11 @@ had_filter:;
 #endif
 						last[1] = YUV[1] = U;
 						last[2] = YUV[2] = _v_decoder[CHAOS_TABLE[chaosScore(last[-2]) + chaosScore(last[2])]].next(reader);
-						if (y == 63) CAT_WARN("CHAOS") << x << " : " << (int)CHAOS_TABLE[chaosScore(last[-1]) + chaosScore(last[3])] << " from " << (int)last[-1] << " and " << (int)last[3] << " - " << (int)(last - lastStart);
 						last[3] = A = _a_decoder[CHAOS_TABLE[chaosScore(last[-1]) + chaosScore(last[3])]].next(reader);
 #if 0
 					}
 				}
 #endif
-
-				if (y == 63) CAT_WARN("TEST") << x << " : READ " << (int)YUV[0] << "," << (int)YUV[1] << "," << (int)YUV[2] << "," << (int)A;
 
 				// Reverse color filter
 				u8 RGB[3];

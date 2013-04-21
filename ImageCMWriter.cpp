@@ -440,7 +440,6 @@ void ImageCMWriter::chaosStats() {
 					chaos = CHAOS_TABLE[chaosScore(last[2 - 4]) + chaosScore(last[2])];
 					_v_encoder[chaos].add(yuv[2]);
 					chaos = CHAOS_TABLE[chaosScore(last[3 - 4]) + chaosScore(last[3])];
-					if (y == 2 && x == 1) CAT_WARN("STATS") << x << "," << y << " : " << (int)chaos << " from " << (int)last[-1] << " and " << (int)last[3] << " writing " << (int)yuv[3];
 					_a_encoder[chaos].add(yuv[3]);
 				}
 
@@ -523,13 +522,9 @@ bool ImageCMWriter::writeChaos(ImageWriter &writer) {
 	int bits = 3;
 
 	for (int jj = 0; jj < _chaos_levels; ++jj) {
-		CAT_WARN("Y") << jj;
 		bits += _y_encoder[jj].writeTables(writer);
-		CAT_WARN("U") << jj;
 		bits += _u_encoder[jj].writeTables(writer);
-		CAT_WARN("V") << jj;
 		bits += _v_encoder[jj].writeTables(writer);
-		CAT_WARN("A") << jj;
 		bits += _a_encoder[jj].writeTables(writer);
 	}
 #ifdef CAT_COLLECT_STATS
@@ -569,7 +564,6 @@ bool ImageCMWriter::writeChaos(ImageWriter &writer) {
 					filter_table_bits[0] += sf_bits;
 					filter_table_bits[1] += cf_bits;
 #endif
-					if (y == 60) CAT_WARN("COMP") << x << " : FILTER " << (int)sf << "," << (int)cf;
 				}
 			}
 
@@ -581,7 +575,6 @@ bool ImageCMWriter::writeChaos(ImageWriter &writer) {
 				u8 cf = (u8)filter;
 				u8 sf = (u8)(filter >> 8);
 
-				if (y == 63) CAT_WARN("COMP") << x << " : ORIG " << (int)p[0] << "," << (int)p[1] << "," << (int)p[2] << "," << (int)p[3];
 
 				// Apply spatial filter
 				const u8 *pred = SPATIAL_FILTERS[sf](p, x, y, width);
@@ -664,20 +657,16 @@ bool ImageCMWriter::writeChaos(ImageWriter &writer) {
 					bitcount[2] += bits;
 #endif
 					chaos = CHAOS_TABLE[chaosScore(last[3 - 4]) + chaosScore(last[3])];
-					if (y == 63) CAT_WARN("CHAOS") << x << " : " << (int)chaos << " from " << (int)last[3 - 4] << " and " << (int)last[3] << " - " << (int)(last - lastStart);
 					bits = _a_encoder[chaos].write(YUVA[3], writer);
 #ifdef CAT_COLLECT_STATS
 					bitcount[3] += bits;
 #endif
 				}
 
-				if (y == 63) CAT_WARN("COMP") << x << " : READ " << (int)YUVA[0] << "," << (int)YUVA[1] << "," << (int)YUVA[2] << "," << (int)YUVA[3];
-
 				for (int c = 0; c < PLANES; ++c) {
 					last[c] = YUVA[c];
 				}
 			} else {
-				if (y == 63) CAT_WARN("COMP") << x << " : LZ/ALPHA SKIP";
 				for (int c = 0; c < PLANES; ++c) {
 					last[c] = 0;
 				}

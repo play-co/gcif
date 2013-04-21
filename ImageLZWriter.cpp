@@ -236,8 +236,6 @@ void ImageLZWriter::add(int unused, u16 sx, u16 sy, u16 dx, u16 dy, u16 w, u16 h
 
 	_exact_matches.push_back(m);
 
-	//CAT_WARN("TEST") << sx << "," << sy << " -> " << dx << "," << dy << " " << (int)w << "," << (int)h;
-
 #ifdef CAT_COLLECT_STATS
 	Stats.covered += w * h;
 #endif
@@ -337,6 +335,8 @@ void ImageLZWriter::sortMatches() {
 
 void ImageLZWriter::write(ImageWriter &writer) {
 	const int match_count = (int)_exact_matches.size();
+
+	sortMatches();
 
 #ifdef CAT_COLLECT_STATS
 	Stats.match_count = match_count;
