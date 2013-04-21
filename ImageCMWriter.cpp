@@ -95,6 +95,10 @@ void ImageCMWriter::decideFilters() {
 
 	for (int y = 0; y < _height; y += FILTER_ZONE_SIZE) {
 		for (int x = 0; x < width; x += FILTER_ZONE_SIZE) {
+			// If this zone is skipped,
+			if (getFilter(x, y) == UNUSED_FILTER) {
+				continue;
+			}
 
 			// Determine best filter combination to use
 			int bestSF = 0, bestCF = 0;
@@ -255,10 +259,70 @@ void ImageCMWriter::decideFilters() {
 				}
 			}
 
+			// Set filter for this zone
 			u16 filter = ((u16)bestSF << 8) | bestCF;
 			setFilter(x, y, filter);
 		}
 	}
+}
+
+void ImageCMWriter::maskFilters() {
+	// For each zone,
+	for (int y = 0, height = _height; y < height; y += FILTER_ZONE_SIZE) {
+		for (int x = 0, width = _width; x < width; x += FILTER_ZONE_SIZE) {
+			bool on = true;
+
+			int w, h;
+			if (!_lz->findExtent(x, y, w, h) ||
+				w < FILTER_ZONE_SIZE || h < FILTER_ZONE_SIZE) {
+				for (int ii = 0; ii < FILTER_ZONE_SIZE; ++ii) {
+					for (int jj = 0; jj < FILTER_ZONE_SIZE; ++jj) {
+						if (!_mask->hasRGB(x + ii, y + jj)) {
+							on = false;
+							ii = FILTER_ZONE_SIZE;
+							break;
+						}
+					}
+				}
+			}
+
+			if (on) {
+				setFilter(x, y, UNUSED_FILTER);
+			} else {
+				setFilter(x, y, TODO_FILTER);
+			}
+		}
+	}
+}
+
+bool ImageCMWriter::applyFilters() {
+	FreqHistogram<SF_COUNT> sf_hist;
+	FreqHistogram<CF_COUNT> cf_hist;
+
+	// For each zone,
+	for (int y = 0, height = _height; y < height; y += FILTER_ZONE_SIZE) {
+		for (int x = 0, width = _width; x < width; x += FILTER_ZONE_SIZE) {
+			// Read filter
+			u16 filter = getFilter(x, y);
+			if (filter != UNUSED_FILTER) {
+				u8 cf = (u8)filter;
+				u8 sf = (u8)(filter >> 8);
+
+				sf_hist.add(sf);
+				cf_hist.add(cf);
+			}
+		}
+	}
+
+	// Geneerate huffman codes from final histogram
+	if (!_sf_encoder.init(sf_hist)) {
+		return false;
+	}
+	if (!_cf_encoder.init(cf_hist)) {
+		return false;
+	}
+
+	return true;
 }
 
 void ImageCMWriter::chaosStats() {
@@ -308,8 +372,8 @@ void ImageCMWriter::chaosStats() {
 		for (int x = 0; x < width; ++x) {
 			// If not masked out,
 			if (!_lz->visited(x, y) && !_mask->hasRGB(x, y)) {
-				// Get filter for this pixel
 				u16 filter = getFilter(x, y);
+				// Get filter for this pixel
 				u8 cf = (u8)filter;
 				u8 sf = (u8)(filter >> 8);
 
@@ -420,7 +484,13 @@ int ImageCMWriter::initFromRGBA(const u8 *rgba, int width, int height, ImageMask
 	return -1;
 #endif
 
+	maskFilters();
+
 	decideFilters();
+
+	if (!applyFilters()) {
+		return WE_BUG;
+	}
 
 	chaosStats();
 
@@ -428,56 +498,6 @@ int ImageCMWriter::initFromRGBA(const u8 *rgba, int width, int height, ImageMask
 }
 
 bool ImageCMWriter::writeFilters(ImageWriter &writer) {
-	FreqHistogram<SF_COUNT> sf_hist;
-	FreqHistogram<CF_COUNT> cf_hist;
-	u32 unused_count = 0;
-
-	// For each zone,
-	for (int y = 0, height = _height; y < height; y += FILTER_ZONE_SIZE) {
-		for (int x = 0, width = _width; x < width; x += FILTER_ZONE_SIZE) {
-			// Encode SF and CF separately and combine consecutive filters
-			// together for the smallest representation
-			bool on = true;
-
-			int w, h;
-			if (!_lz->findExtent(x, y, w, h) ||
-				w < FILTER_ZONE_SIZE || h < FILTER_ZONE_SIZE) {
-				for (int ii = 0; ii < FILTER_ZONE_SIZE; ++ii) {
-					for (int jj = 0; jj < FILTER_ZONE_SIZE; ++jj) {
-						if (!_mask->hasRGB(x + ii, y + jj)) {
-							on = false;
-							ii = FILTER_ZONE_SIZE;
-							break;
-						}
-					}
-				}
-			}
-
-			if (!on)
-			{
-				u16 filter = getFilter(x, y);
-				u8 cf = (u8)filter;
-				u8 sf = (u8)(filter >> 8);
-
-				sf_hist.add(sf);
-				cf_hist.add(cf);
-			} else {
-				if (y == 0) CAT_WARN("TEST") << x << "," << y;
-				setFilter(x, y, UNUSED_FILTER);
-
-				unused_count++;
-			}
-		}
-	}
-
-	// Geneerate huffman codes from final histogram
-	if (!_sf_encoder.init(sf_hist)) {
-		return false;
-	}
-	if (!_cf_encoder.init(cf_hist)) {
-		return false;
-	}
-
 	// Write out filter huffman tables
 	int sf_table_bits = _sf_encoder.writeTable(writer);
 	int cf_table_bits = _cf_encoder.writeTable(writer);
@@ -549,7 +569,7 @@ bool ImageCMWriter::writeChaos(ImageWriter &writer) {
 					filter_table_bits[0] += sf_bits;
 					filter_table_bits[1] += cf_bits;
 #endif
-					if (y == 1) CAT_WARN("COMP") << x << " : FILTER " << (int)sf << "," << (int)cf;
+					if (y == 60) CAT_WARN("COMP") << x << " : FILTER " << (int)sf << "," << (int)cf;
 				}
 			}
 
@@ -561,7 +581,7 @@ bool ImageCMWriter::writeChaos(ImageWriter &writer) {
 				u8 cf = (u8)filter;
 				u8 sf = (u8)(filter >> 8);
 
-				if (y == 2) CAT_WARN("COMP") << x << " : ORIG " << (int)p[0] << "," << (int)p[1] << "," << (int)p[2] << "," << (int)p[3];
+				if (y == 63) CAT_WARN("COMP") << x << " : ORIG " << (int)p[0] << "," << (int)p[1] << "," << (int)p[2] << "," << (int)p[3];
 
 				// Apply spatial filter
 				const u8 *pred = SPATIAL_FILTERS[sf](p, x, y, width);
@@ -644,20 +664,20 @@ bool ImageCMWriter::writeChaos(ImageWriter &writer) {
 					bitcount[2] += bits;
 #endif
 					chaos = CHAOS_TABLE[chaosScore(last[3 - 4]) + chaosScore(last[3])];
-					if (y == 2) CAT_WARN("CHAOS") << x << " : " << (int)chaos << " from " << (int)last[3 - 4] << " and " << (int)last[3] << " - " << (int)(last - lastStart);
+					if (y == 63) CAT_WARN("CHAOS") << x << " : " << (int)chaos << " from " << (int)last[3 - 4] << " and " << (int)last[3] << " - " << (int)(last - lastStart);
 					bits = _a_encoder[chaos].write(YUVA[3], writer);
 #ifdef CAT_COLLECT_STATS
 					bitcount[3] += bits;
 #endif
 				}
 
-				if (y == 2) CAT_WARN("COMP") << x << " : READ " << (int)YUVA[0] << "," << (int)YUVA[1] << "," << (int)YUVA[2] << "," << (int)YUVA[3];
+				if (y == 63) CAT_WARN("COMP") << x << " : READ " << (int)YUVA[0] << "," << (int)YUVA[1] << "," << (int)YUVA[2] << "," << (int)YUVA[3];
 
 				for (int c = 0; c < PLANES; ++c) {
 					last[c] = YUVA[c];
 				}
 			} else {
-				if (y == 2) CAT_WARN("COMP") << x << " : LZ/ALPHA SKIP";
+				if (y == 63) CAT_WARN("COMP") << x << " : LZ/ALPHA SKIP";
 				for (int c = 0; c < PLANES; ++c) {
 					last[c] = 0;
 				}

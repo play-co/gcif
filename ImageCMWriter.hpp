@@ -42,6 +42,7 @@ protected:
 	static const int FILTER_SELECT_FUZZ = 20;
 	static const int COMPRESS_LEVEL = 1;
 	static const u16 UNUSED_FILTER = 0xffff;
+	static const u16 TODO_FILTER = 0;
 	static const int PLANES = 4;
 #if 0
 	static const int RECENT_SYMS_Y = ImageCMReader::RECENT_SYMS_Y; // >= U
@@ -81,7 +82,9 @@ protected:
 	EntropyEncoder<256, ZRLE_SYMS_A> _a_encoder[CHAOS_LEVELS_MAX];
 
 	int init(int width, int height);
+	void maskFilters();
 	void decideFilters();
+	bool applyFilters();
 	void chaosStats();
 
 	bool writeFilters(ImageWriter &writer);
