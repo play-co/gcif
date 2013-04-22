@@ -377,11 +377,9 @@ had_filter:;
 				}
 			} else {
 				// Read YUV filtered pixel
-				u8 A;
 				last[0] = (u8)_y_decoder[CHAOS_TABLE[last[-4] + (u16)last[0]]].next(reader);
 				last[1] = (u8)_u_decoder[CHAOS_TABLE[last[-3] + (u16)last[1]]].next(reader);
 				last[2] = (u8)_v_decoder[CHAOS_TABLE[last[-2] + (u16)last[2]]].next(reader);
-				last[3] = A = (u8)_a_decoder[CHAOS_TABLE[last[-1] + (u16)last[3]]].next(reader);
 
 				// Reverse color filter
 				cf(last, p);
@@ -391,6 +389,10 @@ had_filter:;
 				p[0] += pred[0];
 				p[1] += pred[1];
 				p[2] += pred[2];
+
+				// Read alpha pixel
+				u8 A;
+				last[3] = A = (u8)_a_decoder[CHAOS_TABLE[last[-1] + (u16)last[3]]].next(reader);
 				p[3] = p[-1] - A;
 
 				// Convert last to score
@@ -432,24 +434,22 @@ had_filter:;
 				}
 			} else {
 				// Read YUV filtered pixel
-				u8 A;
 				last[0] = (u8)_y_decoder[CHAOS_TABLE[last[-4] + (u16)last[0]]].next(reader);
 				last[1] = (u8)_u_decoder[CHAOS_TABLE[last[-3] + (u16)last[1]]].next(reader);
 				last[2] = (u8)_v_decoder[CHAOS_TABLE[last[-2] + (u16)last[2]]].next(reader);
-				last[3] = A = (u8)_a_decoder[CHAOS_TABLE[last[-1] + (u16)last[3]]].next(reader);
 
 				// Reverse color filter
 				cf(last, p);
 
-				// Switch back to safe spatial filter
-				FilterSelection *filter = &_filters[x >> FILTER_ZONE_SIZE_SHIFT];
-				sf = filter->sf;
-
-				// Reverse spatial filter
-				const u8 *pred = sf(p, x, y, width);
+				// Reverse (safe) spatial filter
+				const u8 *pred = _filters[x >> FILTER_ZONE_SIZE_SHIFT].sf(p, x, y, width);
 				p[0] += pred[0];
 				p[1] += pred[1];
 				p[2] += pred[2];
+
+				// Read alpha pixel
+				u8 A;
+				last[3] = A = (u8)_a_decoder[CHAOS_TABLE[last[-1] + (u16)last[3]]].next(reader);
 				p[3] = p[-1] - A;
 
 				// Convert last to score
