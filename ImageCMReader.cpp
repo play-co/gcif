@@ -377,6 +377,9 @@ had_filter:;
 				yuva[1] = (u8)_u_decoder[chaos_u].next(reader);
 				yuva[2] = (u8)_v_decoder[chaos_v].next(reader);
 
+				// Pipeline calculate alpha chaos
+				const u32 chaos_a = CHAOS_TABLE[last[-1] + (u16)last[3]];
+
 				// Reverse color filter
 				cf(yuva, p);
 
@@ -387,7 +390,6 @@ had_filter:;
 				p[2] += pred[2];
 
 				// Read alpha pixel
-				const u32 chaos_a = CHAOS_TABLE[last[-1] + (u16)last[3]];
 				yuva[3] = (u8)_a_decoder[chaos_a].next(reader);
 				p[3] = p[-1] - yuva[3];
 			}
