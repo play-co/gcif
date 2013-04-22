@@ -361,32 +361,24 @@ had_filter:;
 				}
 			}
 
+			u8 yuva[4] = {0};
+
 			if (lz_skip > 0) {
 				--lz_skip;
-
-				for (int c = 0; c < COLOR_PLANES; ++c) {
-					last[c] = 0;
-				}
 			} else if (_mask->hasRGB(x, y)) {
-				// Fully-transparent pixel
-				u32 *zp = reinterpret_cast<u32 *>( p );
-				*zp = 0;
-
-				for (int c = 0; c < COLOR_PLANES; ++c) {
-					last[c] = 0;
-				}
+				*reinterpret_cast<u32 *>( p ) = 0;
 			} else {
 				const u32 chaos_y = CHAOS_TABLE[last[-4] + (u16)last[0]];
 				const u32 chaos_u = CHAOS_TABLE[last[-3] + (u16)last[1]];
 				const u32 chaos_v = CHAOS_TABLE[last[-2] + (u16)last[2]];
 
 				// Read YUV filtered pixel
-				last[0] = (u8)_y_decoder[chaos_y].next(reader);
-				last[1] = (u8)_u_decoder[chaos_u].next(reader);
-				last[2] = (u8)_v_decoder[chaos_v].next(reader);
+				yuva[0] = (u8)_y_decoder[chaos_y].next(reader);
+				yuva[1] = (u8)_u_decoder[chaos_u].next(reader);
+				yuva[2] = (u8)_v_decoder[chaos_v].next(reader);
 
 				// Reverse color filter
-				cf(last, p);
+				cf(yuva, p);
 
 				// Reverse spatial filter
 				const u8 *pred = sf(p, x, y, width);
@@ -395,17 +387,16 @@ had_filter:;
 				p[2] += pred[2];
 
 				// Read alpha pixel
-				u8 A;
 				const u32 chaos_a = CHAOS_TABLE[last[-1] + (u16)last[3]];
-				last[3] = A = (u8)_a_decoder[chaos_a].next(reader);
-				p[3] = p[-1] - A;
-
-				// Convert last to score
-				last[0] = chaosScore(last[0]);
-				last[1] = chaosScore(last[1]);
-				last[2] = chaosScore(last[2]);
-				last[3] = chaosScore(last[3]);
+				yuva[3] = (u8)_a_decoder[chaos_a].next(reader);
+				p[3] = p[-1] - yuva[3];
 			}
+
+			// Convert last to score
+			last[0] = chaosScore(yuva[0]);
+			last[1] = chaosScore(yuva[1]);
+			last[2] = chaosScore(yuva[2]);
+			last[3] = chaosScore(yuva[3]);
 
 			// Next pixel
 			last += COLOR_PLANES;
