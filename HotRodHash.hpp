@@ -27,10 +27,7 @@ public:
 	}
 
 	CAT_INLINE void hashWord(u32 k1) {
-		h1 += k1 * c1;
-		h1 ^= CAT_ROL32(k1, 15);
-
-		h1 = CAT_ROL32(h1, 13); 
+		h1 ^= CAT_ROL32(k1, 13); 
 		h1 = h1 * 5 + 0xe6546b64;
 	}
 

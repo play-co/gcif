@@ -173,7 +173,7 @@ static int profileit(const char *filename) {
 
 	int err;
 
-	for (int ii = 0; ii < 100; ++ii) {
+	for (int ii = 0; ii < 20; ++ii) {
 		GCIFImage image;
 		if ((err = gcif_read(filename, &image))) {
 			CAT_WARN("main") << "Error while decompressing the image: " << gcif_read_errstr(err);
