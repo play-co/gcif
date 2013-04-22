@@ -378,10 +378,10 @@ had_filter:;
 			} else {
 				// Read YUV filtered pixel
 				u8 A;
-				last[0] = (u8)_y_decoder[CHAOS_TABLE[last[-4] + last[0]]].next(reader);
-				last[1] = (u8)_u_decoder[CHAOS_TABLE[last[-3] + last[1]]].next(reader);
-				last[2] = (u8)_v_decoder[CHAOS_TABLE[last[-2] + last[2]]].next(reader);
-				last[3] = A = (u8)_a_decoder[CHAOS_TABLE[last[-1] + last[3]]].next(reader);
+				last[0] = (u8)_y_decoder[CHAOS_TABLE[last[-4] + (u16)last[0]]].next(reader);
+				last[1] = (u8)_u_decoder[CHAOS_TABLE[last[-3] + (u16)last[1]]].next(reader);
+				last[2] = (u8)_v_decoder[CHAOS_TABLE[last[-2] + (u16)last[2]]].next(reader);
+				last[3] = A = (u8)_a_decoder[CHAOS_TABLE[last[-1] + (u16)last[3]]].next(reader);
 
 				// Reverse color filter
 				cf(last, p);
@@ -433,10 +433,10 @@ had_filter:;
 			} else {
 				// Read YUV filtered pixel
 				u8 A;
-				last[0] = (u8)_y_decoder[CHAOS_TABLE[last[-4] + last[0]]].next(reader);
-				last[1] = (u8)_u_decoder[CHAOS_TABLE[last[-3] + last[1]]].next(reader);
-				last[2] = (u8)_v_decoder[CHAOS_TABLE[last[-2] + last[2]]].next(reader);
-				last[3] = A = (u8)_a_decoder[CHAOS_TABLE[last[-1] + last[3]]].next(reader);
+				last[0] = (u8)_y_decoder[CHAOS_TABLE[last[-4] + (u16)last[0]]].next(reader);
+				last[1] = (u8)_u_decoder[CHAOS_TABLE[last[-3] + (u16)last[1]]].next(reader);
+				last[2] = (u8)_v_decoder[CHAOS_TABLE[last[-2] + (u16)last[2]]].next(reader);
+				last[3] = A = (u8)_a_decoder[CHAOS_TABLE[last[-1] + (u16)last[3]]].next(reader);
 
 				// Reverse color filter
 				cf(last, p);
