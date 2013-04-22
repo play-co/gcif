@@ -30,7 +30,10 @@
 #define CAT_MAPPED_FILE_HPP
 
 #include "Platform.hpp"
+
+#ifdef CAT_OS_WINDOWS
 #include "WindowsInclude.hpp"
+#endif
 
 /*
 	Memory-mapped files are a fairly good compromise between performance and flexibility.

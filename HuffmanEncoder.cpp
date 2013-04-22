@@ -5,7 +5,7 @@
 using namespace cat;
 using namespace huffman;
 
-#include <cstdint> // UINT16_MAX
+#include <stdint.h> // UINT16_MAX
 
 
 // This code is all adapted from LZHAM (see header for license)
