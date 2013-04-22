@@ -335,12 +335,10 @@ x0_had_filter:;
 							for (int jj = 0; jj < FILTER_ZONE_SIZE; ++jj) {
 								if (!_mask->hasRGB(x + jj, y + ii)) {
 									// Read SF and CF for this zone
-									FilterSelection *filter = &_filters[x >> FILTER_ZONE_SIZE_SHIFT];
-
-									u8 sfi = _sf.next(reader);
+									const int sfi = _sf.next(reader);
 									filter->sf = SPATIAL_FILTERS[sfi];
 									filter->sfu = sf = UNSAFE_SPATIAL_FILTERS[sfi];
-									u8 cfi = _cf.next(reader);
+									const int cfi = _cf.next(reader);
 									filter->cf = cf = YUV2RGB_FILTERS[cfi];
 									goto had_filter;
 								}
