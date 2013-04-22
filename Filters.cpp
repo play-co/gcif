@@ -330,43 +330,6 @@ static CAT_INLINE u8 predLevel(int a, int b, int c) {
 	}
 }
 
-static const u8 *SFF_PL(const u8 *p, int x, int y, int width) {
-	if (x > 0) {
-		const u8 *a = p - 4; // A
-
-		if (y > 0) {
-			const u8 *b = p - width*4; // B
-			const u8 *c = b - 4; // C
-
-			FPT[0] = predLevel(a[0], b[0], c[0]);
-			FPT[1] = predLevel(a[1], b[1], c[1]);
-			FPT[2] = predLevel(a[2], b[2], c[2]);
-
-			return FPT;
-		} else {
-			return a;
-		}
-	} else if (y > 0) {
-		return p - width*4; // B
-	}
-
-	return FPZ;
-}
-
-static const u8 *SFFU_PL(const u8 *p, int x, int y, int width) {
-	CAT_DEBUG_ENFORCE(x > 0 && y > 0);
-
-	const u8 *a = p - 4; // A
-	const u8 *b = p - width*4; // B
-	const u8 *c = b - 4; // C
-
-	FPT[0] = predLevel(a[0], b[0], c[0]);
-	FPT[1] = predLevel(a[1], b[1], c[1]);
-	FPT[2] = predLevel(a[2], b[2], c[2]);
-
-	return FPT;
-}
-
 static const u8 *SFF_PLO(const u8 *p, int x, int y, int width) {
 	if (x > 0) {
 		const u8 *a = p - 4; // A
@@ -727,6 +690,43 @@ static const u8 *SFF_B_AC(const u8 *p, int x, int y, int width) {
 	return FPZ;
 }
 
+static const u8 *SFF_PL(const u8 *p, int x, int y, int width) {
+	if (x > 0) {
+		const u8 *a = p - 4; // A
+
+		if (y > 0) {
+			const u8 *b = p - width*4; // B
+			const u8 *c = b - 4; // C
+
+			FPT[0] = predLevel(a[0], b[0], c[0]);
+			FPT[1] = predLevel(a[1], b[1], c[1]);
+			FPT[2] = predLevel(a[2], b[2], c[2]);
+
+			return FPT;
+		} else {
+			return a;
+		}
+	} else if (y > 0) {
+		return p - width*4; // B
+	}
+
+	return FPZ;
+}
+
+static const u8 *SFFU_PL(const u8 *p, int x, int y, int width) {
+	CAT_DEBUG_ENFORCE(x > 0 && y > 0);
+
+	const u8 *a = p - 4; // A
+	const u8 *b = p - width*4; // B
+	const u8 *c = b - 4; // C
+
+	FPT[0] = predLevel(a[0], b[0], c[0]);
+	FPT[1] = predLevel(a[1], b[1], c[1]);
+	FPT[2] = predLevel(a[2], b[2], c[2]);
+
+	return FPT;
+}
+
 #endif
 
 
@@ -745,7 +745,6 @@ SpatialFilterFunction cat::SPATIAL_FILTERS[SF_COUNT] = {
 	SFF_ABC_CLAMP,
 	SFF_PAETH,
 	SFF_ABC_PAETH,
-	SFF_PL,
 	SFF_PLO,
 	SFF_ABCD,
 	SFF_AD,
@@ -766,7 +765,6 @@ SpatialFilterFunction cat::UNSAFE_SPATIAL_FILTERS[SF_COUNT] = {
 	SFFU_ABC_CLAMP,
 	SFFU_PAETH,
 	SFFU_ABC_PAETH,
-	SFFU_PL,
 	SFFU_PLO,
 	SFFU_ABCD,
 	SFFU_AD,

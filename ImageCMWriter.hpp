@@ -74,6 +74,7 @@ protected:
 
 	int init(int width, int height);
 	void maskFilters();
+	void designFilters();
 	void decideFilters();
 	bool applyFilters();
 	void chaosStats();

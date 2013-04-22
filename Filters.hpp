@@ -42,7 +42,6 @@ enum SpatialFilters {
 	SF_ABC_CLAMP,	// A + B - C clamped to [0, 255]
 	SF_PAETH,		// Paeth filter
 	SF_ABC_PAETH,	// If A <= C <= B, A + B - C, else Paeth filter
-	SF_PL,			// Use ABC to determine if increasing or decreasing
 	SF_PLO,			// Offset PL
 	SF_ABCD,		// (A + B + C + D + 1)/4
 	SF_AD,			// (A + D)/2
@@ -52,6 +51,7 @@ enum SpatialFilters {
 	// Disabled filters:
 	SF_A_BC,		// A + (B - C)/2
 	SF_B_AC,		// B + (A - C)/2
+	SF_PL,			// Use ABC to determine if increasing or decreasing
 };
 
 
@@ -59,6 +59,15 @@ typedef const u8 *(*SpatialFilterFunction)(const u8 *p, int x, int y, int width)
 
 extern SpatialFilterFunction SPATIAL_FILTERS[];
 extern SpatialFilterFunction UNSAFE_SPATIAL_FILTERS[]; // Assumes x>0, y>0, and x<width-1
+
+/*
+ * These default spatial filters are supplemented by a few that are customized
+ * for the target image.  Filter taps can be supplied for a, b, c, d.
+ *
+ * Safe and unsafe versions will automatically be generated in the table.
+ */
+void ResetSpatialFilters(); // Reset to defaults
+void SetSpatialFilter(int ii, int a, int b, int c, int d); // Provide filter taps
 
 
 //// Color Filters

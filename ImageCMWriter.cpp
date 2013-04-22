@@ -81,6 +81,207 @@ int ImageCMWriter::init(int width, int height) {
 	return WE_OK;
 }
 
+static const int TAPPED_COUNT = 70;
+static const int FILTER_TAPS[70][4] = {
+	{ -2, 1, 2, -2 },
+	{ -1, 1, 0, -1 },
+	{ -2, 1, 1, -1 },
+	{ -1, -1, 2, -1 },
+	{ -2, 0, 2, -1 },
+	{ 2, 0, 2, -1 },
+	{ -1, 0, 0, 0 },
+	{ -2, 1, 0, 0 },
+	{ -1, -2, 2, 0 },
+	{ -2, -1, 2, 0 },
+	{ 2, -1, 2, 0 },
+	{ 1, 0, 2, 0 },
+	{ -2, -2, -2, 1 },
+	{ 1, -1, -2, 1 },
+	{ 0, 0, -2, 1 },
+	{ -1, 0, -1, 1 },
+	{ -1, -1, 0, 1 },
+	{ -2, 0, 0, 1 },
+	{ 2, 0, 0, 1 },
+	{ -1, -2, 1, 1 },
+	{ 1, 0, 1, 1 },
+	{ -1, 2, 1, 1 },
+	{ -2, -2, 2, 1 },
+	{ 2, -2, 2, 1 },
+	{ 1, -1, 2, 1 },
+	{ 0, 0, 2, 1 },
+	{ -2, 2, 2, 1 },
+	{ 2, 2, 2, 1 },
+	{ -1, -1, -1, 2 },
+	{ -1, -2, 0, 2 },
+	{ -2, -1, 0, 2 },
+	{ -1, 2, 0, 2 },
+	{ -2, -2, 1, 2 },
+	{ -2, 2, 1, 2 },
+	{ 1, 2, 2, -2 },
+	{ -3, 4, 4, -2 },
+	{ 1, 2, 1, -1 },
+	{ 0, 3, 1, -1 },
+	{ -1, 4, 1, -1 },
+	{ 0, 2, 2, -1 },
+	{ -1, 3, 2, -1 },
+	{ 1, 3, -1, 0 },
+	{ 0, 4, -1, 0 },
+	{ 1, 1, 1, 0 },
+	{ 0, 2, 1, 0 },
+	{ -1, 3, 1, 0 },
+	{ -2, 4, 1, 0 },
+	{ 1, 0, 2, 0 },
+	{ 0, 1, 2, 0 },
+	{ -2, 3, 2, 0 },
+	{ -3, 4, 2, 0 },
+	{ 1, 2, -1, 1 },
+	{ 0, 3, -1, 1 },
+	{ 1, 1, 0, 1 },
+	{ -2, 4, 0, 1 },
+	{ 0, 1, 1, 1 },
+	{ -1, 2, 1, 1 },
+	{ -2, 3, 1, 1 },
+	{ -3, 4, 1, 1 },
+	{ -2, 2, 2, 1 },
+	{ 1, 2, -2, 2 },
+	{ -1, 4, -2, 2 },
+	{ 0, 2, -1, 2 },
+	{ -1, 3, -1, 2 },
+	{ 1, 0, 0, 2 },
+	{ 0, 1, 0, 2 },
+	{ -2, 3, 0, 2 },
+	{ -3, 4, 0, 2 },
+	{ -2, 2, 1, 2 },
+	{ -3, 2, 2, 2 }
+};
+
+
+
+
+void ImageCMWriter::designFilters() {
+
+	/* Inputs: A, B, C, D
+	 *
+	 * aA + bB + cC + dD
+	 * a,b,c,d = {-2, -1, -1/2, 0, 1/2, 1, 2}
+	 */
+
+	const int width = _width;
+
+	FilterScorer scores;
+	scores.init(SF_COUNT + TAPPED_COUNT);
+
+	int bestHist[SF_COUNT + TAPPED_COUNT] = {0};
+
+	for (int y = 0; y < _height; y += FILTER_ZONE_SIZE) {
+		for (int x = 0; x < width; x += FILTER_ZONE_SIZE) {
+			// If this zone is skipped,
+			if (getFilter(x, y) == UNUSED_FILTER) {
+				continue;
+			}
+
+			scores.reset();
+
+			// For each pixel in the 8x8 zone,
+			for (int yy = 0; yy < FILTER_ZONE_SIZE; ++yy) {
+				for (int xx = 0; xx < FILTER_ZONE_SIZE; ++xx) {
+					int px = x + xx, py = y + yy;
+					if (_mask->hasRGB(px, py)) {
+						continue;
+					}
+					if (_lz->visited(px, py)) {
+						continue;
+					}
+
+					const u8 *p = _rgba + (px + py * width) * 4;
+
+					int A[3] = {0};
+					int B[3] = {0};
+					int C[3] = {0};
+					int D[3] = {0};
+
+					for (int cc = 0; cc < 3; ++cc) {
+						if (px > 0) {
+							A[cc] = p[(-1) * 4 + cc];
+						}
+						if (py > 0 ) {
+							B[cc] = p[(-width) * 4 + cc];
+							if (px > 0) {
+								C[cc] = p[(-width - 1) * 4 + cc];
+							}
+							if (px < width - 1) {
+								D[cc] = p[(-width + 1) * 4 + cc];
+							}
+						}
+					}
+
+					for (int ii = 0; ii < SF_COUNT; ++ii) {
+						const u8 *pred = SPATIAL_FILTERS[ii](p, px, py, width);
+
+						int sum = 0;
+
+						for (int cc = 0; cc < 3; ++cc) {
+							int err = p[cc] - (int)pred[cc];
+							if (err < 0) err = -err;
+							sum += err;
+						}
+						scores.add(ii, sum);
+					}
+
+					for (int ii = 0; ii < TAPPED_COUNT; ++ii) {
+						const int a = FILTER_TAPS[ii][0];
+						const int b = FILTER_TAPS[ii][1];
+						const int c = FILTER_TAPS[ii][2];
+						const int d = FILTER_TAPS[ii][3];
+
+						int sum = 0;
+						for (int cc = 0; cc < 3; ++cc) {
+							const int pred = (u8)((a * A[cc] + b * B[cc] + c * C[cc] + d * D[cc]) / 2);
+							int err = p[cc] - pred;
+							if (err < 0) err = -err;
+							sum += err;
+						}
+
+						scores.add(ii + SF_COUNT, sum);
+					}
+				}
+			}
+
+			// Super Mario Kart scoring
+			FilterScorer::Score *top = scores.getLowest();
+
+			top = scores.getTop(4);
+			bestHist[top[0].index] += 1;
+			bestHist[top[1].index] += 1;
+			bestHist[top[2].index] += 1;
+			bestHist[top[3].index] += 1;
+
+			CAT_WARN("TEST") << top->index << " " << top[0].index << " " << top[1].index << " " << top[2].index << " " << top[3].index;
+		}
+	}
+
+	int lowest_sf = 0x7fffff;
+
+	for (int ii = 0; ii < SF_COUNT; ++ii) {
+		if (bestHist[ii] < lowest_sf) {
+			lowest_sf = bestHist[ii];
+		}
+
+		CAT_WARN("ORIG") << ii << " = " << bestHist[ii];
+	}
+
+	for (int ii = 0; ii < TAPPED_COUNT; ++ii) {
+		if (bestHist[ii + SF_COUNT] > lowest_sf) {
+			const int a = FILTER_TAPS[ii][0];
+			const int b = FILTER_TAPS[ii][1];
+			const int c = FILTER_TAPS[ii][2];
+			const int d = FILTER_TAPS[ii][3];
+
+			CAT_WARN("TEST") << ii << " = " << bestHist[ii + SF_COUNT] << " : (" << a << "A + " << b << "B + " << c << "C + " << d << "D) / 2";
+		}
+	}
+}
+
 void ImageCMWriter::decideFilters() {
 	EntropyEstimator<u8> ee[3];
 	for (int ii = 0; ii < 3; ++ii) {
@@ -443,6 +644,8 @@ int ImageCMWriter::initFromRGBA(const u8 *rgba, int width, int height, ImageMask
 #endif
 
 	maskFilters();
+
+	designFilters();
 
 	decideFilters();
 
