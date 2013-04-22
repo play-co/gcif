@@ -111,7 +111,6 @@ int ImageCMReader::readRGB(ImageReader &reader) {
 	const int width = _width;
 
 	// Get initial triggers
-	u16 trigger_y_lz = _lz->getTriggerY();
 	u16 trigger_x_lz = _lz->getTriggerX();
 
 	// Start from upper-left of image
@@ -126,10 +125,9 @@ int ImageCMReader::readRGB(ImageReader &reader) {
 		const int y = 0;
 
 		// If LZ triggered,
-		if (y == trigger_y_lz) {
+		if (y == _lz->getTriggerY()) {
 			_lz->triggerY();
 			trigger_x_lz = _lz->getTriggerX();
-			trigger_y_lz = _lz->getTriggerY();
 		}
 
 		// Restart for scanline
@@ -144,7 +142,6 @@ int ImageCMReader::readRGB(ImageReader &reader) {
 			if (x == trigger_x_lz) {
 				lz_skip = _lz->triggerX(p, lz_lines_left);
 				trigger_x_lz = _lz->getTriggerX();
-				trigger_y_lz = _lz->getTriggerY();
 			}
 
 			// If it is time to read the filter,
@@ -224,10 +221,9 @@ y0_had_filter:;
 	// For each scanline,
 	for (int y = 1; y < _height; ++y) {
 		// If LZ triggered,
-		if (y == trigger_y_lz) {
+		if (y == _lz->getTriggerY()) {
 			_lz->triggerY();
 			trigger_x_lz = _lz->getTriggerX();
-			trigger_y_lz = _lz->getTriggerY();
 		}
 
 		// Restart for scanline
@@ -244,7 +240,6 @@ y0_had_filter:;
 			if (x == trigger_x_lz) {
 				lz_skip = _lz->triggerX(p, lz_lines_left);
 				trigger_x_lz = _lz->getTriggerX();
-				trigger_y_lz = _lz->getTriggerY();
 			}
 
 			FilterSelection *filter = &_filters[x >> FILTER_ZONE_SIZE_SHIFT];
@@ -326,7 +321,6 @@ x0_had_filter:;
 			if (x == trigger_x_lz) {
 				lz_skip = _lz->triggerX(p, lz_lines_left);
 				trigger_x_lz = _lz->getTriggerX();
-				trigger_y_lz = _lz->getTriggerY();
 			}
 
 			// If it is time to read the filter,
@@ -413,7 +407,6 @@ had_filter:;
 			if (x == trigger_x_lz) {
 				lz_skip = _lz->triggerX(p, lz_lines_left);
 				trigger_x_lz = _lz->getTriggerX();
-				trigger_y_lz = _lz->getTriggerY();
 			}
 
 			if (lz_skip > 0) {
