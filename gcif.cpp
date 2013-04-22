@@ -168,9 +168,27 @@ static int benchmark(const char *path) {
 }
 
 
+static int profileit(const char *filename) {
+	CAT_WARN("main") << "Decoding input GCIF image file hard: " << filename;
+
+	int err;
+
+	for (int ii = 0; ii < 100; ++ii) {
+		GCIFImage image;
+		if ((err = gcif_read(filename, &image))) {
+			CAT_WARN("main") << "Error while decompressing the image: " << gcif_read_errstr(err);
+			return err;
+		}
+	}
+
+	CAT_WARN("main") << "Success.";
+	return 0;
+}
+
+
 //// Command-line parameter parsing
 
-enum  optionIndex { UNKNOWN, HELP, VERBOSE, SILENT, COMPRESS, DECOMPRESS, TEST, BENCHMARK };
+enum  optionIndex { UNKNOWN, HELP, VERBOSE, SILENT, COMPRESS, DECOMPRESS, TEST, BENCHMARK, PROFILE };
 const option::Descriptor usage[] =
 {
   {UNKNOWN, 0,"" , ""    ,option::Arg::None, "USAGE: ./gcif [options] [output file path]\n\n"
@@ -182,6 +200,7 @@ const option::Descriptor usage[] =
   {DECOMPRESS,0,"d" , "decompress",option::Arg::Optional, "  --[d]ecompress <input GCI file path> \tDecompress the given .GCI image" },
   {TEST,0,"t" , "test",option::Arg::Optional, "  --[t]est <input PNG file path> \tTest compression to verify it is lossless" },
   {BENCHMARK,0,"b" , "benchmark",option::Arg::Optional, "  --[b]enchmark <test set path> \tTest compression ratio and decompression speed for a whole directory at once" },
+  {PROFILE,0,"p" , "profile",option::Arg::Optional, "  --[p]rofile <input GCI file path> \tDecode same GCI file 100x to enhance profiling of decoder" },
   {UNKNOWN, 0,"" ,  ""   ,option::Arg::None, "\nExamples:\n"
                                              "  ./gcif -tv ./original.png\n"
                                              "  ./gcif -c ./original.png test.gci\n"
@@ -245,6 +264,20 @@ int processParameters(option::Parser &parse, option::Option options[]) {
 			int err;
 
 			if ((err = benchmark(inFilePath))) {
+				CAT_INFO("main") << "Error during conversion [retcode:" << err << "]";
+				return err;
+			}
+
+			return 0;
+		}
+	} else if (options[PROFILE]) {
+		if (parse.nonOptionsCount() != 1) {
+			CAT_WARN("main") << "Input error: Please provide input file path";
+		} else {
+			const char *inFilePath = parse.nonOption(0);
+			int err;
+
+			if ((err = profileit(inFilePath))) {
 				CAT_INFO("main") << "Error during conversion [retcode:" << err << "]";
 				return err;
 			}

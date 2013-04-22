@@ -16,7 +16,7 @@ using namespace cat;
 
 #include "lz4.h"
 
-#define DUMP_MONOCHROME
+//#define DUMP_MONOCHROME
 
 #ifdef DUMP_MONOCHROME
 #include "lodepng.h"
