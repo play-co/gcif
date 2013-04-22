@@ -305,7 +305,11 @@ x0_had_filter:;
 			p += 4;
 		}
 
-		// For each pixel,  (THIS IS THE BIG INNER LOOP)
+
+		//// BIG INNER LOOP START ////
+
+
+		// For each pixel,
 		for (int x = 1, xend = width - 1; x < xend; ++x) {
 			// If LZ triggered,
 			if (x == trigger_x_lz) {
@@ -380,6 +384,10 @@ had_filter:;
 		   last += COLOR_PLANES;
 		   p += 4;
 		}
+
+		
+		//// BIG INNER LOOP END ////
+
 
 		// For x = width-1,
 		{
