@@ -344,6 +344,8 @@ void ImageCMWriter::chaosStats() {
 	Stats.chaos_count = chaos_count;
 #endif
 
+	u8 lst[4] = {0};
+
 	// If it is above a threshold,
 	if (chaos_count >= CHAOS_THRESH) {
 		CAT_DEBUG_ENFORCE(CHAOS_LEVELS_MAX == 8);
@@ -434,13 +436,33 @@ void ImageCMWriter::chaosStats() {
 #endif
 
 				if (!matched) {
-					_y_encoder[chaos].add(yuv[0]);
+					if (yuv[0] != 0 && lst[0] == yuv[0]) {
+						_y_encoder[chaos].add(256);
+					} else {
+						_y_encoder[chaos].add(yuv[0]);
+						if (yuv[0] != 0) lst[0] = yuv[0];
+					}
 					chaos = CHAOS_TABLE[chaosScore(last[1 - 4]) + chaosScore(last[1])];
-					_u_encoder[chaos].add(yuv[1]);
+					if (yuv[1] != 0 && lst[1] == yuv[1]) {
+						_u_encoder[chaos].add(256);
+					} else {
+						_u_encoder[chaos].add(yuv[1]);
+						if (yuv[1] != 0) lst[1] = yuv[1];
+					}
 					chaos = CHAOS_TABLE[chaosScore(last[2 - 4]) + chaosScore(last[2])];
-					_v_encoder[chaos].add(yuv[2]);
+					if (yuv[2] != 0 && lst[2] == yuv[2]) {
+						_v_encoder[chaos].add(256);
+					} else {
+						_v_encoder[chaos].add(yuv[2]);
+						if (yuv[2] != 0) lst[2] = yuv[2];
+					}
 					chaos = CHAOS_TABLE[chaosScore(last[3 - 4]) + chaosScore(last[3])];
-					_a_encoder[chaos].add(yuv[3]);
+					if (yuv[3] != 0 && lst[3] == yuv[3]) {
+						_y_encoder[chaos].add(256);
+					} else {
+						_a_encoder[chaos].add(yuv[3]);
+						if (yuv[3] != 0) lst[3] = yuv[3];
+					}
 				}
 
 				for (int c = 0; c < COLOR_PLANES; ++c) {
@@ -539,6 +561,8 @@ bool ImageCMWriter::writeChaos(ImageWriter &writer) {
 	CAT_CLR(_chaos, _chaos_size);
 
 	const u8 *CHAOS_TABLE = _chaos_table;
+
+	u8 lst[4] = {0};
 
 	for (int y = 0; y < _height; ++y) {
 		u8 *last = lastStart;
@@ -640,22 +664,43 @@ bool ImageCMWriter::writeChaos(ImageWriter &writer) {
 #endif
 
 				if (!matched) {
-					int bits = _y_encoder[chaos].write(YUVA[0], writer);
+					int bits;
+					if (YUVA[0] != 0 && YUVA[0] == lst[0]) {
+						bits = _y_encoder[chaos].write(256, writer);
+					} else {
+						bits = _y_encoder[chaos].write(YUVA[0], writer);
+						if (YUVA[0] != 0) lst[0] = YUVA[0];
+					}
 #ifdef CAT_COLLECT_STATS
 					bitcount[0] += bits;
 #endif
 					chaos = CHAOS_TABLE[chaosScore(last[1 - 4]) + chaosScore(last[1])];
-					bits = _u_encoder[chaos].write(YUVA[1], writer);
+					if (YUVA[1] != 0 && YUVA[1] == lst[1]) {
+						bits = _u_encoder[chaos].write(256, writer);
+					} else {
+						bits = _u_encoder[chaos].write(YUVA[1], writer);
+						if (YUVA[1] != 0) lst[1] = YUVA[1];
+					}
 #ifdef CAT_COLLECT_STATS
 					bitcount[1] += bits;
 #endif
 					chaos = CHAOS_TABLE[chaosScore(last[2 - 4]) + chaosScore(last[2])];
-					bits = _v_encoder[chaos].write(YUVA[2], writer);
+					if (YUVA[2] != 0 && YUVA[2] == lst[2]) {
+						bits = _v_encoder[chaos].write(256, writer);
+					} else {
+						bits = _v_encoder[chaos].write(YUVA[2], writer);
+						if (YUVA[2] != 0) lst[2] = YUVA[2];
+					}
 #ifdef CAT_COLLECT_STATS
 					bitcount[2] += bits;
 #endif
 					chaos = CHAOS_TABLE[chaosScore(last[3 - 4]) + chaosScore(last[3])];
-					bits = _a_encoder[chaos].write(YUVA[3], writer);
+					if (YUVA[3] != 0 && YUVA[3] == lst[3]) {
+						bits = _a_encoder[chaos].write(256, writer);
+					} else {
+						bits = _a_encoder[chaos].write(YUVA[3], writer);
+						if (YUVA[3] != 0) lst[3] = YUVA[3];
+					}
 #ifdef CAT_COLLECT_STATS
 					bitcount[3] += bits;
 #endif

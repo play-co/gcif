@@ -76,10 +76,10 @@ protected:
 	HuffmanEncoder<SF_COUNT> _sf_encoder;
 	HuffmanEncoder<CF_COUNT> _cf_encoder;
 
-	EntropyEncoder<256, ZRLE_SYMS_Y> _y_encoder[CHAOS_LEVELS_MAX];
-	EntropyEncoder<256, ZRLE_SYMS_U> _u_encoder[CHAOS_LEVELS_MAX];
-	EntropyEncoder<256, ZRLE_SYMS_V> _v_encoder[CHAOS_LEVELS_MAX];
-	EntropyEncoder<256, ZRLE_SYMS_A> _a_encoder[CHAOS_LEVELS_MAX];
+	EntropyEncoder<256 + 1, ZRLE_SYMS_Y> _y_encoder[CHAOS_LEVELS_MAX];
+	EntropyEncoder<256 + 1, ZRLE_SYMS_U> _u_encoder[CHAOS_LEVELS_MAX];
+	EntropyEncoder<256 + 1, ZRLE_SYMS_V> _v_encoder[CHAOS_LEVELS_MAX];
+	EntropyEncoder<256 + 1, ZRLE_SYMS_A> _a_encoder[CHAOS_LEVELS_MAX];
 
 	int init(int width, int height);
 	void maskFilters();
