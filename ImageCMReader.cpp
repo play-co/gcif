@@ -132,8 +132,6 @@ int ImageCMReader::readRGB(ImageReader &reader) {
 
 		// Restart for scanline
 		u8 *last = lastStart;
-		SpatialFilterFunction sf;
-		YUV2RGBFilterFunction cf;
 		int lz_skip = 0, lz_lines_left = 0;
 
 		// For each pixel,
@@ -144,6 +142,9 @@ int ImageCMReader::readRGB(ImageReader &reader) {
 				trigger_x_lz = _lz->getTriggerX();
 			}
 
+			// Read SF and CF for this zone
+			FilterSelection *filter = &_filters[x >> FILTER_ZONE_SIZE_SHIFT];
+
 			// If it is time to read the filter,
 			if ((x & FILTER_ZONE_SIZE_MASK) == 0) {
 				// If at least one pixel requires these filters,
@@ -151,14 +152,11 @@ int ImageCMReader::readRGB(ImageReader &reader) {
 					for (int ii = 0; ii < FILTER_ZONE_SIZE; ++ii) {
 						for (int jj = 0; jj < FILTER_ZONE_SIZE; ++jj) {
 							if (!_mask->hasRGB(x + jj, y + ii)) {
-								// Read SF and CF for this zone
-								FilterSelection *filter = &_filters[x >> FILTER_ZONE_SIZE_SHIFT];
-
-								u8 sfi = _sf.next(reader);
-								filter->sf = sf = SPATIAL_FILTERS[sfi];
+								const int sfi = _sf.next(reader);
+								filter->sf = SPATIAL_FILTERS[sfi];
 								filter->sfu = UNSAFE_SPATIAL_FILTERS[sfi];
-								u8 cfi = _cf.next(reader);
-								filter->cf = cf = YUV2RGB_FILTERS[cfi];
+								const int cfi = _cf.next(reader);
+								filter->cf = YUV2RGB_FILTERS[cfi];
 
 								goto y0_had_filter;
 							}
@@ -191,10 +189,10 @@ y0_had_filter:;
 				last[3] = A = (u8)_a_decoder[CHAOS_TABLE[last[-1]]].next(reader);
 
 				// Reverse color filter
-				cf(last, p);
+				filter->cf(last, p);
 
 				// Reverse spatial filter
-				const u8 *pred = sf(p, x, y, width);
+				const u8 *pred = filter->sf(p, x, y, width);
 				p[0] += pred[0];
 				p[1] += pred[1];
 				p[2] += pred[2];
@@ -228,8 +226,6 @@ y0_had_filter:;
 
 		// Restart for scanline
 		u8 *last = lastStart;
-		SpatialFilterFunction sf;
-		YUV2RGBFilterFunction cf;
 		int lz_skip = 0, lz_lines_left = 0;
 
 		// Unroll x = 0 pixel
@@ -252,23 +248,17 @@ y0_had_filter:;
 						for (int jj = 0; jj < FILTER_ZONE_SIZE; ++jj) {
 							if (!_mask->hasRGB(x + jj, y + ii)) {
 								// Read SF and CF for this zone
-								FilterSelection *filter = &_filters[x >> FILTER_ZONE_SIZE_SHIFT];
-
-								u8 sfi = _sf.next(reader);
-								filter->sf = sf = SPATIAL_FILTERS[sfi];
+								const int sfi = _sf.next(reader);
+								filter->sf = SPATIAL_FILTERS[sfi];
 								filter->sfu = UNSAFE_SPATIAL_FILTERS[sfi];
-								u8 cfi = _cf.next(reader);
-								filter->cf = cf = YUV2RGB_FILTERS[cfi];
+								const int cfi = _cf.next(reader);
+								filter->cf = YUV2RGB_FILTERS[cfi];
 								goto x0_had_filter;
 							}
 						}
 					}
 				}
 x0_had_filter:;
-			} else {
-				// Read filter from previous scanline
-				sf = filter->sf;
-				cf = filter->cf;
 			}
 
 			if (lz_skip > 0) {
@@ -294,10 +284,10 @@ x0_had_filter:;
 				last[3] = A = (u8)_a_decoder[CHAOS_TABLE[last[3]]].next(reader);
 
 				// Reverse color filter
-				cf(last, p);
+				filter->cf(last, p);
 
 				// Reverse spatial filter
-				const u8 *pred = sf(p, x, y, width);
+				const u8 *pred = filter->sf(p, x, y, width);
 				p[0] += pred[0];
 				p[1] += pred[1];
 				p[2] += pred[2];
@@ -315,20 +305,73 @@ x0_had_filter:;
 			p += 4;
 		}
 
-		// For each pixel,  (THIS IS THE BIG INNER LOOP)
-		for (int x = 1, xend = width - 1; x < xend; ++x) {
-			// If LZ triggered,
-			if (x == trigger_x_lz) {
-				lz_skip = _lz->triggerX(p, lz_lines_left);
-				trigger_x_lz = _lz->getTriggerX();
-			}
+		if ((y & FILTER_ZONE_SIZE_MASK) != 0) {
+			// For each pixel,  (THIS IS THE BIG INNER LOOP)
+			for (int x = 1, xend = width - 1; x < xend; ++x) {
+				// If LZ triggered,
+				if (x == trigger_x_lz) {
+					lz_skip = _lz->triggerX(p, lz_lines_left);
+					trigger_x_lz = _lz->getTriggerX();
+				}
 
-			// If it is time to read the filter,
-			if ((x & FILTER_ZONE_SIZE_MASK) == 0) {
+				u8 yuva[4] = {0};
+
+				if (lz_skip > 0) {
+					--lz_skip;
+				} else if (_mask->hasRGB(x, y)) {
+					*reinterpret_cast<u32 *>( p ) = 0;
+				} else {
+					const u32 chaos_y = CHAOS_TABLE[last[-4] + (u16)last[0]];
+					const u32 chaos_u = CHAOS_TABLE[last[-3] + (u16)last[1]];
+					const u32 chaos_v = CHAOS_TABLE[last[-2] + (u16)last[2]];
+
+					// Read YUV filtered pixel
+					yuva[0] = (u8)_y_decoder[chaos_y].next(reader);
+					yuva[1] = (u8)_u_decoder[chaos_u].next(reader);
+					yuva[2] = (u8)_v_decoder[chaos_v].next(reader);
+
+					// Pipeline calculate alpha chaos
+					const u32 chaos_a = CHAOS_TABLE[last[-1] + (u16)last[3]];
+
+					FilterSelection *filter = &_filters[x >> FILTER_ZONE_SIZE_SHIFT];
+
+					// Reverse color filter
+					filter->cf(yuva, p);
+
+					// Reverse spatial filter
+					const u8 *pred = filter->sfu(p, x, y, width);
+					p[0] += pred[0];
+					p[1] += pred[1];
+					p[2] += pred[2];
+
+					// Read alpha pixel
+					yuva[3] = (u8)_a_decoder[chaos_a].next(reader);
+					p[3] = p[-1] - yuva[3];
+				}
+
+				// Convert last to score
+				last[0] = chaosScore(yuva[0]);
+				last[1] = chaosScore(yuva[1]);
+				last[2] = chaosScore(yuva[2]);
+				last[3] = chaosScore(yuva[3]);
+
+				// Next pixel
+				last += COLOR_PLANES;
+				p += 4;
+			}
+		} else {
+			// For each pixel,  (THIS IS THE BIG INNER LOOP)
+			for (int x = 1, xend = width - 1; x < xend; ++x) {
+				// If LZ triggered,
+				if (x == trigger_x_lz) {
+					lz_skip = _lz->triggerX(p, lz_lines_left);
+					trigger_x_lz = _lz->getTriggerX();
+				}
+
 				FilterSelection *filter = &_filters[x >> FILTER_ZONE_SIZE_SHIFT];
 
-				// If we are on a filter info scanline,
-				if ((y & FILTER_ZONE_SIZE_MASK) == 0) {
+				// If it is time to read the filter,
+				if ((x & FILTER_ZONE_SIZE_MASK) == 0) {
 					// If at least one pixel requires these filters,
 					if (lz_skip < FILTER_ZONE_SIZE || lz_lines_left < FILTER_ZONE_SIZE) {
 						for (int ii = 0; ii < FILTER_ZONE_SIZE; ++ii) {
@@ -337,65 +380,62 @@ x0_had_filter:;
 									// Read SF and CF for this zone
 									const int sfi = _sf.next(reader);
 									filter->sf = SPATIAL_FILTERS[sfi];
-									filter->sfu = sf = UNSAFE_SPATIAL_FILTERS[sfi];
+									filter->sfu = UNSAFE_SPATIAL_FILTERS[sfi];
 									const int cfi = _cf.next(reader);
-									filter->cf = cf = YUV2RGB_FILTERS[cfi];
+									filter->cf = YUV2RGB_FILTERS[cfi];
 									goto had_filter;
 								}
 							}
 						}
 					}
 had_filter:;
-				} else {
-					// Read filter from previous scanline
-					sf = filter->sfu;
-					cf = filter->cf;
 				}
+
+				u8 yuva[4] = {0};
+
+				if (lz_skip > 0) {
+					--lz_skip;
+				} else if (_mask->hasRGB(x, y)) {
+					*reinterpret_cast<u32 *>( p ) = 0;
+				} else {
+					const u32 chaos_y = CHAOS_TABLE[last[-4] + (u16)last[0]];
+					const u32 chaos_u = CHAOS_TABLE[last[-3] + (u16)last[1]];
+					const u32 chaos_v = CHAOS_TABLE[last[-2] + (u16)last[2]];
+
+					// Read YUV filtered pixel
+					yuva[0] = (u8)_y_decoder[chaos_y].next(reader);
+					yuva[1] = (u8)_u_decoder[chaos_u].next(reader);
+					yuva[2] = (u8)_v_decoder[chaos_v].next(reader);
+
+					// Pipeline calculate alpha chaos
+					const u32 chaos_a = CHAOS_TABLE[last[-1] + (u16)last[3]];
+
+					// Reverse color filter
+					filter->cf(yuva, p);
+
+					// Reverse spatial filter
+					const u8 *pred = filter->sfu(p, x, y, width);
+					p[0] += pred[0];
+					p[1] += pred[1];
+					p[2] += pred[2];
+
+					// Read alpha pixel
+					yuva[3] = (u8)_a_decoder[chaos_a].next(reader);
+					p[3] = p[-1] - yuva[3];
+				}
+
+				// Convert last to score
+				last[0] = chaosScore(yuva[0]);
+				last[1] = chaosScore(yuva[1]);
+				last[2] = chaosScore(yuva[2]);
+				last[3] = chaosScore(yuva[3]);
+
+				// Next pixel
+				last += COLOR_PLANES;
+				p += 4;
 			}
-
-			u8 yuva[4] = {0};
-
-			if (lz_skip > 0) {
-				--lz_skip;
-			} else if (_mask->hasRGB(x, y)) {
-				*reinterpret_cast<u32 *>( p ) = 0;
-			} else {
-				const u32 chaos_y = CHAOS_TABLE[last[-4] + (u16)last[0]];
-				const u32 chaos_u = CHAOS_TABLE[last[-3] + (u16)last[1]];
-				const u32 chaos_v = CHAOS_TABLE[last[-2] + (u16)last[2]];
-
-				// Read YUV filtered pixel
-				yuva[0] = (u8)_y_decoder[chaos_y].next(reader);
-				yuva[1] = (u8)_u_decoder[chaos_u].next(reader);
-				yuva[2] = (u8)_v_decoder[chaos_v].next(reader);
-
-				// Pipeline calculate alpha chaos
-				const u32 chaos_a = CHAOS_TABLE[last[-1] + (u16)last[3]];
-
-				// Reverse color filter
-				cf(yuva, p);
-
-				// Reverse spatial filter
-				const u8 *pred = sf(p, x, y, width);
-				p[0] += pred[0];
-				p[1] += pred[1];
-				p[2] += pred[2];
-
-				// Read alpha pixel
-				yuva[3] = (u8)_a_decoder[chaos_a].next(reader);
-				p[3] = p[-1] - yuva[3];
-			}
-
-			// Convert last to score
-			last[0] = chaosScore(yuva[0]);
-			last[1] = chaosScore(yuva[1]);
-			last[2] = chaosScore(yuva[2]);
-			last[3] = chaosScore(yuva[3]);
-
-			// Next pixel
-			last += COLOR_PLANES;
-			p += 4;
 		}
+
 
 		// For x = width-1,
 		{
@@ -427,11 +467,13 @@ had_filter:;
 				last[1] = (u8)_u_decoder[CHAOS_TABLE[last[-3] + (u16)last[1]]].next(reader);
 				last[2] = (u8)_v_decoder[CHAOS_TABLE[last[-2] + (u16)last[2]]].next(reader);
 
+				FilterSelection *filter = &_filters[x >> FILTER_ZONE_SIZE_SHIFT];
+
 				// Reverse color filter
-				cf(last, p);
+				filter->cf(last, p);
 
 				// Reverse (safe) spatial filter
-				const u8 *pred = _filters[x >> FILTER_ZONE_SIZE_SHIFT].sf(p, x, y, width);
+				const u8 *pred = filter->sf(p, x, y, width);
 				p[0] += pred[0];
 				p[1] += pred[1];
 				p[2] += pred[2];
