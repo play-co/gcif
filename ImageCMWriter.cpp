@@ -393,55 +393,14 @@ void ImageCMWriter::chaosStats() {
 					yuv[3] = 255 - p[3];
 				}
 
-				bool matched = false;
 				u8 chaos = CHAOS_TABLE[chaosScore(last[0 - 4]) + chaosScore(last[0])];
-#ifdef USE_RECENT_PALETTE
-				if (yuv[0] != 0) {
-					for (int ii = 0; ii < RECENT_SYMS_Y; ++ii) {
-						const int offset = ii - RECENT_AHEAD_Y;
-
-						if (yuv[0] == last[0 - offset * 4] &&
-							yuv[1] == last[1 - offset * 4] &&
-							yuv[2] == last[2 - offset * 4] &&
-							yuv[3] == last[3 - offset * 4]) {
-							if ((yuv[0] != 0) + (yuv[1] != 0) + (yuv[2] != 0) + (yuv[3] != 0) < PALETTE_MIN) {
-								continue;
-							}
-							_y_encoder[chaos].add(256 + ii);
-							matched = true;
-							break;
-						}
-					}
-#if 1
-				} else if (yuv[1] != 0) {
-					for (int ii = 0; ii < RECENT_SYMS_U; ++ii) {
-						const int offset = ii - RECENT_AHEAD_U;
-
-						if (yuv[1] == last[1 - offset * 4] &&
-							yuv[2] == last[2 - offset * 4] &&
-							yuv[3] == last[3 - offset * 4]) {
-							if ((yuv[0] != 0) + (yuv[1] != 0) + (yuv[2] != 0) + (yuv[3] != 0) < PALETTE_MIN) {
-								continue;
-							}
-							_y_encoder[chaos].add(0);
-							_u_encoder[chaos].add(256 + ii);
-							matched = true;
-							break;
-						}
-					}
-#endif
-				}
-#endif
-
-				if (!matched) {
-					_y_encoder[chaos].add(yuv[0]);
-					chaos = CHAOS_TABLE[chaosScore(last[1 - 4]) + chaosScore(last[1])];
-					_u_encoder[chaos].add(yuv[1]);
-					chaos = CHAOS_TABLE[chaosScore(last[2 - 4]) + chaosScore(last[2])];
-					_v_encoder[chaos].add(yuv[2]);
-					chaos = CHAOS_TABLE[chaosScore(last[3 - 4]) + chaosScore(last[3])];
-					_a_encoder[chaos].add(yuv[3]);
-				}
+				_y_encoder[chaos].add(yuv[0]);
+				chaos = CHAOS_TABLE[chaosScore(last[1 - 4]) + chaosScore(last[1])];
+				_u_encoder[chaos].add(yuv[1]);
+				chaos = CHAOS_TABLE[chaosScore(last[2 - 4]) + chaosScore(last[2])];
+				_v_encoder[chaos].add(yuv[2]);
+				chaos = CHAOS_TABLE[chaosScore(last[3 - 4]) + chaosScore(last[3])];
+				_a_encoder[chaos].add(yuv[3]);
 
 				for (int c = 0; c < COLOR_PLANES; ++c) {
 					last[c] = yuv[c];
@@ -590,76 +549,26 @@ bool ImageCMWriter::writeChaos(ImageWriter &writer) {
 					YUVA[3] = 255 - p[3];
 				}
 
-				bool matched = false;
 				u8 chaos = CHAOS_TABLE[chaosScore(last[0 - 4]) + chaosScore(last[0])];
-#ifdef USE_RECENT_PALETTE
-				if (YUVA[0] != 0) {
-					for (int ii = 0; ii < RECENT_SYMS_Y; ++ii) {
-						const int offset = ii - RECENT_AHEAD_Y;
-
-						if (YUVA[0] == last[0 - offset * 4] &&
-							YUVA[1] == last[1 - offset * 4] &&
-							YUVA[2] == last[2 - offset * 4] &&
-							YUVA[3] == last[3 - offset * 4]) {
-							if ((YUVA[0] != 0) + (YUVA[1] != 0) + (YUVA[2] != 0) + (YUVA[3] != 0) < PALETTE_MIN) {
-								continue;
-							}
-							int bits = _y_encoder[chaos].write(256 + ii, writer);
+				int bits = _y_encoder[chaos].write(YUVA[0], writer);
 #ifdef CAT_COLLECT_STATS
-							bitcount[0] += bits;
+				bitcount[0] += bits;
 #endif
-							matched = true;
-							break;
-						}
-					}
-#if 1
-				} else if (YUVA[1] != 0) {
-					for (int ii = 0; ii < RECENT_SYMS_U; ++ii) {
-						const int offset = ii - RECENT_AHEAD_U;
-
-						if (YUVA[1] == last[1 - offset * 4] &&
-							YUVA[2] == last[2 - offset * 4] &&
-							YUVA[3] == last[3 - offset * 4]) {
-							if ((YUVA[0] != 0) + (YUVA[1] != 0) + (YUVA[2] != 0) + (YUVA[3] != 0) < PALETTE_MIN) {
-								continue;
-							}
-							int bits = _y_encoder[chaos].write(0, writer);
+				chaos = CHAOS_TABLE[chaosScore(last[1 - 4]) + chaosScore(last[1])];
+				bits = _u_encoder[chaos].write(YUVA[1], writer);
 #ifdef CAT_COLLECT_STATS
-							bitcount[0] += bits;
+				bitcount[1] += bits;
 #endif
-							bits = _u_encoder[chaos].write(256 + ii, writer);
+				chaos = CHAOS_TABLE[chaosScore(last[2 - 4]) + chaosScore(last[2])];
+				bits = _v_encoder[chaos].write(YUVA[2], writer);
 #ifdef CAT_COLLECT_STATS
-							bitcount[1] += bits;
+				bitcount[2] += bits;
 #endif
-							matched = true;
-							break;
-						}
-					}
-#endif
-				}
-#endif
-
-				if (!matched) {
-					int bits = _y_encoder[chaos].write(YUVA[0], writer);
+				chaos = CHAOS_TABLE[chaosScore(last[3 - 4]) + chaosScore(last[3])];
+				bits = _a_encoder[chaos].write(YUVA[3], writer);
 #ifdef CAT_COLLECT_STATS
-					bitcount[0] += bits;
+				bitcount[3] += bits;
 #endif
-					chaos = CHAOS_TABLE[chaosScore(last[1 - 4]) + chaosScore(last[1])];
-					bits = _u_encoder[chaos].write(YUVA[1], writer);
-#ifdef CAT_COLLECT_STATS
-					bitcount[1] += bits;
-#endif
-					chaos = CHAOS_TABLE[chaosScore(last[2 - 4]) + chaosScore(last[2])];
-					bits = _v_encoder[chaos].write(YUVA[2], writer);
-#ifdef CAT_COLLECT_STATS
-					bitcount[2] += bits;
-#endif
-					chaos = CHAOS_TABLE[chaosScore(last[3 - 4]) + chaosScore(last[3])];
-					bits = _a_encoder[chaos].write(YUVA[3], writer);
-#ifdef CAT_COLLECT_STATS
-					bitcount[3] += bits;
-#endif
-				}
 
 				for (int c = 0; c < COLOR_PLANES; ++c) {
 					last[c] = YUVA[c];
