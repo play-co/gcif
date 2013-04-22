@@ -81,83 +81,6 @@ int ImageCMWriter::init(int width, int height) {
 	return WE_OK;
 }
 
-static const int TAPPED_COUNT = 70;
-static const int FILTER_TAPS[70][4] = {
-	{ -2, 1, 2, -2 },
-	{ -1, 1, 0, -1 },
-	{ -2, 1, 1, -1 },
-	{ -1, -1, 2, -1 },
-	{ -2, 0, 2, -1 },
-	{ 2, 0, 2, -1 },
-	{ -1, 0, 0, 0 },
-	{ -2, 1, 0, 0 },
-	{ -1, -2, 2, 0 },
-	{ -2, -1, 2, 0 },
-	{ 2, -1, 2, 0 },
-	{ 1, 0, 2, 0 },
-	{ -2, -2, -2, 1 },
-	{ 1, -1, -2, 1 },
-	{ 0, 0, -2, 1 },
-	{ -1, 0, -1, 1 },
-	{ -1, -1, 0, 1 },
-	{ -2, 0, 0, 1 },
-	{ 2, 0, 0, 1 },
-	{ -1, -2, 1, 1 },
-	{ 1, 0, 1, 1 },
-	{ -1, 2, 1, 1 },
-	{ -2, -2, 2, 1 },
-	{ 2, -2, 2, 1 },
-	{ 1, -1, 2, 1 },
-	{ 0, 0, 2, 1 },
-	{ -2, 2, 2, 1 },
-	{ 2, 2, 2, 1 },
-	{ -1, -1, -1, 2 },
-	{ -1, -2, 0, 2 },
-	{ -2, -1, 0, 2 },
-	{ -1, 2, 0, 2 },
-	{ -2, -2, 1, 2 },
-	{ -2, 2, 1, 2 },
-	{ 1, 2, 2, -2 },
-	{ -3, 4, 4, -2 },
-	{ 1, 2, 1, -1 },
-	{ 0, 3, 1, -1 },
-	{ -1, 4, 1, -1 },
-	{ 0, 2, 2, -1 },
-	{ -1, 3, 2, -1 },
-	{ 1, 3, -1, 0 },
-	{ 0, 4, -1, 0 },
-	{ 1, 1, 1, 0 },
-	{ 0, 2, 1, 0 },
-	{ -1, 3, 1, 0 },
-	{ -2, 4, 1, 0 },
-	{ 1, 0, 2, 0 },
-	{ 0, 1, 2, 0 },
-	{ -2, 3, 2, 0 },
-	{ -3, 4, 2, 0 },
-	{ 1, 2, -1, 1 },
-	{ 0, 3, -1, 1 },
-	{ 1, 1, 0, 1 },
-	{ -2, 4, 0, 1 },
-	{ 0, 1, 1, 1 },
-	{ -1, 2, 1, 1 },
-	{ -2, 3, 1, 1 },
-	{ -3, 4, 1, 1 },
-	{ -2, 2, 2, 1 },
-	{ 1, 2, -2, 2 },
-	{ -1, 4, -2, 2 },
-	{ 0, 2, -1, 2 },
-	{ -1, 3, -1, 2 },
-	{ 1, 0, 0, 2 },
-	{ 0, 1, 0, 2 },
-	{ -2, 3, 0, 2 },
-	{ -3, 4, 0, 2 },
-	{ -2, 2, 1, 2 },
-	{ -3, 2, 2, 2 }
-};
-
-
-
-
 void ImageCMWriter::designFilters() {
 
 	/* Inputs: A, B, C, D
@@ -166,12 +89,18 @@ void ImageCMWriter::designFilters() {
 	 * a,b,c,d = {-2, -1, -1/2, 0, 1/2, 1, 2}
 	 */
 
+	const int CFS = 9;
+
+	const int coeff[CFS] = {-4, -3, -2, -1, 0, 1, 2, 3, 4};
+
+	const int POSS = CFS * CFS * CFS * CFS;
+
 	const int width = _width;
 
 	FilterScorer scores;
-	scores.init(SF_COUNT + TAPPED_COUNT);
+	scores.init(SF_COUNT + POSS);
 
-	int bestHist[SF_COUNT + TAPPED_COUNT] = {0};
+	int bestHist[SF_COUNT + POSS] = {0};
 
 	for (int y = 0; y < _height; y += FILTER_ZONE_SIZE) {
 		for (int x = 0; x < width; x += FILTER_ZONE_SIZE) {
@@ -221,18 +150,28 @@ void ImageCMWriter::designFilters() {
 						int sum = 0;
 
 						for (int cc = 0; cc < 3; ++cc) {
-							int err = p[cc] - (int)pred[cc];
+							int err = p[cc] - pred[cc];
 							if (err < 0) err = -err;
 							sum += err;
 						}
 						scores.add(ii, sum);
 					}
 
-					for (int ii = 0; ii < TAPPED_COUNT; ++ii) {
-						const int a = FILTER_TAPS[ii][0];
-						const int b = FILTER_TAPS[ii][1];
-						const int c = FILTER_TAPS[ii][2];
-						const int d = FILTER_TAPS[ii][3];
+					for (int ii = 0; ii < POSS; ++ii) {
+						// Backlist for static dupes
+						switch (ii - SF_COUNT) {
+							case 312: // Z
+								scores.add(ii + SF_COUNT, 512);
+								continue;
+						}
+						int t = ii;
+						const int a = coeff[t % CFS];
+						t /= CFS;
+						const int b = coeff[t % CFS];
+						t /= CFS;
+						const int c = coeff[t % CFS];
+						t /= CFS;
+						const int d = coeff[t % CFS];
 
 						int sum = 0;
 						for (int cc = 0; cc < 3; ++cc) {
@@ -249,14 +188,7 @@ void ImageCMWriter::designFilters() {
 
 			// Super Mario Kart scoring
 			FilterScorer::Score *top = scores.getLowest();
-
-			top = scores.getTop(4);
 			bestHist[top[0].index] += 1;
-			bestHist[top[1].index] += 1;
-			bestHist[top[2].index] += 1;
-			bestHist[top[3].index] += 1;
-
-			CAT_WARN("TEST") << top->index << " " << top[0].index << " " << top[1].index << " " << top[2].index << " " << top[3].index;
 		}
 	}
 
@@ -270,14 +202,18 @@ void ImageCMWriter::designFilters() {
 		CAT_WARN("ORIG") << ii << " = " << bestHist[ii];
 	}
 
-	for (int ii = 0; ii < TAPPED_COUNT; ++ii) {
-		if (bestHist[ii + SF_COUNT] > lowest_sf) {
-			const int a = FILTER_TAPS[ii][0];
-			const int b = FILTER_TAPS[ii][1];
-			const int c = FILTER_TAPS[ii][2];
-			const int d = FILTER_TAPS[ii][3];
+	for (int ii = SF_COUNT; ii < SF_COUNT + POSS; ++ii) {
+		int t = ii - SF_COUNT;
+		const int a = coeff[t % CFS];
+		t /= CFS;
+		const int b = coeff[t % CFS];
+		t /= CFS;
+		const int c = coeff[t % CFS];
+		t /= CFS;
+		const int d = coeff[t % CFS];
 
-			CAT_WARN("TEST") << ii << " = " << bestHist[ii + SF_COUNT] << " : (" << a << "A + " << b << "B + " << c << "C + " << d << "D) / 2";
+		if (bestHist[ii] > lowest_sf) {
+			CAT_WARN("TABLE") << " { " << a << ", " << b << ", " << c << ", " << d << " }, // PRED" << (ii - SF_COUNT) << " = (" << a << "A + " << b << "B + " << c << "C + " << d << "D) / 2  [score = " << bestHist[ii] << "]";
 		}
 	}
 }
