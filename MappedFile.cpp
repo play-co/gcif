@@ -110,7 +110,7 @@ bool MappedFile::OpenRead(const char *path, bool read_ahead, bool no_cache)
 	return true;
 }
 
-bool MappedFile::OpenWrite(const char *path, int size)
+bool MappedFile::OpenWrite(const char *path, u64 size)
 {
 	Close();
 
@@ -119,7 +119,24 @@ bool MappedFile::OpenWrite(const char *path, int size)
 
 #if defined(CAT_OS_WINDOWS)
 
-	CAT_ENFORCE(false) << "TODO: Add write support for Windows";
+	const u32 access_pattern = FILE_FLAG_SEQUENTIAL_SCAN;
+
+	_file = CreateFileA(path, GENERIC_WRITE|GENERIC_READ, FILE_SHARE_WRITE, 0, CREATE_ALWAYS, access_pattern, 0);
+	if (_file == INVALID_HANDLE_VALUE)
+	{
+		CAT_WARN("MappedFile") << "CreateFileA error " << GetLastError() << " for " << path;
+		return false;
+	}
+
+	// Set file size
+	if (!SetFilePointerEx(_file, *(LARGE_INTEGER*)&_len, 0, FILE_BEGIN)) {
+		CAT_WARN("MappedFile") << "SetFilePointerEx error " << GetLastError() << " for " << path;
+		return false;
+	}
+	if (!SetEndOfFile(_file)) {
+		CAT_WARN("MappedFile") << "SetEndOfFile error " << GetLastError() << " for " << path;
+		return false;
+	}
 
 #else
 
@@ -202,9 +219,8 @@ bool MappedView::Open(MappedFile *file)
 
 #if defined(CAT_OS_WINDOWS)
 
-	CAT_ENFORCE(false) << "TODO: Add write support for Windows";
-
-	_map = CreateFileMapping(file->_file, 0, PAGE_READONLY, 0, 0, 0);
+	const u32 flags = file->IsReadOnly() ? PAGE_READONLY : PAGE_READWRITE;
+	_map = CreateFileMapping(file->_file, 0, flags, 0, 0, 0);
 	if (!_map)
 	{
 		CAT_WARN("MappedView") << "CreateFileMapping error " << GetLastError();
@@ -218,6 +234,10 @@ bool MappedView::Open(MappedFile *file)
 
 u8 *MappedView::MapView(u64 offset, u32 length)
 {
+	if (length == 0) {
+		length = _file->GetLength();
+	}
+
 	if (offset) {
 		u32 granularity = SystemInfo::ref()->GetAllocationGranularity();
 
@@ -235,14 +255,17 @@ u8 *MappedView::MapView(u64 offset, u32 length)
 
 #if defined(CAT_OS_WINDOWS)
 
-	CAT_ENFORCE(false) << "TODO: Add length=0 support for Windows";
-
 	if (_data && !UnmapViewOfFile(_data))
 	{
 		CAT_INANE("MappedView") << "UnmapViewOfFile error " << GetLastError();
 	}
 
-	_data = (u8*)MapViewOfFile(_map, FILE_MAP_READ, (u32)(offset >> 32), (u32)offset, length);
+	u32 flags = FILE_MAP_READ;
+	if (!_file->IsReadOnly()) {
+		flags |= FILE_MAP_WRITE;
+	}
+
+	_data = (u8*)MapViewOfFile(_map, flags, (u32)(offset >> 32), (u32)offset, length);
 	if (!_data)
 	{
 		CAT_WARN("MappedView") << "MapViewOfFile error " << GetLastError();
@@ -254,10 +277,6 @@ u8 *MappedView::MapView(u64 offset, u32 length)
 	int prot = PROT_READ;
 	if (!_file->_readonly) {
 		prot |= PROT_WRITE;
-	}
-
-	if (!length) {
-		length = _file->_len;
 	}
 
 	_map = mmap(0, length, prot, MAP_SHARED, _file->_file, offset);

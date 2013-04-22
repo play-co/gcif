@@ -84,15 +84,13 @@ public:
 	bool OpenRead(const char *path, bool read_ahead = false, bool no_cache = false);
 
 	// Creates and opens the file for exclusive read/write access
-	bool OpenWrite(const char *path, int size);
+	bool OpenWrite(const char *path, u64 size);
 
 	void Close();
 
+	CAT_INLINE bool IsReadOnly() { return _readonly; }
 	CAT_INLINE u64 GetLength() { return _len; }
-	CAT_INLINE bool IsValid()
-	{
-		return _len != 0;
-	}
+	CAT_INLINE bool IsValid() { return _len != 0; }
 };
 
 
