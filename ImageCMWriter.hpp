@@ -26,13 +26,10 @@
  * + Only 8 chaos levels
  * + Encodes zero runs > ~256 without emitting more symbols for better AZ stats
  * + Better Huffman table compression
- * + Recent color palette extra symbols
  */
 
 namespace cat {
 
-
-//#define USE_RECENT_PALETTE
 
 //// ImageCMWriter
 
@@ -44,12 +41,6 @@ protected:
 	static const u16 UNUSED_FILTER = 0xffff;
 	static const u16 TODO_FILTER = 0;
 	static const int COLOR_PLANES = ImageCMReader::COLOR_PLANES;
-#if 0
-	static const int RECENT_SYMS_Y = ImageCMReader::RECENT_SYMS_Y; // >= U
-	static const int RECENT_SYMS_U = ImageCMReader::RECENT_SYMS_U;
-	static const int RECENT_AHEAD_Y = ImageCMReader::RECENT_AHEAD_Y;
-	static const int RECENT_AHEAD_U = ImageCMReader::RECENT_AHEAD_U;
-#endif
 	static const int ZRLE_SYMS_Y = ImageCMReader::ZRLE_SYMS_Y;
 	static const int ZRLE_SYMS_U = ImageCMReader::ZRLE_SYMS_U;
 	static const int ZRLE_SYMS_V = ImageCMReader::ZRLE_SYMS_V;

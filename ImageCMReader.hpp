@@ -36,12 +36,6 @@ class ImageCMReader {
 public:
 	static const int CHAOS_LEVELS_MAX = 8;
 	static const int COLOR_PLANES = 4;
-#if 0
-	static const int RECENT_SYMS_Y = 7;
-	static const int RECENT_SYMS_U = 7;
-	static const int RECENT_AHEAD_Y = 2;
-	static const int RECENT_AHEAD_U = 2;
-#endif
 	static const int ZRLE_SYMS_Y = 128;
 	static const int ZRLE_SYMS_U = 128;
 	static const int ZRLE_SYMS_V = 128;
