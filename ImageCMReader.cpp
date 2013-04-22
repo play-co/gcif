@@ -376,10 +376,14 @@ had_filter:;
 					last[c] = 0;
 				}
 			} else {
+				const u32 chaos_y = CHAOS_TABLE[last[-4] + (u16)last[0]];
+				const u32 chaos_u = CHAOS_TABLE[last[-3] + (u16)last[1]];
+				const u32 chaos_v = CHAOS_TABLE[last[-2] + (u16)last[2]];
+
 				// Read YUV filtered pixel
-				last[0] = (u8)_y_decoder[CHAOS_TABLE[last[-4] + (u16)last[0]]].next(reader);
-				last[1] = (u8)_u_decoder[CHAOS_TABLE[last[-3] + (u16)last[1]]].next(reader);
-				last[2] = (u8)_v_decoder[CHAOS_TABLE[last[-2] + (u16)last[2]]].next(reader);
+				last[0] = (u8)_y_decoder[chaos_y].next(reader);
+				last[1] = (u8)_u_decoder[chaos_u].next(reader);
+				last[2] = (u8)_v_decoder[chaos_v].next(reader);
 
 				// Reverse color filter
 				cf(last, p);
@@ -392,7 +396,8 @@ had_filter:;
 
 				// Read alpha pixel
 				u8 A;
-				last[3] = A = (u8)_a_decoder[CHAOS_TABLE[last[-1] + (u16)last[3]]].next(reader);
+				const u32 chaos_a = CHAOS_TABLE[last[-1] + (u16)last[3]];
+				last[3] = A = (u8)_a_decoder[chaos_a].next(reader);
 				p[3] = p[-1] - A;
 
 				// Convert last to score
