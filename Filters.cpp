@@ -835,6 +835,7 @@ DEFINE_TAPS(12);
 DEFINE_TAPS(13);
 DEFINE_TAPS(14);
 DEFINE_TAPS(15);
+DEFINE_TAPS(16);
 
 static SpatialFilterFunction m_safeTapFunctions[SF_COUNT] = {
 	SFF_TAPS_0,
@@ -852,7 +853,8 @@ static SpatialFilterFunction m_safeTapFunctions[SF_COUNT] = {
 	SFF_TAPS_12,
 	SFF_TAPS_13,
 	SFF_TAPS_14,
-	SFF_TAPS_15
+	SFF_TAPS_15,
+	SFF_TAPS_16
 };
 
 static SpatialFilterFunction m_unsafeTapFunctions[SF_COUNT] = {
@@ -871,13 +873,16 @@ static SpatialFilterFunction m_unsafeTapFunctions[SF_COUNT] = {
 	SFFU_TAPS_12,
 	SFFU_TAPS_13,
 	SFFU_TAPS_14,
-	SFFU_TAPS_15
+	SFFU_TAPS_15,
+	SFFU_TAPS_16
 };
 
 
 void cat::ResetSpatialFilters() {
 	memcpy(SPATIAL_FILTERS, DEF_SPATIAL_FILTERS, sizeof(SPATIAL_FILTERS));
 	memcpy(UNSAFE_SPATIAL_FILTERS, DEF_UNSAFE_SPATIAL_FILTERS, sizeof(UNSAFE_SPATIAL_FILTERS));
+
+	CAT_DEBUG_ENFORCE(SF_COUNT == 17);
 }
 
 void cat::SetSpatialFilter(int index, int a, int b, int c, int d) {
