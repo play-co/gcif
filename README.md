@@ -186,6 +186,9 @@ And the color filters are:
 	CF_GB_RB,	// from BCIF
 ~~~
 
+Spatial filters are applied before color filters so that the image smoothness
+does not get disturbed by the weird value-aliasing of the color filters.
+
 The encoder exhaustively tries all of these SF+CF combinations, and the best 20
 are then subjected to further entropy analysis.  This additional step greatly
 improves compression by increasing the rate at which symbols are reused in the
@@ -270,6 +273,8 @@ them stuck to the project.  Here are some more wild ideas:
 + Image verification mode.
 -- Add a stronger verification hash to the file format that can be checked.
 
++ Fix console timestamps.
+
 + Benchmarks in the README!
 
 
@@ -277,11 +282,33 @@ Example usage
 =============
 
 ~~~
+$ ./gcif --help
+USAGE: ./gcif [options] [output file path]
+
+Options:
+  --[h]elp                             Print usage and exit.
+  --[v]erbose                          Verbose console output
+  -0                                   Compression level 0 : Faster
+  -1                                   Compression level 1 : Better
+  -2                                   Compression level 2 : Harder (default)
+  --[s]ilent                           No console output (even on errors)
+  --[c]ompress <input PNG file path>   Compress the given .PNG image.
+  --[d]ecompress <input GCI file path> Decompress the given .GCI image
+  --[t]est <input PNG file path>       Test compression to verify it is lossless
+  --[b]enchmark <test set path>        Test compression ratio and decompression
+                                       speed for a whole directory at once
+  --[p]rofile <input GCI file path>    Decode same GCI file 100x to enhance
+                                       profiling of decoder
+
+Examples:
+  ./gcif -tv ./original.png
+  ./gcif -c ./original.png test.gci
+  ./gcif -d ./test.gci decoded.png
+
  $ ll original.png
 -rw-r--r--  1 cat  staff   1.3M Mar 26 00:25 original.png
  $ 
- $ make -j && ./gcif -2 -v -c original.png test.gci
-make: Nothing to be done for `release'.
+ $ ./gcif -2 -v -c original.png test.gci
 [Dec 31 16:00] <main> Reading input PNG image file: original.png
 [Dec 31 16:00] <main> Encoding image: test.gci
 [Dec 31 16:00] <mask> Writing mask...
