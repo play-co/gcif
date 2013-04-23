@@ -34,11 +34,8 @@ class ImageReader {
 	int _wordCount;
 	int _wordsLeft;
 
-	u32 _bits;
+	u64 _bits;
 	int _bitsLeft;
-
-	u32 _nextWord;
-	int _nextLeft;
 
 	void clear();
 
@@ -72,7 +69,7 @@ public:
 		if CAT_UNLIKELY(_bitsLeft < minBits) {
 			return refill();
 		} else {
-			return _bits;
+			return (u32)(_bits >> 32);
 		}
 	}
 

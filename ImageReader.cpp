@@ -11,59 +11,29 @@ void ImageReader::clear() {
 }
 
 u32 ImageReader::refill() {
-	u32 bits = _bits;
+	u64 bits = _bits;
 	int bitsLeft = _bitsLeft;
-
-	u32 nextWord = _nextWord;
-	int nextLeft = _nextLeft;
 
 	CAT_DEBUG_ENFORCE(bitsLeft < 32);
 
-	bits |= nextWord >> bitsLeft;
+	if CAT_LIKELY(_wordsLeft > 0) {
+		--_wordsLeft;
 
-	int readBits = 32 - bitsLeft;
+		u32 nextWord = getLE(*_words++);
+		_hash.hashWord(nextWord);
 
-	if CAT_LIKELY(nextLeft >= readBits) {
-		CAT_DEBUG_ENFORCE(readBits < 32);
-		nextWord <<= readBits;
-		nextLeft -= readBits;
-		_bitsLeft = 32;
+		bits |= (u64)nextWord << (32 - bitsLeft);
+		bitsLeft += 32;
+
+		_bits = bits;
+		_bitsLeft = bitsLeft;
 	} else {
-		if CAT_LIKELY(_wordsLeft > 0) {
-			--_wordsLeft;
-
-			nextWord = getLE(*_words++);
-			_hash.hashWord(nextWord);
-
-			bitsLeft += nextLeft;
-			CAT_DEBUG_ENFORCE(bitsLeft < 32);
-			bits |= nextWord >> bitsLeft;
-
-			if (bitsLeft == 0) {
-				nextWord = 0;
-			} else {
-				nextWord <<= (32 - bitsLeft);
-			}
-			nextLeft = bitsLeft;
-			_bitsLeft = 32;
-		} else {
-			_bitsLeft += nextLeft;
-
-			nextWord = 0;
-			nextLeft = 0;
-
-			if (bitsLeft <= 0) {
-				_eof = true;
-			}
+		if (bitsLeft <= 0) {
+			_eof = true;
 		}
 	}
 
-	_nextWord = nextWord;
-	_nextLeft = nextLeft;
-
-	_bits = bits;
-
-	return bits;
+	return bits >> 32;
 }
 
 int ImageReader::init(const char *path) {
@@ -144,9 +114,6 @@ int ImageReader::init(const void *buffer, int fileSize) {
 
 	_bits = 0;
 	_bitsLeft = 0;
-
-	_nextWord = 0;
-	_nextLeft = 0;
 
 	return RE_OK;
 }
