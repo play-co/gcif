@@ -356,8 +356,7 @@ Examples:
 [Dec 31 16:00] <stats> (CM Compress) Overall size : 7262473 bits (907809 bytes)
 [Dec 31 16:00] <stats> (CM Compress) Overall compression ratio : 4.62025:1
 [Dec 31 16:00] <main> Success.
- $ make -j && ./gcif -v -d test.gci test.png
-make: Nothing to be done for `release'.
+ $ ./gcif -v -d test.gci test.png
 [Dec 31 16:00] <main> Decoding input GCIF image file: test.gci
 [Dec 31 16:00] <stats> (Mask Decode) Initialization : 5 usec (0.859107 %total)
 [Dec 31 16:00] <stats> (Mask Decode)     Huffman+LZ : 372 usec (63.9175 %total)
@@ -371,7 +370,7 @@ make: Nothing to be done for `release'.
 [Dec 31 16:00] <stats> (CM Decode)     Initialization : 2 usec (0.0037968 %total)
 [Dec 31 16:00] <stats> (CM Decode) Read Filter Tables : 6 usec (0.0113904 %total)
 [Dec 31 16:00] <stats> (CM Decode)  Read Chaos Tables : 454 usec (0.861873 %total)
-[Dec 31 16:00] <stats> (CM Decode)           Read RGB : 52214 usec (99.1229 %total)
+[Dec 31 16:00] <stats> (CM Decode)      Decode Pixels : 52214 usec (99.1229 %total)
 [Dec 31 16:00] <stats> (CM Decode)            Overall : 52676 usec
 [Dec 31 16:00] <stats> (CM Decode)         Throughput : 79.6246 MBPS (output bytes/time)
 [Dec 31 16:00] <main> Writing output PNG image file: test.png
