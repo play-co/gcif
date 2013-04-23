@@ -60,6 +60,31 @@ int ImageCMReader::init(GCIFImage *image) {
 }
 
 int ImageCMReader::readFilterTables(ImageReader &reader) {
+	// Set up spatial filter subsystem
+	ResetSpatialFilters();
+
+	// Read in count of custom spatial filters
+	u32 rep_count = reader.readBits(5);
+	if (rep_count > SF_COUNT) {
+		return RE_CM_CODES;
+	}
+
+	// Read in the preset index for each custom filter
+	for (int ii = 0; ii < rep_count; ++ii) {
+		u32 def = reader.readBits(5);
+
+		if (def >= SF_COUNT) {
+			return RE_CM_CODES;
+		}
+
+		u32 cust = reader.readBits(7);
+		if (cust >= TAPPED_COUNT) {
+			return RE_CM_CODES;
+		}
+
+		SetSpatialFilter(def, cust);
+	}
+
 	// Initialize huffman decoder
 	if (reader.eof() || !_sf.init(SF_COUNT, reader, 8)) {
 		return RE_CM_CODES;

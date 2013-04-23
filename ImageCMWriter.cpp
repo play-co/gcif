@@ -54,6 +54,8 @@ void ImageCMWriter::clear() {
 		delete []_chaos;
 		_chaos = 0;
 	}
+
+	_filter_replacements.clear();
 }
 
 int ImageCMWriter::init(int width, int height) {
@@ -217,7 +219,7 @@ void ImageCMWriter::designFilters() {
 
 		// Verify it is good enough to bother with
 		double ratio = best_tap / (double)lowest_sf;
-		if (ratio < 1.2) {
+		if (ratio < 1.3) {
 			break;
 		}
 
@@ -228,6 +230,8 @@ void ImageCMWriter::designFilters() {
 		const int d = FILTER_TAPS[highest_index][3];
 
 		CAT_INANE("CM") << "Replacing default filter " << lowest_index << " with tapped filter " << highest_index << " that is " << ratio << "x more preferable : PRED = (" << a << "A + " << b << "B + " << c << "C + " << d << "D) / 2";
+
+		_filter_replacements.push_back((lowest_index << 16) | highest_index);
 
 		SetSpatialFilter(lowest_index, highest_index);
 
@@ -614,11 +618,31 @@ int ImageCMWriter::initFromRGBA(const u8 *rgba, int width, int height, ImageMask
 }
 
 bool ImageCMWriter::writeFilters(ImageWriter &writer) {
+	const int rep_count = _filter_replacements.size();
+
+	CAT_DEBUG_ENFORCE(SF_COUNT < 32);
+	CAT_DEBUG_ENFORCE(TAPPED_COUNT < 128);
+
+	writer.writeBits(rep_count, 5);
+	int bits = 5;
+
+	for (int ii = 0; ii < rep_count; ++ii) {
+		u32 filter = _filter_replacements[ii];
+
+		u16 def = (u16)(filter >> 16);
+		u16 cust = (u16)filter;
+
+		writer.writeBits(def, 5);
+		writer.writeBits(cust, 7);
+		bits += 12;
+	}
+
 	// Write out filter huffman tables
 	int sf_table_bits = _sf_encoder.writeTable(writer);
 	int cf_table_bits = _cf_encoder.writeTable(writer);
+
 #ifdef CAT_COLLECT_STATS
-	Stats.filter_table_bits[0] = sf_table_bits;
+	Stats.filter_table_bits[0] = sf_table_bits + bits;
 	Stats.filter_table_bits[1] = cf_table_bits;
 #endif // CAT_COLLECT_STATS
 

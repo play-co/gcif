@@ -9,6 +9,8 @@
 #include "FilterScorer.hpp"
 #include "Filters.hpp"
 
+#include <vector>
+
 /*
  * Game Closure Context Modeling (GC-CM) Compression
  *
@@ -62,6 +64,8 @@ protected:
 	int _width, _height;
 	ImageMaskWriter *_mask;
 	ImageLZWriter *_lz;
+
+	std::vector<u32> _filter_replacements;
 
 	// Filter Huffman codes
 	HuffmanEncoder<SF_COUNT> _sf_encoder;
