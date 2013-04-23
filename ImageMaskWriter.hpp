@@ -23,6 +23,9 @@
 namespace cat {
 
 
+#define DUMP_FILTER_OUTPUT
+
+
 //// ImageMaskWriter
 
 class ImageMaskWriter {

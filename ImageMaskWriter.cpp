@@ -18,8 +18,6 @@ using namespace std;
 #include "lz4hc.h"
 
 
-#define DUMP_FILTER_OUTPUT
-
 #ifdef DUMP_FILTER_OUTPUT
 #include "lodepng.h"
 #endif // DUMP_FILTER_OUTPUT
@@ -60,30 +58,30 @@ void ImageMaskWriter::applyFilter() {
 	}
 
 #ifdef DUMP_FILTER_OUTPUT
-		{
-			//CAT_WARN("main") << "Writing delta image file";
+	if (_knobs->mask_dumpDelta) {
+		CAT_WARN("mask") << "Writing delta.png image file";
 
-			// Convert to image:
+		// Convert to image:
 
-			vector<unsigned char> output;
-			u8 bits = 0, bitCount = 0;
+		vector<unsigned char> output;
+		u8 bits = 0, bitCount = 0;
 
-			for (int ii = 0; ii < _height; ++ii) {
-				for (int jj = 0; jj < _width; ++jj) {
-					u32 set = (_filtered[ii * _stride + jj / 32] >> (31 - (jj & 31))) & 1;
-					bits <<= 1;
-					bits |= set;
-					if (++bitCount >= 8) {
-						output.push_back(bits);
-						bits = 0;
-						bitCount = 0;
-					}
+		for (int ii = 0; ii < _height; ++ii) {
+			for (int jj = 0; jj < _width; ++jj) {
+				u32 set = (_filtered[ii * _stride + jj / 32] >> (31 - (jj & 31))) & 1;
+				bits <<= 1;
+				bits |= set;
+				if (++bitCount >= 8) {
+					output.push_back(bits);
+					bits = 0;
+					bitCount = 0;
 				}
 			}
-
-			lodepng_encode_file("delta.png", (const unsigned char*)&output[0], _width, _height, LCT_GREY, 1);
 		}
-#endif // DUMP_FILTER_OUTPUT
+
+		lodepng_encode_file("delta.png", (const unsigned char*)&output[0], _width, _height, LCT_GREY, 1);
+	}
+#endif
 }
 
 void ImageMaskWriter::clear() {
@@ -195,30 +193,28 @@ int ImageMaskWriter::initFromRGBA(const u8 *rgba, int width, int height, const G
 #endif // CAT_COLLECT_STATS
 
 #ifdef DUMP_FILTER_OUTPUT
-		{
-			//CAT_WARN("main") << "Writing mask image file";
+	if (_knobs->mask_dumpMask) {
+		CAT_WARN("mask") << "Writing mask.png";
 
-			// Convert to image:
+		vector<unsigned char> output;
+		u8 bits = 0, bitCount = 0;
 
-			vector<unsigned char> output;
-			u8 bits = 0, bitCount = 0;
-
-			for (int ii = 0; ii < _height; ++ii) {
-				for (int jj = 0; jj < _width; ++jj) {
-					u32 set = (_mask[ii * _stride + jj / 32] >> (31 - (jj & 31))) & 1;
-					bits <<= 1;
-					bits |= set;
-					if (++bitCount >= 8) {
-						output.push_back(bits);
-						bits = 0;
-						bitCount = 0;
-					}
+		for (int ii = 0; ii < _height; ++ii) {
+			for (int jj = 0; jj < _width; ++jj) {
+				u32 set = (_mask[ii * _stride + jj / 32] >> (31 - (jj & 31))) & 1;
+				bits <<= 1;
+				bits |= set;
+				if (++bitCount >= 8) {
+					output.push_back(bits);
+					bits = 0;
+					bitCount = 0;
 				}
 			}
-
-			lodepng_encode_file("mask.png", (const unsigned char*)&output[0], _width, _height, LCT_GREY, 1);
 		}
-#endif // DUMP_FILTER_OUTPUT
+
+		lodepng_encode_file("mask.png", (const unsigned char*)&output[0], _width, _height, LCT_GREY, 1);
+	}
+#endif
 
 	return WE_OK;
 }

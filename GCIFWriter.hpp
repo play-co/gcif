@@ -40,6 +40,11 @@ struct GCIFKnobs {
 
 	// Toggle custom filter taps
 	bool customFilterTaps;
+
+	//// Image mask writer
+
+	bool mask_dumpMask;		// Writes pre-filter mask to mask.png
+	bool mask_dumpDelta;	// Writes post-filter mask to delta.png
 };
 
 /*

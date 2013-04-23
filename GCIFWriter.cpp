@@ -10,9 +10,9 @@ using namespace cat;
 
 static const int COMPRESS_LEVELS = 3;
 static const GCIFKnobs DEFAULT_KNOBS[COMPRESS_LEVELS] = {
-	{ 0, 0, false },
-	{ 0, 8, true },
-	{ 0, 20, true }
+	{ 0, 0, false, false, false },
+	{ 0, 8, true, false, false },
+	{ 0, 20, true, false, false }
 };
 
 
