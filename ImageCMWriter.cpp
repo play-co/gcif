@@ -299,13 +299,19 @@ void ImageCMWriter::designFilters() {
 			break;
 		}
 
+		// Verify it is good enough to bother with
+		double ratio = best_tap / (double)lowest_sf;
+		if (ratio < 1.2) {
+			break;
+		}
+
 		// Insert it at this location
 		const int a = FILTER_TAPS[highest_index][0];
 		const int b = FILTER_TAPS[highest_index][1];
 		const int c = FILTER_TAPS[highest_index][2];
 		const int d = FILTER_TAPS[highest_index][3];
 
-		CAT_INANE("CM") << "Replacing default filter " << lowest_index << " with tapped filter " << highest_index << " that is " << best_tap/(double)lowest_sf << "x better : PRED = (" << a << "A + " << b << "B + " << c << "C + " << d << "D) / 2";
+		CAT_INANE("CM") << "Replacing default filter " << lowest_index << " with tapped filter " << highest_index << " that is " << ratio << "x better : PRED = (" << a << "A + " << b << "B + " << c << "C + " << d << "D) / 2";
 
 		SetSpatialFilter(lowest_index, a, b, c, d);
 
