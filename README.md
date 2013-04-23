@@ -6,9 +6,8 @@ Game Closure Image Format
 This is a Work-In-Progress towards a new RGBA image format that works well for
 our spritehseets.
 
-It is expected to produce files about half the size of the equivalent PNG
-formatted images.  And it is expected to decompress three times faster than the
-equivalent PNG formatted image (with PNGCRUSH) using libpng.
+Early test results indicate that GCIF files are ~60% the size of PNG sprites,
+and the decompression speed is comparable or better than libpng.
 
 
 Credit Where It's Due
@@ -137,11 +136,14 @@ The two filters are spatial and color.  The spatial filters are:
 	SF_ABC_CLAMP,	// A + B - C clamped to [0, 255]
 	SF_PAETH,		// Paeth filter
 	SF_ABC_PAETH,	// If A <= C <= B, A + B - C, else Paeth filter
-	SF_PL,			// Use ABC to determine if increasing or decreasing
 	SF_PLO,			// Offset PL
 	SF_ABCD,		// (A + B + C + D + 1)/4
 	SF_AD,			// (A + D)/2
 ~~~
+
+In addition to these default filters, 80 linear filters involving A,B,C, and D
+are selected to be used based on the input image, and will replace filters in
+the above table where they are preferred.
 
 And the color filters are:
 
@@ -165,28 +167,60 @@ And the color filters are:
 	CF_GB_RB,	// from BCIF
 ~~~
 
+The encoder exhaustively tries all of these SF+CF combinations, and the best 20
+are then subjected to further entropy analysis.  This additional step greatly
+improves compression by increasing the rate at which symbols are reused in the
+post-filtered data, which makes the data easier to compress.
+
 This generates encoded pixels and a filter description.  The filter description
 is compressed with Huffman encoding and written to the file.
 
 
-### Step 3. Chaos Context Encoding
+### Step 3. Order-1 Chaos Modeling and Encoding
 
 For each RGB plane, the BCIF "chaos" metric is used to sort each remaining
-filtered pixel into one of 8 bins.  Symbol statistics are collected for each
-bin and each RGB plane.
+filtered pixel into one of 8 bins.  The chaos metric is a rough approximation
+to order-1 statistics.  The metric is defined as the sum of the highest set bit
+index in the left and up post-filter values for each channel.  Recall that
+after spatial and color filtering, the image data is mostly eliminated and
+replaced with a few values near zero.  Smaller values (and zeroes especially)
+lead to better compression, so the "chaos" of a location in the image after
+filtering is exactly how large the nearby values are.
 
+Comparing this approach to order-1 statistics, that would be calculating the
+statistics for seeing a value of "0" after seeing a value of "1", "2", and so
+on.  The limitation of this approach is that it requires significantly more
+overhead and working memory since we only admit static Huffman codes for speed.
+To get some of the order-1 results, we can group statistics together.  The
+probability of seeing "1", "2", etc after "0" is exactly what the chaos level 0
+statistics are recording!  Exactly also for chaos level 1.  But for chaos level
+2 and above it gets a lot more fuzzy.  Since most of the symbols are close to
+zero, this approach is maximizing the effect of order-1 statistics.
 
-### Step 4. Interleaved Encoding
+Furthermore, the chaos metric cares about two dimensions, both the vertical and
+horizontal chaos.  As a result it is well-suited for 2D images.
 
-Then each pixel is iterated over and alpha-masked or LZ-masked pixels are
-omitted.  The pixels are Huffman encoded based on color plane and chaos metric.
+Since most of the image data is near zero, areas where high values occur tend
+to be stored together in the statistical model, which means it can be more
+tightly tuned for that data, further improving compression.
+
+When the number of pixels to be encoded falls below a certain threshold, all 8
+chaos bins require too much overhead to make them worthwhile, so the compressor
+switches off the chaos metric to cut the overhead down to 1/8th its size.
+
+Since there are 8 chaos bins, that means 8 Huffman tables are transmitted for
+each of the RGBA color planes.  Therefore, it was essential to develop a good
+compression algorithm for the Huffman tables themselves.  So, the tables are
+filtered and compressed using the same entropy encoding used on the image data.
+This table compression is exceptionally good.  It compresses about 8KB of table
+data down into about 3KB using several tricks including truncation.
 
 
 What works right now
 ====================
 
 The codec supports full RGBA.  The compressor and decompressor are close to
-being finished:  The first image scanline decodes properly.
+being finished.  Only a few images cause crashes or other issues.
 
 The code is well-written in our opinion, easy to read and adapt, and easy to
 incorporate into mobile development.
@@ -198,4 +232,38 @@ amount of code needs to be added to support this file format.  We're shooting
 for one large C++ file, though it may end up being a small number of files.
 
 
+Future plans
+============
+
+We have tried a lot of crazy things to improve compression, and only a few of
+them stuck to the project.  Here are some more wild ideas:
+
++ Support a full palette mode for small or GIF-quantized images.
+-- First determine the palette.
+-- Sort the palette so that the image data attains maximum smoothness.
+-- Apply all of the normal spatial filtering without color filters.
+-- Encode it as one channel instead of RGBA.
+
++ Support scanline spatial and color filters.
+-- Define one filter pair for an entire row.
+-- Compare the result of doing this with tightly tuned filters; send the best.
+
++ Support LZ at the scanline level.
+-- Make post-filter LZ a part of the scanline filter mode.
+-- This is exciting because right now LZ is useless with the post-filter data.
+-- WILL be better for some computer-generated images I am looking at.
+-- WILL make us better than PNG for ALL images rather than just the majority.
+
++ Expose more of the thresholds and other constants at the API level.
+-- Allows users to further optimize the result.
+
++ A new spritesheet generator that uses GCIF as an output file format.
+-- Even better image compression by eliminating a lot of image data.
+-- There is a lot of room for improvement in our current spriter.
+-- Incorporate it into the GCIF codebase to make it a one-stop shop for games.
+
++ Image verification mode.
+-- Add a stronger verification hash to the file format that can be checked.
+
 Stay tuned! =) -cat
+
