@@ -730,7 +730,7 @@ static const u8 *SFFU_PL(const u8 *p, int x, int y, int width) {
 #endif
 
 
-SpatialFilterFunction cat::SPATIAL_FILTERS[SF_COUNT] = {
+static const SpatialFilterFunction DEF_SPATIAL_FILTERS[SF_COUNT] = {
 	SFF_Z,
 	SFF_D,
 	SFF_C,
@@ -750,7 +750,7 @@ SpatialFilterFunction cat::SPATIAL_FILTERS[SF_COUNT] = {
 	SFF_AD,
 };
 
-SpatialFilterFunction cat::UNSAFE_SPATIAL_FILTERS[SF_COUNT] = {
+static const SpatialFilterFunction DEF_UNSAFE_SPATIAL_FILTERS[SF_COUNT] = {
 	SFFU_Z,
 	SFFU_D,
 	SFFU_C,
@@ -769,6 +769,126 @@ SpatialFilterFunction cat::UNSAFE_SPATIAL_FILTERS[SF_COUNT] = {
 	SFFU_ABCD,
 	SFFU_AD,
 };
+
+SpatialFilterFunction cat::SPATIAL_FILTERS[SF_COUNT];
+SpatialFilterFunction cat::UNSAFE_SPATIAL_FILTERS[SF_COUNT];
+
+
+static int m_taps[SF_COUNT][4];
+
+#define DEFINE_TAPS(TAP) \
+	static const u8 *SFF_TAPS_ ## TAP (const u8 *p, int x, int y, int width) { \
+		if (x > 0) { \
+			const u8 *a = p - 4; /* A */ \
+			if (y > 0) { \
+				const u8 *b = p - width*4; /* B */ \
+				const u8 *c = b - 4; /* C */ \
+				const u8 *d = b; /* B */ \
+				if (x < width-1) { \
+					d += 4; /* D */ \
+				} \
+				const int ta = m_taps[TAP][0]; \
+				const int tb = m_taps[TAP][1]; \
+				const int tc = m_taps[TAP][2]; \
+				const int td = m_taps[TAP][3]; \
+				FPT[0] = (ta*a[0] + tb*b[0] + tc*c[0] + td*d[0]) / 2; \
+				FPT[1] = (ta*a[1] + tb*b[1] + tc*c[1] + td*d[1]) / 2; \
+				FPT[2] = (ta*a[2] + tb*b[2] + tc*c[2] + td*d[2]) / 2; \
+				return FPT; \
+			} else { \
+				return a; \
+			} \
+		} else if (y > 0) { \
+			return  p - width*4; /* B */ \
+		} \
+		return FPZ; \
+	} \
+	static const u8 *SFFU_TAPS_ ## TAP (const u8 *p, int x, int y, int width) { \
+		CAT_DEBUG_ENFORCE(x > 0 && y > 0 && x < width-1); \
+		const u8 *a = p - 4; \
+		const u8 *b = p - width*4; \
+		const u8 *c = b - 4; \
+		const u8 *d = b + 4; \
+		const int ta = m_taps[TAP][0]; \
+		const int tb = m_taps[TAP][1]; \
+		const int tc = m_taps[TAP][2]; \
+		const int td = m_taps[TAP][3]; \
+		FPT[0] = (ta*a[0] + tb*b[0] + tc*c[0] + td*d[0]) / 2; \
+		FPT[1] = (ta*a[1] + tb*b[1] + tc*c[1] + td*d[1]) / 2; \
+		FPT[2] = (ta*a[2] + tb*b[2] + tc*c[2] + td*d[2]) / 2; \
+		return FPT; \
+	}
+
+DEFINE_TAPS(0);
+DEFINE_TAPS(1);
+DEFINE_TAPS(2);
+DEFINE_TAPS(3);
+DEFINE_TAPS(4);
+DEFINE_TAPS(5);
+DEFINE_TAPS(6);
+DEFINE_TAPS(7);
+DEFINE_TAPS(8);
+DEFINE_TAPS(9);
+DEFINE_TAPS(10);
+DEFINE_TAPS(11);
+DEFINE_TAPS(12);
+DEFINE_TAPS(13);
+DEFINE_TAPS(14);
+DEFINE_TAPS(15);
+
+static SpatialFilterFunction m_safeTapFunctions[SF_COUNT] = {
+	SFF_TAPS_0,
+	SFF_TAPS_1,
+	SFF_TAPS_2,
+	SFF_TAPS_3,
+	SFF_TAPS_4,
+	SFF_TAPS_5,
+	SFF_TAPS_6,
+	SFF_TAPS_7,
+	SFF_TAPS_8,
+	SFF_TAPS_9,
+	SFF_TAPS_10,
+	SFF_TAPS_11,
+	SFF_TAPS_12,
+	SFF_TAPS_13,
+	SFF_TAPS_14,
+	SFF_TAPS_15
+};
+
+static SpatialFilterFunction m_unsafeTapFunctions[SF_COUNT] = {
+	SFFU_TAPS_0,
+	SFFU_TAPS_1,
+	SFFU_TAPS_2,
+	SFFU_TAPS_3,
+	SFFU_TAPS_4,
+	SFFU_TAPS_5,
+	SFFU_TAPS_6,
+	SFFU_TAPS_7,
+	SFFU_TAPS_8,
+	SFFU_TAPS_9,
+	SFFU_TAPS_10,
+	SFFU_TAPS_11,
+	SFFU_TAPS_12,
+	SFFU_TAPS_13,
+	SFFU_TAPS_14,
+	SFFU_TAPS_15
+};
+
+
+void cat::ResetSpatialFilters() {
+	memcpy(SPATIAL_FILTERS, DEF_SPATIAL_FILTERS, sizeof(SPATIAL_FILTERS));
+	memcpy(UNSAFE_SPATIAL_FILTERS, DEF_UNSAFE_SPATIAL_FILTERS, sizeof(UNSAFE_SPATIAL_FILTERS));
+}
+
+void cat::SetSpatialFilter(int index, int a, int b, int c, int d) {
+	SPATIAL_FILTERS[index] = m_safeTapFunctions[index];
+	UNSAFE_SPATIAL_FILTERS[index] = m_unsafeTapFunctions[index];
+
+	m_taps[index][0] = a;
+	m_taps[index][1] = b;
+	m_taps[index][2] = c;
+	m_taps[index][3] = d;
+}
 
 
 //// Color Filters
