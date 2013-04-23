@@ -277,6 +277,9 @@ Example usage
 =============
 
 ~~~
+ $ ll original.png
+-rw-r--r--  1 cat  staff   1.3M Mar 26 00:25 original.png
+ $ 
  $ make -j && ./gcif -2 -v -c original.png test.gci
 make: Nothing to be done for `release'.
 [Dec 31 16:00] <main> Reading input PNG image file: original.png
@@ -346,6 +349,8 @@ make: Nothing to be done for `release'.
 [Dec 31 16:00] <stats> (CM Decode)         Throughput : 79.6246 MBPS (output bytes/time)
 [Dec 31 16:00] <main> Writing output PNG image file: test.png
 [Dec 31 16:00] <main> Success.
+ $ ll test.gci
+-rw-r--r--  1 cat  staff   887K Apr 23 00:26 test.gci
 ~~~
 
 
