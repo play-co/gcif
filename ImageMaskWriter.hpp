@@ -6,6 +6,7 @@
 #include "ImageMaskReader.hpp"
 #include "Filters.hpp"
 #include "HuffmanEncoder.hpp"
+#include "GCIFWriter.hpp"
 
 #include <vector>
 
@@ -29,6 +30,7 @@ class ImageMaskWriter {
 
 	u32 _value;
 
+	const GCIFKnobs *_knobs;
 	u32 *_mask;
 	u32 *_filtered;
 	int _size, _stride, _width, _height;
@@ -68,7 +70,7 @@ public:
 		clear();
 	}
 
-	int initFromRGBA(const u8 *rgba, int width, int height);
+	int initFromRGBA(const u8 *rgba, int width, int height, const GCIFKnobs *knobs);
 
 	void write(ImageWriter &writer);
 

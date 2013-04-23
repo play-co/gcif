@@ -8,6 +8,7 @@
 #include "EntropyEncoder.hpp"
 #include "FilterScorer.hpp"
 #include "Filters.hpp"
+#include "GCIFWriter.hpp"
 
 #include <vector>
 
@@ -28,6 +29,7 @@
  * + Only 8 chaos levels
  * + Encodes zero runs > ~256 without emitting more symbols for better AZ stats
  * + Better Huffman table compression
+ * + Linear spatial filters tuned to image where improvement is found
  */
 
 namespace cat {
@@ -50,6 +52,7 @@ protected:
 	static const int PALETTE_MIN = 2;
 	static const int CHAOS_THRESH = 4000; // Number of chaos-encoded pixels required to use chaos levels
 
+	const GCIFKnobs *_knobs;
 	int _w, _h;
 	u16 *_matrix;
 	u8 *_chaos;
@@ -129,7 +132,7 @@ public:
 		return _matrix[filterX + filterY * _w];
 	}
 
-	int initFromRGBA(const u8 *rgba, int width, int height, ImageMaskWriter &mask, ImageLZWriter &lz);
+	int initFromRGBA(const u8 *rgba, int width, int height, ImageMaskWriter &mask, ImageLZWriter &lz, const GCIFKnobs *knobs);
 	void write(ImageWriter &writer);
 
 #ifdef CAT_COLLECT_STATS

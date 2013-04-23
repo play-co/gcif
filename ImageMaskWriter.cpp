@@ -97,7 +97,7 @@ void ImageMaskWriter::clear() {
 	}
 }
 
-int ImageMaskWriter::initFromRGBA(const u8 *rgba, int width, int height) {
+int ImageMaskWriter::initFromRGBA(const u8 *rgba, int width, int height, const GCIFKnobs *knobs) {
 
 	if (!rgba || width < FILTER_ZONE_SIZE || height < FILTER_ZONE_SIZE) {
 		return WE_BAD_DIMS;
@@ -113,6 +113,7 @@ int ImageMaskWriter::initFromRGBA(const u8 *rgba, int width, int height) {
 	const int maskHeight = height;
 
 	// Init mask bitmatrix
+	_knobs = knobs;
 	_width = maskWidth;
 	_stride = (maskWidth + 31) >> 5;
 	_size = maskHeight * _stride;

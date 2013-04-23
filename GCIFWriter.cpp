@@ -6,9 +6,23 @@
 using namespace cat;
 
 
-int gcif_write(const void *rgba, int width, int height, const char *output_file_path) {
-	const u8 *image = reinterpret_cast<const u8*>( rgba );
+// Default knobs for the normal compression levels
 
+static const int COMPRESS_LEVELS = 3;
+static const GCIFKnobs DEFAULT_KNOBS[COMPRESS_LEVELS] = {
+	{ 0, 0, false },
+	{ 0, 8, true },
+	{ 0, 20, true }
+};
+
+
+int gcif_write_ex(const void *rgba, int width, int height, const char *output_file_path, const GCIFKnobs *knobs) {
+	// Validate input
+	if (!rgba || width < 0 || height < 0 || !output_file_path || !*output_file_path) {
+		return WE_BAD_PARAMS;
+	}
+
+	const u8 *image = reinterpret_cast<const u8*>( rgba );
 	int err;
 
 	// Initialize image writer
@@ -19,7 +33,7 @@ int gcif_write(const void *rgba, int width, int height, const char *output_file_
 
 	// Fully-Transparent Alpha Mask
 	ImageMaskWriter imageMaskWriter;
-	if ((err = imageMaskWriter.initFromRGBA(image, width, height))) {
+	if ((err = imageMaskWriter.initFromRGBA(image, width, height, knobs))) {
 		return err;
 	}
 
@@ -28,7 +42,7 @@ int gcif_write(const void *rgba, int width, int height, const char *output_file_
 
 	// 2D-LZ Exact Match
 	ImageLZWriter imageLZWriter;
-	if ((err = imageLZWriter.initFromRGBA(image, width, height))) {
+	if ((err = imageLZWriter.initFromRGBA(image, width, height, knobs))) {
 		return err;
 	}
 
@@ -37,7 +51,7 @@ int gcif_write(const void *rgba, int width, int height, const char *output_file_
 
 	// Context Modeling Decompression
 	ImageCMWriter imageCMWriter;
-	if ((err = imageCMWriter.initFromRGBA(image, width, height, imageMaskWriter, imageLZWriter))) {
+	if ((err = imageCMWriter.initFromRGBA(image, width, height, imageMaskWriter, imageLZWriter, knobs))) {
 		return err;
 	}
 
@@ -49,7 +63,23 @@ int gcif_write(const void *rgba, int width, int height, const char *output_file_
 		return err;
 	}
 
-	return 0;
+	return WE_OK;
+}
+
+int gcif_write(const void *rgba, int width, int height, const char *output_file_path, int compression_level) {
+	// Error on invalid input
+	if (compression_level < 0) {
+		return WE_BAD_PARAMS;
+	}
+
+	// Limit to the available options
+	if (compression_level >= COMPRESS_LEVELS) {
+		compression_level = COMPRESS_LEVELS - 1;
+	}
+
+	// Run with selected knobs
+	const GCIFKnobs *knobs = &DEFAULT_KNOBS[compression_level];
+	return gcif_write_ex(rgba, width, height, output_file_path, knobs);
 }
 
 

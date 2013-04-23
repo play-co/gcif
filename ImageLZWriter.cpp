@@ -3,7 +3,6 @@
 #include "EntropyEncoder.hpp"
 #include "ImageLZReader.hpp"
 #include "Log.hpp"
-#include "GCIFWriter.hpp"
 using namespace cat;
 
 #include <algorithm> // std::sort
@@ -40,13 +39,14 @@ static CAT_INLINE u32 hashPixel(u32 key) {
 	return key;
 }
 
-int ImageLZWriter::initFromRGBA(const u8 *rgba, int width, int height) {
+int ImageLZWriter::initFromRGBA(const u8 *rgba, int width, int height, const GCIFKnobs *knobs) {
 	clear();
 
 	if (width < ZONEW || height < ZONEH) {
 		return WE_BAD_DIMS;
 	}
 
+	_knobs = knobs;
 	_rgba = rgba;
 	_width = width;
 	_height = height;

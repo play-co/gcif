@@ -4,7 +4,6 @@
 #include "EntropyEstimator.hpp"
 #include "Log.hpp"
 #include "ImageLZWriter.hpp"
-#include "GCIFWriter.hpp"
 using namespace cat;
 
 #include <vector>
@@ -16,20 +15,9 @@ using namespace std;
 #include "HuffmanEncoder.hpp"
 #include "lodepng.h"
 
-#include <iostream>
-using namespace std;
-
-
-static CAT_INLINE int score(u8 p) {
-	if (p < 128) {
-		return p;
-	} else {
-		return 256 - p;
-	}
-}
 
 static CAT_INLINE int scoreYUV(u8 *yuv) {
-	return score(yuv[0]) + score(yuv[1]) + score(yuv[2]);
+	return chaosScore(yuv[0]) + chaosScore(yuv[1]) + chaosScore(yuv[2]);
 }
 
 static CAT_INLINE int wrapNeg(u8 p) {
@@ -586,13 +574,14 @@ void ImageCMWriter::chaosStats() {
 	}
 }
 
-int ImageCMWriter::initFromRGBA(const u8 *rgba, int width, int height, ImageMaskWriter &mask, ImageLZWriter &lz) {
+int ImageCMWriter::initFromRGBA(const u8 *rgba, int width, int height, ImageMaskWriter &mask, ImageLZWriter &lz, const GCIFKnobs *knobs) {
 	int err;
 
 	if ((err = init(width, height))) {
 		return err;
 	}
 
+	_knobs = knobs;
 	_rgba = rgba;
 	_mask = &mask;
 	_lz = &lz;

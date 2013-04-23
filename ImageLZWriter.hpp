@@ -4,6 +4,7 @@
 #include "Platform.hpp"
 #include "ImageWriter.hpp"
 #include "ImageLZReader.hpp"
+#include "GCIFWriter.hpp"
 
 #include <vector>
 
@@ -62,6 +63,7 @@ class ImageLZWriter {
 	static const int ENCODER_ZRLE_SYMS = ImageLZReader::ENCODER_ZRLE_SYMS;
 	static const int HUFF_THRESH = ImageLZReader::HUFF_THRESH;
 
+	const GCIFKnobs *_knobs;
 	const u8 *_rgba;
 	int _width, _height;
 
@@ -117,7 +119,7 @@ public:
 		clear();
 	}
 
-	int initFromRGBA(const u8 *rgba, int width, int height);
+	int initFromRGBA(const u8 *rgba, int width, int height, const GCIFKnobs *knobs);
 
 	CAT_INLINE u32 visited(int x, int y) {
 		int off = x + y * _width;

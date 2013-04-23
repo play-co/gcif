@@ -16,7 +16,7 @@ using namespace cat;
 
 //// Commands
 
-static int compress(const char *filename, const char *outfile) {
+static int compress(const char *filename, const char *outfile, int compress_level) {
 	vector<unsigned char> image;
 	unsigned width, height;
 
@@ -33,7 +33,7 @@ static int compress(const char *filename, const char *outfile) {
 
 	int err;
 
-	if ((err = gcif_write(&image[0], width, height, outfile))) {
+	if ((err = gcif_write(&image[0], width, height, outfile, compress_level))) {
 		CAT_WARN("main") << "Error while compressing the image: " << gcif_write_errstr(err);
 		return err;
 	}
@@ -79,6 +79,8 @@ static int benchfile(BenchStats &stats, string filename) {
 	vector<unsigned char> image;
 	unsigned width, height;
 
+	const int compress_level = 9999;
+
 	double t0 = Clock::ref()->usec();
 
 	unsigned error = lodepng::decode(image, width, height, filename);
@@ -95,7 +97,7 @@ static int benchfile(BenchStats &stats, string filename) {
 
 	static const char *BENCHFILE = "benchmark_temp.gci";
 
-	if ((err = gcif_write(&image[0], width, height, BENCHFILE))) {
+	if ((err = gcif_write(&image[0], width, height, BENCHFILE, compress_level))) {
 		CAT_WARN("main") << "Error while compressing the image: " << gcif_write_errstr(err) << " for " << filename;
 		return err;
 	}
@@ -188,13 +190,16 @@ static int profileit(const char *filename) {
 
 //// Command-line parameter parsing
 
-enum  optionIndex { UNKNOWN, HELP, VERBOSE, SILENT, COMPRESS, DECOMPRESS, TEST, BENCHMARK, PROFILE };
+enum  optionIndex { UNKNOWN, HELP, L0, L1, L2, VERBOSE, SILENT, COMPRESS, DECOMPRESS, TEST, BENCHMARK, PROFILE };
 const option::Descriptor usage[] =
 {
   {UNKNOWN, 0,"" , ""    ,option::Arg::None, "USAGE: ./gcif [options] [output file path]\n\n"
                                              "Options:" },
   {HELP,    0,"h", "help",option::Arg::None, "  --[h]elp  \tPrint usage and exit." },
   {VERBOSE,0,"v" , "verbose",option::Arg::None, "  --[v]erbose \tVerbose console output" },
+  {L0,0,"0" , "0",option::Arg::None, "  -0 \tCompression level 0 : Faster" },
+  {L1,0,"0" , "1",option::Arg::None, "  -1 \tCompression level 1 : Better" },
+  {L2,0,"0" , "2",option::Arg::None, "  -2 \tCompression level 2 : Harder (default)" },
   {SILENT,0,"s" , "silent",option::Arg::None, "  --[s]ilent \tNo console output (even on errors)" },
   {COMPRESS,0,"c" , "compress",option::Arg::Optional, "  --[c]ompress <input PNG file path> \tCompress the given .PNG image." },
   {DECOMPRESS,0,"d" , "decompress",option::Arg::Optional, "  --[d]ecompress <input GCI file path> \tDecompress the given .GCI image" },
@@ -224,6 +229,15 @@ int processParameters(option::Parser &parse, option::Option options[]) {
 		Log::ref()->SetThreshold(LVL_INANE);
 	}
 
+	int compression_level = 2;
+	if (options[L0]) {
+		compression_level = 0;
+	} else if (options[L1]) {
+		compression_level = 1;
+	} else if (options[L2]) {
+		compression_level = 2;
+	}
+
 	if (options[COMPRESS]) {
 		if (parse.nonOptionsCount() != 2) {
 			CAT_WARN("main") << "Input error: Please provide input and output file paths";
@@ -232,7 +246,7 @@ int processParameters(option::Parser &parse, option::Option options[]) {
 			const char *outFilePath = parse.nonOption(1);
 			int err;
 
-			if ((err = compress(inFilePath, outFilePath))) {
+			if ((err = compress(inFilePath, outFilePath, compression_level))) {
 				CAT_INFO("main") << "Error during conversion [retcode:" << err << "]";
 				return err;
 			}
