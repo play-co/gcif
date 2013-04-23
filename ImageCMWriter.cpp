@@ -311,7 +311,7 @@ void ImageCMWriter::designFilters() {
 		const int c = FILTER_TAPS[highest_index][2];
 		const int d = FILTER_TAPS[highest_index][3];
 
-		CAT_INANE("CM") << "Replacing default filter " << lowest_index << " with tapped filter " << highest_index << " that is " << ratio << "x better : PRED = (" << a << "A + " << b << "B + " << c << "C + " << d << "D) / 2";
+		CAT_INANE("CM") << "Replacing default filter " << lowest_index << " with tapped filter " << highest_index << " that is " << ratio << "x more preferable : PRED = (" << a << "A + " << b << "B + " << c << "C + " << d << "D) / 2";
 
 		SetSpatialFilter(lowest_index, a, b, c, d);
 
