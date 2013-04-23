@@ -17,12 +17,21 @@ static const int FILTER_ZONE_SIZE_MASK = FILTER_ZONE_SIZE - 1;
 //// Spatial Filters
 
 /*
- * Spatial filters from BCIF
+ * Spatial filters from BCIF, supplemented with CBloom's and my contributions.
  *
  * Filter inputs:
  *         E
  * F C B D
  *   A ?
+ *
+ * In addition to the static filters defined here (which are fast to evaluate),
+ * there are a number of linear tapped filters based on A,B,C,D.  Usually a few
+ * of these are preferable to the defaults.  And the encoder transmits which
+ * ones are overwritten in the image file so the decoder stays in synch.
+ *
+ * I found through testing that a small list of about 80 tapped filters are
+ * ever preferable to one of the default filters, out of all 6544 combinations,
+ * so only those are evaluated and sent.
  */
 
 enum SpatialFilters {
@@ -54,6 +63,9 @@ enum SpatialFilters {
 	SF_PL,			// Use ABC to determine if increasing or decreasing
 };
 
+// Extended tapped filters
+static const int TAPPED_COUNT = 80;
+extern const int FILTER_TAPS[TAPPED_COUNT][4];
 
 typedef const u8 *(*SpatialFilterFunction)(const u8 *p, int x, int y, int width);
 
@@ -67,7 +79,7 @@ extern SpatialFilterFunction UNSAFE_SPATIAL_FILTERS[]; // Assumes x>0, y>0, and 
  * Safe and unsafe versions will automatically be generated in the table.
  */
 void ResetSpatialFilters(); // Reset to defaults
-void SetSpatialFilter(int ii, int a, int b, int c, int d); // Provide filter taps
+void SetSpatialFilter(int defaultIndex, int tappedIndex);
 
 
 //// Color Filters
