@@ -94,7 +94,7 @@ void ImageCMWriter::designFilters() {
 
 	int bestHist[SF_COUNT + TAPPED_COUNT] = {0};
 
-	CAT_INANE("CM") << "Desigining filters...";
+	CAT_INANE("CM") << "Designing filters...";
 
 	for (int y = 0; y < _height; y += FILTER_ZONE_SIZE) {
 		for (int x = 0; x < width; x += FILTER_ZONE_SIZE) {
@@ -213,7 +213,7 @@ void ImageCMWriter::designFilters() {
 
 		// Verify it is good enough to bother with
 		double ratio = best_tap / (double)lowest_sf;
-		if (ratio < 1.3) {
+		if (ratio < _knobs->cm_minTapQuality) {
 			break;
 		}
 
@@ -444,8 +444,6 @@ void ImageCMWriter::maskFilters() {
 }
 
 bool ImageCMWriter::applyFilters() {
-	CAT_INANE("CM") << "Applying filters...";
-
 	FreqHistogram<SF_COUNT> sf_hist;
 	FreqHistogram<CF_COUNT> cf_hist;
 
@@ -613,8 +611,6 @@ int ImageCMWriter::initFromRGBA(const u8 *rgba, int width, int height, ImageMask
 }
 
 bool ImageCMWriter::writeFilters(ImageWriter &writer) {
-	CAT_INANE("CM") << "Writing filters...";
-
 	const int rep_count = _filter_replacements.size();
 
 	CAT_DEBUG_ENFORCE(SF_COUNT < 32);
@@ -647,8 +643,6 @@ bool ImageCMWriter::writeFilters(ImageWriter &writer) {
 }
 
 bool ImageCMWriter::writeChaos(ImageWriter &writer) {
-	CAT_INANE("CM") << "Writing pixel data...";
-
 #ifdef CAT_COLLECT_STATS
 	int overhead_bits = 0;
 	int bitcount[COLOR_PLANES] = {0};
@@ -779,6 +773,8 @@ bool ImageCMWriter::writeChaos(ImageWriter &writer) {
 }
 
 void ImageCMWriter::write(ImageWriter &writer) {
+	CAT_INANE("CM") << "Writing encoded pixel data...";
+
 	writeFilters(writer);
 
 	writeChaos(writer);

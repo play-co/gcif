@@ -322,6 +322,8 @@ void ImageMaskWriter::writeEncodedLZ(const std::vector<u8> &lz, HuffmanEncoder<2
 }
 
 void ImageMaskWriter::write(ImageWriter &writer) {
+	CAT_INANE("mask") << "Writing mask...";
+
 #ifdef CAT_COLLECT_STATS
 	Clock *clock = Clock::ref();
 	double t0 = clock->usec();

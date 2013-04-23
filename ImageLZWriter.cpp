@@ -256,6 +256,8 @@ int ImageLZWriter::match() {
 		return WE_BUG;
 	}
 
+	CAT_INANE("LZ") << "Searching for matches with " << _table_size << "-entry hash table...";
+
 	const u8 *rgba = _rgba;
 	const int width = _width;
 

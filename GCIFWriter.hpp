@@ -53,6 +53,7 @@ struct GCIFKnobs {
 	int cm_filterSelectFuzz;	// 20: Note that high values hurt compression
 	bool cm_designFilters;		// true: Try out custom filter taps
 	int cm_chaosThresh;			// 4000: Min # of chaos pixels to use 8-level tables
+	float cm_minTapQuality;		// 1.3: Min coverage improvement to accept one
 };
 
 /*
