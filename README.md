@@ -6,8 +6,24 @@ Game Closure Image Format
 This is a Work-In-Progress towards a new RGBA image format that works well for
 our spritehseets.
 
+
+What works right now
+====================
+
+The codec supports full RGBA.  The compressor and decompressor are close to
+being called 1.0.  Only a few images cause crashes or other issues.
+
 Early test results indicate that GCIF files are ~60% the size of PNG sprites,
 and the decompression speed is comparable or better than libpng.
+
+The code is well-written in our opinion, easy to read and adapt, and easy to
+incorporate into mobile development.
+
+We plan to release a Java version for the encoder after the RGBA compression is
+functional in C++ code, so that the encoder can be run on any platform without
+having to compile it.  The decoder will be split off so that only a minimal
+amount of code needs to be added to support this file format.  We're shooting
+for one large C++ file, though it may end up being a small number of files.
 
 
 Credit Where It's Due
@@ -178,10 +194,10 @@ is compressed with Huffman encoding and written to the file.
 
 ### Step 3. Order-1 Chaos Modeling and Encoding
 
-For each RGB plane, the BCIF "chaos" metric is used to sort each remaining
+For each color plane, the BCIF "chaos" metric is used to sort each remaining
 filtered pixel into one of 8 bins.  The chaos metric is a rough approximation
 to order-1 statistics.  The metric is defined as the sum of the highest set bit
-index in the left and up post-filter values for each channel.  Recall that
+index in the left and up post-filter values for each color plane.  Recall that
 after spatial and color filtering, the image data is mostly eliminated and
 replaced with a few values near zero.  Smaller values (and zeroes especially)
 lead to better compression, so the "chaos" of a location in the image after
@@ -193,9 +209,14 @@ on.  The limitation of this approach is that it requires significantly more
 overhead and working memory since we only admit static Huffman codes for speed.
 To get some of the order-1 results, we can group statistics together.  The
 probability of seeing "1", "2", etc after "0" is exactly what the chaos level 0
-statistics are recording!  Exactly also for chaos level 1.  But for chaos level
-2 and above it gets a lot more fuzzy.  Since most of the symbols are close to
-zero, this approach is maximizing the effect of order-1 statistics.
+statistics are recording!  Exactly also for chaos level 1.
+
+But for chaos level 2 and above it progressively lumps together more and more
+of the order-1 statistics.  For level 2, above:2&left:0, above:1&left:1,
+above:0&left:2, above:254&left:0, above:255&left:255, above:0&left:254.  And
+from there it gets a lot more fuzzy.  Since most of the symbols are close to
+zero, this approach is maximizing the usefulness of the order-1 statistics
+without transmitting a ton of static tables.
 
 Furthermore, the chaos metric cares about two dimensions, both the vertical and
 horizontal chaos.  As a result it is well-suited for 2D images.
@@ -214,22 +235,6 @@ compression algorithm for the Huffman tables themselves.  So, the tables are
 filtered and compressed using the same entropy encoding used on the image data.
 This table compression is exceptionally good.  It compresses about 8KB of table
 data down into about 3KB using several tricks including truncation.
-
-
-What works right now
-====================
-
-The codec supports full RGBA.  The compressor and decompressor are close to
-being finished.  Only a few images cause crashes or other issues.
-
-The code is well-written in our opinion, easy to read and adapt, and easy to
-incorporate into mobile development.
-
-We plan to release a Java version for the encoder after the RGBA compression is
-functional in C++ code, so that the encoder can be run on any platform without
-having to compile it.  The decoder will be split off so that only a minimal
-amount of code needs to be added to support this file format.  We're shooting
-for one large C++ file, though it may end up being a small number of files.
 
 
 Future plans
@@ -264,6 +269,9 @@ them stuck to the project.  Here are some more wild ideas:
 
 + Image verification mode.
 -- Add a stronger verification hash to the file format that can be checked.
+
++ Benchmarks in the README!
+
 
 Stay tuned! =) -cat
 
