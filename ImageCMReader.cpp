@@ -132,7 +132,7 @@ int ImageCMReader::readChaosTables(ImageReader &reader) {
 	return RE_OK;
 }
 
-int ImageCMReader::readRGB(ImageReader &reader) {
+int ImageCMReader::readPixels(ImageReader &reader) {
 	const int width = _width;
 
 	// Get initial triggers
@@ -516,7 +516,7 @@ int ImageCMReader::read(ImageReader &reader, ImageMaskReader &maskReader, ImageL
 #endif	
 
 	// Read RGB data and decompress it
-	if ((err = readRGB(reader))) {
+	if ((err = readPixels(reader))) {
 		return err;
 	}
 
@@ -530,7 +530,7 @@ int ImageCMReader::read(ImageReader &reader, ImageMaskReader &maskReader, ImageL
 	Stats.initUsec = t1 - t0;
 	Stats.readFilterTablesUsec = t2 - t1;
 	Stats.readChaosTablesUsec = t3 - t2;
-	Stats.readRGBUsec = t4 - t3;
+	Stats.readPixelsUsec = t4 - t3;
 	Stats.overallUsec = t4 - t0;
 #endif	
 	return RE_OK;
@@ -542,7 +542,7 @@ bool ImageCMReader::dumpStats() {
 	CAT_INANE("stats") << "(CM Decode)     Initialization : " << Stats.initUsec << " usec (" << Stats.initUsec * 100.f / Stats.overallUsec << " %total)";
 	CAT_INANE("stats") << "(CM Decode) Read Filter Tables : " << Stats.readFilterTablesUsec << " usec (" << Stats.readFilterTablesUsec * 100.f / Stats.overallUsec << " %total)";
 	CAT_INANE("stats") << "(CM Decode)  Read Chaos Tables : " << Stats.readChaosTablesUsec << " usec (" << Stats.readChaosTablesUsec * 100.f / Stats.overallUsec << " %total)";
-	CAT_INANE("stats") << "(CM Decode)      Decode Pixels : " << Stats.readRGBUsec << " usec (" << Stats.readRGBUsec * 100.f / Stats.overallUsec << " %total)";
+	CAT_INANE("stats") << "(CM Decode)      Decode Pixels : " << Stats.readPixelsUsec << " usec (" << Stats.readPixelsUsec * 100.f / Stats.overallUsec << " %total)";
 	CAT_INANE("stats") << "(CM Decode)            Overall : " << Stats.overallUsec << " usec";
 
 	CAT_INANE("stats") << "(CM Decode)         Throughput : " << (_width * _height * 4) / Stats.overallUsec << " MBPS (output bytes/time)";

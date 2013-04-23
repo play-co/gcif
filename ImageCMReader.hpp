@@ -71,13 +71,13 @@ protected:
 	int init(GCIFImage *image);
 	int readFilterTables(ImageReader &reader);
 	int readChaosTables(ImageReader &reader);
-	int readRGB(ImageReader &reader);
+	int readPixels(ImageReader &reader);
 
 #ifdef CAT_COLLECT_STATS
 public:
 	struct _Stats {
 		double initUsec, readFilterTablesUsec, readChaosTablesUsec;
-		double readRGBUsec, overallUsec;
+		double readPixelsUsec, overallUsec;
 	} Stats;
 #endif
 
