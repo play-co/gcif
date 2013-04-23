@@ -30,7 +30,7 @@ namespace cat {
  */
 
 class WriteVector {
-	static const int HEAD_SIZE = 4096; // Words in head
+	static const int HEAD_SIZE = 4096; // Words in head chunk, grows from here
 	static const int WORD_BYTES = static_cast<int>( sizeof(u32) );
 	static const int PTR_BYTES = static_cast<int>( sizeof(u32 *) );
 	static const int PTR_WORDS = PTR_BYTES / WORD_BYTES;
@@ -42,7 +42,8 @@ class WriteVector {
 
 	int _size;		// Total number of words
 
-	HotRodHash _hash;
+	HotRodHash _fastHash;
+	FileValidationHash _goodHash;
 
 	void clear();
 	void grow();
@@ -65,14 +66,18 @@ public:
 			grow();
 		}
 
-		// Munge and write data
-		_hash.hashWord(x);
+		// Hash data for later validation
+		_fastHash.hashWord(x);
+		_goodHash.hashWord(x);
+
+		// Make data endian-neutral and write it out
 		_work[_used++] = getLE(x);
 		++_size;
 	}
 
-	CAT_INLINE u32 finalizeHash() {
-		return _hash.final(_size);
+	CAT_INLINE void finalizeHash(u32 &fastHash, u32 &goodHash) {
+		fastHash = _fastHash.final(_size);
+		goodHash = _goodHash.final(_size);
 	}
 
 	CAT_INLINE int getWordCount() {

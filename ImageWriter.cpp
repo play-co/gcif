@@ -46,7 +46,8 @@ void WriteVector::grow() {
 void WriteVector::init(u32 hashSeed) {
 	clear();
 
-	_hash.init(hashSeed);
+	_fastHash.init(hashSeed);
+	_goodHash.init(hashSeed);
 
 	u32 *newWork = new u32[HEAD_SIZE + PTR_WORDS];
 	_head = _work = newWork;
@@ -149,7 +150,8 @@ int ImageWriter::finalizeAndWrite(const char *path) {
 		_words.push(_work);
 	}
 
-	u32 dataHash = _words.finalizeHash();
+	u32 fastHash, goodHash;
+	_words.finalizeHash(fastHash, goodHash);
 
 	// Calculate file size
 	int wordCount = _words.getWordCount();
@@ -177,7 +179,7 @@ int ImageWriter::finalizeAndWrite(const char *path) {
 
 	// Write header
 
-	HotRodHash hh;
+	FileValidationHash hh;
 	hh.init(ImageReader::HEAD_SEED);
 
 	fileWords[0] = getLE(ImageReader::HEAD_MAGIC);
@@ -187,16 +189,20 @@ int ImageWriter::finalizeAndWrite(const char *path) {
 	fileWords[1] = getLE(header1);
 	hh.hashWord(header1);
 
-	fileWords[2] = getLE(dataHash);
-	hh.hashWord(dataHash);
+	fileWords[2] = getLE(fastHash);
+	hh.hashWord(fastHash);
+
+	fileWords[3] = getLE(goodHash);
+	hh.hashWord(goodHash);
 
 	u32 headHash = hh.final(ImageReader::HEAD_WORDS);
-	fileWords[3] = getLE(headHash);
+	fileWords[4] = getLE(headHash);
 
 	fileWords += ImageReader::HEAD_WORDS;
 
 	_header.headHash = headHash;
-	_header.dataHash = dataHash;
+	_header.fastHash = fastHash;
+	_header.goodHash = goodHash;
 
 	// Copy file data
 

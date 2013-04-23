@@ -12,8 +12,9 @@ namespace cat {
 struct ImageHeader {
 	u16 width, height; // pixels
 
-	u32 headHash; // Hash of head words
-	u32 dataHash; // Hash of data words
+	u32 headHash;	// Hash of head words
+	u32 fastHash;	// Fast hash of data words (used during normal decoding)
+	u32 goodHash;	// Good hash of data words
 };
 
 
@@ -110,13 +111,13 @@ public:
 		return _eof;
 	}
 
-	static const u32 HEAD_WORDS = 4;
+	static const u32 HEAD_WORDS = 5;
 	static const u32 HEAD_MAGIC = 0x46494347;
 	static const u32 HEAD_SEED = 0x120CA71D;
 	static const u32 DATA_SEED = 0xCA71D123;
 
 	CAT_INLINE bool finalizeCheckHash() {
-		return _header.dataHash == _hash.final(_wordCount);
+		return _header.fastHash == _hash.final(_wordCount);
 	}
 };
 

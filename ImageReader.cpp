@@ -96,7 +96,7 @@ int ImageReader::init(const void *buffer, int fileSize) {
 
 	// Validate header
 
-	HotRodHash hh;
+	FileValidationHash hh;
 	hh.init(HEAD_SEED);
 
 	if CAT_UNLIKELY(fileWords < HEAD_WORDS) {
@@ -113,10 +113,13 @@ int ImageReader::init(const void *buffer, int fileSize) {
 	u32 word1 = getLE(words[1]);
 	hh.hashWord(word1);
 
-	u32 dataHash = getLE(words[2]);
-	hh.hashWord(dataHash);
+	u32 fastHash = getLE(words[2]);
+	hh.hashWord(fastHash);
 
-	u32 headHash = getLE(words[3]);
+	u32 goodHash = getLE(words[3]);
+	hh.hashWord(goodHash);
+
+	u32 headHash = getLE(words[4]);
 	if CAT_UNLIKELY(headHash != hh.final(HEAD_WORDS)) {
 		return RE_BAD_HEAD;
 	}
@@ -126,7 +129,8 @@ int ImageReader::init(const void *buffer, int fileSize) {
 	_header.width = word1 >> 16;
 	_header.height = (u16)word1;
 	_header.headHash = headHash;
-	_header.dataHash = dataHash;
+	_header.fastHash = fastHash;
+	_header.goodHash = goodHash;
 
 	// Get ready to read words
 
