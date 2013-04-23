@@ -72,6 +72,9 @@ int ImageCMWriter::init(int width, int height) {
 }
 
 void ImageCMWriter::designFilters() {
+	// Initialize spatial filter subsystem
+	ResetSpatialFilters();
+
 	// If disabled,
 	if (!_knobs->cm_designFilters) {
 		CAT_INANE("CM") << "Skipping filter design";
@@ -92,8 +95,6 @@ void ImageCMWriter::designFilters() {
 	int bestHist[SF_COUNT + TAPPED_COUNT] = {0};
 
 	CAT_INANE("CM") << "Desigining filters...";
-
-	ResetSpatialFilters();
 
 	for (int y = 0; y < _height; y += FILTER_ZONE_SIZE) {
 		for (int x = 0; x < width; x += FILTER_ZONE_SIZE) {
@@ -301,6 +302,44 @@ void ImageCMWriter::decideFilters() {
 				lowest->score <= _knobs->cm_maxEntropySkip) {
 				bestSF = lowest->index % SF_COUNT;
 				bestCF = lowest->index / SF_COUNT;
+
+				if (!_knobs->cm_disableEntropy) {
+					for (int jj = 0; jj < 3; ++jj) {
+						ee[jj].setup();
+					}
+
+					// Record this choice
+					for (int yy = 0; yy < FILTER_ZONE_SIZE; ++yy) {
+						for (int xx = 0; xx < FILTER_ZONE_SIZE; ++xx) {
+							int px = x + xx, py = y + yy;
+							if (_mask->hasRGB(px, py)) {
+								continue;
+							}
+							if (_lz->visited(px, py)) {
+								continue;
+							}
+
+							const u8 *p = _rgba + (px + py * width) * 4;
+							const u8 *pred = SPATIAL_FILTERS[bestSF](p, px, py, width);
+							u8 temp[3];
+							for (int jj = 0; jj < 3; ++jj) {
+								temp[jj] = p[jj] - pred[jj];
+							}
+
+							u8 yuv[3];
+							RGB2YUV_FILTERS[bestCF](temp, yuv);
+
+							ee[0].push(yuv[0]);
+							ee[1].push(yuv[1]);
+							ee[2].push(yuv[2]);
+						}
+					}
+
+					for (int jj = 0; jj < 3; ++jj) {
+						ee[jj].save();
+						ee[jj].commit();
+					}
+				}
 			} else {
 				const int TOP_COUNT = _knobs->cm_filterSelectFuzz;
 
