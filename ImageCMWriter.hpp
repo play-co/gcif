@@ -40,8 +40,6 @@ namespace cat {
 class ImageCMWriter {
 protected:
 	static const int CHAOS_LEVELS_MAX = ImageCMReader::CHAOS_LEVELS_MAX;
-	static const int FILTER_SELECT_FUZZ = 20;
-	static const int COMPRESS_LEVEL = 1;
 	static const u16 UNUSED_FILTER = 0xffff;
 	static const u16 TODO_FILTER = 0;
 	static const int COLOR_PLANES = ImageCMReader::COLOR_PLANES;
@@ -49,8 +47,6 @@ protected:
 	static const int ZRLE_SYMS_U = ImageCMReader::ZRLE_SYMS_U;
 	static const int ZRLE_SYMS_V = ImageCMReader::ZRLE_SYMS_V;
 	static const int ZRLE_SYMS_A = ImageCMReader::ZRLE_SYMS_A;
-	static const int PALETTE_MIN = 2;
-	static const int CHAOS_THRESH = 4000; // Number of chaos-encoded pixels required to use chaos levels
 
 	const GCIFKnobs *_knobs;
 	int _w, _h;

@@ -51,8 +51,16 @@ int ImageLZWriter::initFromRGBA(const u8 *rgba, int width, int height, const GCI
 	_width = width;
 	_height = height;
 
-	_table = new u32[TABLE_SIZE];
-	memset(_table, 0xff, TABLE_SIZE * sizeof(u32));
+	if (knobs->lz_tableBits < 0 || knobs->lz_tableBits > 24 ||
+		knobs->lz_nonzeroCoeff <= 0) {
+		return WE_BAD_PARAMS;
+	}
+
+	_table_size = 1 << knobs->lz_tableBits;
+	_table_mask = _table_size - 1;
+
+	_table = new u32[_table_size];
+	memset(_table, 0xff, _table_size * sizeof(u32));
 
 	const int visited_size = (width * height + 31) / 32;
 	_visited = new u32[visited_size];
@@ -213,7 +221,7 @@ u32 ImageLZWriter::score(int x, int y, int w, int h) {
 			{
 				// If color data,
 				if (pv << 8) {
-					sum += ZERO_COEFF;
+					sum += _knobs->lz_nonzeroCoeff;
 				} else {
 					sum += 1;
 				}
@@ -221,7 +229,7 @@ u32 ImageLZWriter::score(int x, int y, int w, int h) {
 		}
 	}
 
-	return sum / ZERO_COEFF;
+	return sum / _knobs->lz_nonzeroCoeff;
 }
 
 void ImageLZWriter::add(int unused, u16 sx, u16 sy, u16 dx, u16 dy, u16 w, u16 h) {
@@ -272,7 +280,7 @@ int ImageLZWriter::match() {
 		u16 x = 0, xend = width - ZONEW;
 		for (;;) {
 			// If a previous zone had this hash,
-			u32 match = _table[hash & TABLE_MASK];
+			u32 match = _table[hash & _table_mask];
 			if (match != TABLE_NULL) {
 				// Lookup the location for the potential match
 				u16 sx = (u16)(match >> 16);
@@ -290,7 +298,7 @@ int ImageLZWriter::match() {
 
 					// If the match scores well,
 					int unused = score(dx, dy, w, h);
-					if (unused >= MIN_SCORE) {
+					if (unused >= _knobs->lz_minScore) {
 						// Accept it
 						add(unused, sx, sy, dx, dy, w, h);
 
@@ -307,7 +315,7 @@ int ImageLZWriter::match() {
 			}
 
 			// Insert this zone into the hash table
-			_table[hash & TABLE_MASK] = ((u32)x << 16) | y;
+			_table[hash & _table_mask] = ((u32)x << 16) | y;
 
 			// If exceeded end,
 			if (++x >= xend) {

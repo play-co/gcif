@@ -33,18 +33,26 @@ const char *gcif_write_errstr(int err);
 // Extra twiddly knobs to eke out better performance if you prefer
 struct GCIFKnobs {
 	// Seed used for any randomized selections, may help discover improvements
-	int bump;
-
-	// 20 = normal, note that high values actually hurt compression
-	int filterSelectFuzz;
-
-	// Toggle custom filter taps
-	bool customFilterTaps;
+	int bump;				// 0
 
 	//// Image mask writer
 
-	bool mask_dumpMask;		// Writes pre-filter mask to mask.png
-	bool mask_dumpDelta;	// Writes post-filter mask to delta.png
+	bool mask_dumpMask;		// false: Writes pre-filter mask to mask.png
+	bool mask_dumpDelta;	// false: Writes post-filter mask to delta.png
+
+	//// Image 2D-LZ writer
+
+	int lz_minScore;		// 12: Minimum score to add an LZ match
+	int lz_nonzeroCoeff;	// 4: Number of times nonzeroes worth over zeroes
+	int lz_tableBits;		// 18: Hash table bits
+
+	//// Image CM writer
+
+	bool cm_disableEntropy;		// false: Disable entropy testing (faster)
+	int cm_maxEntropySkip;		// 4: Max filter error to skip entropy test
+	int cm_filterSelectFuzz;	// 20: Note that high values hurt compression
+	bool cm_designFilters;		// true: Try out custom filter taps
+	int cm_chaosThresh;			// 4000: Min # of chaos pixels to use 8-level tables
 };
 
 /*

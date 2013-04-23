@@ -52,16 +52,14 @@ namespace cat {
 class ImageLZWriter {
 	static const int ZONEW = ImageLZReader::ZONEW;
 	static const int ZONEH = ImageLZReader::ZONEH;
-	static const int TABLE_BITS = 18;
-	static const int TABLE_SIZE = 1 << TABLE_BITS;
-	static const u32 TABLE_MASK = TABLE_SIZE - 1;
 	static const u32 TABLE_NULL = 0xffffffff;
 	static const int MAXW = 255 + ZONEW;
 	static const int MAXH = 255 + ZONEH;
-	static const int MIN_SCORE = 16;
-	static const int ZERO_COEFF = 4; // Count zeroes as being worth 1/4 of a normal match
 	static const int ENCODER_ZRLE_SYMS = ImageLZReader::ENCODER_ZRLE_SYMS;
 	static const int HUFF_THRESH = ImageLZReader::HUFF_THRESH;
+
+	int _table_size; // 1 << table_bits
+	int _table_mask; // table_size - 1
 
 	const GCIFKnobs *_knobs;
 	const u8 *_rgba;
