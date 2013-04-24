@@ -26,7 +26,8 @@ static const GCIFKnobs DEFAULT_KNOBS[COMPRESS_LEVELS] = {
 		0,			// cm_filterSelectFuzz
 		0,			// cm_revisitCount
 		4000,		// cm_chaosThresh
-		1.3f		// cm_minTapQuality
+		1.3f,		// cm_minTapQuality
+		false		// cm_scanlineFilters
 	},
 	{	// L1 Better
 		0,			// Bump
@@ -44,7 +45,8 @@ static const GCIFKnobs DEFAULT_KNOBS[COMPRESS_LEVELS] = {
 		64,			// cm_filterSelectFuzz
 		0,			// cm_revisitCount
 		4000,		// cm_chaosThresh
-		1.3f		// cm_minTapQuality
+		1.3f,		// cm_minTapQuality
+		false		// cm_scanlineFilters
 	},
 	{	// L2 Harder
 		0,			// Bump
@@ -62,7 +64,8 @@ static const GCIFKnobs DEFAULT_KNOBS[COMPRESS_LEVELS] = {
 		256,		// cm_filterSelectFuzz
 		0,			// cm_revisitCount
 		4000,		// cm_chaosThresh
-		1.3f		// cm_minTapQuality
+		1.3f,		// cm_minTapQuality
+		true		// cm_scanlineFilters
 	},
 	{	// L3 Stronger
 		0,			// Bump
@@ -80,7 +83,8 @@ static const GCIFKnobs DEFAULT_KNOBS[COMPRESS_LEVELS] = {
 		272,		// cm_filterSelectFuzz
 		4096,		// cm_revisitCount
 		4000,		// cm_chaosThresh
-		1.3f		// cm_minTapQuality
+		1.3f,		// cm_minTapQuality
+		true		// cm_scanlineFilters
 	}
 };
 

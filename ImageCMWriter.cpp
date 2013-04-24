@@ -34,9 +34,13 @@ static CAT_INLINE int wrapNeg(u8 p) {
 //// ImageCMWriter
 
 void ImageCMWriter::clear() {
-	if (_matrix) {
-		delete []_matrix;
-		_matrix = 0;
+	if (_filters) {
+		delete []_filters;
+		_filters = 0;
+	}
+	if (_row_filters) {
+		delete []_row_filters;
+		_row_filters = 0;
 	}
 	if (_chaos) {
 		delete []_chaos;
@@ -62,7 +66,8 @@ int ImageCMWriter::init(int width, int height) {
 
 	_w = width >> FILTER_ZONE_SIZE_SHIFT;
 	_h = height >> FILTER_ZONE_SIZE_SHIFT;
-	_matrix = new u16[_w * _h];
+	_filters = new u16[_w * _h];
+	_row_filters = new u16[_h];
 
 	// And last row of chaos data
 	_chaos_size = (width + 1) * COLOR_PLANES;

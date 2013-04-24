@@ -50,7 +50,8 @@ protected:
 
 	const GCIFKnobs *_knobs;
 	int _w, _h;
-	u16 *_matrix;
+	u16 *_filters;
+	u16 *_row_filters;
 	u8 *_chaos;
 	int _chaos_size;
 
@@ -109,7 +110,7 @@ public:
 
 public:
 	CAT_INLINE ImageCMWriter() {
-		_matrix = 0;
+		_filters = 0;
 		_chaos = 0;
 	}
 	CAT_INLINE virtual ~ImageCMWriter() {
@@ -119,13 +120,23 @@ public:
 	CAT_INLINE void setFilter(int x, int y, u16 filter) {
 		const int filterX = x >> FILTER_ZONE_SIZE_SHIFT;
 		const int filterY = y >> FILTER_ZONE_SIZE_SHIFT;
-		_matrix[filterX + filterY * _w] = filter;
+		_filters[filterX + filterY * _w] = filter;
 	}
 
 	CAT_INLINE u16 getFilter(int x, int y) {
 		const int filterX = x >> FILTER_ZONE_SIZE_SHIFT;
 		const int filterY = y >> FILTER_ZONE_SIZE_SHIFT;
-		return _matrix[filterX + filterY * _w];
+		return _filters[filterX + filterY * _w];
+	}
+
+	CAT_INLINE void setRowFilter(int y, u16 filter) {
+		const int filterY = y >> FILTER_ZONE_SIZE_SHIFT;
+		_row_filters[filterY] = filter;
+	}
+
+	CAT_INLINE u16 getRowFilter(int y, u16 filter) {
+		const int filterY = y >> FILTER_ZONE_SIZE_SHIFT;
+		return _row_filters[filterY];
 	}
 
 	int initFromRGBA(const u8 *rgba, int width, int height, ImageMaskWriter &mask, ImageLZWriter &lz, const GCIFKnobs *knobs);
