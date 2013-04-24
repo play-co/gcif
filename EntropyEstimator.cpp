@@ -9,8 +9,6 @@ void EntropyEstimator::init() {
 }
 
 u32 EntropyEstimator::entropy(const u8 *symbols, int count) {
-	CAT_DEBUG_ENFORCE(count <= SAMPLE_SIZE_MAX);
-
 	// Generate histogram for symbols
 	u8 hist[NUM_SYMS] = {0};
 	for (int ii = 0; ii < count; ++ii) {
