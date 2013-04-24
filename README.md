@@ -122,7 +122,7 @@ If the resulting matches are accepted, they exclude further matches from
 overlapping with them.  This approach gets RLE for free.  Each rectangular
 region takes 10 bytes to represent, which is then compressed with Huffman
 encoding and written to the file.  The resulting overhead is close to 5.5 bytes
-per zone.
+per zone, with each zone covering at least 64 bytes of original image data.
 
 
 ### Step 2. Filtering
@@ -189,13 +189,19 @@ And the color filters are:
 Spatial filters are applied before color filters so that the image smoothness
 does not get disturbed by the weird value-aliasing of the color filters.
 
-The encoder exhaustively tries all of these SF+CF combinations, and the best 20
+The encoder exhaustively tries all of these SF+CF combinations, and the best
 are then subjected to further entropy analysis.  This additional step greatly
 improves compression by increasing the rate at which symbols are reused in the
 post-filtered data, which makes the data easier to compress.
 
-This generates encoded pixels and a filter description.  The filter description
-is compressed with Huffman encoding and written to the file.
+The entropy analysis is accelerated by a 24-bit integer approximation that
+allows us to try all of the options in an acceptable amount of time.  By being
+fast we are able to try more options so compression improves.
+
+After statistics are collected for the whole image, entropy analysis is re-run
+on the first 4000-ish selections to choose better filters with knowledge about
+the full image.  This further improves compression by tuning all of the filters
+equally well across the whole image.
 
 
 ### Step 3. Order-1 Chaos Modeling and Encoding
@@ -265,15 +271,10 @@ them stuck to the project.  Here are some more wild ideas:
 -- WILL be better for some computer-generated images I am looking at.
 -- WILL make us better than PNG for ALL images rather than just the majority.
 
-+ A new spritesheet generator that uses GCIF as an output file format.
++ A new spritesheet generator that uses GCIF as an in/output file format.
 -- Even better image compression by eliminating a lot of image data.
 -- There is a lot of room for improvement in our current spriter.
 -- Incorporate it into the GCIF codebase to make it a one-stop shop for games.
-
-+ Image verification mode.
--- Add a stronger verification hash to the file format that can be checked.
-
-+ Fix console timestamps.
 
 + Benchmarks in the README!
 
