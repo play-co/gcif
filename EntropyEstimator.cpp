@@ -34,15 +34,14 @@ u32 EntropyEstimator::entropy(const u8 *symbols, int count) {
 				// Calculate fixed-point likelihood
 				u32 fpLikelihood = ((u64)inst << 24) / total;
 
-				// If it is hugely popular,
 				if (fpLikelihood <= 0) {
-					// Give it the worst score we can
+					// Very unlikely: Give it the worst score we can
 					codelens[symbol] = 24;
 				} else if (fpLikelihood >= 0x800000) {
-					// Give it the best score we can above 0
+					// Very likely: Give it the best score we can above 0
 					codelens[symbol] = 1;
 				} else if (fpLikelihood >= 0x8000) {
-					// Otherwise, find the MSB index
+					// Find MSB index using assembly code instruction intrinsic
 					int msb = BSR32(fpLikelihood);
 
 					// This is quantized log2(likelihood)
@@ -69,6 +68,7 @@ u32 EntropyEstimator::entropy(const u8 *symbols, int count) {
 }
 
 void EntropyEstimator::add(const u8 *symbols, int count) {
+	// Update histogram total count
 	_hist_total += count;
 
 	// For each symbol,
