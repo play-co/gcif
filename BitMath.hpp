@@ -138,8 +138,9 @@ CAT_INLINE u32 BSF64(u64 x);
 // Bit Scan Reverse (BSR)
 // Scans from MSB to bit 0, returns index 0-31 of the first set bit found
 // Undefined when input is zero
-CAT_INLINE u32 BSR32(u32 x);
-CAT_INLINE u32 BSR64(u64 x);
+CAT_INLINE u32 BSR16(u16 x); // 0-15
+CAT_INLINE u32 BSR32(u32 x); // 0-31
+CAT_INLINE u32 BSR64(u64 x); // 0-63
 
 // Bit Test and Set (BTS)
 // Tests if specified bit 0-31 is set, and returns non-zero if it was set
@@ -228,6 +229,18 @@ CAT_INLINE u32 BSF64(u64 x)
 	return r;
 
 #endif
+}
+
+
+CAT_INLINE u32 BSR16(u16 x) {
+	// Adapted from the Stanford Bit Twiddling Hacks collection
+    u32 shift, r;
+
+    r = (x > 0xFF) << 3; x >>= r;
+    shift = (x > 0xF) << 2; x >>= shift; r |= shift;
+    shift = (x > 0x3) << 1; x >>= shift; r |= shift;
+    r |= (x >> 1);
+    return r;
 }
 
 

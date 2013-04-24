@@ -236,10 +236,10 @@ void ImageCMWriter::designFilters() {
 }
 
 void ImageCMWriter::decideFilters() {
-	EntropyEstimator<u8> ee[3];
-	for (int ii = 0; ii < 3; ++ii) {
-		ee[ii].clear(256);
-	}
+	EntropyEstimator ee[3];
+	ee[0].init();
+	ee[1].init();
+	ee[2].init();
 
 	FilterScorer scores;
 	scores.init(SF_COUNT * CF_COUNT);
@@ -304,9 +304,8 @@ void ImageCMWriter::decideFilters() {
 				bestCF = lowest->index / SF_COUNT;
 
 				if (!_knobs->cm_disableEntropy) {
-					for (int jj = 0; jj < 3; ++jj) {
-						ee[jj].setup();
-					}
+					u8 codes[3][16];
+					int count = 0;
 
 					// Record this choice
 					for (int yy = 0; yy < FILTER_ZONE_SIZE; ++yy) {
@@ -329,32 +328,33 @@ void ImageCMWriter::decideFilters() {
 							u8 yuv[3];
 							RGB2YUV_FILTERS[bestCF](temp, yuv);
 
-							ee[0].push(yuv[0]);
-							ee[1].push(yuv[1]);
-							ee[2].push(yuv[2]);
+							codes[0][count] = yuv[0];
+							codes[1][count] = yuv[1];
+							codes[2][count] = yuv[2];
+							++count;
 						}
 					}
 
-					for (int jj = 0; jj < 3; ++jj) {
-						ee[jj].save();
-						ee[jj].commit();
-					}
+					ee[0].add(codes[0], count);
+					ee[1].add(codes[1], count);
+					ee[2].add(codes[2], count);
 				}
 			} else {
 				const int TOP_COUNT = _knobs->cm_filterSelectFuzz;
 
 				FilterScorer::Score *top = scores.getTop(TOP_COUNT);
 
-				double bestScore = 0;
+				u32 best_entropy = 0x7fffffff; // lower = better
+				u8 best_codes[3][16];
+				int best_count;
 
 				for (int ii = 0; ii < TOP_COUNT; ++ii) {
-					// Write it out
-					u8 sf = top[ii].index % SF_COUNT;
-					u8 cf = top[ii].index / SF_COUNT;
+					const int index = top[ii].index;
+					u8 sf = index % SF_COUNT;
+					u8 cf = index / SF_COUNT;
 
-					for (int jj = 0; jj < 3; ++jj) {
-						ee[jj].setup();
-					}
+					u8 codes[3][16];
+					int count = 0;
 
 					for (int yy = 0; yy < FILTER_ZONE_SIZE; ++yy) {
 						for (int xx = 0; xx < FILTER_ZONE_SIZE; ++xx) {
@@ -376,35 +376,30 @@ void ImageCMWriter::decideFilters() {
 							u8 yuv[3];
 							RGB2YUV_FILTERS[cf](temp, yuv);
 
-							ee[0].push(yuv[0]);
-							ee[1].push(yuv[1]);
-							ee[2].push(yuv[2]);
+							codes[0][count] = yuv[0];
+							codes[1][count] = yuv[1];
+							codes[2][count] = yuv[2];
+							++count;
 						}
 					}
 
-					double score = ee[0].entropy() + ee[1].entropy() + ee[2].entropy();
-					if (ii == 0) {
-						bestScore = score;
+					u32 entropy = ee[0].entropy(codes[0], count)
+								+ ee[1].entropy(codes[1], count)
+								+ ee[2].entropy(codes[2], count);
+
+					if (best_entropy > entropy) {
+						best_entropy = entropy;
+						memcpy(best_codes, codes, sizeof(best_codes));
+						best_count = count;
+
 						bestSF = sf;
 						bestCF = cf;
-						for (int jj = 0; jj < 3; ++jj) {
-							ee[jj].save();
-						}
-					} else {
-						if (score < bestScore) {
-							bestSF = sf;
-							bestCF = cf;
-							for (int jj = 0; jj < 3; ++jj) {
-								ee[jj].save();
-							}
-							bestScore = score;
-						}
 					}
 				}
 
-				for (int jj = 0; jj < 3; ++jj) {
-					ee[jj].commit();
-				}
+				ee[0].add(best_codes[0], best_count);
+				ee[1].add(best_codes[1], best_count);
+				ee[2].add(best_codes[2], best_count);
 			}
 
 			// Set filter for this zone
