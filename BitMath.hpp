@@ -232,18 +232,6 @@ CAT_INLINE u32 BSF64(u64 x)
 }
 
 
-CAT_INLINE u32 BSR16(u16 x) {
-	// Adapted from the Stanford Bit Twiddling Hacks collection
-    u32 shift, r;
-
-    r = (x > 0xFF) << 3; x >>= r;
-    shift = (x > 0xF) << 2; x >>= shift; r |= shift;
-    shift = (x > 0x3) << 1; x >>= shift; r |= shift;
-    r |= (x >> 1);
-    return r;
-}
-
-
 CAT_INLINE u32 BSR32(u32 x)
 {
 #if defined(CAT_COMPILER_MSVC) && !defined(CAT_DEBUG)

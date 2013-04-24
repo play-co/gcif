@@ -50,11 +50,15 @@ u32 EntropyEstimator::entropy(const u8 *symbols, int count) {
 					// This is quantized log2(likelihood)
 					codelens[symbol] = 23 - msb;
 				} else {
-					// Otherwise, find the MSB index
-					int msb = BSR16((u16)fpLikelihood);
+					// Adapted from the Stanford Bit Twiddling Hacks collection
+					u32 shift, r, x = fpLikelihood;
+					r = (x > 0xFF) << 3; x >>= r;
+					shift = (x > 0xF) << 2; x >>= shift; r |= shift;
+					shift = (x > 0x3) << 1; x >>= shift; r |= shift;
+					r |= (x >> 1);
 
 					// This is quantized log2(likelihood)
-					codelens[symbol] = 24 - msb;
+					codelens[symbol] = 24 - r;
 				}
 			}
 
