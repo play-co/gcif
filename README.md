@@ -316,15 +316,15 @@ Examples:
 [Dec 31 16:00] <stats> (Mask Encoding)      Post-LZ Size : 21211 bytes
 [Dec 31 16:00] <stats> (Mask Encoding) Post-Huffman Size : 17720 bytes (141758 bits)
 [Dec 31 16:00] <stats> (Mask Encoding)        Table Size : 72 bytes (576 bits)
-[Dec 31 16:00] <stats> (Mask Encoding)      Filtering : 135 usec (8.49057 %total)
-[Dec 31 16:00] <stats> (Mask Encoding)            RLE : 312 usec (19.6226 %total)
-[Dec 31 16:00] <stats> (Mask Encoding)             LZ : 970 usec (61.0063 %total)
-[Dec 31 16:00] <stats> (Mask Encoding)      Histogram : 21 usec (1.32075 %total)
-[Dec 31 16:00] <stats> (Mask Encoding) Generate Table : 15 usec (0.943396 %total)
-[Dec 31 16:00] <stats> (Mask Encoding)   Encode Table : 29 usec (1.8239 %total)
-[Dec 31 16:00] <stats> (Mask Encoding)    Encode Data : 108 usec (6.79245 %total)
-[Dec 31 16:00] <stats> (Mask Encoding)        Overall : 1590 usec
-[Dec 31 16:00] <stats> (Mask Encoding) Throughput : 11.1893 MBPS (output bytes)
+[Dec 31 16:00] <stats> (Mask Encoding)      Filtering : 136 usec (6.55738 %total)
+[Dec 31 16:00] <stats> (Mask Encoding)            RLE : 757 usec (36.4995 %total)
+[Dec 31 16:00] <stats> (Mask Encoding)             LZ : 977 usec (47.107 %total)
+[Dec 31 16:00] <stats> (Mask Encoding)      Histogram : 26 usec (1.25362 %total)
+[Dec 31 16:00] <stats> (Mask Encoding) Generate Table : 15 usec (0.72324 %total)
+[Dec 31 16:00] <stats> (Mask Encoding)   Encode Table : 38 usec (1.83221 %total)
+[Dec 31 16:00] <stats> (Mask Encoding)    Encode Data : 125 usec (6.027 %total)
+[Dec 31 16:00] <stats> (Mask Encoding)        Overall : 2074 usec
+[Dec 31 16:00] <stats> (Mask Encoding) Throughput : 8.57811 MBPS (output bytes)
 [Dec 31 16:00] <stats> (Mask Encoding) Pixels covered : 480571 (45.8308 %total)
 [Dec 31 16:00] <stats> (Mask Encoding) Compression ratio : 108.048:1 (17791 bytes used overall)
 [Dec 31 16:00] <LZ> Searching for matches with 262144-entry hash table...
@@ -338,45 +338,43 @@ Examples:
 [Dec 31 16:00] <CM> Replacing default filter 10 with tapped filter 37 that is 3.3709x more preferable : PRED = (0A + 1B + 1C + 0D) / 2
 [Dec 31 16:00] <CM> Replacing default filter 9 with tapped filter 36 that is 2.67119x more preferable : PRED = (1A + 0B + 1C + 0D) / 2
 [Dec 31 16:00] <CM> Replacing default filter 15 with tapped filter 31 that is 1.61122x more preferable : PRED = (2A + 1B + -1C + 0D) / 2
-[Dec 31 16:00] <CM> Scoring filters using entropy metric 20... (may take a while)
-
-
+[Dec 31 16:00] <CM> Scoring filters using entropy metric 256... (may take a while)
 [Dec 31 16:00] <CM> Writing encoded pixel data...
 [Dec 31 16:00] <stats> (CM Compress) Spatial Filter Table Size : 110 bits (13 bytes)
-[Dec 31 16:00] <stats> (CM Compress) Spatial Filter Compressed Size : 142052 bits (17756 bytes)
+[Dec 31 16:00] <stats> (CM Compress) Spatial Filter Compressed Size : 139365 bits (17420 bytes)
 [Dec 31 16:00] <stats> (CM Compress) Color Filter Table Size : 65 bits (8 bytes)
-[Dec 31 16:00] <stats> (CM Compress) Color Filter Compressed Size : 86136 bits (10767 bytes)
-[Dec 31 16:00] <stats> (CM Compress) Y-Channel Compressed Size : 2224835 bits (278104 bytes)
-[Dec 31 16:00] <stats> (CM Compress) U-Channel Compressed Size : 2380767 bits (297595 bytes)
-[Dec 31 16:00] <stats> (CM Compress) V-Channel Compressed Size : 1449200 bits (181150 bytes)
+[Dec 31 16:00] <stats> (CM Compress) Color Filter Compressed Size : 85527 bits (10690 bytes)
+[Dec 31 16:00] <stats> (CM Compress) Y-Channel Compressed Size : 2260947 bits (282618 bytes)
+[Dec 31 16:00] <stats> (CM Compress) U-Channel Compressed Size : 2333080 bits (291635 bytes)
+[Dec 31 16:00] <stats> (CM Compress) V-Channel Compressed Size : 1459401 bits (182425 bytes)
 [Dec 31 16:00] <stats> (CM Compress) A-Channel Compressed Size : 705917 bits (88239 bytes)
-[Dec 31 16:00] <stats> (CM Compress) YUVA Overhead Size : 46253 bits (5781 bytes)
+[Dec 31 16:00] <stats> (CM Compress) YUVA Overhead Size : 46554 bits (5819 bytes)
 [Dec 31 16:00] <stats> (CM Compress) Chaos pixel count : 483618 pixels
-[Dec 31 16:00] <stats> (CM Compress) Chaos compression ratio : 2.19972:1
-[Dec 31 16:00] <stats> (CM Compress) Overall size : 7262473 bits (907809 bytes)
-[Dec 31 16:00] <stats> (CM Compress) Overall compression ratio : 4.62025:1
+[Dec 31 16:00] <stats> (CM Compress) Chaos compression ratio : 2.20109:1
+[Dec 31 16:00] <stats> (CM Compress) Overall size : 7258104 bits (907263 bytes)
+[Dec 31 16:00] <stats> (CM Compress) Overall compression ratio : 4.62303:1
 [Dec 31 16:00] <main> Success.
  $ ./gcif -v -d test.gci test.png
 [Dec 31 16:00] <main> Decoding input GCIF image file: test.gci
-[Dec 31 16:00] <stats> (Mask Decode) Initialization : 5 usec (0.859107 %total)
-[Dec 31 16:00] <stats> (Mask Decode)     Huffman+LZ : 372 usec (63.9175 %total)
-[Dec 31 16:00] <stats> (Mask Decode)     RLE+Filter : 205 usec (35.2234 %total)
-[Dec 31 16:00] <stats> (Mask Decode)        Overall : 582 usec
+[Dec 31 16:00] <stats> (Mask Decode) Initialization : 5 usec (0.806452 %total)
+[Dec 31 16:00] <stats> (Mask Decode)     Huffman+LZ : 330 usec (53.2258 %total)
+[Dec 31 16:00] <stats> (Mask Decode)     RLE+Filter : 285 usec (45.9677 %total)
+[Dec 31 16:00] <stats> (Mask Decode)        Overall : 620 usec
 [Dec 31 16:00] <stats> (LZ Decode)     Initialization : 0 usec (0 %total)
-[Dec 31 16:00] <stats> (LZ Decode) Read Huffman Table : 15 usec (3.98936 %total)
-[Dec 31 16:00] <stats> (LZ Decode)         Read Zones : 361 usec (96.0106 %total)
-[Dec 31 16:00] <stats> (LZ Decode)            Overall : 376 usec
+[Dec 31 16:00] <stats> (LZ Decode) Read Huffman Table : 16 usec (5.51724 %total)
+[Dec 31 16:00] <stats> (LZ Decode)         Read Zones : 274 usec (94.4828 %total)
+[Dec 31 16:00] <stats> (LZ Decode)            Overall : 290 usec
 [Dec 31 16:00] <stats> (LZ Decode)         Zone Count : 2149 zones read
-[Dec 31 16:00] <stats> (CM Decode)     Initialization : 2 usec (0.0037968 %total)
-[Dec 31 16:00] <stats> (CM Decode) Read Filter Tables : 6 usec (0.0113904 %total)
-[Dec 31 16:00] <stats> (CM Decode)  Read Chaos Tables : 454 usec (0.861873 %total)
-[Dec 31 16:00] <stats> (CM Decode)      Decode Pixels : 52214 usec (99.1229 %total)
-[Dec 31 16:00] <stats> (CM Decode)            Overall : 52676 usec
-[Dec 31 16:00] <stats> (CM Decode)         Throughput : 79.6246 MBPS (output bytes/time)
+[Dec 31 16:00] <stats> (CM Decode)     Initialization : 3 usec (0.00660531 %total)
+[Dec 31 16:00] <stats> (CM Decode) Read Filter Tables : 4 usec (0.00880708 %total)
+[Dec 31 16:00] <stats> (CM Decode)  Read Chaos Tables : 462 usec (1.01722 %total)
+[Dec 31 16:00] <stats> (CM Decode)      Decode Pixels : 44949 usec (98.9674 %total)
+[Dec 31 16:00] <stats> (CM Decode)            Overall : 45418 usec
+[Dec 31 16:00] <stats> (CM Decode)         Throughput : 92.3489 MBPS (output bytes/time)
 [Dec 31 16:00] <main> Writing output PNG image file: test.png
 [Dec 31 16:00] <main> Success.
  $ ll test.gci
--rw-r--r--  1 cat  staff   887K Apr 23 00:26 test.gci
+-rw-r--r--  1 cat  staff   886K Apr 24 15:06 test.gci
 ~~~
 
 
