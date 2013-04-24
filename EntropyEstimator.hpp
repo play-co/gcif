@@ -45,6 +45,9 @@ public:
 
 	// Add symbols to running histogram
 	void add(const u8 *symbols, int count);
+
+	// Subtract symbols from running histogram
+	void subtract(const u8 *symbols, int count);
 };
 
 

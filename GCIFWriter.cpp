@@ -8,11 +8,80 @@ using namespace cat;
 
 // Default knobs for the normal compression levels
 
-static const int COMPRESS_LEVELS = 3;
+static const int COMPRESS_LEVELS = 4;
 static const GCIFKnobs DEFAULT_KNOBS[COMPRESS_LEVELS] = {
-	{ 0, false, false, 12, 4, 18, true, 0, 0, false, 4000, 1.3f }, // L0 Faster
-	{ 0, false, false, 12, 4, 18, false, 4, 64, true, 4000, 1.3f }, // L1 Better
-	{ 0, false, false, 12, 4, 18, false, 4, 256, true, 4000, 1.3f  } // L2 Harder
+	{	// L0 Faster
+		0,			// Bump
+
+		false,		// mask_dumpMask
+		false,		// mask_dumpDelta
+
+		12,			// lz_minScore
+		4,			// lz_nonzeroCoeff
+		18,			// lz_tableBits
+
+		false,		// cm_designFilters
+		true,		// cm_disableEntropy
+		4,			// cm_maxEntropySkip
+		0,			// cm_filterSelectFuzz
+		0,			// cm_revisitCount
+		4000,		// cm_chaosThresh
+		1.3f		// cm_minTapQuality
+	},
+	{	// L1 Better
+		0,			// Bump
+
+		false,		// mask_dumpMask
+		false,		// mask_dumpDelta
+
+		12,			// lz_minScore
+		4,			// lz_nonzeroCoeff
+		18,			// lz_tableBits
+
+		false,		// cm_designFilters
+		false,		// cm_disableEntropy
+		4,			// cm_maxEntropySkip
+		64,			// cm_filterSelectFuzz
+		0,			// cm_revisitCount
+		4000,		// cm_chaosThresh
+		1.3f		// cm_minTapQuality
+	},
+	{	// L2 Harder
+		0,			// Bump
+
+		false,		// mask_dumpMask
+		false,		// mask_dumpDelta
+
+		12,			// lz_minScore
+		4,			// lz_nonzeroCoeff
+		18,			// lz_tableBits
+
+		true,		// cm_designFilters
+		false,		// cm_disableEntropy
+		0,			// cm_maxEntropySkip
+		256,		// cm_filterSelectFuzz
+		0,			// cm_revisitCount
+		4000,		// cm_chaosThresh
+		1.3f		// cm_minTapQuality
+	},
+	{	// L3 Stronger
+		0,			// Bump
+
+		false,		// mask_dumpMask
+		false,		// mask_dumpDelta
+
+		12,			// lz_minScore
+		4,			// lz_nonzeroCoeff
+		18,			// lz_tableBits
+
+		true,		// cm_designFilters
+		false,		// cm_disableEntropy
+		0,			// cm_maxEntropySkip
+		272,		// cm_filterSelectFuzz
+		4096,		// cm_revisitCount
+		4000,		// cm_chaosThresh
+		1.3f		// cm_minTapQuality
+	}
 };
 
 

@@ -81,10 +81,10 @@ void ImageCMWriter::designFilters() {
 		return;
 	}
 
-	/* Inputs: A, B, C, D
+	/* Inputs: A, B, C, D same as described in Filters.hpp
 	 *
-	 * aA + bB + cC + dD
-	 * a,b,c,d = {-2, -1, -1/2, 0, 1/2, 1, 2}
+	 * PRED = (a*A + b*B + c*C + d*D) / 2
+	 * a,b,c,d = {-4, -3, -2, -1, 0, 1, 2, 3, 4}
 	 */
 
 	const int width = _width;
@@ -252,62 +252,36 @@ void ImageCMWriter::decideFilters() {
 		CAT_INANE("CM") << "Scoring filters...";
 	}
 
-	for (int y = 0; y < _height; y += FILTER_ZONE_SIZE) {
-		for (int x = 0; x < width; x += FILTER_ZONE_SIZE) {
-			// If this zone is skipped,
-			if (getFilter(x, y) == UNUSED_FILTER) {
-				continue;
-			}
+	int passes = 0;
+	int revisitCount = _knobs->cm_revisitCount;
 
-			// Determine best filter combination to use
-			int bestSF = 0, bestCF = 0;
-
-			scores.reset();
-
-			// For each pixel in the 8x8 zone,
-			for (int yy = 0; yy < FILTER_ZONE_SIZE; ++yy) {
-				for (int xx = 0; xx < FILTER_ZONE_SIZE; ++xx) {
-					int px = x + xx, py = y + yy;
-					if (_mask->hasRGB(px, py)) {
-						continue;
-					}
-					if (_lz->visited(px, py)) {
-						continue;
-					}
-
-					const u8 *p = _rgba + (px + py * width) * 4;
-
-					for (int ii = 0; ii < SF_COUNT; ++ii) {
-						const u8 *pred = SPATIAL_FILTERS[ii](p, px, py, width);
-						u8 temp[3];
-						for (int jj = 0; jj < 3; ++jj) {
-							temp[jj] = p[jj] - pred[jj];
-						}
-
-						for (int jj = 0; jj < CF_COUNT; ++jj) {
-							u8 yuv[3];
-							RGB2YUV_FILTERS[jj](temp, yuv);
-
-							int error = scoreYUV(yuv);
-
-							scores.add(ii + SF_COUNT*jj, error);
-						}
-					}
+	for (;;) {
+		for (int y = 0; y < _height; y += FILTER_ZONE_SIZE) {
+			for (int x = 0; x < width; x += FILTER_ZONE_SIZE) {
+				// If this zone is skipped,
+				const u16 filter = getFilter(x, y);
+				if (filter == UNUSED_FILTER) {
+					continue;
 				}
-			}
 
-			FilterScorer::Score *lowest = scores.getLowest();
+				// Determine best filter combination to use
+				int bestSF = 0, bestCF = 0;
 
-			if (_knobs->cm_disableEntropy ||
-				lowest->score <= _knobs->cm_maxEntropySkip) {
-				bestSF = lowest->index % SF_COUNT;
-				bestCF = lowest->index / SF_COUNT;
+				// If we are on the second or later pass,
+				if (passes > 0) {
+					// If just finished revisiting old zones,
+					if (--revisitCount < 0) {
+						// Done!
+						return;
+					}
 
-				if (!_knobs->cm_disableEntropy) {
+					bestSF = (u8)(filter >> 8);
+					bestCF = (u8)filter;
+
 					u8 codes[3][16];
 					int count = 0;
 
-					// Record this choice
+					// For each pixel in the 8x8 zone,
 					for (int yy = 0; yy < FILTER_ZONE_SIZE; ++yy) {
 						for (int xx = 0; xx < FILTER_ZONE_SIZE; ++xx) {
 							int px = x + xx, py = y + yy;
@@ -319,6 +293,7 @@ void ImageCMWriter::decideFilters() {
 							}
 
 							const u8 *p = _rgba + (px + py * width) * 4;
+
 							const u8 *pred = SPATIAL_FILTERS[bestSF](p, px, py, width);
 							u8 temp[3];
 							for (int jj = 0; jj < 3; ++jj) {
@@ -335,77 +310,165 @@ void ImageCMWriter::decideFilters() {
 						}
 					}
 
-					ee[0].add(codes[0], count);
-					ee[1].add(codes[1], count);
-					ee[2].add(codes[2], count);
+					// Subtract old choice back out
+					ee[0].subtract(codes[0], count);
+					ee[1].subtract(codes[1], count);
+					ee[2].subtract(codes[2], count);
 				}
-			} else {
-				const int TOP_COUNT = _knobs->cm_filterSelectFuzz;
 
-				FilterScorer::Score *top = scores.getTop(TOP_COUNT);
+				scores.reset();
 
-				u32 best_entropy = 0x7fffffff; // lower = better
-				u8 best_codes[3][16];
-				int best_count;
+				// For each pixel in the 8x8 zone,
+				for (int yy = 0; yy < FILTER_ZONE_SIZE; ++yy) {
+					for (int xx = 0; xx < FILTER_ZONE_SIZE; ++xx) {
+						int px = x + xx, py = y + yy;
+						if (_mask->hasRGB(px, py)) {
+							continue;
+						}
+						if (_lz->visited(px, py)) {
+							continue;
+						}
 
-				for (int ii = 0; ii < TOP_COUNT; ++ii) {
-					const int index = top[ii].index;
-					u8 sf = index % SF_COUNT;
-					u8 cf = index / SF_COUNT;
+						const u8 *p = _rgba + (px + py * width) * 4;
 
-					u8 codes[3][16];
-					int count = 0;
-
-					for (int yy = 0; yy < FILTER_ZONE_SIZE; ++yy) {
-						for (int xx = 0; xx < FILTER_ZONE_SIZE; ++xx) {
-							int px = x + xx, py = y + yy;
-							if (_mask->hasRGB(px, py)) {
-								continue;
-							}
-							if (_lz->visited(px, py)) {
-								continue;
-							}
-
-							const u8 *p = _rgba + (px + py * width) * 4;
-							const u8 *pred = SPATIAL_FILTERS[sf](p, px, py, width);
+						for (int ii = 0; ii < SF_COUNT; ++ii) {
+							const u8 *pred = SPATIAL_FILTERS[ii](p, px, py, width);
 							u8 temp[3];
 							for (int jj = 0; jj < 3; ++jj) {
 								temp[jj] = p[jj] - pred[jj];
 							}
 
-							u8 yuv[3];
-							RGB2YUV_FILTERS[cf](temp, yuv);
+							for (int jj = 0; jj < CF_COUNT; ++jj) {
+								u8 yuv[3];
+								RGB2YUV_FILTERS[jj](temp, yuv);
 
-							codes[0][count] = yuv[0];
-							codes[1][count] = yuv[1];
-							codes[2][count] = yuv[2];
-							++count;
+								int error = scoreYUV(yuv);
+
+								scores.add(ii + SF_COUNT*jj, error);
+							}
 						}
-					}
-
-					u32 entropy = ee[0].entropy(codes[0], count)
-								+ ee[1].entropy(codes[1], count)
-								+ ee[2].entropy(codes[2], count);
-
-					if (best_entropy > entropy) {
-						best_entropy = entropy;
-						memcpy(best_codes, codes, sizeof(best_codes));
-						best_count = count;
-
-						bestSF = sf;
-						bestCF = cf;
 					}
 				}
 
-				ee[0].add(best_codes[0], best_count);
-				ee[1].add(best_codes[1], best_count);
-				ee[2].add(best_codes[2], best_count);
-			}
+				FilterScorer::Score *lowest = scores.getLowest();
 
-			// Set filter for this zone
-			u16 filter = ((u16)bestSF << 8) | bestCF;
-			setFilter(x, y, filter);
+				if (_knobs->cm_disableEntropy ||
+						lowest->score <= _knobs->cm_maxEntropySkip) {
+					bestSF = lowest->index % SF_COUNT;
+					bestCF = lowest->index / SF_COUNT;
+
+					if (!_knobs->cm_disableEntropy) {
+						u8 codes[3][16];
+						int count = 0;
+
+						// Record this choice
+						for (int yy = 0; yy < FILTER_ZONE_SIZE; ++yy) {
+							for (int xx = 0; xx < FILTER_ZONE_SIZE; ++xx) {
+								int px = x + xx, py = y + yy;
+								if (_mask->hasRGB(px, py)) {
+									continue;
+								}
+								if (_lz->visited(px, py)) {
+									continue;
+								}
+
+								const u8 *p = _rgba + (px + py * width) * 4;
+								const u8 *pred = SPATIAL_FILTERS[bestSF](p, px, py, width);
+								u8 temp[3];
+								for (int jj = 0; jj < 3; ++jj) {
+									temp[jj] = p[jj] - pred[jj];
+								}
+
+								u8 yuv[3];
+								RGB2YUV_FILTERS[bestCF](temp, yuv);
+
+								codes[0][count] = yuv[0];
+								codes[1][count] = yuv[1];
+								codes[2][count] = yuv[2];
+								++count;
+							}
+						}
+
+						ee[0].add(codes[0], count);
+						ee[1].add(codes[1], count);
+						ee[2].add(codes[2], count);
+					}
+				} else {
+					const int TOP_COUNT = _knobs->cm_filterSelectFuzz;
+
+					FilterScorer::Score *top = scores.getTop(TOP_COUNT);
+
+					u32 best_entropy = 0x7fffffff; // lower = better
+					u8 best_codes[3][16];
+					int best_count;
+
+					for (int ii = 0; ii < TOP_COUNT; ++ii) {
+						const int index = top[ii].index;
+						u8 sf = index % SF_COUNT;
+						u8 cf = index / SF_COUNT;
+
+						u8 codes[3][16];
+						int count = 0;
+
+						for (int yy = 0; yy < FILTER_ZONE_SIZE; ++yy) {
+							for (int xx = 0; xx < FILTER_ZONE_SIZE; ++xx) {
+								int px = x + xx, py = y + yy;
+								if (_mask->hasRGB(px, py)) {
+									continue;
+								}
+								if (_lz->visited(px, py)) {
+									continue;
+								}
+
+								const u8 *p = _rgba + (px + py * width) * 4;
+								const u8 *pred = SPATIAL_FILTERS[sf](p, px, py, width);
+								u8 temp[3];
+								for (int jj = 0; jj < 3; ++jj) {
+									temp[jj] = p[jj] - pred[jj];
+								}
+
+								u8 yuv[3];
+								RGB2YUV_FILTERS[cf](temp, yuv);
+
+								codes[0][count] = yuv[0];
+								codes[1][count] = yuv[1];
+								codes[2][count] = yuv[2];
+								++count;
+							}
+						}
+
+						u32 entropy = ee[0].entropy(codes[0], count)
+							+ ee[1].entropy(codes[1], count)
+							+ ee[2].entropy(codes[2], count);
+
+						if (best_entropy > entropy) {
+							best_entropy = entropy;
+							memcpy(best_codes, codes, sizeof(best_codes));
+							best_count = count;
+
+							bestSF = sf;
+							bestCF = cf;
+						}
+					}
+
+					ee[0].add(best_codes[0], best_count);
+					ee[1].add(best_codes[1], best_count);
+					ee[2].add(best_codes[2], best_count);
+				}
+
+				// Set filter for this zone
+				setFilter(x, y, ((u16)bestSF << 8) | bestCF);
+			}
 		}
+
+		// After good statistics are collected, revisit the first few zones
+		if (revisitCount <= 0) {
+			// Exit now!
+			return;
+		}
+
+		CAT_INANE("CM") << "Revisiting filter selections from the top... " << revisitCount << " left";
+		++passes;
 	}
 }
 

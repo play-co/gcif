@@ -80,3 +80,16 @@ void EntropyEstimator::add(const u8 *symbols, int count) {
 	}
 }
 
+void EntropyEstimator::subtract(const u8 *symbols, int count) {
+	// Update histogram total count
+	_hist_total -= count;
+
+	// For each symbol,
+	for (int ii = 0; ii < count; ++ii) {
+		u8 symbol = symbols[ii];
+
+		// Subtract it from the global histogram
+		_hist[symbol]--;
+	}
+}
+

@@ -190,7 +190,7 @@ static int profileit(const char *filename) {
 
 //// Command-line parameter parsing
 
-enum  optionIndex { UNKNOWN, HELP, L0, L1, L2, VERBOSE, SILENT, COMPRESS, DECOMPRESS, TEST, BENCHMARK, PROFILE };
+enum  optionIndex { UNKNOWN, HELP, L0, L1, L2, L3, VERBOSE, SILENT, COMPRESS, DECOMPRESS, TEST, BENCHMARK, PROFILE };
 const option::Descriptor usage[] =
 {
   {UNKNOWN, 0,"" , ""    ,option::Arg::None, "USAGE: ./gcif [options] [output file path]\n\n"
@@ -199,7 +199,8 @@ const option::Descriptor usage[] =
   {VERBOSE,0,"v" , "verbose",option::Arg::None, "  --[v]erbose \tVerbose console output" },
   {L0,0,"0" , "0",option::Arg::None, "  -0 \tCompression level 0 : Faster" },
   {L1,0,"1" , "1",option::Arg::None, "  -1 \tCompression level 1 : Better" },
-  {L2,0,"2" , "2",option::Arg::None, "  -2 \tCompression level 2 : Harder (default)" },
+  {L2,0,"2" , "2",option::Arg::None, "  -2 \tCompression level 2 : Harder" },
+  {L3,0,"3" , "3",option::Arg::None, "  -3 \tCompression level 3 : Stronger (default)" },
   {SILENT,0,"s" , "silent",option::Arg::None, "  --[s]ilent \tNo console output (even on errors)" },
   {COMPRESS,0,"c" , "compress",option::Arg::Optional, "  --[c]ompress <input PNG file path> \tCompress the given .PNG image." },
   {DECOMPRESS,0,"d" , "decompress",option::Arg::Optional, "  --[d]ecompress <input GCI file path> \tDecompress the given .GCI image" },
@@ -229,13 +230,15 @@ int processParameters(option::Parser &parse, option::Option options[]) {
 		Log::ref()->SetThreshold(LVL_INANE);
 	}
 
-	int compression_level = 2;
+	int compression_level = 999999;
 	if (options[L0]) {
 		compression_level = 0;
 	} else if (options[L1]) {
 		compression_level = 1;
 	} else if (options[L2]) {
 		compression_level = 2;
+	} else if (options[L3]) {
+		compression_level = 3;
 	}
 
 	if (options[COMPRESS]) {

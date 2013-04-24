@@ -48,10 +48,11 @@ struct GCIFKnobs {
 
 	//// Image CM writer
 
+	bool cm_designFilters;		// true: Try out custom filter taps
 	bool cm_disableEntropy;		// false: Disable entropy testing (faster)
 	int cm_maxEntropySkip;		// 4: Max filter error to skip entropy test
-	int cm_filterSelectFuzz;	// 20: Note that high values hurt compression
-	bool cm_designFilters;		// true: Try out custom filter taps
+	int cm_filterSelectFuzz;	// 256: Top L1 norm scored count for entropy test
+	int cm_revisitCount;		// 4096: Number of pixels to revisit
 	int cm_chaosThresh;			// 4000: Min # of chaos pixels to use 8-level tables
 	float cm_minTapQuality;		// 1.3: Min coverage improvement to accept one
 };
