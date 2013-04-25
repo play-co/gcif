@@ -29,6 +29,26 @@ amount of code needs to be added to support this file format.  We're shooting
 for one large C++ file, though it may end up being a small number of files.
 
 
+Compression performance
+=======================
+
+It is too early to release real benchmarks here, but getting closer.
+
+BCIF out-performs lossless WebP for a lot of images, so we chose it as the
+baseline comparison for RGB images.
+
+From one of our more challenging game sprite-sheets chosen at random:
+
+~~~
+-rw-r--r--  1 cat  staff   3.0M Mar 31 20:40 noalpha.bmp
+-rw-r--r--  1 cat  staff   1.1M Mar 31 20:40 noalpha.png
+-rw-r--r--  1 cat  staff   877K Apr  2 14:05 noalpha.bcif
+-rw-r--r--  1 cat  staff   814K Apr 24 17:05 noalpha.gci
+~~~
+
+In this case we get a file that is 75% the size of the equivalent PNG image.
+
+
 Credit Where It's Due
 =====================
 
