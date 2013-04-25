@@ -119,45 +119,6 @@ protected:
 		return bits;
 	}
 
-	int simulateZeroRun(int run) {
-		if (run <= 0) {
-			return 0;
-		}
-
-		int bits;
-
-		if (run < ZRLE_SYMS) {
-			bits = _bz.simulateWrite(NUM_SYMS + run - 1);
-		} else {
-			bits = _bz.simulateWrite(BZ_TAIL_SYM);
-
-			run -= ZRLE_SYMS;
-
-			// If multiple FF bytes will be emitted,
-			if (run >= 255 + 255) {
-				// Step it up to 16-bit words
-				run -= 255 + 255;
-				bits += 8 + 8;
-				while (run >= 65535) {
-					bits += 16;
-					run -= 65535;
-				}
-				bits += 16;
-			} else {
-				// Write out FF bytes
-				if (run >= 255) {
-					bits += 8;
-					run -= 255;
-				}
-
-				// Write out last byte
-				bits += 8;
-			}
-		}
-
-		return bits;
-	}
-
 public:
 	CAT_INLINE EntropyEncoder() {
 		_zeroRun = 0;
@@ -210,6 +171,8 @@ public:
 		// Initialize Huffman encoders with histograms
 		_bz.init(_bz_hist);
 		_az.init(_az_hist);
+
+		reset();
 	}
 
 	int writeTables(ImageWriter &writer) {
@@ -251,37 +214,6 @@ public:
 				bits += _az.writeSymbol(symbol, writer);
 			} else {
 				bits += _bz.writeSymbol(symbol, writer);
-			}
-		}
-
-		return bits;
-	}
-
-	int simulate(u16 symbol) {
-		CAT_DEBUG_ENFORCE(symbol < NUM_SYMS);
-
-		int bits = 0;
-
-		// If zero,
-		if (symbol == 0) {
-			// If starting a zero run,
-			if (_zeroRun == 0) {
-				CAT_DEBUG_ENFORCE(_runListReadIndex < (int)_runList.size());
-
-				// Write stored zero run
-				int runLength = _runList[_runListReadIndex++];
-
-				bits += simulateZeroRun(runLength, writer);
-			}
-
-			++_zeroRun;
-		} else {
-			// If just out of a zero run,
-			if (_zeroRun > 0) {
-				_zeroRun = 0;
-				bits += _az.simulateWrite(symbol);
-			} else {
-				bits += _bz.simulateWrite(symbol);
 			}
 		}
 

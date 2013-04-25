@@ -80,9 +80,9 @@ protected:
 	const u8 *_chaos_table;
 
 	struct FilterSelection {
+		YUV2RGBFilterFunction cf;
 		SpatialFilterFunction sf;
 		SpatialFilterFunction sfu; // unsafe version
-		YUV2RGBFilterFunction cf;
 	} *_filters;
 
 	ImageMaskReader *_mask;

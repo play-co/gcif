@@ -114,12 +114,12 @@ int ImageCMReader::readFilterTables(ImageReader &reader) {
 	}
 
 	// Initialize huffman decoder
-	if (reader.eof() || !_sf.init(SF_COUNT, reader, 8)) {
+	if (reader.eof() || !_cf.init(CF_COUNT, reader, 8)) {
 		return RE_CM_CODES;
 	}
 
 	// Initialize huffman decoder
-	if (reader.eof() || !_cf.init(CF_COUNT, reader, 8)) {
+	if (reader.eof() || !_sf.init(SF_COUNT, reader, 8)) {
 		return RE_CM_CODES;
 	}
 
@@ -205,11 +205,11 @@ int ImageCMReader::readPixels(ImageReader &reader) {
 					for (int ii = 0; ii < FILTER_ZONE_SIZE; ++ii) {
 						for (int jj = 0; jj < FILTER_ZONE_SIZE; ++jj) {
 							if (!_mask->hasRGB(x + jj, y + ii)) {
+								const int cfi = _cf.next(reader);
+								filter->cf = YUV2RGB_FILTERS[cfi];
 								const int sfi = _sf.next(reader);
 								filter->sf = SPATIAL_FILTERS[sfi];
 								filter->sfu = UNSAFE_SPATIAL_FILTERS[sfi];
-								const int cfi = _cf.next(reader);
-								filter->cf = YUV2RGB_FILTERS[cfi];
 
 								goto y0_had_filter;
 							}
@@ -301,11 +301,11 @@ y0_had_filter:;
 						for (int jj = 0; jj < FILTER_ZONE_SIZE; ++jj) {
 							if (!_mask->hasRGB(x + jj, y + ii)) {
 								// Read SF and CF for this zone
+								const int cfi = _cf.next(reader);
+								filter->cf = YUV2RGB_FILTERS[cfi];
 								const int sfi = _sf.next(reader);
 								filter->sf = SPATIAL_FILTERS[sfi];
 								filter->sfu = UNSAFE_SPATIAL_FILTERS[sfi];
-								const int cfi = _cf.next(reader);
-								filter->cf = YUV2RGB_FILTERS[cfi];
 								goto x0_had_filter;
 							}
 						}
@@ -381,11 +381,11 @@ x0_had_filter:;
 						for (int jj = 0; jj < FILTER_ZONE_SIZE; ++jj) {
 							if (!_mask->hasRGB(x + jj, y + ii)) {
 								// Read SF and CF for this zone
+								const int cfi = _cf.next(reader);
+								filter->cf = YUV2RGB_FILTERS[cfi];
 								const int sfi = _sf.next(reader);
 								filter->sf = SPATIAL_FILTERS[sfi];
 								filter->sfu = UNSAFE_SPATIAL_FILTERS[sfi];
-								const int cfi = _cf.next(reader);
-								filter->cf = YUV2RGB_FILTERS[cfi];
 								goto had_filter;
 							}
 						}

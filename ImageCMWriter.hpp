@@ -123,6 +123,7 @@ protected:
 	void maskFilters();
 	void designFilters();
 	void decideFilters();
+	void scanlineLZ();
 	bool applyFilters();
 	void chaosStats();
 
@@ -161,11 +162,11 @@ public:
 	}
 
 	CAT_INLINE void setFilter(int x, int y, u16 filter) {
-		_filters[(x + (y * (_width >> FILTER_ZONE_SIZE_SHIFT))) >> FILTER_ZONE_SIZE_SHIFT] = filter;
+		_filters[(x + ((y >> FILTER_ZONE_SIZE_SHIFT) * _width)) >> FILTER_ZONE_SIZE_SHIFT] = filter;
 	}
 
 	CAT_INLINE u16 getFilter(int x, int y) {
-		return _filters[(x + (y * (_width >> FILTER_ZONE_SIZE_SHIFT))) >> FILTER_ZONE_SIZE_SHIFT];
+		return _filters[(x + ((y >> FILTER_ZONE_SIZE_SHIFT) * _width)) >> FILTER_ZONE_SIZE_SHIFT];
 	}
 
 	CAT_INLINE void setRowFilter(int y, u16 filter) {
