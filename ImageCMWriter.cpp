@@ -1,3 +1,31 @@
+/*
+	Copyright (c) 2013 Christopher A. Taylor.  All rights reserved.
+
+	Redistribution and use in source and binary forms, with or without
+	modification, are permitted provided that the following conditions are met:
+
+	* Redistributions of source code must retain the above copyright notice,
+	  this list of conditions and the following disclaimer.
+	* Redistributions in binary form must reproduce the above copyright notice,
+	  this list of conditions and the following disclaimer in the documentation
+	  and/or other materials provided with the distribution.
+	* Neither the name of GCIF nor the names of its contributors may be used
+	  to endorse or promote products derived from this software without
+	  specific prior written permission.
+
+	THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+	AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+	IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+	ARE DISCLAIMED.  IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE
+	LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+	CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+	SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+	INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+	CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+	ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+	POSSIBILITY OF SUCH DAMAGE.
+*/
+
 #include "ImageCMWriter.hpp"
 #include "BitMath.hpp"
 #include "Filters.hpp"
@@ -508,7 +536,7 @@ void ImageCMWriter::maskFilters() {
 
 bool ImageCMWriter::applyFilters() {
 	FreqHistogram<SF_COUNT> sf_hist;
-	FreqHistogram<CF_COUNT> cf_hist;
+	FreqHistogram<CF_SYMS> cf_hist;
 
 	// For each zone,
 	for (int y = 0, height = _height; y < height; y += FILTER_ZONE_SIZE) {
@@ -526,10 +554,10 @@ bool ImageCMWriter::applyFilters() {
 	}
 
 	// Geneerate huffman codes from final histogram
-	if (!_sf_encoder.init(sf_hist)) {
+	if (!_cf_encoder.init(cf_hist)) {
 		return false;
 	}
-	if (!_cf_encoder.init(cf_hist)) {
+	if (!_sf_encoder.init(sf_hist)) {
 		return false;
 	}
 
@@ -579,14 +607,20 @@ void ImageCMWriter::chaosStats() {
 	for (int y = 0; y < _height; ++y) {
 		u8 *last = lastStart;
 
+		// Zero left
+		last[0 - 4] = 0;
+		last[1 - 4] = 0;
+		last[2 - 4] = 0;
+		last[3 - 4] = 0;
+
 		// For each pixel,
 		for (int x = 0; x < width; ++x) {
 			// If not masked out,
 			if (!_lz->visited(x, y) && !_mask->hasRGB(x, y)) {
-				u16 filter = getFilter(x, y);
 				// Get filter for this pixel
-				u8 cf = (u8)filter;
-				u8 sf = (u8)(filter >> 8);
+				const u16 filter = getFilter(x, y);
+				const u8 cf = (u8)filter;
+				const u8 sf = (u8)(filter >> 8);
 
 				// Apply spatial filter
 				const u8 *pred = SPATIAL_FILTERS[sf](p, x, y, width);
@@ -634,6 +668,113 @@ void ImageCMWriter::chaosStats() {
 		_u_encoder[jj].finalize();
 		_v_encoder[jj].finalize();
 		_a_encoder[jj].finalize();
+	}
+
+	// If we are attempting to use ScanlineLZ, 
+	if (_knobs->cm_scanlineFilters) {
+		CAT_INANE("CM") << "Comparing performance with ScanlineLZ...";
+
+		/*
+		 * For each filter zone set of scanlines there are two options:
+		 * + Use chosen zone filters as normal (good for natural images)
+		 * + Choose a new filter for each scanline + do LZ (synthetic images)
+		 *
+		 * ScanlineLZ is coded differently:
+		 *
+		 * An escape code is used in place of the first nonzero CF selection
+		 * to indicate that the following four symbols are the filters for the
+		 * next 4 scanlines.
+		 *
+		 * During these scanlines, the encoding is changed.  This encoding
+		 * is expected to be used only when LZ is applicable to the data after
+		 * filtering, so the LZ field sizes are heuristic to work even better
+		 * when it works well.
+		 *
+		 * Based on the LZ4 frame, the ScanlineLZ frame is:
+		 *
+		 * <literal count(4)>
+		 * <match count(4)>
+		 * [extended literal count (8+)]
+		 * [literal pixels]
+		 * [extended match count (8+)]
+		 * <match offset(16)>
+		 *
+		 * (counts and offsets are in pixels)
+		 *
+		 * Since the decoder needs to write out the post-filter values to a
+		 * small circular buffer anyway to calculate the chaos metric, this
+		 * same circular buffer can be easily adapted as the history used for
+		 * LZ matches.
+		 *
+		 * This format gets RLE for free.
+		 */
+
+		CAT_CLR(_chaos, _chaos_size);
+
+		for (int fy = 0; fy < _height; fy += FILTER_ZONE_SIZE) {
+			u8 *last = lastStart;
+			int base_bits = 0;
+
+			// Simulate writes to get a baseline for what we want to improve on
+			for (int iy = 0; iy < FILTER_ZONE_SIZE; ++iy) {
+				const int y = fy + iy;
+				last = lastStart;
+
+				// Zero left
+				last[0 - 4] = 0;
+				last[1 - 4] = 0;
+				last[2 - 4] = 0;
+				last[3 - 4] = 0;
+
+				// For each pixel,
+				for (int x = 0; x < width; ++x) {
+					// If not masked out,
+					if (!_lz->visited(x, y) && !_mask->hasRGB(x, y)) {
+						// Get filter for this pixel
+						const u16 filter = getFilter(x, y);
+						const u8 cf = (u8)filter;
+						const u8 sf = (u8)(filter >> 8);
+
+						// Apply spatial filter
+						const u8 *pred = SPATIAL_FILTERS[sf](p, x, y, width);
+						u8 temp[3];
+						for (int jj = 0; jj < 3; ++jj) {
+							temp[jj] = p[jj] - pred[jj];
+						}
+
+						// Apply color filter
+						u8 yuv[COLOR_PLANES];
+						RGB2YUV_FILTERS[cf](temp, yuv);
+						if (x > 0) {
+							yuv[3] = p[-1] - p[3];
+						} else {
+							yuv[3] = 255 - p[3];
+						}
+
+						u8 chaos = CHAOS_TABLE[chaosScore(last[0 - 4]) + chaosScore(last[0])];
+						base_bits += _y_encoder[chaos].simulate(yuv[0]);
+						chaos = CHAOS_TABLE[chaosScore(last[1 - 4]) + chaosScore(last[1])];
+						base_bits += _u_encoder[chaos].simulate(yuv[1]);
+						chaos = CHAOS_TABLE[chaosScore(last[2 - 4]) + chaosScore(last[2])];
+						base_bits += _v_encoder[chaos].simulate(yuv[2]);
+						chaos = CHAOS_TABLE[chaosScore(last[3 - 4]) + chaosScore(last[3])];
+						base_bits += _a_encoder[chaos].simulate(yuv[3]);
+
+						for (int c = 0; c < COLOR_PLANES; ++c) {
+							last[c] = yuv[c];
+						}
+					} else {
+						for (int c = 0; c < COLOR_PLANES; ++c) {
+							last[c] = 0;
+						}
+					}
+
+					// Next pixel
+					last += COLOR_PLANES;
+					p += 4;
+				}
+			}
+		}
 	}
 }
 
@@ -694,8 +835,8 @@ bool ImageCMWriter::writeFilters(ImageWriter &writer) {
 	}
 
 	// Write out filter huffman tables
-	int sf_table_bits = _sf_encoder.writeTable(writer);
 	int cf_table_bits = _cf_encoder.writeTable(writer);
+	int sf_table_bits = _sf_encoder.writeTable(writer);
 
 #ifdef CAT_COLLECT_STATS
 	Stats.filter_table_bits[0] = sf_table_bits + bits;
@@ -753,8 +894,8 @@ bool ImageCMWriter::writeChaos(ImageWriter &writer) {
 					u8 sf = filter >> 8;
 					u8 cf = (u8)filter;
 
-					int sf_bits = _sf_encoder.writeSymbol(sf, writer);
 					int cf_bits = _cf_encoder.writeSymbol(cf, writer);
+					int sf_bits = _sf_encoder.writeSymbol(sf, writer);
 #ifdef CAT_COLLECT_STATS
 					filter_table_bits[0] += sf_bits;
 					filter_table_bits[1] += cf_bits;

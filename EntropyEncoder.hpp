@@ -1,3 +1,31 @@
+/*
+	Copyright (c) 2013 Christopher A. Taylor.  All rights reserved.
+
+	Redistribution and use in source and binary forms, with or without
+	modification, are permitted provided that the following conditions are met:
+
+	* Redistributions of source code must retain the above copyright notice,
+	  this list of conditions and the following disclaimer.
+	* Redistributions in binary form must reproduce the above copyright notice,
+	  this list of conditions and the following disclaimer in the documentation
+	  and/or other materials provided with the distribution.
+	* Neither the name of GCIF nor the names of its contributors may be used
+	  to endorse or promote products derived from this software without
+	  specific prior written permission.
+
+	THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+	AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+	IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+	ARE DISCLAIMED.  IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE
+	LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+	CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+	SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+	INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+	CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+	ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+	POSSIBILITY OF SUCH DAMAGE.
+*/
+
 #ifndef ENTROPY_ENCODER_HPP
 #define ENTROPY_ENCODER_HPP
 
@@ -91,6 +119,45 @@ protected:
 		return bits;
 	}
 
+	int simulateZeroRun(int run) {
+		if (run <= 0) {
+			return 0;
+		}
+
+		int bits;
+
+		if (run < ZRLE_SYMS) {
+			bits = _bz.simulateWrite(NUM_SYMS + run - 1);
+		} else {
+			bits = _bz.simulateWrite(BZ_TAIL_SYM);
+
+			run -= ZRLE_SYMS;
+
+			// If multiple FF bytes will be emitted,
+			if (run >= 255 + 255) {
+				// Step it up to 16-bit words
+				run -= 255 + 255;
+				bits += 8 + 8;
+				while (run >= 65535) {
+					bits += 16;
+					run -= 65535;
+				}
+				bits += 16;
+			} else {
+				// Write out FF bytes
+				if (run >= 255) {
+					bits += 8;
+					run -= 255;
+				}
+
+				// Write out last byte
+				bits += 8;
+			}
+		}
+
+		return bits;
+	}
+
 public:
 	CAT_INLINE EntropyEncoder() {
 		_zeroRun = 0;
@@ -138,16 +205,11 @@ public:
 			} else {
 				_bz_hist.add(BZ_TAIL_SYM);
 			}
-
-			_zeroRun = 0;
 		}
 
 		// Initialize Huffman encoders with histograms
 		_bz.init(_bz_hist);
 		_az.init(_az_hist);
-
-		// Set the run list read index for writing
-		_runListReadIndex = 0;
 	}
 
 	int writeTables(ImageWriter &writer) {
@@ -155,6 +217,13 @@ public:
 		bitcount += _az.writeTable(writer);
 
 		return bitcount;
+	}
+
+	void reset() {
+		_zeroRun = 0;
+
+		// Set the run list read index for writing
+		_runListReadIndex = 0;
 	}
 
 	int write(u16 symbol, ImageWriter &writer) {
@@ -182,6 +251,37 @@ public:
 				bits += _az.writeSymbol(symbol, writer);
 			} else {
 				bits += _bz.writeSymbol(symbol, writer);
+			}
+		}
+
+		return bits;
+	}
+
+	int simulate(u16 symbol) {
+		CAT_DEBUG_ENFORCE(symbol < NUM_SYMS);
+
+		int bits = 0;
+
+		// If zero,
+		if (symbol == 0) {
+			// If starting a zero run,
+			if (_zeroRun == 0) {
+				CAT_DEBUG_ENFORCE(_runListReadIndex < (int)_runList.size());
+
+				// Write stored zero run
+				int runLength = _runList[_runListReadIndex++];
+
+				bits += simulateZeroRun(runLength, writer);
+			}
+
+			++_zeroRun;
+		} else {
+			// If just out of a zero run,
+			if (_zeroRun > 0) {
+				_zeroRun = 0;
+				bits += _az.simulateWrite(symbol);
+			} else {
+				bits += _bz.simulateWrite(symbol);
 			}
 		}
 

@@ -1,3 +1,31 @@
+/*
+	Copyright (c) 2013 Christopher A. Taylor.  All rights reserved.
+
+	Redistribution and use in source and binary forms, with or without
+	modification, are permitted provided that the following conditions are met:
+
+	* Redistributions of source code must retain the above copyright notice,
+	  this list of conditions and the following disclaimer.
+	* Redistributions in binary form must reproduce the above copyright notice,
+	  this list of conditions and the following disclaimer in the documentation
+	  and/or other materials provided with the distribution.
+	* Neither the name of GCIF nor the names of its contributors may be used
+	  to endorse or promote products derived from this software without
+	  specific prior written permission.
+
+	THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+	AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+	IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+	ARE DISCLAIMED.  IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE
+	LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+	CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+	SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+	INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+	CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+	ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+	POSSIBILITY OF SUCH DAMAGE.
+*/
+
 #ifndef IMAGE_FILTER_WRITER_HPP
 #define IMAGE_FILTER_WRITER_HPP
 
@@ -48,34 +76,48 @@ protected:
 	static const int ZRLE_SYMS_U = ImageCMReader::ZRLE_SYMS_U;
 	static const int ZRLE_SYMS_V = ImageCMReader::ZRLE_SYMS_V;
 	static const int ZRLE_SYMS_A = ImageCMReader::ZRLE_SYMS_A;
+	static const int LZ_ESCAPE = CF_COUNT;
+	static const int CF_SYMS = CF_COUNT + 1;
 
+	// Twiddly knobs from the write API
 	const GCIFKnobs *_knobs;
-	int _w, _h;
-	u16 *_filters;
-	u16 *_row_filters;
+
+	// Filter matrix, storing filter decisions made up front
+	u16 *_filters;		// One element per zone
+	u16 *_row_filters;	// One element per scanline
+
+	// Recent measured chaos
 	u8 *_chaos;
 	int _chaos_size;
 
+	// Recent post-filter data
 	int _chaos_levels;
 	const u8 *_chaos_table;
 
-	void clear();
-
+	// RGBA input data
 	const u8 *_rgba;
 	int _width, _height;
+
+	// Fully-transparent alpha mask subsystem
 	ImageMaskWriter *_mask;
+
+	// 2D-LZ subsystem
 	ImageLZWriter *_lz;
 
+	// List of custom linear filter replacements
 	std::vector<u32> _filter_replacements;
 
-	// Filter Huffman codes
+	// Filter encoders
+	HuffmanEncoder<CF_SYMS> _cf_encoder;
 	HuffmanEncoder<SF_COUNT> _sf_encoder;
-	HuffmanEncoder<CF_COUNT> _cf_encoder;
 
+	// Color channel encoders
 	EntropyEncoder<256, ZRLE_SYMS_Y> _y_encoder[CHAOS_LEVELS_MAX];
 	EntropyEncoder<256, ZRLE_SYMS_U> _u_encoder[CHAOS_LEVELS_MAX];
 	EntropyEncoder<256, ZRLE_SYMS_V> _v_encoder[CHAOS_LEVELS_MAX];
 	EntropyEncoder<256, ZRLE_SYMS_A> _a_encoder[CHAOS_LEVELS_MAX];
+
+	void clear();
 
 	int init(int width, int height);
 	void maskFilters();
@@ -119,25 +161,19 @@ public:
 	}
 
 	CAT_INLINE void setFilter(int x, int y, u16 filter) {
-		const int filterX = x >> FILTER_ZONE_SIZE_SHIFT;
-		const int filterY = y >> FILTER_ZONE_SIZE_SHIFT;
-		_filters[filterX + filterY * _w] = filter;
+		_filters[(x + (y * (_width >> FILTER_ZONE_SIZE_SHIFT))) >> FILTER_ZONE_SIZE_SHIFT] = filter;
 	}
 
 	CAT_INLINE u16 getFilter(int x, int y) {
-		const int filterX = x >> FILTER_ZONE_SIZE_SHIFT;
-		const int filterY = y >> FILTER_ZONE_SIZE_SHIFT;
-		return _filters[filterX + filterY * _w];
+		return _filters[(x + (y * (_width >> FILTER_ZONE_SIZE_SHIFT))) >> FILTER_ZONE_SIZE_SHIFT];
 	}
 
 	CAT_INLINE void setRowFilter(int y, u16 filter) {
-		const int filterY = y >> FILTER_ZONE_SIZE_SHIFT;
-		_row_filters[filterY] = filter;
+		_row_filters[y] = filter;
 	}
 
-	CAT_INLINE u16 getRowFilter(int y, u16 filter) {
-		const int filterY = y >> FILTER_ZONE_SIZE_SHIFT;
-		return _row_filters[filterY];
+	CAT_INLINE u16 getRowFilter(int y) {
+		return _row_filters[y];
 	}
 
 	int initFromRGBA(const u8 *rgba, int width, int height, ImageMaskWriter &mask, ImageLZWriter &lz, const GCIFKnobs *knobs);
