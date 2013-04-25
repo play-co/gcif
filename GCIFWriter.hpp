@@ -63,11 +63,6 @@ struct GCIFKnobs {
 	// Seed used for any randomized selections, may help discover improvements
 	int bump;				// 0
 
-	//// Image mask writer
-
-	bool mask_dumpMask;		// false: Writes pre-filter mask to mask.png
-	bool mask_dumpDelta;	// false: Writes post-filter mask to delta.png
-
 	//// Image 2D-LZ writer
 
 	int lz_minScore;		// 12: Minimum score to add an LZ match

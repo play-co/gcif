@@ -658,7 +658,7 @@ void ImageCMWriter::maskFilters() {
 
 bool ImageCMWriter::applyFilters() {
 	FreqHistogram<SF_COUNT> sf_hist;
-	FreqHistogram<CF_SYMS> cf_hist;
+	FreqHistogram<CF_COUNT> cf_hist;
 
 	// For each zone,
 	for (int y = 0, height = _height; y < height; y += FILTER_ZONE_SIZE) {
@@ -908,6 +908,8 @@ bool ImageCMWriter::writeChaos(ImageWriter &writer) {
 
 		// For each pixel,
 		for (int x = 0; x < width; ++x) {
+			writer.writeWord(x);
+
 			// If it is time to write out a filter,
 			if ((x & FILTER_ZONE_SIZE_MASK) == 0 &&
 				(y & FILTER_ZONE_SIZE_MASK) == 0) {
@@ -921,12 +923,15 @@ bool ImageCMWriter::writeChaos(ImageWriter &writer) {
 
 					int cf_bits = _cf_encoder.writeSymbol(cf, writer);
 					int sf_bits = _sf_encoder.writeSymbol(sf, writer);
+
 #ifdef CAT_COLLECT_STATS
 					filter_table_bits[0] += sf_bits;
 					filter_table_bits[1] += cf_bits;
 #endif
 				}
 			}
+
+			writer.writeWord(x);
 
 			// If not masked out,
 			if (!_lz->visited(x, y) && !_mask->hasRGB(x, y)) {

@@ -68,7 +68,6 @@ public:
 	static const int ZRLE_SYMS_U = 128;
 	static const int ZRLE_SYMS_V = 128;
 	static const int ZRLE_SYMS_A = 128;
-	static const int CF_SYMS = CF_COUNT + 1;
 
 protected:
 	u8 *_rgba;

@@ -77,7 +77,6 @@ protected:
 	static const int ZRLE_SYMS_V = ImageCMReader::ZRLE_SYMS_V;
 	static const int ZRLE_SYMS_A = ImageCMReader::ZRLE_SYMS_A;
 	static const int LZ_ESCAPE = CF_COUNT;
-	static const int CF_SYMS = CF_COUNT + 1;
 
 	// Twiddly knobs from the write API
 	const GCIFKnobs *_knobs;
@@ -108,7 +107,7 @@ protected:
 	std::vector<u32> _filter_replacements;
 
 	// Filter encoders
-	HuffmanEncoder<CF_SYMS> _cf_encoder;
+	HuffmanEncoder<CF_COUNT> _cf_encoder;
 	HuffmanEncoder<SF_COUNT> _sf_encoder;
 
 	// Color channel encoders
@@ -156,17 +155,24 @@ public:
 	CAT_INLINE ImageCMWriter() {
 		_filters = 0;
 		_chaos = 0;
+		_row_filters = 0;
 	}
 	CAT_INLINE virtual ~ImageCMWriter() {
 		clear();
 	}
 
 	CAT_INLINE void setFilter(int x, int y, u16 filter) {
-		_filters[(x + ((y >> FILTER_ZONE_SIZE_SHIFT) * _width)) >> FILTER_ZONE_SIZE_SHIFT] = filter;
+		x >>= FILTER_ZONE_SIZE_SHIFT;
+		y >>= FILTER_ZONE_SIZE_SHIFT;
+		const int w = _width >> FILTER_ZONE_SIZE_SHIFT;
+		_filters[x + y * w] = filter;
 	}
 
 	CAT_INLINE u16 getFilter(int x, int y) {
-		return _filters[(x + ((y >> FILTER_ZONE_SIZE_SHIFT) * _width)) >> FILTER_ZONE_SIZE_SHIFT];
+		x >>= FILTER_ZONE_SIZE_SHIFT;
+		y >>= FILTER_ZONE_SIZE_SHIFT;
+		const int w = _width >> FILTER_ZONE_SIZE_SHIFT;
+		return _filters[x + y * w];
 	}
 
 	CAT_INLINE void setRowFilter(int y, u16 filter) {

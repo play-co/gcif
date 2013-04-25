@@ -86,7 +86,7 @@ void ImageMaskWriter::applyFilter() {
 	}
 
 #ifdef DUMP_FILTER_OUTPUT
-	if (_knobs->mask_dumpDelta) {
+	{
 		CAT_WARN("mask") << "Writing delta.png image file";
 
 		// Convert to image:
@@ -221,7 +221,7 @@ int ImageMaskWriter::initFromRGBA(const u8 *rgba, int width, int height, const G
 #endif // CAT_COLLECT_STATS
 
 #ifdef DUMP_FILTER_OUTPUT
-	if (_knobs->mask_dumpMask) {
+	{
 		CAT_WARN("mask") << "Writing mask.png";
 
 		vector<unsigned char> output;

@@ -83,7 +83,7 @@ int ImageMaskReader::decodeRLE(u8 *rle, int len) {
 	int rowLeft = 0;
 	u32 *row = _mask;
 	int bitOffset = 0;
-	int bitOn = true;
+	int bitOn = 1;
 	int writeRow = 0;
 
 	const int offsetLimit = _stride * _height;
@@ -287,13 +287,13 @@ int ImageMaskReader::decodeRLE(u8 *rle, int len) {
 			} else {
 				rowStarted = true;
 
-				// Reset row decode state
-				bitOn = false;
-				bitOffset = 0;
-				lastSum = 0;
-
 				// Setup first word
 				if CAT_LIKELY(writeRow > 0) {
+					// Reset row decode state
+					bitOn = 0;
+					bitOffset = 0;
+					lastSum = 0;
+
 					const int stride = _stride;
 
 					u32 *copy = row - stride;

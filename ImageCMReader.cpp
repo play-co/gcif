@@ -114,7 +114,7 @@ int ImageCMReader::readFilterTables(ImageReader &reader) {
 	}
 
 	// Initialize huffman decoder
-	if (reader.eof() || !_cf.init(CF_SYMS, reader, 8)) {
+	if (reader.eof() || !_cf.init(CF_COUNT, reader, 8)) {
 		return RE_CM_CODES;
 	}
 
@@ -189,6 +189,8 @@ int ImageCMReader::readPixels(ImageReader &reader) {
 
 		// For each pixel,
 		for (int x = 0; x < width; ++x) {
+			CAT_ENFORCE(x == reader.readWord()) << "Unable to read " << x;
+
 			// If LZ triggered,
 			if (x == trigger_x_lz) {
 				lz_skip = _lz->triggerX(p, lz_lines_left);
@@ -201,15 +203,20 @@ int ImageCMReader::readPixels(ImageReader &reader) {
 			// If it is time to read the filter,
 			if ((x & FILTER_ZONE_SIZE_MASK) == 0) {
 				// If at least one pixel requires these filters,
+				CAT_WARN("TEST") << "reading filter?";
 				if (lz_skip < FILTER_ZONE_SIZE || lz_lines_left < FILTER_ZONE_SIZE) {
+					CAT_WARN("TEST") << "maybe..";
 					for (int ii = 0; ii < FILTER_ZONE_SIZE; ++ii) {
 						for (int jj = 0; jj < FILTER_ZONE_SIZE; ++jj) {
+							CAT_WARN("TEST") << _mask->hasRGB(x + jj, y + ii);
 							if (!_mask->hasRGB(x + jj, y + ii)) {
 								const int cfi = _cf.next(reader);
 								filter->cf = YUV2RGB_FILTERS[cfi];
 								const int sfi = _sf.next(reader);
 								filter->sf = SPATIAL_FILTERS[sfi];
 								filter->sfu = UNSAFE_SPATIAL_FILTERS[sfi];
+
+								CAT_WARN("TEST") << cfi << ", " << sfi;
 
 								goto y0_had_filter;
 							}
@@ -218,6 +225,8 @@ int ImageCMReader::readPixels(ImageReader &reader) {
 				}
 y0_had_filter:;
 			}
+
+			CAT_ENFORCE(x == reader.readWord()) << "Unable to read " << x;
 
 			if (lz_skip > 0) {
 				--lz_skip;
@@ -284,6 +293,7 @@ y0_had_filter:;
 		// Unroll x = 0 pixel
 		{
 			const int x = 0;
+			CAT_ENFORCE(x == reader.readWord()) << "Unable to read " << x;
 
 			// If LZ triggered,
 			if (x == trigger_x_lz) {
@@ -364,6 +374,7 @@ x0_had_filter:;
 
 		// For each pixel,
 		for (int x = 1, xend = width - 1; x < xend; ++x) {
+			CAT_ENFORCE(x == reader.readWord()) << "Unable to read " << x;
 			// If LZ triggered,
 			if (x == trigger_x_lz) {
 				lz_skip = _lz->triggerX(p, lz_lines_left);
@@ -445,6 +456,7 @@ had_filter:;
 		// For x = width-1,
 		{
 			const int x = width - 1;
+			CAT_ENFORCE(x == reader.readWord()) << "Unable to read " << x;
 
 			// If LZ triggered,
 			if (x == trigger_x_lz) {
