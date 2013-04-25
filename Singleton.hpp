@@ -1,7 +1,7 @@
 // This is my Singleton class with the mutex locks taken out
 
 /*
-	Copyright (c) 2013 Christopher A. Taylor.  All rights reserved.
+	Copyright (c) 2013 Game Closure.  All rights reserved.
 
 	Redistribution and use in source and binary forms, with or without
 	modification, are permitted provided that the following conditions are met:
