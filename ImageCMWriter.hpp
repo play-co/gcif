@@ -24,12 +24,13 @@
  * + Maintainable codebase for future improvements
  * + 2D LZ Exact Match and Fully-Transparent Alpha Mask integration
  * + Uses 4x4 zones instead of 8x8
- * + More spatial and color filters supported
- * + Top (FILTER_SELECT_FUZZ) filters are submitted to entropy-based selection
- * + Only 8 chaos levels
- * + Encodes zero runs > ~256 without emitting more symbols for better AZ stats
- * + Better Huffman table compression
+ * + More/better non-linear spatial and more color filters supported
  * + Linear spatial filters tuned to image where improvement is found
+ * + Chaos metric is order-1 stats, so do not fuzz them, and use just 8 levels
+ * + Encodes zero runs > ~256 without emitting more symbols for better AZ stats
+ * + Better, context-modeled Huffman table compression
+ * + Faster entropy estimation allows us to run entropy analysis exhaustively
+ * + Revisit top of image after choosing filters for better selection
  */
 
 namespace cat {
