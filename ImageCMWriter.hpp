@@ -76,7 +76,6 @@ protected:
 	static const int ZRLE_SYMS_U = ImageCMReader::ZRLE_SYMS_U;
 	static const int ZRLE_SYMS_V = ImageCMReader::ZRLE_SYMS_V;
 	static const int ZRLE_SYMS_A = ImageCMReader::ZRLE_SYMS_A;
-	static const int LZ_ESCAPE = CF_COUNT;
 
 	// Twiddly knobs from the write API
 	const GCIFKnobs *_knobs;

@@ -908,7 +908,7 @@ bool ImageCMWriter::writeChaos(ImageWriter &writer) {
 
 		// For each pixel,
 		for (int x = 0; x < width; ++x) {
-			writer.writeWord(x);
+			writer.writeWord(x ^ 1234567);
 
 			// If it is time to write out a filter,
 			if ((x & FILTER_ZONE_SIZE_MASK) == 0 &&
@@ -921,8 +921,15 @@ bool ImageCMWriter::writeChaos(ImageWriter &writer) {
 					u8 sf = filter >> 8;
 					u8 cf = (u8)filter;
 
+					if(x == 0 && y == 0) {
+						CAT_WARN("TEST") << "WARG " << (int)cf << " , " << (int)sf;
+					}
+
+					writer.writeWord(x ^ 1234568);
 					int cf_bits = _cf_encoder.writeSymbol(cf, writer);
+					writer.writeWord(x ^ 1234569);
 					int sf_bits = _sf_encoder.writeSymbol(sf, writer);
+					writer.writeWord(x ^ 1234560);
 
 #ifdef CAT_COLLECT_STATS
 					filter_table_bits[0] += sf_bits;
@@ -931,7 +938,7 @@ bool ImageCMWriter::writeChaos(ImageWriter &writer) {
 				}
 			}
 
-			writer.writeWord(x);
+			writer.writeWord(x ^ 1234561);
 
 			// If not masked out,
 			if (!_lz->visited(x, y) && !_mask->hasRGB(x, y)) {

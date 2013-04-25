@@ -44,6 +44,8 @@ u32 ImageReader::refill() {
 
 	CAT_DEBUG_ENFORCE(bitsLeft < 32);
 
+	CAT_WARN("refill") << bitsLeft;
+
 	if CAT_LIKELY(_wordsLeft > 0) {
 		--_wordsLeft;
 

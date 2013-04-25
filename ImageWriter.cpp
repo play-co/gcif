@@ -143,30 +143,24 @@ int ImageWriter::init(int width, int height) {
 	return WE_OK;
 }
 
-void ImageWriter::writeBitPush(u32 code) {
-	const u32 pushWord = _work | code;
+void ImageWriter::writeBits(u32 code, int len) {
+	CAT_DEBUG_ENFORCE(len >= 1 && len <= 32);
+	CAT_DEBUG_ENFORCE((code >> len) == 0);
 
-	_words.push(pushWord);
+	int bits = _bits;
 
-	_work = 0;
-	_bits = 0;
-}
+	_work |= (u64)code << (64 - len - bits);
 
-void ImageWriter::writeBitsPush(u32 code, int len, int available) {
-	const int shift = len - available;
+	bits += len;
 
-	CAT_DEBUG_ENFORCE(shift < 32);
+	if CAT_UNLIKELY(bits >= 32) {
+		_words.push((u32)(_work >> 32));
 
-	const u32 pushWord = _work | (code >> shift);
-	_words.push(pushWord);
-
-	if (shift) {
-		_work = code << (32 - shift);
-	} else {
-		_work = 0;
+		_work <<= 32;
+		bits -= 32;
 	}
 
-	_bits = shift;
+	_bits = bits;
 }
 
 int ImageWriter::finalizeAndWrite(const char *path) {

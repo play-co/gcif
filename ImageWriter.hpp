@@ -122,11 +122,8 @@ class ImageWriter {
 	ImageHeader _header;
 
 	WriteVector _words;
-	u32 _work;	// Word workspace
-	int _bits;	// Modulo 32
-
-	void writeBitPush(u32 code);
-	void writeBitsPush(u32 code, int len, int available);
+	u64 _work;
+	int _bits;
 
 public:
 	CAT_INLINE ImageWriter() {
@@ -142,58 +139,17 @@ public:
 
 	int init(int width, int height);
 
+	// Only works with len in [1..32], and code must not have dirty high bits
+	void writeBits(u32 code, int len);
+
 	// Only works for 1-bit code, and code must not have dirty high bits
 	CAT_INLINE void writeBit(u32 code) {
-		CAT_DEBUG_ENFORCE(code < 2);
-
-		const int bits = _bits;
-		const int available = 31 - bits;
-
-		if CAT_LIKELY(available > 0) {
-			_work |= code << available;
-
-			_bits = bits + 1;
-		} else {
-			writeBitPush(code);
-		}
-	}
-
-	// Only works with len in [1..32], and code must not have dirty high bits
-	CAT_INLINE void writeBits(u32 code, int len) {
-		CAT_DEBUG_ENFORCE(len >= 1 && len <= 32);
-		CAT_DEBUG_ENFORCE((code >> len) == 0);
-
-		const int bits = _bits;
-		const int available = 32 - bits;
-
-		if CAT_LIKELY(available > len) {
-			CAT_DEBUG_ENFORCE((available - len) < 32);
-
-			_work |= code << (available - len);
-
-			_bits = bits + len;
-		} else {
-			writeBitsPush(code, len, available);
-		}
+		return writeBits(code, 1);
 	}
 
 	// Write a whole 32-bit word at once
 	CAT_INLINE void writeWord(u32 word) {
-		const int shift = _bits;
-
-		CAT_DEBUG_ENFORCE(shift != 32);
-
-		const u32 pushWord = _work | (word >> shift);
-
-		_words.push(pushWord);
-
-		if (shift > 0) {
-			_work = word << (32 - shift);
-		} else {
-			_work = 0;
-		}
-
-		_bits = shift;
+		return writeBits(word, 32);
 	}
 
 	int finalizeAndWrite(const char *path);

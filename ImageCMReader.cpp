@@ -189,7 +189,7 @@ int ImageCMReader::readPixels(ImageReader &reader) {
 
 		// For each pixel,
 		for (int x = 0; x < width; ++x) {
-			CAT_ENFORCE(x == reader.readWord()) << "Unable to read " << x;
+			CAT_ENFORCE((x ^ 1234567) == reader.readWord()) << "Unable to read " << x;
 
 			// If LZ triggered,
 			if (x == trigger_x_lz) {
@@ -203,18 +203,21 @@ int ImageCMReader::readPixels(ImageReader &reader) {
 			// If it is time to read the filter,
 			if ((x & FILTER_ZONE_SIZE_MASK) == 0) {
 				// If at least one pixel requires these filters,
-				CAT_WARN("TEST") << "reading filter?";
+				CAT_WARN("TEST") << "reading filter? " << x << " , " << y;
 				if (lz_skip < FILTER_ZONE_SIZE || lz_lines_left < FILTER_ZONE_SIZE) {
 					CAT_WARN("TEST") << "maybe..";
 					for (int ii = 0; ii < FILTER_ZONE_SIZE; ++ii) {
 						for (int jj = 0; jj < FILTER_ZONE_SIZE; ++jj) {
 							CAT_WARN("TEST") << _mask->hasRGB(x + jj, y + ii);
 							if (!_mask->hasRGB(x + jj, y + ii)) {
+								CAT_ENFORCE((x ^ 1234568) == reader.readWord()) << "Unable to read " << x;
 								const int cfi = _cf.next(reader);
 								filter->cf = YUV2RGB_FILTERS[cfi];
+								CAT_ENFORCE((x ^ 1234569) == reader.readWord()) << "Unable to read " << x;
 								const int sfi = _sf.next(reader);
 								filter->sf = SPATIAL_FILTERS[sfi];
 								filter->sfu = UNSAFE_SPATIAL_FILTERS[sfi];
+								CAT_ENFORCE((x ^ 1234560) == reader.readWord()) << "Unable to read " << x;
 
 								CAT_WARN("TEST") << cfi << ", " << sfi;
 
@@ -226,7 +229,7 @@ int ImageCMReader::readPixels(ImageReader &reader) {
 y0_had_filter:;
 			}
 
-			CAT_ENFORCE(x == reader.readWord()) << "Unable to read " << x;
+			CAT_ENFORCE((x ^ 1234561) == reader.readWord()) << "Unable to read " << x;
 
 			if (lz_skip > 0) {
 				--lz_skip;
@@ -313,6 +316,7 @@ y0_had_filter:;
 								// Read SF and CF for this zone
 								const int cfi = _cf.next(reader);
 								filter->cf = YUV2RGB_FILTERS[cfi];
+								CAT_ENFORCE(x == reader.readWord()) << "Unable to read " << x;
 								const int sfi = _sf.next(reader);
 								filter->sf = SPATIAL_FILTERS[sfi];
 								filter->sfu = UNSAFE_SPATIAL_FILTERS[sfi];
@@ -323,6 +327,7 @@ y0_had_filter:;
 				}
 x0_had_filter:;
 			}
+			CAT_ENFORCE(x == reader.readWord()) << "Unable to read " << x;
 
 			if (lz_skip > 0) {
 				--lz_skip;
@@ -394,6 +399,7 @@ x0_had_filter:;
 								// Read SF and CF for this zone
 								const int cfi = _cf.next(reader);
 								filter->cf = YUV2RGB_FILTERS[cfi];
+								CAT_ENFORCE(x == reader.readWord()) << "Unable to read " << x;
 								const int sfi = _sf.next(reader);
 								filter->sf = SPATIAL_FILTERS[sfi];
 								filter->sfu = UNSAFE_SPATIAL_FILTERS[sfi];
@@ -405,6 +411,7 @@ x0_had_filter:;
 			}
 
 had_filter:;
+			CAT_ENFORCE(x == reader.readWord()) << "Unable to read " << x;
 		   u8 yuva[4] = {0};
 
 		   if (lz_skip > 0) {
@@ -456,6 +463,7 @@ had_filter:;
 		// For x = width-1,
 		{
 			const int x = width - 1;
+			CAT_ENFORCE(x == reader.readWord()) << "Unable to read " << x;
 			CAT_ENFORCE(x == reader.readWord()) << "Unable to read " << x;
 
 			// If LZ triggered,
