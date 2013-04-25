@@ -194,7 +194,7 @@ are then subjected to further entropy analysis.  This additional step greatly
 improves compression by increasing the rate at which symbols are reused in the
 post-filtered data, which makes the data easier to compress.
 
-The entropy analysis is accelerated by a 24-bit integer approximation that
+The entropy analysis is accelerated by a 24-bit fixed-point approximation that
 allows us to try all of the options in an acceptable amount of time.  By being
 fast we are able to try more options so compression improves.
 
