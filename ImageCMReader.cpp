@@ -114,7 +114,7 @@ int ImageCMReader::readFilterTables(ImageReader &reader) {
 	}
 
 	// Initialize huffman decoder
-	if (reader.eof() || !_cf.init(CF_COUNT, reader, 8)) {
+	if (reader.eof() || !_cf.init(CF_SYMS, reader, 8)) {
 		return RE_CM_CODES;
 	}
 
