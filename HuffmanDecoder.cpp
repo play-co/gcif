@@ -253,13 +253,7 @@ bool HuffmanDecoder::init(int num_syms_orig, ImageReader &reader, u32 table_bits
 	// If the symbol count is low,
 	if (num_syms <= TABLE_THRESH) {
 		for (int ii = 0; ii < num_syms; ++ii) {
-			u8 len = reader.readBits(4);
-
-			if (len >= 15) {
-				len += reader.readBit();
-			}
-
-			codelens[ii] = len;
+			codelens[ii] = reader.read17();
 		}
 
 		return init(num_syms, codelens, table_bits);
@@ -411,13 +405,7 @@ bool HuffmanTableDecoder::init(ImageReader &reader) {
 	}
 
 	for (int ii = 0; ii < last_nzt; ++ii) {
-		u8 len = reader.readBits(4);
-
-		if (len >= 15) {
-			len += reader.readBit();
-		}
-
-		table_codelens[ii] = len;
+		table_codelens[ii] = reader.read17();
 	}
 
 	_zeroRun = 0;
@@ -436,21 +424,9 @@ u8 HuffmanTableDecoder::next(ImageReader &reader) {
 
 	if (sym == 0) {
 		if (_lastZero) {
-			u32 run = reader.readBits(3), s;
-
-			if (run == 7) {
-				s = reader.readBits(3);
-				run += s;
-				if (s == 7) {
-					do {
-						s = reader.readBits(5);
-						run += s;
-					} while (s == 31);
-				}
-			}
-
-			_zeroRun = run;
+			_zeroRun = reader.read335();
 		}
+
 		_lastZero = true;
 		return 0;
 	} else {

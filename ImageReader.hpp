@@ -130,6 +130,59 @@ public:
 		return bits;
 	}
 
+	/*
+	 * 335-encoding
+	 *
+	 * Used for encoding runs of zeroes in the Huffman table compressor
+	 */
+	CAT_INLINE u32 read335() {
+		u32 run = readBits(3), s;
+
+		if (run == 7) {
+			s = readBits(3);
+			run += s;
+			if (s == 7) {
+				do {
+					s = readBits(5);
+					run += s;
+				} while (s == 31);
+			}
+		}
+
+		return run;
+	}
+
+	/*
+	 * 17-encoding
+	 *
+	 * Used for encoding Huffman codelens with values 0..16, where 16 is rare
+	 */
+	CAT_INLINE u32 read17() {
+		u32 word = readBits(4);
+
+		if (word >= 15) {
+			word += readBit();
+		}
+
+		return word;
+	}
+
+	/*
+	 * 9-encoding
+	 *
+	 * Used for encoding word data that tends to be small but can be bigger
+	 */
+	CAT_INLINE u32 read9() {
+		u32 bits, word = 0;
+
+		while ((bits = readBits(9)) & 256) {
+			word |= (bits & 255);
+			word <<= 8;
+		}
+
+		return word | bits;
+	}
+
 	// No bits left to read?
 	CAT_INLINE bool eof() {
 		return _eof;

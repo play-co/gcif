@@ -152,6 +152,121 @@ public:
 		return writeBits(word, 32);
 	}
 
+	/*
+	 * 335-encoding
+	 *
+	 * Used for encoding runs of zeroes in the Huffman table compressor
+	 */
+	static CAT_INLINE int simulate335(u32 run) {
+		int bits = 0;
+
+		if (run >= 7) {
+			run -= 7;
+			bits += 3;
+			if (run >= 7) {
+				run -= 7;
+				bits += 3;
+				while (run >= 31) {
+					run -= 31;
+					bits += 5;
+				}
+				bits += 5;
+			} else {
+				bits += 3;
+			}
+		} else {
+			bits += 3;
+		}
+
+		return bits;
+	}
+
+	CAT_INLINE int write335(u32 run) {
+		int bits = 0;
+
+		if (run >= 7) {
+			writeBits(7, 3);
+			run -= 7;
+			bits += 3;
+			if (run >= 7) {
+				writeBits(7, 3);
+				run -= 7;
+				bits += 3;
+				while (run >= 31) {
+					writeBits(31, 5);
+					run -= 31;
+					bits += 5;
+				}
+				writeBits(run, 5);
+				bits += 5;
+			} else {
+				writeBits(run, 3);
+				bits += 3;
+			}
+		} else {
+			writeBits(run, 3);
+			bits += 3;
+		}
+
+		return bits;
+	}
+
+	/*
+	 * 17-encoding
+	 *
+	 * Used for encoding Huffman codelens with values 0..16, where 16 is rare
+	 */
+	static CAT_INLINE int simulate17(u32 len) {
+		CAT_DEBUG_ENFORCE(len < 17);
+
+		int bits = 4;
+
+		if (len >= 15) {
+			bits++;
+		}
+
+		return bits;
+	}
+
+	CAT_INLINE int write17(u32 len) {
+		CAT_DEBUG_ENFORCE(len < 17);
+
+		int bits = 4;
+
+		if (len >= 15) {
+			writeBits(15, 4);
+			writeBit(len - 15);
+			bits++;
+		} else {
+			writeBits(len, 4);
+		}
+
+		return bits;
+	}
+
+	/*
+	 * 9-encoding
+	 *
+	 * Used for encoding word data that tends to be small but can be bigger
+	 */
+	CAT_INLINE int write9(u32 word) {
+		int bits = 9;
+
+		if (word > 0x00ffffff) {
+			writeBits((word >> 24) | 256, 9);
+		}
+		if (word > 0x0000ffff) {
+			writeBits(((word >> 16) & 255) | 256, 9);
+		}
+		if (word > 0x000000ff) {
+			writeBits(((word >> 8) & 255) | 256, 9);
+		}
+		writeBits(word & 255, 9);
+
+		return bits;
+	}
+
+	// Finalize the last word and write to file
 	int finalizeAndWrite(const char *path);
 };
 

@@ -551,18 +551,7 @@ int cat::writeCompressedHuffmanTable(int num_syms, u8 codelens[], ImageWriter &w
 	if (num_syms <= TABLE_THRESH) {
 		// Encode the symbols directly
 		for (int ii = 0; ii < num_syms; ++ii) {
-			u8 len = codelens[ii];
-
-			CAT_DEBUG_ENFORCE(len < HUFF_SYMS);
-
-			if (len >= 15) {
-				writer.writeBits(15, 4);
-				writer.writeBit(len - 15);
-				bc += 5;
-			} else {
-				writer.writeBits(len, 4);
-				bc += 4;
-			}
+			bc += writer.write17(codelens[ii]);
 		}
 
 		return bc;
@@ -835,26 +824,7 @@ int HuffmanTableEncoder::simulateZeroRun(int run) {
 	} else {
 		bits = _bz.simulateWrite(0);
 		bits += _bz.simulateWrite(0);
-
-		run -= 2;
-
-		if (run >= 7) {
-			run -= 7;
-			bits += 3;
-			if (run >= 7) {
-				run -= 7;
-				bits += 3;
-				while (run >= 31) {
-					run -= 31;
-					bits += 5;
-				}
-				bits += 5;
-			} else {
-				bits += 3;
-			}
-		} else {
-			bits += 3;
-		}
+		bits += ImageWriter::simulate335(run - 2);
 	}
 
 	return bits;
@@ -872,32 +842,7 @@ int HuffmanTableEncoder::writeZeroRun(int run, ImageWriter &writer) {
 	} else {
 		bits = _bz.writeSymbol(0, writer);
 		bits += _bz.writeSymbol(0, writer);
-
-		run -= 2;
-
-		if (run >= 7) {
-			writer.writeBits(7, 3);
-			run -= 7;
-			bits += 3;
-			if (run >= 7) {
-				writer.writeBits(7, 3);
-				run -= 7;
-				bits += 3;
-				while (run >= 31) {
-					writer.writeBits(31, 5);
-					run -= 31;
-					bits += 5;
-				}
-				writer.writeBits(run, 5);
-				bits += 5;
-			} else {
-				writer.writeBits(run, 3);
-				bits += 3;
-			}
-		} else {
-			writer.writeBits(run, 3);
-			bits += 3;
-		}
+		bits += writer.write335(run - 2);
 	}
 
 	return bits;
@@ -965,18 +910,7 @@ int HuffmanTableEncoder::writeTables(ImageWriter &writer) {
 
 	// Encode the symbols directly
 	for (int ii = 0; ii <= last_nzt; ++ii) {
-		u8 len = table_codelens[ii];
-
-		CAT_DEBUG_ENFORCE(len < NUM_SYMS);
-
-		if (len >= 15) {
-			writer.writeBits(15, 4);
-			writer.writeBit(len - 15);
-			bc += 5;
-		} else {
-			writer.writeBits(len, 4);
-			bc += 4;
-		}
+		writer.write17(table_codelens[ii]);
 	}
 
 	return bc;

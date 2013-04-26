@@ -103,13 +103,21 @@ int ImageLZReader::readZones(ImageReader &reader) {
 	_zones = new Zone[match_count];
 
 	if (match_count < HUFF_THRESH) {
+		u16 last_dx = 0, last_dy = 0;
 		for (int ii = 0; ii < match_count; ++ii) {
 			Zone *z = &_zones[ii];
 
-			u16 sx = reader.readBits(16);
-			u16 sy = reader.readBits(16);
-			u16 dx = reader.readBits(16);
-			u16 dy = reader.readBits(16);
+			u16 sx = reader.read9();
+			u16 sy = reader.read9();
+			u16 dx = reader.read9();
+			u16 dy = reader.read9();
+
+			// Reverse CM
+			if (dy == 0) {
+				dx += last_dx;
+			}
+			dy += last_dy;
+			sy = dy - sy;
 
 			z->dx = dx;
 			z->dy = dy;
@@ -132,6 +140,9 @@ int ImageLZReader::readZones(ImageReader &reader) {
 					(u32)z->dy + (u32)z->h > (u32)_height) {
 				return RE_LZ_BAD;
 			}
+
+			last_dx = dx;
+			last_dy = dy;
 		}
 
 		if (reader.eof()) {

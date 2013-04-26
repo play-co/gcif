@@ -373,8 +373,8 @@ void ImageMaskWriter::write(ImageWriter &writer) {
 	vector<u8> lz;
 	performLZ(rle, lz);
 
-	writer.writeWord(rle.size());
-	writer.writeWord(lz.size());
+	writer.write9(rle.size());
+	writer.write9(lz.size());
 
 #ifdef CAT_COLLECT_STATS
 	double t3 = clock->usec();

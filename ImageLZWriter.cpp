@@ -398,13 +398,23 @@ void ImageLZWriter::write(ImageWriter &writer) {
 	}
 
 	if (match_count < HUFF_THRESH) {
+		u16 last_dx = 0, last_dy = 0;
+
 		for (int ii = 0; ii < match_count; ++ii) {
 			Match *m = &_exact_matches[ii];
 
-			writer.writeBits(m->sx, 16);
-			writer.writeBits(m->sy, 16);
-			writer.writeBits(m->dx, 16);
-			writer.writeBits(m->dy, 16);
+			// Apply some context modeling for better compression
+			u16 edx = m->dx;
+			u16 esy = m->dy - m->sy;
+			u16 edy = m->dy - last_dy;
+			if (edy == 0) {
+				edx -= last_dx;
+			}
+
+			writer.write9(m->sx);
+			writer.write9(esy);
+			writer.write9(edx);
+			writer.write9(edy);
 			writer.writeBits(m->w, 8);
 			writer.writeBits(m->h, 8);
 		}
