@@ -80,8 +80,7 @@ int gcif_read(const char *input_file_path, GCIFImage *image) {
 
 	// Verify hash
 	if (!reader.finalizeCheckHash()) {
-		CAT_WARN("FAIL") << "Final image hash did not match.";
-		//return RE_BAD_HASH;
+		return RE_BAD_HASH;
 	}
 
 	return 0;

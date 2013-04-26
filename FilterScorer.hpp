@@ -54,6 +54,7 @@ protected:
 	}
 
 	int partitionTop(int left, int right, int pivotIndex);
+	void quickSort(int left, int right);
 
 	void clear();
 

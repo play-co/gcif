@@ -57,6 +57,15 @@ int FilterScorer::partitionTop(int left, int right, int pivotIndex) {
 	return storeIndex;
 }
 
+void FilterScorer::quickSort(int left, int right) {
+	if (left < right) {
+		int pivotIndex = left + (right - left) / 2;
+		int pivotNewIndex = partitionTop(left, right, pivotIndex);
+		quickSort(left, pivotNewIndex - 1);
+		quickSort(pivotNewIndex + 1, right);
+	}
+}
+
 void FilterScorer::clear() {
 	if (_list) {
 		delete []_list;
@@ -103,15 +112,19 @@ FilterScorer::Score *FilterScorer::getTop(int k) {
 		k = _count;
 	}
 
+	//const int listSize = k;
 	int left = 0;
 	int right = _count - 1;
-	int pivotIndex = right;
+	int pivotIndex = _count / 2;
 
 	for (;;) {
 		int pivotNewIndex = partitionTop(left, right, pivotIndex);
 
 		int pivotDist = pivotNewIndex - left + 1;
 		if (pivotDist == k) {
+			// Sort the list we are returning
+			//quickSort(0, listSize - 1);
+
 			return _list;
 		} else if (k < pivotDist) {
 			right = pivotNewIndex - 1;
