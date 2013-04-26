@@ -843,7 +843,7 @@ bool ImageCMWriter::writeFilters(ImageWriter &writer) {
 	const int rep_count = _filter_replacements.size();
 
 	CAT_DEBUG_ENFORCE(SF_COUNT < 32);
-	CAT_DEBUG_ENFORCE(TAPPED_COUNT < 128);
+	CAT_DEBUG_ENFORCE(SpatialFilterSet::TAPPED_COUNT < 128);
 
 	writer.writeBits(rep_count, 5);
 	int bits = 5;

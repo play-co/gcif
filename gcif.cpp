@@ -154,7 +154,6 @@ static int benchfile(BenchStats &stats, string filename) {
 	u32 pngBytes = png.st_size;
 	u32 gciBytes = gci.st_size;
 	double gcipngrat = pngBytes / (double)gciBytes;
-	double gciover = width * height * 4 / (double)gciBytes;
 
 	double pngtime = t1 - t0;
 	double gcitime = t3 - t2;
