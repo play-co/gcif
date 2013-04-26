@@ -80,9 +80,12 @@ int ImageLZReader::readHuffmanTable(ImageReader &reader) {
 		return RE_LZ_CODES;
 	}
 
-	// If not able to init Huffman decoder
-	if (!_decoder.init(reader)) {
-		return RE_LZ_CODES;
+	// If minimum count is met,
+	if (match_count >= HUFF_THRESH) {
+		// If not able to init Huffman decoder
+		if (!_decoder.init(reader)) {
+			return RE_LZ_CODES;
+		}
 	}
 
 	return RE_OK;
@@ -103,15 +106,15 @@ int ImageLZReader::readZones(ImageReader &reader) {
 		for (int ii = 0; ii < match_count; ++ii) {
 			Zone *z = &_zones[ii];
 
-			int sx = reader.readBits(16);
-			int sy = reader.readBits(16);
-			int dx = reader.readBits(16);
-			int dy = reader.readBits(16);
+			u16 sx = reader.readBits(16);
+			u16 sy = reader.readBits(16);
+			u16 dx = reader.readBits(16);
+			u16 dy = reader.readBits(16);
 
 			z->dx = dx;
 			z->dy = dy;
-			z->sox = sx - dx;
-			z->soy = sy - dy;
+			z->sox = (s16)sx - (s16)dx;
+			z->soy = (s16)sy - (s16)dy;
 			z->w = reader.readBits(8) + ZONEW;
 			z->h = reader.readBits(8) + ZONEH;
 
