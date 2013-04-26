@@ -123,41 +123,17 @@ void ImageMaskWriter::clear() {
 	}
 }
 
-int ImageMaskWriter::initFromRGBA(const u8 *rgba, int width, int height, const GCIFKnobs *knobs) {
+u32 ImageMaskWriter::dominantColor() {
+}
 
-	if (!rgba || width < FILTER_ZONE_SIZE || height < FILTER_ZONE_SIZE) {
-		return WE_BAD_DIMS;
-	}
-
-	if ((width & FILTER_ZONE_SIZE_MASK) || (height & FILTER_ZONE_SIZE_MASK)) {
-		return WE_BAD_DIMS;
-	}
-
-	clear();
-
-	const int maskWidth = width;
-	const int maskHeight = height;
-
-	// Init mask bitmatrix
-	_knobs = knobs;
-	_width = maskWidth;
-	_stride = (maskWidth + 31) >> 5;
-	_size = maskHeight * _stride;
-	_height = maskHeight;
-	_mask = new u32[_size];
-	_filtered = new u32[_size];
-
-	// Assumes fully-transparent black for now
-	// TODO: Also work with images that have a different most-common color
-	_value = getLE(0x00000000);
-
+void ImageMaskWriter::maskAlpha() {
 	u32 *writer = _mask;
 
 	// Set from full-transparent alpha:
 
 	u32 covered = 0;
 
-	const unsigned char *alpha = (const unsigned char*)&rgba[0] + 3;
+	const u8 *alpha = (const u8*)&rgba[0] + 3;
 	for (int y = 0; y < height; ++y) {
 		for (int x = 0, len = width >> 5; x < len; ++x) {
 			u32 bits = (alpha[0] == 0);
@@ -219,6 +195,39 @@ int ImageMaskWriter::initFromRGBA(const u8 *rgba, int width, int height, const G
 #ifdef CAT_COLLECT_STATS
 	Stats.covered = covered;
 #endif // CAT_COLLECT_STATS
+}
+
+void ImageMaskWriter::maskColor(u32 color) {
+}
+
+int ImageMaskWriter::initFromRGBA(const u8 *rgba, int width, int height, const GCIFKnobs *knobs) {
+
+	if (!rgba || width < FILTER_ZONE_SIZE || height < FILTER_ZONE_SIZE) {
+		return WE_BAD_DIMS;
+	}
+
+	if ((width & FILTER_ZONE_SIZE_MASK) || (height & FILTER_ZONE_SIZE_MASK)) {
+		return WE_BAD_DIMS;
+	}
+
+	clear();
+
+	const int maskWidth = width;
+	const int maskHeight = height;
+
+	// Init mask bitmatrix
+	_knobs = knobs;
+	_width = maskWidth;
+	_stride = (maskWidth + 31) >> 5;
+	_size = maskHeight * _stride;
+	_height = maskHeight;
+	_mask = new u32[_size];
+	_filtered = new u32[_size];
+
+	maskAlpha();
+
+	_value = dominantColor();
+	maskColor(_value);
 
 #ifdef DUMP_FILTER_OUTPUT
 	{

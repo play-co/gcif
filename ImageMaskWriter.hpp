@@ -41,11 +41,17 @@
 /*
  * Game Closure Fully-Transparent Alpha Mask Compression
  *
- * Encodes pixels with fully-transparent alpha as a monochrome bitmap.
+ * Encodes pixels with fully-transparent alpha and/or a dominant image color
+ * (often black) as a monochrome bitmap.  This is designed to improve on the
+ * compression ratios offered by context modeling or LZ for data that can be
+ * compactly represented as a bitmask.
  *
  * It first performs bitwise filtering to reduce the data down to a few pixels.
  * Then the distance between those pixels is recorded, compressed with LZ4HC,
- * and then Huffman encoded.
+ * and entropy-encoded for compression with Huffman codes.
+ *
+ * This method is chosen if a minimum compression ratio is achieved for the
+ * masked pixels.
  */
 
 namespace cat {
@@ -57,11 +63,12 @@ namespace cat {
 //// ImageMaskWriter
 
 class ImageMaskWriter {
-	u32 _value;
-
 	const GCIFKnobs *_knobs;
-	u32 *_mask;
-	u32 *_filtered;
+	u32 *_alpha;
+	u32 *_alpha_filtered;
+	u32 *_color;
+	u32 *_color_filtered;
+	u32 _colorValue;
 	int _size, _stride, _width, _height;
 	bool _using_encoder;
 
@@ -72,29 +79,42 @@ class ImageMaskWriter {
 	void performLZ(const std::vector<u8> &rle, std::vector<u8> &lz);
 	void writeEncodedLZ(const std::vector<u8> &lz, HuffmanEncoder<256> &encoder, ImageWriter &writer);
 
+	u32 dominantColor();
+
+	void maskAlpha();
+	void maskColor(u32 color);
+
 #ifdef CAT_COLLECT_STATS
 public:
 	struct _Stats {
-		u32 table_bits;
-		u32 data_bits;
-		u32 covered;
+		u32 alpha_table_bits, alpha_data_bits, alpha_covered;
+		int alpha_rleBytes, alpha_lzBytes;
+		double alpha_filterUsec, alpha_rleUsec, alpha_lzUsec, alpha_histogramUsec;
+		double alpha_generateTableUsec, alpha_tableEncodeUsec, alpha_dataEncodeUsec;
+		double alpha_overallUsec;
 
-		int rleBytes, lzBytes;
+		u32 color_table_bits, color_data_bits, color_covered;
+		int color_rleBytes, color_lzBytes;
+		double color_filterUsec, color_rleUsec, color_lzUsec, color_histogramUsec;
+		double color_generateTableUsec, color_tableEncodeUsec, color_dataEncodeUsec;
+		double color_overallUsec;
 
-		double filterUsec, rleUsec, lzUsec, histogramUsec;
-		double generateTableUsec, tableEncodeUsec, dataEncodeUsec;
 		double overallUsec;
 
-		int compressedDataBits;
+		int alpha_compressedDataBits;
+		double alpha_compressionRatio;
 
-		double compressionRatio;
+		int color_compressedDataBits;
+		double color_compressionRatio;
 	} Stats;
 #endif // CAT_COLLECT_STATS
 
 public:
 	ImageMaskWriter() {
-		_mask = 0;
-		_filtered = 0;
+		_alpha = 0;
+		_alpha_filtered = 0;
+		_color = 0;
+		_color_filtered = 0;
 	}
 	virtual ~ImageMaskWriter() {
 		clear();
@@ -105,10 +125,11 @@ public:
 	void write(ImageWriter &writer);
 
 	CAT_INLINE bool masked(int x, int y) {
-		const int maskX = x;
-		const int maskY = y;
-		const u32 word = _mask[(maskX >> 5) + maskY * _stride];
-		return ((word << (maskX & 31)) >> 31) != 0;
+		const int index = (x >> 5) + y * _stride;
+		const u32 word0 = _alpha[index];
+		const u32 word1 = _color[index];
+		const u32 mask = 1 << (31 - (maskX & 31));
+		return ((word0 | word1) & mask) != 0;
 	}
 
 #ifdef CAT_COLLECT_STATS

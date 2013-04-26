@@ -41,6 +41,8 @@ static const GCIFKnobs DEFAULT_KNOBS[COMPRESS_LEVELS] = {
 	{	// L0 Faster
 		0,			// Bump
 
+		50,			// mask_minAlphaRat
+		50,			// mask_minColorRat
 		60,			// mask_huffThresh
 
 		15,			// lz_huffThresh
@@ -61,6 +63,8 @@ static const GCIFKnobs DEFAULT_KNOBS[COMPRESS_LEVELS] = {
 	{	// L1 Better
 		0,			// Bump
 
+		50,			// mask_minAlphaRat
+		50,			// mask_minColorRat
 		60,			// mask_huffThresh
 
 		15,			// lz_huffThresh
@@ -81,6 +85,8 @@ static const GCIFKnobs DEFAULT_KNOBS[COMPRESS_LEVELS] = {
 	{	// L2 Harder
 		0,			// Bump
 
+		50,			// mask_minAlphaRat
+		50,			// mask_minColorRat
 		60,			// mask_huffThresh
 
 		15,			// lz_huffThresh
@@ -101,6 +107,8 @@ static const GCIFKnobs DEFAULT_KNOBS[COMPRESS_LEVELS] = {
 	{	// L3 Stronger
 		0,			// Bump
 
+		50,			// mask_minAlphaRat
+		50,			// mask_minColorRat
 		60,			// mask_huffThresh
 
 		15,			// lz_huffThresh

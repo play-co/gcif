@@ -65,6 +65,8 @@ struct GCIFKnobs {
 
 	//// Image Mask writer
 
+	int mask_minAlphaRat;	// 50: Minimum full-alpha pixel compression ratio
+	int mask_minColorRat;	// 50: Minimum color pixel compression ratio
 	int mask_huffThresh;	// 60: Minimum post-LZ bytes to compress the data
 
 	//// Image 2D-LZ writer
