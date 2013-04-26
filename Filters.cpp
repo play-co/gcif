@@ -758,154 +758,9 @@ static const u8 *SFFU_PL(const u8 *p, int x, int y, int width) {
 #endif
 
 
-static const SpatialFilterFunction DEF_SPATIAL_FILTERS[SF_COUNT] = {
-	SFF_Z,
-	SFF_D,
-	SFF_C,
-	SFF_B,
-	SFF_A,
-	SFF_AB,
-	SFF_BD,
-	SFF_CLAMP_GRAD,
-	SFF_SKEW_GRAD,
-	SFF_PICK_LEFT,
-	SFF_PRED_UR,
-	SFF_ABC_CLAMP,
-	SFF_PAETH,
-	SFF_ABC_PAETH,
-	SFF_PLO,
-	SFF_ABCD,
-	SFF_AD,
-};
+//// Custom tapped filter subsystem
 
-static const SpatialFilterFunction DEF_UNSAFE_SPATIAL_FILTERS[SF_COUNT] = {
-	SFFU_Z,
-	SFFU_D,
-	SFFU_C,
-	SFFU_B,
-	SFFU_A,
-	SFFU_AB,
-	SFFU_BD,
-	SFFU_CLAMP_GRAD,
-	SFFU_SKEW_GRAD,
-	SFFU_PICK_LEFT,
-	SFFU_PRED_UR,
-	SFFU_ABC_CLAMP,
-	SFFU_PAETH,
-	SFFU_ABC_PAETH,
-	SFFU_PLO,
-	SFFU_ABCD,
-	SFFU_AD,
-};
-
-SpatialFilterFunction cat::SPATIAL_FILTERS[SF_COUNT];
-SpatialFilterFunction cat::UNSAFE_SPATIAL_FILTERS[SF_COUNT];
-
-
-static int m_taps[SF_COUNT][4];
-
-#define DEFINE_TAPS(TAP) \
-	static const u8 *SFF_TAPS_ ## TAP (const u8 *p, int x, int y, int width) { \
-		if (x > 0) { \
-			const u8 *a = p - 4; /* A */ \
-			if (y > 0) { \
-				const u8 *b = p - width*4; /* B */ \
-				const u8 *c = b - 4; /* C */ \
-				const u8 *d = b; /* B */ \
-				if (x < width-1) { \
-					d += 4; /* D */ \
-				} \
-				const int ta = m_taps[TAP][0]; \
-				const int tb = m_taps[TAP][1]; \
-				const int tc = m_taps[TAP][2]; \
-				const int td = m_taps[TAP][3]; \
-				FPT[0] = (ta*a[0] + tb*b[0] + tc*c[0] + td*d[0]) / 2; \
-				FPT[1] = (ta*a[1] + tb*b[1] + tc*c[1] + td*d[1]) / 2; \
-				FPT[2] = (ta*a[2] + tb*b[2] + tc*c[2] + td*d[2]) / 2; \
-				return FPT; \
-			} else { \
-				return a; \
-			} \
-		} else if (y > 0) { \
-			return  p - width*4; /* B */ \
-		} \
-		return FPZ; \
-	} \
-	static const u8 *SFFU_TAPS_ ## TAP (const u8 *p, int x, int y, int width) { \
-		CAT_DEBUG_ENFORCE(x > 0 && y > 0 && x < width-1); \
-		const u8 *a = p - 4; \
-		const u8 *b = p - width*4; \
-		const u8 *c = b - 4; \
-		const u8 *d = b + 4; \
-		const int ta = m_taps[TAP][0]; \
-		const int tb = m_taps[TAP][1]; \
-		const int tc = m_taps[TAP][2]; \
-		const int td = m_taps[TAP][3]; \
-		FPT[0] = (ta*a[0] + tb*b[0] + tc*c[0] + td*d[0]) / 2; \
-		FPT[1] = (ta*a[1] + tb*b[1] + tc*c[1] + td*d[1]) / 2; \
-		FPT[2] = (ta*a[2] + tb*b[2] + tc*c[2] + td*d[2]) / 2; \
-		return FPT; \
-	}
-
-DEFINE_TAPS(0);
-DEFINE_TAPS(1);
-DEFINE_TAPS(2);
-DEFINE_TAPS(3);
-DEFINE_TAPS(4);
-DEFINE_TAPS(5);
-DEFINE_TAPS(6);
-DEFINE_TAPS(7);
-DEFINE_TAPS(8);
-DEFINE_TAPS(9);
-DEFINE_TAPS(10);
-DEFINE_TAPS(11);
-DEFINE_TAPS(12);
-DEFINE_TAPS(13);
-DEFINE_TAPS(14);
-DEFINE_TAPS(15);
-DEFINE_TAPS(16);
-
-static SpatialFilterFunction m_safeTapFunctions[SF_COUNT] = {
-	SFF_TAPS_0,
-	SFF_TAPS_1,
-	SFF_TAPS_2,
-	SFF_TAPS_3,
-	SFF_TAPS_4,
-	SFF_TAPS_5,
-	SFF_TAPS_6,
-	SFF_TAPS_7,
-	SFF_TAPS_8,
-	SFF_TAPS_9,
-	SFF_TAPS_10,
-	SFF_TAPS_11,
-	SFF_TAPS_12,
-	SFF_TAPS_13,
-	SFF_TAPS_14,
-	SFF_TAPS_15,
-	SFF_TAPS_16
-};
-
-static SpatialFilterFunction m_unsafeTapFunctions[SF_COUNT] = {
-	SFFU_TAPS_0,
-	SFFU_TAPS_1,
-	SFFU_TAPS_2,
-	SFFU_TAPS_3,
-	SFFU_TAPS_4,
-	SFFU_TAPS_5,
-	SFFU_TAPS_6,
-	SFFU_TAPS_7,
-	SFFU_TAPS_8,
-	SFFU_TAPS_9,
-	SFFU_TAPS_10,
-	SFFU_TAPS_11,
-	SFFU_TAPS_12,
-	SFFU_TAPS_13,
-	SFFU_TAPS_14,
-	SFFU_TAPS_15,
-	SFFU_TAPS_16
-};
-
-const int cat::FILTER_TAPS[TAPPED_COUNT][4] = {
+const int SpatialFilterSet::FILTER_TAPS[TAPPED_COUNT][4] = {
 	{ 3, 3, 0, -4 }, // PRED394 = (3A + 3B + 0C + -4D) / 2  [score = 9]
 	{ 2, 4, 0, -4 }, // PRED402 = (2A + 4B + 0C + -4D) / 2  [score = 7]
 	{ 1, 2, 3, -4 }, // PRED626 = (1A + 2B + 3C + -4D) / 2  [score = 102]
@@ -989,20 +844,128 @@ const int cat::FILTER_TAPS[TAPPED_COUNT][4] = {
 };
 
 
-void cat::ResetSpatialFilters() {
-	memcpy(SPATIAL_FILTERS, DEF_SPATIAL_FILTERS, sizeof(SPATIAL_FILTERS));
-	memcpy(UNSAFE_SPATIAL_FILTERS, DEF_UNSAFE_SPATIAL_FILTERS, sizeof(UNSAFE_SPATIAL_FILTERS));
+#define DEFINE_TAPS(TAP) \
+	static const u8 *SFF_TAPS_ ## TAP (const u8 *p, int x, int y, int width) { \
+		if (x > 0) { \
+			const u8 *a = p - 4; /* A */ \
+			if (y > 0) { \
+				const u8 *b = p - width*4; /* B */ \
+				const u8 *c = b - 4; /* C */ \
+				const u8 *d = b; /* B */ \
+				if (x < width-1) { \
+					d += 4; /* D */ \
+				} \
+				const int ta = SpatialFilterSet::FILTER_TAPS[TAP][0]; \
+				const int tb = SpatialFilterSet::FILTER_TAPS[TAP][1]; \
+				const int tc = SpatialFilterSet::FILTER_TAPS[TAP][2]; \
+				const int td = SpatialFilterSet::FILTER_TAPS[TAP][3]; \
+				FPT[0] = (ta*a[0] + tb*b[0] + tc*c[0] + td*d[0]) / 2; \
+				FPT[1] = (ta*a[1] + tb*b[1] + tc*c[1] + td*d[1]) / 2; \
+				FPT[2] = (ta*a[2] + tb*b[2] + tc*c[2] + td*d[2]) / 2; \
+				return FPT; \
+			} else { \
+				return a; \
+			} \
+		} else if (y > 0) { \
+			return  p - width*4; /* B */ \
+		} \
+		return FPZ; \
+	} \
+	static const u8 *SFFU_TAPS_ ## TAP (const u8 *p, int x, int y, int width) { \
+		CAT_DEBUG_ENFORCE(x > 0 && y > 0 && x < width-1); \
+		const u8 *a = p - 4; \
+		const u8 *b = p - width*4; \
+		const u8 *c = b - 4; \
+		const u8 *d = b + 4; \
+		const int ta = SpatialFilterSet::FILTER_TAPS[TAP][0]; \
+		const int tb = SpatialFilterSet::FILTER_TAPS[TAP][1]; \
+		const int tc = SpatialFilterSet::FILTER_TAPS[TAP][2]; \
+		const int td = SpatialFilterSet::FILTER_TAPS[TAP][3]; \
+		FPT[0] = (ta*a[0] + tb*b[0] + tc*c[0] + td*d[0]) / 2; \
+		FPT[1] = (ta*a[1] + tb*b[1] + tc*c[1] + td*d[1]) / 2; \
+		FPT[2] = (ta*a[2] + tb*b[2] + tc*c[2] + td*d[2]) / 2; \
+		return FPT; \
+	}
 
-	CAT_DEBUG_ENFORCE(SF_COUNT == 17);
+DEFINE_TAPS( 0);DEFINE_TAPS( 1);DEFINE_TAPS( 2);DEFINE_TAPS( 3);DEFINE_TAPS( 4)
+DEFINE_TAPS( 5);DEFINE_TAPS( 6);DEFINE_TAPS( 7);DEFINE_TAPS( 8);DEFINE_TAPS( 9)
+DEFINE_TAPS(10);DEFINE_TAPS(11);DEFINE_TAPS(12);DEFINE_TAPS(13);DEFINE_TAPS(14)
+DEFINE_TAPS(15);DEFINE_TAPS(16);DEFINE_TAPS(17);DEFINE_TAPS(18);DEFINE_TAPS(19)
+DEFINE_TAPS(20);DEFINE_TAPS(21);DEFINE_TAPS(22);DEFINE_TAPS(23);DEFINE_TAPS(24)
+DEFINE_TAPS(25);DEFINE_TAPS(26);DEFINE_TAPS(27);DEFINE_TAPS(28);DEFINE_TAPS(29)
+DEFINE_TAPS(30);DEFINE_TAPS(31);DEFINE_TAPS(32);DEFINE_TAPS(33);DEFINE_TAPS(34)
+DEFINE_TAPS(35);DEFINE_TAPS(36);DEFINE_TAPS(37);DEFINE_TAPS(38);DEFINE_TAPS(39)
+DEFINE_TAPS(40);DEFINE_TAPS(41);DEFINE_TAPS(42);DEFINE_TAPS(43);DEFINE_TAPS(44)
+DEFINE_TAPS(45);DEFINE_TAPS(46);DEFINE_TAPS(47);DEFINE_TAPS(48);DEFINE_TAPS(49)
+DEFINE_TAPS(50);DEFINE_TAPS(51);DEFINE_TAPS(52);DEFINE_TAPS(53);DEFINE_TAPS(54)
+DEFINE_TAPS(55);DEFINE_TAPS(56);DEFINE_TAPS(57);DEFINE_TAPS(58);DEFINE_TAPS(59)
+DEFINE_TAPS(60);DEFINE_TAPS(61);DEFINE_TAPS(62);DEFINE_TAPS(63);DEFINE_TAPS(64)
+DEFINE_TAPS(65);DEFINE_TAPS(66);DEFINE_TAPS(67);DEFINE_TAPS(68);DEFINE_TAPS(69)
+DEFINE_TAPS(70);DEFINE_TAPS(71);DEFINE_TAPS(72);DEFINE_TAPS(73);DEFINE_TAPS(74)
+DEFINE_TAPS(75);DEFINE_TAPS(76);DEFINE_TAPS(77);DEFINE_TAPS(78);DEFINE_TAPS(79)
+
+#undef DEFINE_TAPS
+
+#define LIST_TAPS(TAP) \
+	{ SFF_TAPS_ ## TAP, SFFU_TAPS_ ## TAP }
+
+static const SpatialFilterSet::Functions
+TAPPED_FILTER_FUNCTIONS[SpatialFilterSet::TAPPED_COUNT] = {
+	LIST_TAPS( 0), LIST_TAPS( 1), LIST_TAPS( 2), LIST_TAPS( 3), LIST_TAPS( 4),
+	LIST_TAPS( 5), LIST_TAPS( 6), LIST_TAPS( 7), LIST_TAPS( 8), LIST_TAPS( 9),
+	LIST_TAPS(10), LIST_TAPS(11), LIST_TAPS(12), LIST_TAPS(13), LIST_TAPS(14),
+	LIST_TAPS(15), LIST_TAPS(16), LIST_TAPS(17), LIST_TAPS(18), LIST_TAPS(19),
+	LIST_TAPS(20), LIST_TAPS(21), LIST_TAPS(22), LIST_TAPS(23), LIST_TAPS(24),
+	LIST_TAPS(25), LIST_TAPS(26), LIST_TAPS(27), LIST_TAPS(28), LIST_TAPS(29),
+	LIST_TAPS(30), LIST_TAPS(31), LIST_TAPS(32), LIST_TAPS(33), LIST_TAPS(34),
+	LIST_TAPS(35), LIST_TAPS(36), LIST_TAPS(37), LIST_TAPS(38), LIST_TAPS(39),
+	LIST_TAPS(40), LIST_TAPS(41), LIST_TAPS(42), LIST_TAPS(43), LIST_TAPS(44),
+	LIST_TAPS(45), LIST_TAPS(46), LIST_TAPS(47), LIST_TAPS(48), LIST_TAPS(49),
+	LIST_TAPS(50), LIST_TAPS(51), LIST_TAPS(52), LIST_TAPS(53), LIST_TAPS(54),
+	LIST_TAPS(55), LIST_TAPS(56), LIST_TAPS(57), LIST_TAPS(58), LIST_TAPS(59),
+	LIST_TAPS(60), LIST_TAPS(61), LIST_TAPS(62), LIST_TAPS(63), LIST_TAPS(64),
+	LIST_TAPS(65), LIST_TAPS(66), LIST_TAPS(67), LIST_TAPS(68), LIST_TAPS(69),
+	LIST_TAPS(70), LIST_TAPS(71), LIST_TAPS(72), LIST_TAPS(73), LIST_TAPS(74),
+	LIST_TAPS(75), LIST_TAPS(76), LIST_TAPS(77), LIST_TAPS(78), LIST_TAPS(79),
+};
+
+#undef LIST_TAPS
+
+
+//// SpatialFilterSet
+
+static const SpatialFilterSet::Functions DEF_SPATIAL_FILTERS[SF_COUNT] = {
+	{ SFF_Z, SFFU_Z },
+	{ SFF_D, SFFU_D },
+	{ SFF_C, SFFU_C },
+	{ SFF_B, SFFU_B },
+	{ SFF_A, SFFU_A },
+	{ SFF_AB, SFFU_AB },
+	{ SFF_BD, SFFU_BD },
+	{ SFF_CLAMP_GRAD, SFFU_CLAMP_GRAD },
+	{ SFF_SKEW_GRAD, SFFU_SKEW_GRAD },
+	{ SFF_PICK_LEFT, SFFU_PICK_LEFT },
+	{ SFF_PRED_UR, SFFU_PRED_UR },
+	{ SFF_ABC_CLAMP, SFFU_ABC_CLAMP },
+	{ SFF_PAETH, SFFU_PAETH },
+	{ SFF_ABC_PAETH, SFFU_ABC_PAETH },
+	{ SFF_PLO, SFFU_PLO },
+	{ SFF_ABCD, SFFU_ABCD },
+	{ SFF_AD, SFFU_AD }
+};
+
+
+void SpatialFilterSet::reset() {
+	CAT_DEBUG_ENFORCE(SF_COUNT == 17); // Need to update default arrays
+	CAT_DEBUG_ENFORCE(TAPPED_COUNT == 80); // Need to update the function defs
+
+	memcpy(_filters, DEF_SPATIAL_FILTERS, sizeof(_filters));
 }
 
-void cat::SetSpatialFilter(int index, int tappedIndex) {
-	SPATIAL_FILTERS[index] = m_safeTapFunctions[index];
-	UNSAFE_SPATIAL_FILTERS[index] = m_unsafeTapFunctions[index];
+void SpatialFilterSet::set(int defaultIndex, int tappedIndex) {
+	CAT_DEBUG_ENFORCE(defaultIndex < SF_COUNT && tappedIndex < TAPPED_COUNT);
 
-	for (int ii = 0; ii < 4; ++ii) {
-		m_taps[index][ii] = FILTER_TAPS[tappedIndex][ii];
-	}
+	_filters[defaultIndex] = TAPPED_FILTER_FUNCTIONS[tappedIndex];
 }
 
 

@@ -45,7 +45,7 @@ static const int FILTER_ZONE_SIZE_MASK = FILTER_ZONE_SIZE - 1;
 //// Spatial Filters
 
 /*
- * Spatial filters from BCIF, supplemented with CBloom's and my contributions.
+ * Spatial filters from BCIF, supplemented with CBloom's and our contributions.
  *
  * Filter inputs:
  *         E
@@ -91,23 +91,61 @@ enum SpatialFilters {
 	SF_PL,			// Use ABC to determine if increasing or decreasing
 };
 
-// Extended tapped filters
-static const int TAPPED_COUNT = 80;
-extern const int FILTER_TAPS[TAPPED_COUNT][4];
-
 typedef const u8 *(*SpatialFilterFunction)(const u8 *p, int x, int y, int width);
 
-extern SpatialFilterFunction SPATIAL_FILTERS[];
-extern SpatialFilterFunction UNSAFE_SPATIAL_FILTERS[]; // Assumes x>0, y>0, and x<width-1
 
 /*
- * These default spatial filters are supplemented by a few that are customized
- * for the target image.  Filter taps can be supplied for a, b, c, d.
+ * Spatial Filter Set
  *
- * Safe and unsafe versions will automatically be generated in the table.
+ * This class wraps the spatial filter arrays so that multiple threads can be
+ * decoding images simultaneously, each with its own filter set.
  */
-void ResetSpatialFilters(); // Reset to defaults
-void SetSpatialFilter(int defaultIndex, int tappedIndex);
+class SpatialFilterSet {
+public:
+	struct Functions {
+		SpatialFilterFunction safe;
+
+		// The unsafe version assumes x>0, y>0 and x<width-1 for speed
+		SpatialFilterFunction unsafe;
+	};
+
+protected:
+	Functions _filters[SF_COUNT];
+
+public:
+	/*
+	 * Extended tapped linear filters
+	 *
+	 * The taps correspond to coefficients in the expression:
+	 *
+	 * Prediction = (t0*A + t1*B + t2*C + t3*D) / 2
+	 *
+	 * And the taps are selected from: {-4, -3, -2, -1, 0, 1, 2, 3, 4}.
+	 *
+	 * We ran simulations with a number of test images and chose the linear filters
+	 * of this form that were consistently better than the default spatial filters.
+	 * The selected linear filters are in the FILTER_TAPS[TAPPED_COUNT] array.
+	 */
+	static const int TAPPED_COUNT = 80;
+	static const int FILTER_TAPS[TAPPED_COUNT][4];
+
+public:
+	CAT_INLINE SpatialFilterSet() {
+		reset();
+	}
+	CAT_INLINE virtual ~SpatialFilterSet() {
+	}
+
+	// Set filters back to defaults
+	void reset();
+
+	// Choose a linear tapped filter from the FILTER_TAPS set over default
+	void set(int defaultIndex, int tappedIndex);
+
+	CAT_INLINE Functions get(int index) {
+		return _filters[index];
+	}
+};
 
 
 //// Color Filters
