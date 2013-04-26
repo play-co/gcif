@@ -397,7 +397,10 @@ void ImageLZWriter::write(ImageWriter &writer) {
 		return;
 	}
 
-	if (match_count < HUFF_THRESH) {
+	if (match_count < _knobs->lz_huffThresh) {
+		// Do not compress it
+		writer.writeBit(0);
+
 		u16 last_dx = 0, last_dy = 0;
 
 		for (int ii = 0; ii < match_count; ++ii) {
@@ -428,6 +431,9 @@ void ImageLZWriter::write(ImageWriter &writer) {
 
 		return;
 	}
+
+	// Compress it
+	writer.writeBit(1);
 
 	// Collect frequency statistics
 	u16 last_dx = 0, last_dy = 0;

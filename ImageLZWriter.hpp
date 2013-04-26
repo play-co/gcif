@@ -84,7 +84,6 @@ class ImageLZWriter {
 	static const int MAXW = 255 + ZONEW;
 	static const int MAXH = 255 + ZONEH;
 	static const int ENCODER_ZRLE_SYMS = ImageLZReader::ENCODER_ZRLE_SYMS;
-	static const int HUFF_THRESH = ImageLZReader::HUFF_THRESH;
 
 	int _table_size; // 1 << table_bits
 	int _table_mask; // table_size - 1

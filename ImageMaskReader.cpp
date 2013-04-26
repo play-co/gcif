@@ -320,8 +320,8 @@ int ImageMaskReader::decodeRLE(u8 *rle, int len) {
 
 
 int ImageMaskReader::decodeLZ(ImageReader &reader) {
-	int rleSize = reader.readWord();
-	int lzSize = reader.readWord();
+	int rleSize = reader.read9();
+	int lzSize = reader.read9();
 
 	_rle = new u8[rleSize];
 	_lz = new u8[lzSize];

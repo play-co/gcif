@@ -68,7 +68,6 @@ public:
 	static const int ZONEH = 3;
 	static const u32 MAX_ZONE_COUNT = 65535;
 	static const int ENCODER_ZRLE_SYMS = 16;
-	static const int HUFF_THRESH = 15;
 
 protected:
 	static const u16 ZONE_NULL = 0xffff;
@@ -91,6 +90,7 @@ protected:
 	u16 _zone_next_y;		// Start of next row of same-y items to merge
 
 	EntropyDecoder<256, ENCODER_ZRLE_SYMS> _decoder;
+	bool _using_decoder;
 
 	void clear();
 

@@ -41,6 +41,7 @@ static const GCIFKnobs DEFAULT_KNOBS[COMPRESS_LEVELS] = {
 	{	// L0 Faster
 		0,			// Bump
 
+		15,			// lz_huffThresh
 		12,			// lz_minScore
 		4,			// lz_nonzeroCoeff
 		18,			// lz_tableBits
@@ -58,6 +59,7 @@ static const GCIFKnobs DEFAULT_KNOBS[COMPRESS_LEVELS] = {
 	{	// L1 Better
 		0,			// Bump
 
+		15,			// lz_huffThresh
 		12,			// lz_minScore
 		4,			// lz_nonzeroCoeff
 		18,			// lz_tableBits
@@ -75,6 +77,7 @@ static const GCIFKnobs DEFAULT_KNOBS[COMPRESS_LEVELS] = {
 	{	// L2 Harder
 		0,			// Bump
 
+		15,			// lz_huffThresh
 		12,			// lz_minScore
 		4,			// lz_nonzeroCoeff
 		18,			// lz_tableBits
@@ -92,6 +95,7 @@ static const GCIFKnobs DEFAULT_KNOBS[COMPRESS_LEVELS] = {
 	{	// L3 Stronger
 		0,			// Bump
 
+		15,			// lz_huffThresh
 		12,			// lz_minScore
 		4,			// lz_nonzeroCoeff
 		18,			// lz_tableBits

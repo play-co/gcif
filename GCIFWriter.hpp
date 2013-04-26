@@ -65,6 +65,7 @@ struct GCIFKnobs {
 
 	//// Image 2D-LZ writer
 
+	int lz_huffThresh;		// 15: Minimum zones to compress the data
 	int lz_minScore;		// 12: Minimum score to add an LZ match
 	int lz_nonzeroCoeff;	// 4: Number of times nonzeroes worth over zeroes
 	int lz_tableBits;		// 18: Hash table bits

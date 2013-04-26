@@ -173,14 +173,28 @@ public:
 	 * Used for encoding word data that tends to be small but can be bigger
 	 */
 	CAT_INLINE u32 read9() {
-		u32 bits, word = 0;
+		u32 code = readBits(9);
+		if (code > 255) {
+			u32 word = code & 255;
 
-		while ((bits = readBits(9)) & 256) {
-			word |= (bits & 255);
-			word <<= 8;
+			code = readBits(9);
+			if (code > 255) {
+				word = (word << 8) | (code & 255);
+
+				code = readBits(9);
+				if (code > 255) {
+					word = (word << 8) | (code & 255);
+
+					return (word << 8) | readBits(8);
+				}
+
+				return (word << 8) | code;
+			}
+
+			return (word << 8) | code;
 		}
 
-		return word | bits;
+		return code;
 	}
 
 	// No bits left to read?

@@ -250,20 +250,25 @@ public:
 	 * Used for encoding word data that tends to be small but can be bigger
 	 */
 	CAT_INLINE int write9(u32 word) {
-		int bits = 9;
-
 		if (word > 0x00ffffff) {
 			writeBits((word >> 24) | 256, 9);
-		}
-		if (word > 0x0000ffff) {
 			writeBits(((word >> 16) & 255) | 256, 9);
-		}
-		if (word > 0x000000ff) {
 			writeBits(((word >> 8) & 255) | 256, 9);
+			writeBits(word & 255, 8);
+			return 35;
+		} else if (word > 0x0000ffff) {
+			writeBits((word >> 16) | 256, 9);
+			writeBits(((word >> 8) & 255) | 256, 9);
+			writeBits(word & 255, 9);
+			return 27;
+		} else if (word > 0x000000ff) {
+			writeBits((word >> 8) | 256, 9);
+			writeBits(word & 255, 9);
+			return 18;
+		} else {
+			writeBits(word, 9);
+			return 9;
 		}
-		writeBits(word & 255, 9);
-
-		return bits;
 	}
 
 	// Finalize the last word and write to file

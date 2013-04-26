@@ -81,7 +81,7 @@ int ImageLZReader::readHuffmanTable(ImageReader &reader) {
 	}
 
 	// If minimum count is met,
-	if (match_count >= HUFF_THRESH) {
+	if ((_using_decoder = reader.readBit())) {
 		// If not able to init Huffman decoder
 		if (!_decoder.init(reader)) {
 			return RE_LZ_CODES;
@@ -102,7 +102,7 @@ int ImageLZReader::readZones(ImageReader &reader) {
 	// Allocate space for zones
 	_zones = new Zone[match_count];
 
-	if (match_count < HUFF_THRESH) {
+	if (!_using_decoder) {
 		u16 last_dx = 0, last_dy = 0;
 		for (int ii = 0; ii < match_count; ++ii) {
 			Zone *z = &_zones[ii];
