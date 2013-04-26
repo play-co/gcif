@@ -44,7 +44,11 @@
  * Encodes pixels with fully-transparent alpha and/or a dominant image color
  * (often black) as a monochrome bitmap.  This is designed to improve on the
  * compression ratios offered by context modeling or LZ for data that can be
- * compactly represented as a bitmask.
+ * compactly represented as a bitmask.  Most graphics files for games have
+ * some sort of solid color or transparent background.
+ *
+ * When fully-transparent alpha masks are transmitted, any color information
+ * stored in the fully-transparent pixels is lost.
  *
  * It first performs bitwise filtering to reduce the data down to a few pixels.
  * Then the distance between those pixels is recorded, compressed with LZ4HC,
