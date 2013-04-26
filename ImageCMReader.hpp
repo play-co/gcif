@@ -70,25 +70,35 @@ public:
 	static const int ZRLE_SYMS_A = 128;
 
 protected:
+	// RGBA output data
+	int _width, _height;
 	u8 *_rgba;
 
-	int _width, _height;
+	// Recent chaos memory
 	u8 *_chaos;
 	u32 _chaos_size;
 
+	// Chaos lookup table
 	int _chaos_levels;
 	const u8 *_chaos_table;
 
+	// Recent scanline filters
 	struct FilterSelection {
 		YUV2RGBFilterFunction cf;
-		SpatialFilterFunction sf;
-		SpatialFilterFunction sfu; // unsafe version
+		SpatialFilterSet::Functions sf;
 	} *_filters;
 
+	// Mask and LZ subsystems
 	ImageMaskReader *_mask;
 	ImageLZReader *_lz;
 
+	// Chosen spatial filter set
+	SpatialFilterSet _sf_set;
+
+	// Filter decoders
 	HuffmanDecoder _sf, _cf;
+
+	// Color plane decoders
 	EntropyDecoder<256, ZRLE_SYMS_Y> _y_decoder[CHAOS_LEVELS_MAX];
 	EntropyDecoder<256, ZRLE_SYMS_U> _u_decoder[CHAOS_LEVELS_MAX];
 	EntropyDecoder<256, ZRLE_SYMS_V> _v_decoder[CHAOS_LEVELS_MAX];

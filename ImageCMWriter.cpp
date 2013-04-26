@@ -105,9 +105,6 @@ int ImageCMWriter::init(int width, int height) {
 }
 
 void ImageCMWriter::designFilters() {
-	// Initialize spatial filter subsystem
-	ResetSpatialFilters();
-
 	// If disabled,
 	if (!_knobs->cm_designFilters) {
 		CAT_INANE("CM") << "Skipping filter design";
@@ -123,6 +120,7 @@ void ImageCMWriter::designFilters() {
 	const int width = _width;
 
 	FilterScorer scores;
+	const int TAPPED_COUNT = SpatialFilterSet::TAPPED_COUNT;
 	scores.init(SF_COUNT + TAPPED_COUNT);
 
 	int bestHist[SF_COUNT + TAPPED_COUNT] = {0};
@@ -172,7 +170,7 @@ void ImageCMWriter::designFilters() {
 					}
 
 					for (int ii = 0; ii < SF_COUNT; ++ii) {
-						const u8 *pred = SPATIAL_FILTERS[ii](p, px, py, width);
+						const u8 *pred = _sf_set.get(ii).safe(p, px, py, width);
 
 						int sum = 0;
 
@@ -185,10 +183,10 @@ void ImageCMWriter::designFilters() {
 					}
 
 					for (int ii = 0; ii < TAPPED_COUNT; ++ii) {
-						const int a = FILTER_TAPS[ii][0];
-						const int b = FILTER_TAPS[ii][1];
-						const int c = FILTER_TAPS[ii][2];
-						const int d = FILTER_TAPS[ii][3];
+						const int a = SpatialFilterSet::FILTER_TAPS[ii][0];
+						const int b = SpatialFilterSet::FILTER_TAPS[ii][1];
+						const int c = SpatialFilterSet::FILTER_TAPS[ii][2];
+						const int d = SpatialFilterSet::FILTER_TAPS[ii][3];
 
 						int sum = 0;
 						for (int cc = 0; cc < 3; ++cc) {
@@ -251,16 +249,16 @@ void ImageCMWriter::designFilters() {
 		}
 
 		// Insert it at this location
-		const int a = FILTER_TAPS[highest_index][0];
-		const int b = FILTER_TAPS[highest_index][1];
-		const int c = FILTER_TAPS[highest_index][2];
-		const int d = FILTER_TAPS[highest_index][3];
+		const int a = SpatialFilterSet::FILTER_TAPS[highest_index][0];
+		const int b = SpatialFilterSet::FILTER_TAPS[highest_index][1];
+		const int c = SpatialFilterSet::FILTER_TAPS[highest_index][2];
+		const int d = SpatialFilterSet::FILTER_TAPS[highest_index][3];
 
 		CAT_INANE("CM") << "Replacing default filter " << lowest_index << " with tapped filter " << highest_index << " that is " << ratio << "x more preferable : PRED = (" << a << "A + " << b << "B + " << c << "C + " << d << "D) / 2";
 
 		_filter_replacements.push_back((lowest_index << 16) | highest_index);
 
-		SetSpatialFilter(lowest_index, highest_index);
+		_sf_set.replace(lowest_index, highest_index);
 
 		// Install grave markers
 		bestHist[lowest_index] = 0x7fffffffUL;
@@ -327,7 +325,7 @@ void ImageCMWriter::decideFilters() {
 
 							const u8 *p = _rgba + (px + py * width) * 4;
 
-							const u8 *pred = SPATIAL_FILTERS[bestSF](p, px, py, width);
+							const u8 *pred = _sf_set.get(bestSF).safe(p, px, py, width);
 							u8 temp[3];
 							for (int jj = 0; jj < 3; ++jj) {
 								temp[jj] = p[jj] - pred[jj];
@@ -365,7 +363,7 @@ void ImageCMWriter::decideFilters() {
 						const u8 *p = _rgba + (px + py * width) * 4;
 
 						for (int ii = 0; ii < SF_COUNT; ++ii) {
-							const u8 *pred = SPATIAL_FILTERS[ii](p, px, py, width);
+							const u8 *pred = _sf_set.get(ii).safe(p, px, py, width);
 							u8 temp[3];
 							for (int jj = 0; jj < 3; ++jj) {
 								temp[jj] = p[jj] - pred[jj];
@@ -406,7 +404,7 @@ void ImageCMWriter::decideFilters() {
 								}
 
 								const u8 *p = _rgba + (px + py * width) * 4;
-								const u8 *pred = SPATIAL_FILTERS[bestSF](p, px, py, width);
+								const u8 *pred = _sf_set.get(bestSF).safe(p, px, py, width);
 								u8 temp[3];
 								for (int jj = 0; jj < 3; ++jj) {
 									temp[jj] = p[jj] - pred[jj];
@@ -454,7 +452,7 @@ void ImageCMWriter::decideFilters() {
 								}
 
 								const u8 *p = _rgba + (px + py * width) * 4;
-								const u8 *pred = SPATIAL_FILTERS[sf](p, px, py, width);
+								const u8 *pred = _sf_set.get(sf).safe(p, px, py, width);
 								u8 temp[3];
 								for (int jj = 0; jj < 3; ++jj) {
 									temp[jj] = p[jj] - pred[jj];
@@ -745,7 +743,7 @@ void ImageCMWriter::chaosStats() {
 				const u8 sf = (u8)(filter >> 8);
 
 				// Apply spatial filter
-				const u8 *pred = SPATIAL_FILTERS[sf](p, x, y, width);
+				const u8 *pred = _sf_set.get(sf).safe(p, x, y, width);
 				u8 temp[3];
 				for (int jj = 0; jj < 3; ++jj) {
 					temp[jj] = p[jj] - pred[jj];
@@ -946,7 +944,7 @@ bool ImageCMWriter::writeChaos(ImageWriter &writer) {
 
 
 				// Apply spatial filter
-				const u8 *pred = SPATIAL_FILTERS[sf](p, x, y, width);
+				const u8 *pred = _sf_set.get(sf).safe(p, x, y, width);
 				u8 temp[3];
 				for (int jj = 0; jj < 3; ++jj) {
 					temp[jj] = p[jj] - pred[jj];

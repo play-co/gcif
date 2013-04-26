@@ -77,6 +77,9 @@ protected:
 	static const int ZRLE_SYMS_V = ImageCMReader::ZRLE_SYMS_V;
 	static const int ZRLE_SYMS_A = ImageCMReader::ZRLE_SYMS_A;
 
+	// Chosen spatial filter set
+	SpatialFilterSet _sf_set;
+
 	// Twiddly knobs from the write API
 	const GCIFKnobs *_knobs;
 

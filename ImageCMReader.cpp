@@ -88,9 +88,6 @@ int ImageCMReader::init(GCIFImage *image) {
 }
 
 int ImageCMReader::readFilterTables(ImageReader &reader) {
-	// Set up spatial filter subsystem
-	ResetSpatialFilters();
-
 	// Read in count of custom spatial filters
 	u32 rep_count = reader.readBits(5);
 	if (rep_count > SF_COUNT) {
@@ -106,11 +103,11 @@ int ImageCMReader::readFilterTables(ImageReader &reader) {
 		}
 
 		u32 cust = reader.readBits(7);
-		if (cust >= TAPPED_COUNT) {
+		if (cust >= SpatialFilterSet::TAPPED_COUNT) {
 			return RE_CM_CODES;
 		}
 
-		SetSpatialFilter(def, cust);
+		_sf_set.replace(def, cust);
 	}
 
 	// Initialize huffman decoder
@@ -212,8 +209,7 @@ int ImageCMReader::readPixels(ImageReader &reader) {
 								filter->cf = YUV2RGB_FILTERS[cfi];
 								CAT_ENFORCE((x ^ 1234569) == reader.readWord()) << "Unable to read " << x;
 								const int sfi = _sf.next(reader);
-								filter->sf = SPATIAL_FILTERS[sfi];
-								filter->sfu = UNSAFE_SPATIAL_FILTERS[sfi];
+								filter->sf = _sf_set.get(sfi);
 								CAT_ENFORCE((x ^ 1234560) == reader.readWord()) << "Unable to read " << x;
 
 								goto y0_had_filter;
@@ -255,7 +251,7 @@ y0_had_filter:;
 				filter->cf(last, p);
 
 				// Reverse spatial filter
-				const u8 *pred = filter->sf(p, x, y, width);
+				const u8 *pred = filter->sf.safe(p, x, y, width);
 				p[0] += pred[0];
 				p[1] += pred[1];
 				p[2] += pred[2];
@@ -319,8 +315,7 @@ y0_had_filter:;
 								filter->cf = YUV2RGB_FILTERS[cfi];
 								CAT_ENFORCE((x ^ 1234569) == reader.readWord()) << "Unable to read " << x;
 								const int sfi = _sf.next(reader);
-								filter->sf = SPATIAL_FILTERS[sfi];
-								filter->sfu = UNSAFE_SPATIAL_FILTERS[sfi];
+								filter->sf = _sf_set.get(sfi);
 								CAT_ENFORCE((x ^ 1234560) == reader.readWord()) << "Unable to read " << x;
 								goto x0_had_filter;
 							}
@@ -360,7 +355,7 @@ x0_had_filter:;
 				filter->cf(last, p);
 
 				// Reverse spatial filter
-				const u8 *pred = filter->sf(p, x, y, width);
+				const u8 *pred = filter->sf.safe(p, x, y, width);
 				p[0] += pred[0];
 				p[1] += pred[1];
 				p[2] += pred[2];
@@ -409,8 +404,7 @@ x0_had_filter:;
 								filter->cf = YUV2RGB_FILTERS[cfi];
 								CAT_ENFORCE((x ^ 1234569) == reader.readWord()) << "Unable to read " << x;
 								const int sfi = _sf.next(reader);
-								filter->sf = SPATIAL_FILTERS[sfi];
-								filter->sfu = UNSAFE_SPATIAL_FILTERS[sfi];
+								filter->sf = _sf_set.get(sfi);
 								CAT_ENFORCE((x ^ 1234560) == reader.readWord()) << "Unable to read " << x;
 								goto had_filter;
 							}
@@ -447,7 +441,7 @@ had_filter:;
 				filter->cf(yuva, p);
 
 				// Reverse spatial filter
-				const u8 *pred = filter->sfu(p, x, y, width);
+				const u8 *pred = filter->sf.unsafe(p, x, y, width);
 				p[0] += pred[0];
 				p[1] += pred[1];
 				p[2] += pred[2];
@@ -515,7 +509,7 @@ had_filter:;
 				filter->cf(last, p);
 
 				// Reverse (safe) spatial filter
-				const u8 *pred = filter->sf(p, x, y, width);
+				const u8 *pred = filter->sf.safe(p, x, y, width);
 				p[0] += pred[0];
 				p[1] += pred[1];
 				p[2] += pred[2];

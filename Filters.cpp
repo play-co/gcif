@@ -962,7 +962,7 @@ void SpatialFilterSet::reset() {
 	memcpy(_filters, DEF_SPATIAL_FILTERS, sizeof(_filters));
 }
 
-void SpatialFilterSet::set(int defaultIndex, int tappedIndex) {
+void SpatialFilterSet::replace(int defaultIndex, int tappedIndex) {
 	CAT_DEBUG_ENFORCE(defaultIndex < SF_COUNT && tappedIndex < TAPPED_COUNT);
 
 	_filters[defaultIndex] = TAPPED_FILTER_FUNCTIONS[tappedIndex];

@@ -140,7 +140,7 @@ public:
 	void reset();
 
 	// Choose a linear tapped filter from the FILTER_TAPS set over default
-	void set(int defaultIndex, int tappedIndex);
+	void replace(int defaultIndex, int tappedIndex);
 
 	CAT_INLINE Functions get(int index) {
 		return _filters[index];
