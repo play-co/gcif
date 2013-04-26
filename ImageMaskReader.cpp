@@ -326,7 +326,8 @@ int ImageMaskReader::decodeLZ(ImageReader &reader) {
 	_rle = new u8[rleSize];
 	_lz = new u8[lzSize];
 
-	if (lzSize >= HUFF_THRESH) {
+	// If compressed,
+	if (reader.readBit()) {
 		static const int NUM_SYMS = 256;
 
 		HuffmanDecoder decoder;

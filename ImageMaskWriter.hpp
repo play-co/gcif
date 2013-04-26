@@ -57,14 +57,13 @@ namespace cat {
 //// ImageMaskWriter
 
 class ImageMaskWriter {
-	static const int HUFF_THRESH = ImageMaskReader::HUFF_THRESH;
-
 	u32 _value;
 
 	const GCIFKnobs *_knobs;
 	u32 *_mask;
 	u32 *_filtered;
 	int _size, _stride, _width, _height;
+	bool _using_encoder;
 
 	void clear();
 

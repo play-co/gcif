@@ -63,6 +63,10 @@ struct GCIFKnobs {
 	// Seed used for any randomized selections, may help discover improvements
 	int bump;				// 0
 
+	//// Image Mask writer
+
+	int mask_huffThresh;	// 60: Minimum post-LZ bytes to compress the data
+
 	//// Image 2D-LZ writer
 
 	int lz_huffThresh;		// 15: Minimum zones to compress the data

@@ -325,7 +325,7 @@ void ImageMaskWriter::writeEncodedLZ(const std::vector<u8> &lz, HuffmanEncoder<2
 	u32 data_bits = 0;
 #endif // CAT_COLLECT_STATS
 
-	if (lz.size() >= HUFF_THRESH) {
+	if (_using_encoder) {
 		for (int ii = 0; ii < lzSize; ++ii) {
 			u8 sym = lz[ii];
 
@@ -376,6 +376,9 @@ void ImageMaskWriter::write(ImageWriter &writer) {
 	writer.write9(rle.size());
 	writer.write9(lz.size());
 
+	_using_encoder = lz.size() >= _knobs->mask_huffThresh;
+	writer.writeBit(_using_encoder);
+
 #ifdef CAT_COLLECT_STATS
 	double t3 = clock->usec();
 #endif // CAT_COLLECT_STATS
@@ -389,8 +392,8 @@ void ImageMaskWriter::write(ImageWriter &writer) {
 
 	HuffmanEncoder<256> encoder;
 
-	if (!encoder.init(freqs)) {
-		return;
+	if (_using_encoder) {
+		CAT_ENFORCE(encoder.init(freqs));
 	}
 
 #ifdef CAT_COLLECT_STATS
@@ -398,7 +401,7 @@ void ImageMaskWriter::write(ImageWriter &writer) {
 #endif // CAT_COLLECT_STATS
 
 	int table_bits = 0;
-	if (lz.size() >= HUFF_THRESH) {
+	if (_using_encoder) {
 		table_bits = encoder.writeTable(writer);
 	}
 

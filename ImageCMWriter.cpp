@@ -506,7 +506,9 @@ void ImageCMWriter::decideFilters() {
 			return;
 		}
 
-		CAT_INANE("CM") << "Revisiting filter selections from the top... " << revisitCount << " left";
+		if (passes < 4) {
+			CAT_INANE("CM") << "Revisiting filter selections from the top... " << revisitCount << " left";
+		}
 		++passes;
 	}
 }

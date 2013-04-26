@@ -43,10 +43,6 @@ namespace cat {
 //// ImageMaskReader
 
 class ImageMaskReader {
-public:
-	static const int HUFF_THRESH = 60;
-
-protected:
 	u32 *_mask;
 	int _width;
 	int _height;
