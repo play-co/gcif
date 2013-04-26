@@ -71,6 +71,7 @@ struct GCIFKnobs {
 
 	//// Image CM writer
 
+	bool cm_sortFilters;		// false: L1 sort filter options before entropy
 	bool cm_designFilters;		// true: Try out custom filter taps
 	bool cm_disableEntropy;		// false: Disable entropy testing (faster)
 	int cm_maxEntropySkip;		// 4: Max filter error to skip entropy test

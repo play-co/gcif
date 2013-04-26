@@ -207,7 +207,7 @@ void ImageCMWriter::designFilters() {
 			FilterScorer::Score *top = scores.getLowest();
 			bestHist[top[0].index] += 4;
 
-			top = scores.getTop(4);
+			top = scores.getTop(4, false);
 			bestHist[top[0].index] += 1;
 			bestHist[top[1].index] += 1;
 			bestHist[top[2].index] += 1;
@@ -429,7 +429,7 @@ void ImageCMWriter::decideFilters() {
 				} else {
 					const int TOP_COUNT = _knobs->cm_filterSelectFuzz;
 
-					FilterScorer::Score *top = scores.getTop(TOP_COUNT);
+					FilterScorer::Score *top = scores.getTop(TOP_COUNT, _knobs->cm_sortFilters);
 
 					u32 best_entropy = 0x7fffffff; // lower = better
 					u8 best_codes[3][16];

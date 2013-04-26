@@ -76,7 +76,7 @@ public:
 
 	Score *getLowest();
 
-	Score *getTop(int k);
+	Score *getTop(int k, bool sorted);
 };
 
 

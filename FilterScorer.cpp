@@ -105,17 +105,17 @@ FilterScorer::Score *FilterScorer::getLowest() {
 	return lowest;
 }
 
-FilterScorer::Score *FilterScorer::getTop(int k) {
+FilterScorer::Score *FilterScorer::getTop(int k, bool sorted) {
 	CAT_DEBUG_ENFORCE(k >= 1);
 
 	if (k >= _count) {
 		k = _count;
 	}
 
-	//const int listSize = k;
+	const int listSize = k;
 	int left = 0;
 	int right = _count - 1;
-	int pivotIndex = _count / 2;
+	int pivotIndex = 0;
 
 	for (;;) {
 		int pivotNewIndex = partitionTop(left, right, pivotIndex);
@@ -123,7 +123,9 @@ FilterScorer::Score *FilterScorer::getTop(int k) {
 		int pivotDist = pivotNewIndex - left + 1;
 		if (pivotDist == k) {
 			// Sort the list we are returning
-			//quickSort(0, listSize - 1);
+			if (sorted) {
+				quickSort(0, listSize - 1);
+			}
 
 			return _list;
 		} else if (k < pivotDist) {
