@@ -145,7 +145,7 @@ int ImageWriter::init(int width, int height) {
 
 void ImageWriter::writeBits(u32 code, int len) {
 	CAT_DEBUG_ENFORCE(len >= 1 && len <= 32);
-	CAT_DEBUG_ENFORCE((code >> len) == 0);
+	CAT_DEBUG_ENFORCE(len == 32 || (code >> len) == 0) << "Attempted to write " << len << " with dirty bits : " << code;
 
 	int bits = _bits;
 
@@ -168,14 +168,18 @@ int ImageWriter::finalizeAndWrite(const char *path) {
 
 	// Finalize the bit data
 
-	if (_bits) {
-		_words.push(_work);
+	CAT_DEBUG_ENFORCE(_bits <= 32);
+
+	if (_bits > 0) {
+		// Write the final word
+		_words.push((u32)(_work >> 32));
 	}
 
 	u32 fastHash, goodHash;
 	_words.finalizeHash(fastHash, goodHash);
 
 	// Calculate file size
+
 	int wordCount = _words.getWordCount();
 	int totalBytes = (ImageReader::HEAD_WORDS + wordCount) * sizeof(u32);
 

@@ -189,6 +189,7 @@ int ImageCMReader::readPixels(ImageReader &reader) {
 
 		// For each pixel,
 		for (int x = 0; x < width; ++x) {
+			CAT_ENFORCE((x ^ 1234569) == reader.readWord()) << "Unable to read " << x;
 			CAT_ENFORCE((x ^ 1234567) == reader.readWord()) << "Unable to read " << x;
 
 			// If LZ triggered,
@@ -203,12 +204,9 @@ int ImageCMReader::readPixels(ImageReader &reader) {
 			// If it is time to read the filter,
 			if ((x & FILTER_ZONE_SIZE_MASK) == 0) {
 				// If at least one pixel requires these filters,
-				CAT_WARN("TEST") << "reading filter? " << x << " , " << y;
 				if (lz_skip < FILTER_ZONE_SIZE || lz_lines_left < FILTER_ZONE_SIZE) {
-					CAT_WARN("TEST") << "maybe..";
 					for (int ii = 0; ii < FILTER_ZONE_SIZE; ++ii) {
 						for (int jj = 0; jj < FILTER_ZONE_SIZE; ++jj) {
-							CAT_WARN("TEST") << _mask->hasRGB(x + jj, y + ii);
 							if (!_mask->hasRGB(x + jj, y + ii)) {
 								CAT_ENFORCE((x ^ 1234568) == reader.readWord()) << "Unable to read " << x;
 								const int cfi = _cf.next(reader);
@@ -218,8 +216,6 @@ int ImageCMReader::readPixels(ImageReader &reader) {
 								filter->sf = SPATIAL_FILTERS[sfi];
 								filter->sfu = UNSAFE_SPATIAL_FILTERS[sfi];
 								CAT_ENFORCE((x ^ 1234560) == reader.readWord()) << "Unable to read " << x;
-
-								CAT_WARN("TEST") << cfi << ", " << sfi;
 
 								goto y0_had_filter;
 							}
@@ -296,7 +292,8 @@ y0_had_filter:;
 		// Unroll x = 0 pixel
 		{
 			const int x = 0;
-			CAT_ENFORCE(x == reader.readWord()) << "Unable to read " << x;
+			CAT_ENFORCE((x ^ 1234569) == reader.readWord()) << "Unable to read " << x;
+			CAT_ENFORCE((x ^ 1234567) == reader.readWord()) << "Unable to read " << x;
 
 			// If LZ triggered,
 			if (x == trigger_x_lz) {
@@ -314,12 +311,14 @@ y0_had_filter:;
 						for (int jj = 0; jj < FILTER_ZONE_SIZE; ++jj) {
 							if (!_mask->hasRGB(x + jj, y + ii)) {
 								// Read SF and CF for this zone
+								CAT_ENFORCE((x ^ 1234568) == reader.readWord()) << "Unable to read " << x;
 								const int cfi = _cf.next(reader);
 								filter->cf = YUV2RGB_FILTERS[cfi];
-								CAT_ENFORCE(x == reader.readWord()) << "Unable to read " << x;
+								CAT_ENFORCE((x ^ 1234569) == reader.readWord()) << "Unable to read " << x;
 								const int sfi = _sf.next(reader);
 								filter->sf = SPATIAL_FILTERS[sfi];
 								filter->sfu = UNSAFE_SPATIAL_FILTERS[sfi];
+								CAT_ENFORCE((x ^ 1234560) == reader.readWord()) << "Unable to read " << x;
 								goto x0_had_filter;
 							}
 						}
@@ -327,7 +326,7 @@ y0_had_filter:;
 				}
 x0_had_filter:;
 			}
-			CAT_ENFORCE(x == reader.readWord()) << "Unable to read " << x;
+			CAT_ENFORCE((x ^ 1234561) == reader.readWord()) << "Unable to read " << x;
 
 			if (lz_skip > 0) {
 				--lz_skip;
@@ -379,7 +378,8 @@ x0_had_filter:;
 
 		// For each pixel,
 		for (int x = 1, xend = width - 1; x < xend; ++x) {
-			CAT_ENFORCE(x == reader.readWord()) << "Unable to read " << x;
+			CAT_ENFORCE((x ^ 1234569) == reader.readWord()) << "Unable to read " << x;
+			CAT_ENFORCE((x ^ 1234567) == reader.readWord()) << "Unable to read " << x;
 			// If LZ triggered,
 			if (x == trigger_x_lz) {
 				lz_skip = _lz->triggerX(p, lz_lines_left);
@@ -396,13 +396,15 @@ x0_had_filter:;
 					for (int ii = 0; ii < FILTER_ZONE_SIZE; ++ii) {
 						for (int jj = 0; jj < FILTER_ZONE_SIZE; ++jj) {
 							if (!_mask->hasRGB(x + jj, y + ii)) {
+								CAT_ENFORCE((x ^ 1234568) == reader.readWord()) << "Unable to read " << x;
 								// Read SF and CF for this zone
 								const int cfi = _cf.next(reader);
 								filter->cf = YUV2RGB_FILTERS[cfi];
-								CAT_ENFORCE(x == reader.readWord()) << "Unable to read " << x;
+								CAT_ENFORCE((x ^ 1234569) == reader.readWord()) << "Unable to read " << x;
 								const int sfi = _sf.next(reader);
 								filter->sf = SPATIAL_FILTERS[sfi];
 								filter->sfu = UNSAFE_SPATIAL_FILTERS[sfi];
+								CAT_ENFORCE((x ^ 1234560) == reader.readWord()) << "Unable to read " << x;
 								goto had_filter;
 							}
 						}
@@ -411,49 +413,49 @@ x0_had_filter:;
 			}
 
 had_filter:;
-			CAT_ENFORCE(x == reader.readWord()) << "Unable to read " << x;
-		   u8 yuva[4] = {0};
+			CAT_ENFORCE((x ^ 1234561) == reader.readWord()) << "Unable to read " << x;
+			u8 yuva[4] = {0};
 
-		   if (lz_skip > 0) {
-			   --lz_skip;
-		   } else if (_mask->hasRGB(x, y)) {
-			   *reinterpret_cast<u32 *>( p ) = 0;
-		   } else {
-			   const u32 chaos_y = CHAOS_TABLE[last[-4] + (u16)last[0]];
-			   const u32 chaos_u = CHAOS_TABLE[last[-3] + (u16)last[1]];
-			   const u32 chaos_v = CHAOS_TABLE[last[-2] + (u16)last[2]];
+			if (lz_skip > 0) {
+				--lz_skip;
+			} else if (_mask->hasRGB(x, y)) {
+				*reinterpret_cast<u32 *>( p ) = 0;
+			} else {
+				const u32 chaos_y = CHAOS_TABLE[last[-4] + (u16)last[0]];
+				const u32 chaos_u = CHAOS_TABLE[last[-3] + (u16)last[1]];
+				const u32 chaos_v = CHAOS_TABLE[last[-2] + (u16)last[2]];
 
-			   // Read YUV filtered pixel
-			   yuva[0] = (u8)_y_decoder[chaos_y].next(reader);
-			   yuva[1] = (u8)_u_decoder[chaos_u].next(reader);
-			   yuva[2] = (u8)_v_decoder[chaos_v].next(reader);
+				// Read YUV filtered pixel
+				yuva[0] = (u8)_y_decoder[chaos_y].next(reader);
+				yuva[1] = (u8)_u_decoder[chaos_u].next(reader);
+				yuva[2] = (u8)_v_decoder[chaos_v].next(reader);
 
-			   // Pipeline calculate alpha chaos
-			   const u32 chaos_a = CHAOS_TABLE[last[-1] + (u16)last[3]];
+				// Pipeline calculate alpha chaos
+				const u32 chaos_a = CHAOS_TABLE[last[-1] + (u16)last[3]];
 
-			   // Reverse color filter
-			   filter->cf(yuva, p);
+				// Reverse color filter
+				filter->cf(yuva, p);
 
-			   // Reverse spatial filter
-			   const u8 *pred = filter->sfu(p, x, y, width);
-			   p[0] += pred[0];
-			   p[1] += pred[1];
-			   p[2] += pred[2];
+				// Reverse spatial filter
+				const u8 *pred = filter->sfu(p, x, y, width);
+				p[0] += pred[0];
+				p[1] += pred[1];
+				p[2] += pred[2];
 
-			   // Read alpha pixel
-			   yuva[3] = (u8)_a_decoder[chaos_a].next(reader);
-			   p[3] = p[-1] - yuva[3];
-		   }
+				// Read alpha pixel
+				yuva[3] = (u8)_a_decoder[chaos_a].next(reader);
+				p[3] = p[-1] - yuva[3];
+			}
 
-		   // Convert last to score
-		   last[0] = chaosScore(yuva[0]);
-		   last[1] = chaosScore(yuva[1]);
-		   last[2] = chaosScore(yuva[2]);
-		   last[3] = chaosScore(yuva[3]);
+			// Convert last to score
+			last[0] = chaosScore(yuva[0]);
+			last[1] = chaosScore(yuva[1]);
+			last[2] = chaosScore(yuva[2]);
+			last[3] = chaosScore(yuva[3]);
 
-		   // Next pixel
-		   last += COLOR_PLANES;
-		   p += 4;
+			// Next pixel
+			last += COLOR_PLANES;
+			p += 4;
 		}
 
 		
@@ -463,8 +465,9 @@ had_filter:;
 		// For x = width-1,
 		{
 			const int x = width - 1;
-			CAT_ENFORCE(x == reader.readWord()) << "Unable to read " << x;
-			CAT_ENFORCE(x == reader.readWord()) << "Unable to read " << x;
+			CAT_ENFORCE((x ^ 1234569) == reader.readWord()) << "Unable to read " << x;
+			CAT_ENFORCE((x ^ 1234567) == reader.readWord()) << "Unable to read " << x;
+			CAT_ENFORCE((x ^ 1234561) == reader.readWord()) << "Unable to read " << x;
 
 			// If LZ triggered,
 			if (x == trigger_x_lz) {

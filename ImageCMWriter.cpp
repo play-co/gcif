@@ -908,6 +908,7 @@ bool ImageCMWriter::writeChaos(ImageWriter &writer) {
 
 		// For each pixel,
 		for (int x = 0; x < width; ++x) {
+			writer.writeWord(x ^ 1234569);
 			writer.writeWord(x ^ 1234567);
 
 			// If it is time to write out a filter,
@@ -920,10 +921,6 @@ bool ImageCMWriter::writeChaos(ImageWriter &writer) {
 				if (filter != UNUSED_FILTER) {
 					u8 sf = filter >> 8;
 					u8 cf = (u8)filter;
-
-					if(x == 0 && y == 0) {
-						CAT_WARN("TEST") << "WARG " << (int)cf << " , " << (int)sf;
-					}
 
 					writer.writeWord(x ^ 1234568);
 					int cf_bits = _cf_encoder.writeSymbol(cf, writer);
