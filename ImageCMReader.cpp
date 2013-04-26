@@ -206,7 +206,7 @@ int ImageCMReader::readPixels(ImageReader &reader) {
 				if (lz_skip < FILTER_ZONE_SIZE || lz_lines_left < FILTER_ZONE_SIZE) {
 					for (int ii = 0; ii < FILTER_ZONE_SIZE; ++ii) {
 						for (int jj = 0; jj < FILTER_ZONE_SIZE; ++jj) {
-							if (!_mask->hasRGB(x + jj, y + ii)) {
+							if (!_mask->masked(x + jj, y + ii)) {
 								CAT_ENFORCE((x ^ 1234568) == reader.readWord()) << "Unable to read " << x;
 								const int cfi = _cf.next(reader);
 								filter->cf = YUV2RGB_FILTERS[cfi];
@@ -232,7 +232,7 @@ y0_had_filter:;
 				for (int c = 0; c < COLOR_PLANES; ++c) {
 					last[c] = 0;
 				}
-			} else if (_mask->hasRGB(x, y)) {
+			} else if (_mask->masked(x, y)) {
 				// Fully-transparent pixel
 				u32 *zp = reinterpret_cast<u32 *>( p );
 				*zp = 0;
@@ -312,7 +312,7 @@ y0_had_filter:;
 				if (lz_skip < FILTER_ZONE_SIZE || lz_lines_left < FILTER_ZONE_SIZE) {
 					for (int ii = 0; ii < FILTER_ZONE_SIZE; ++ii) {
 						for (int jj = 0; jj < FILTER_ZONE_SIZE; ++jj) {
-							if (!_mask->hasRGB(x + jj, y + ii)) {
+							if (!_mask->masked(x + jj, y + ii)) {
 								// Read SF and CF for this zone
 								CAT_ENFORCE((x ^ 1234568) == reader.readWord()) << "Unable to read " << x;
 								const int cfi = _cf.next(reader);
@@ -337,7 +337,7 @@ x0_had_filter:;
 				for (int c = 0; c < COLOR_PLANES; ++c) {
 					last[c] = 0;
 				}
-			} else if (_mask->hasRGB(x, y)) {
+			} else if (_mask->masked(x, y)) {
 				// Fully-transparent pixel
 				u32 *zp = reinterpret_cast<u32 *>( p );
 				*zp = 0;
@@ -402,7 +402,7 @@ x0_had_filter:;
 				if (lz_skip < FILTER_ZONE_SIZE || lz_lines_left < FILTER_ZONE_SIZE) {
 					for (int ii = 0; ii < FILTER_ZONE_SIZE; ++ii) {
 						for (int jj = 0; jj < FILTER_ZONE_SIZE; ++jj) {
-							if (!_mask->hasRGB(x + jj, y + ii)) {
+							if (!_mask->masked(x + jj, y + ii)) {
 								CAT_ENFORCE((x ^ 1234568) == reader.readWord()) << "Unable to read " << x;
 								// Read SF and CF for this zone
 								const int cfi = _cf.next(reader);
@@ -425,7 +425,7 @@ had_filter:;
 
 			if (lz_skip > 0) {
 				--lz_skip;
-			} else if (_mask->hasRGB(x, y)) {
+			} else if (_mask->masked(x, y)) {
 				*reinterpret_cast<u32 *>( p ) = 0;
 			} else {
 				const u32 chaos_y = CHAOS_TABLE[last[-4] + (u16)last[0]];
@@ -492,7 +492,7 @@ had_filter:;
 				for (int c = 0; c < COLOR_PLANES; ++c) {
 					last[c] = 0;
 				}
-			} else if (_mask->hasRGB(x, y)) {
+			} else if (_mask->masked(x, y)) {
 				// Fully-transparent pixel
 				u32 *zp = reinterpret_cast<u32 *>( p );
 				*zp = 0;

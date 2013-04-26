@@ -82,7 +82,7 @@ public:
 
 	int read(ImageReader &reader);
 
-	CAT_INLINE bool hasRGB(int x, int y) {
+	CAT_INLINE bool masked(int x, int y) {
 		const int maskX = x;
 		const int maskY = y;
 		const u32 word = _mask[(maskX >> 5) + maskY * _stride];

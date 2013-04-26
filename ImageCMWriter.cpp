@@ -142,7 +142,7 @@ void ImageCMWriter::designFilters() {
 			for (int yy = 0; yy < FILTER_ZONE_SIZE; ++yy) {
 				for (int xx = 0; xx < FILTER_ZONE_SIZE; ++xx) {
 					int px = x + xx, py = y + yy;
-					if (_mask->hasRGB(px, py)) {
+					if (_mask->masked(px, py)) {
 						continue;
 					}
 					if (_lz->visited(px, py)) {
@@ -318,7 +318,7 @@ void ImageCMWriter::decideFilters() {
 					for (int yy = 0; yy < FILTER_ZONE_SIZE; ++yy) {
 						for (int xx = 0; xx < FILTER_ZONE_SIZE; ++xx) {
 							int px = x + xx, py = y + yy;
-							if (_mask->hasRGB(px, py)) {
+							if (_mask->masked(px, py)) {
 								continue;
 							}
 							if (_lz->visited(px, py)) {
@@ -355,7 +355,7 @@ void ImageCMWriter::decideFilters() {
 				for (int yy = 0; yy < FILTER_ZONE_SIZE; ++yy) {
 					for (int xx = 0; xx < FILTER_ZONE_SIZE; ++xx) {
 						int px = x + xx, py = y + yy;
-						if (_mask->hasRGB(px, py)) {
+						if (_mask->masked(px, py)) {
 							continue;
 						}
 						if (_lz->visited(px, py)) {
@@ -398,7 +398,7 @@ void ImageCMWriter::decideFilters() {
 						for (int yy = 0; yy < FILTER_ZONE_SIZE; ++yy) {
 							for (int xx = 0; xx < FILTER_ZONE_SIZE; ++xx) {
 								int px = x + xx, py = y + yy;
-								if (_mask->hasRGB(px, py)) {
+								if (_mask->masked(px, py)) {
 									continue;
 								}
 								if (_lz->visited(px, py)) {
@@ -446,7 +446,7 @@ void ImageCMWriter::decideFilters() {
 						for (int yy = 0; yy < FILTER_ZONE_SIZE; ++yy) {
 							for (int xx = 0; xx < FILTER_ZONE_SIZE; ++xx) {
 								int px = x + xx, py = y + yy;
-								if (_mask->hasRGB(px, py)) {
+								if (_mask->masked(px, py)) {
 									continue;
 								}
 								if (_lz->visited(px, py)) {
@@ -565,7 +565,7 @@ void ImageCMWriter::scanlineLZ() {
 			// For each pixel,
 			for (int x = 0; x < width; ++x) {
 				// If not masked out,
-				if (!_lz->visited(x, y) && !_mask->hasRGB(x, y)) {
+				if (!_lz->visited(x, y) && !_mask->masked(x, y)) {
 					// Get filter for this pixel
 					const u16 filter = getFilter(x, y);
 					const u8 cf = (u8)filter;
@@ -638,7 +638,7 @@ void ImageCMWriter::maskFilters() {
 				w < FILTER_ZONE_SIZE || h < FILTER_ZONE_SIZE) {
 				for (int ii = 0; ii < FILTER_ZONE_SIZE; ++ii) {
 					for (int jj = 0; jj < FILTER_ZONE_SIZE; ++jj) {
-						if (!_mask->hasRGB(x + ii, y + jj)) {
+						if (!_mask->masked(x + ii, y + jj)) {
 							on = false;
 							ii = FILTER_ZONE_SIZE;
 							break;
@@ -695,7 +695,7 @@ void ImageCMWriter::chaosStats() {
 	int chaos_count = 0;
 	for (int y = 0; y < _height; ++y) {
 		for (int x = 0; x < _width; ++x) {
-			if (!_lz->visited(x, y) && !_mask->hasRGB(x, y)) {
+			if (!_lz->visited(x, y) && !_mask->masked(x, y)) {
 				++chaos_count;
 			}
 		}
@@ -738,7 +738,7 @@ void ImageCMWriter::chaosStats() {
 		// For each pixel,
 		for (int x = 0; x < width; ++x) {
 			// If not masked out,
-			if (!_lz->visited(x, y) && !_mask->hasRGB(x, y)) {
+			if (!_lz->visited(x, y) && !_mask->masked(x, y)) {
 				// Get filter for this pixel
 				const u16 filter = getFilter(x, y);
 				const u8 cf = (u8)filter;
@@ -937,7 +937,7 @@ bool ImageCMWriter::writeChaos(ImageWriter &writer) {
 			writer.writeWord(x ^ 1234561);
 
 			// If not masked out,
-			if (!_lz->visited(x, y) && !_mask->hasRGB(x, y)) {
+			if (!_lz->visited(x, y) && !_mask->masked(x, y)) {
 				// Get filter for this pixel
 				u16 filter = getFilter(x, y);
 				CAT_DEBUG_ENFORCE(filter != UNUSED_FILTER);
