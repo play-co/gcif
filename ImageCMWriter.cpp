@@ -43,6 +43,14 @@ using namespace std;
 #include "HuffmanEncoder.hpp"
 #include "lodepng.h"
 
+#ifdef CAT_DESYNCH_CHECKS
+#define DESYNC(x, y) writer.writeBits(x ^ 12345, 16); writer.writeBits(y ^ 54321, 16);
+#define DESYNC_FILTER(x, y) writer.writeBits(x ^ 31337, 16); writer.writeBits(y ^ 31415, 16);
+#else
+#define DESYNC(x, y)
+#define DESYNC_FILTER(x, y)
+#endif
+
 
 static CAT_INLINE int scoreYUV(u8 *yuv) {
 	return chaosScore(yuv[0]) + chaosScore(yuv[1]) + chaosScore(yuv[2]);
@@ -906,7 +914,7 @@ bool ImageCMWriter::writeChaos(ImageWriter &writer) {
 
 		// For each pixel,
 		for (int x = 0; x < width; ++x) {
-			writer.writeWord(x ^ 1234569);
+			DESYNC(x, y);
 
 			// If it is time to write out a filter,
 			if ((x & FILTER_ZONE_SIZE_MASK) == 0 &&
@@ -919,11 +927,10 @@ bool ImageCMWriter::writeChaos(ImageWriter &writer) {
 					u8 sf = filter >> 8;
 					u8 cf = (u8)filter;
 
-					writer.writeWord(x ^ 1234568);
 					int cf_bits = _cf_encoder.writeSymbol(cf, writer);
-					writer.writeWord(x ^ 1234569);
+					DESYNC_FILTER(x, y);
 					int sf_bits = _sf_encoder.writeSymbol(sf, writer);
-					writer.writeWord(x ^ 1234560);
+					DESYNC_FILTER(x, y);
 
 #ifdef CAT_COLLECT_STATS
 					filter_table_bits[0] += sf_bits;
@@ -932,8 +939,6 @@ bool ImageCMWriter::writeChaos(ImageWriter &writer) {
 				}
 			}
 
-			writer.writeWord(x ^ 1234561);
-
 			// If not masked out,
 			if (!_lz->visited(x, y) && !_mask->masked(x, y)) {
 				// Get filter for this pixel
@@ -941,7 +946,6 @@ bool ImageCMWriter::writeChaos(ImageWriter &writer) {
 				CAT_DEBUG_ENFORCE(filter != UNUSED_FILTER);
 				u8 cf = (u8)filter;
 				u8 sf = (u8)(filter >> 8);
-
 
 				// Apply spatial filter
 				const u8 *pred = _sf_set.get(sf).safe(p, x, y, width);
@@ -962,24 +966,25 @@ bool ImageCMWriter::writeChaos(ImageWriter &writer) {
 				u8 chaos = CHAOS_TABLE[chaosScore(last[0 - 4]) + chaosScore(last[0])];
 
 				int bits = _y_encoder[chaos].write(YUVA[0], writer);
-				writer.writeWord(x ^ 1234557);
+				DESYNC(x, y);
 #ifdef CAT_COLLECT_STATS
 				bitcount[0] += bits;
 #endif
 				chaos = CHAOS_TABLE[chaosScore(last[1 - 4]) + chaosScore(last[1])];
 				bits = _u_encoder[chaos].write(YUVA[1], writer);
-				writer.writeWord(x ^ 1234558);
+				DESYNC(x, y);
 #ifdef CAT_COLLECT_STATS
 				bitcount[1] += bits;
 #endif
 				chaos = CHAOS_TABLE[chaosScore(last[2 - 4]) + chaosScore(last[2])];
 				bits = _v_encoder[chaos].write(YUVA[2], writer);
-				writer.writeWord(x ^ 1234559);
+				DESYNC(x, y);
 #ifdef CAT_COLLECT_STATS
 				bitcount[2] += bits;
 #endif
 				chaos = CHAOS_TABLE[chaosScore(last[3 - 4]) + chaosScore(last[3])];
 				bits = _a_encoder[chaos].write(YUVA[3], writer);
+				DESYNC(x, y);
 #ifdef CAT_COLLECT_STATS
 				bitcount[3] += bits;
 #endif
@@ -992,8 +997,6 @@ bool ImageCMWriter::writeChaos(ImageWriter &writer) {
 					last[c] = 0;
 				}
 			}
-
-			writer.writeWord(x ^ 1234567);
 
 			// Next pixel
 			last += COLOR_PLANES;
