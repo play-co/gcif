@@ -99,13 +99,13 @@ FilterScorer::Score *FilterScorer::getLowest() {
 FilterScorer::Score *FilterScorer::getTop(int k) {
 	CAT_DEBUG_ENFORCE(k >= 1);
 
-	if (k > _count) {
+	if (k >= _count) {
 		k = _count;
 	}
 
-	int pivotIndex = k;
 	int left = 0;
 	int right = _count - 1;
+	int pivotIndex = right;
 
 	for (;;) {
 		int pivotNewIndex = partitionTop(left, right, pivotIndex);

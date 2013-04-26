@@ -280,9 +280,9 @@ void ImageCMWriter::decideFilters() {
 	const int width = _width;
 
 	if (!_knobs->cm_disableEntropy) {
-		CAT_INANE("CM") << "Scoring filters using " << _knobs->cm_filterSelectFuzz << " entropy trials... (may take a while)";
+		CAT_INANE("CM") << "Scoring filters using " << _knobs->cm_filterSelectFuzz << " entropy-based trials... (may take a while)";
 	} else {
-		CAT_INANE("CM") << "Scoring filters without entropy metric...";
+		CAT_INANE("CM") << "Scoring filters using L1-norm...";
 	}
 
 	int passes = 0;
