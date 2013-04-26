@@ -190,7 +190,6 @@ int ImageCMReader::readPixels(ImageReader &reader) {
 		// For each pixel,
 		for (int x = 0; x < width; ++x) {
 			CAT_ENFORCE((x ^ 1234569) == reader.readWord()) << "Unable to read " << x;
-			CAT_ENFORCE((x ^ 1234567) == reader.readWord()) << "Unable to read " << x;
 
 			// If LZ triggered,
 			if (x == trigger_x_lz) {
@@ -245,8 +244,11 @@ y0_had_filter:;
 				// Read YUV filtered pixel
 				u8 A;
 				last[0] = (u8)_y_decoder[CHAOS_TABLE[last[-4]]].next(reader);
+				CAT_ENFORCE((x ^ 1234557) == reader.readWord()) << "Unable to read " << x;
 				last[1] = (u8)_u_decoder[CHAOS_TABLE[last[-3]]].next(reader);
+				CAT_ENFORCE((x ^ 1234558) == reader.readWord()) << "Unable to read " << x;
 				last[2] = (u8)_v_decoder[CHAOS_TABLE[last[-2]]].next(reader);
+				CAT_ENFORCE((x ^ 1234559) == reader.readWord()) << "Unable to read " << x;
 				last[3] = A = (u8)_a_decoder[CHAOS_TABLE[last[-1]]].next(reader);
 
 				// Reverse color filter
@@ -269,6 +271,8 @@ y0_had_filter:;
 				last[2] = chaosScore(last[2]);
 				last[3] = chaosScore(last[3]);
 			}
+
+			CAT_ENFORCE((x ^ 1234567) == reader.readWord()) << "Unable to read " << x;
 
 			// Next pixel
 			last += COLOR_PLANES;
@@ -293,7 +297,6 @@ y0_had_filter:;
 		{
 			const int x = 0;
 			CAT_ENFORCE((x ^ 1234569) == reader.readWord()) << "Unable to read " << x;
-			CAT_ENFORCE((x ^ 1234567) == reader.readWord()) << "Unable to read " << x;
 
 			// If LZ triggered,
 			if (x == trigger_x_lz) {
@@ -346,8 +349,11 @@ x0_had_filter:;
 				// Read YUV filtered pixel
 				u8 A;
 				last[0] = (u8)_y_decoder[CHAOS_TABLE[last[0]]].next(reader);;
+				CAT_ENFORCE((x ^ 1234557) == reader.readWord()) << "Unable to read " << x;
 				last[1] = (u8)_u_decoder[CHAOS_TABLE[last[1]]].next(reader);
+				CAT_ENFORCE((x ^ 1234558) == reader.readWord()) << "Unable to read " << x;
 				last[2] = (u8)_v_decoder[CHAOS_TABLE[last[2]]].next(reader);
+				CAT_ENFORCE((x ^ 1234559) == reader.readWord()) << "Unable to read " << x;
 				last[3] = A = (u8)_a_decoder[CHAOS_TABLE[last[3]]].next(reader);
 
 				// Reverse color filter
@@ -367,6 +373,8 @@ x0_had_filter:;
 				last[3] = chaosScore(last[3]);
 			}
 
+			CAT_ENFORCE((x ^ 1234567) == reader.readWord()) << "Unable to read " << x;
+
 			// Next pixel
 			last += COLOR_PLANES;
 			p += 4;
@@ -379,7 +387,6 @@ x0_had_filter:;
 		// For each pixel,
 		for (int x = 1, xend = width - 1; x < xend; ++x) {
 			CAT_ENFORCE((x ^ 1234569) == reader.readWord()) << "Unable to read " << x;
-			CAT_ENFORCE((x ^ 1234567) == reader.readWord()) << "Unable to read " << x;
 			// If LZ triggered,
 			if (x == trigger_x_lz) {
 				lz_skip = _lz->triggerX(p, lz_lines_left);
@@ -427,8 +434,11 @@ had_filter:;
 
 				// Read YUV filtered pixel
 				yuva[0] = (u8)_y_decoder[chaos_y].next(reader);
+				CAT_ENFORCE((x ^ 1234557) == reader.readWord()) << "Unable to read " << x << ", " << y << " chaos_y = " << chaos_y;
 				yuva[1] = (u8)_u_decoder[chaos_u].next(reader);
+				CAT_ENFORCE((x ^ 1234558) == reader.readWord()) << "Unable to read " << x << " chaos_u = " << chaos_u;
 				yuva[2] = (u8)_v_decoder[chaos_v].next(reader);
+				CAT_ENFORCE((x ^ 1234559) == reader.readWord()) << "Unable to read " << x << " chaos_v = " << chaos_v;
 
 				// Pipeline calculate alpha chaos
 				const u32 chaos_a = CHAOS_TABLE[last[-1] + (u16)last[3]];
@@ -446,6 +456,8 @@ had_filter:;
 				yuva[3] = (u8)_a_decoder[chaos_a].next(reader);
 				p[3] = p[-1] - yuva[3];
 			}
+
+			CAT_ENFORCE((x ^ 1234567) == reader.readWord()) << "Unable to read " << x;
 
 			// Convert last to score
 			last[0] = chaosScore(yuva[0]);
@@ -466,7 +478,6 @@ had_filter:;
 		{
 			const int x = width - 1;
 			CAT_ENFORCE((x ^ 1234569) == reader.readWord()) << "Unable to read " << x;
-			CAT_ENFORCE((x ^ 1234567) == reader.readWord()) << "Unable to read " << x;
 			CAT_ENFORCE((x ^ 1234561) == reader.readWord()) << "Unable to read " << x;
 
 			// If LZ triggered,
@@ -492,8 +503,11 @@ had_filter:;
 			} else {
 				// Read YUV filtered pixel
 				last[0] = (u8)_y_decoder[CHAOS_TABLE[last[-4] + (u16)last[0]]].next(reader);
+				CAT_ENFORCE((x ^ 1234557) == reader.readWord()) << "Unable to read " << x;
 				last[1] = (u8)_u_decoder[CHAOS_TABLE[last[-3] + (u16)last[1]]].next(reader);
+				CAT_ENFORCE((x ^ 1234558) == reader.readWord()) << "Unable to read " << x;
 				last[2] = (u8)_v_decoder[CHAOS_TABLE[last[-2] + (u16)last[2]]].next(reader);
+				CAT_ENFORCE((x ^ 1234559) == reader.readWord()) << "Unable to read " << x;
 
 				FilterSelection *filter = &_filters[x >> FILTER_ZONE_SIZE_SHIFT];
 
@@ -517,6 +531,8 @@ had_filter:;
 				last[2] = chaosScore(last[2]);
 				last[3] = chaosScore(last[3]);
 			}
+
+			CAT_ENFORCE((x ^ 1234567) == reader.readWord()) << "Unable to read " << x;
 
 			// Next pixel
 			last += COLOR_PLANES;

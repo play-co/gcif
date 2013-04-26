@@ -168,6 +168,8 @@ int ImageLZReader::readZones(ImageReader &reader) {
 		dy += last_dy;
 		sy = dy - sy;
 
+		//CAT_WARN("LZ") << sx << ", " << sy << " -> " << dx << ", " << dy << " [" << z->w << ", " << z->h << "]";
+
 		z->sox = (s16)sx - (s16)dx;
 		z->soy = (s16)sy - (s16)dy;
 		z->dx = dx;
@@ -198,8 +200,8 @@ int ImageLZReader::readZones(ImageReader &reader) {
 	}
 
 	// Trigger on first zone
-	_zone_next_y = _zones[0].dy;
-	_zone_trigger_y = 0;
+	_zone_next_y = 0;
+	_zone_trigger_y = _zones[0].dy;
 
 	return RE_OK;
 }

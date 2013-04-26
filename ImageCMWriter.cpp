@@ -909,7 +909,6 @@ bool ImageCMWriter::writeChaos(ImageWriter &writer) {
 		// For each pixel,
 		for (int x = 0; x < width; ++x) {
 			writer.writeWord(x ^ 1234569);
-			writer.writeWord(x ^ 1234567);
 
 			// If it is time to write out a filter,
 			if ((x & FILTER_ZONE_SIZE_MASK) == 0 &&
@@ -963,17 +962,21 @@ bool ImageCMWriter::writeChaos(ImageWriter &writer) {
 				}
 
 				u8 chaos = CHAOS_TABLE[chaosScore(last[0 - 4]) + chaosScore(last[0])];
+
 				int bits = _y_encoder[chaos].write(YUVA[0], writer);
+				writer.writeWord(x ^ 1234557);
 #ifdef CAT_COLLECT_STATS
 				bitcount[0] += bits;
 #endif
 				chaos = CHAOS_TABLE[chaosScore(last[1 - 4]) + chaosScore(last[1])];
 				bits = _u_encoder[chaos].write(YUVA[1], writer);
+				writer.writeWord(x ^ 1234558);
 #ifdef CAT_COLLECT_STATS
 				bitcount[1] += bits;
 #endif
 				chaos = CHAOS_TABLE[chaosScore(last[2 - 4]) + chaosScore(last[2])];
 				bits = _v_encoder[chaos].write(YUVA[2], writer);
+				writer.writeWord(x ^ 1234559);
 #ifdef CAT_COLLECT_STATS
 				bitcount[2] += bits;
 #endif
@@ -991,6 +994,8 @@ bool ImageCMWriter::writeChaos(ImageWriter &writer) {
 					last[c] = 0;
 				}
 			}
+
+			writer.writeWord(x ^ 1234567);
 
 			// Next pixel
 			last += COLOR_PLANES;
