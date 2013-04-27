@@ -85,35 +85,7 @@ protected:
 		} else {
 			bits = _bz.writeSymbol(BZ_TAIL_SYM, writer);
 
-			run -= ZRLE_SYMS;
-
-			// If multiple FF bytes will be emitted,
-			if (run >= 255 + 255) {
-				writer.writeBits(255, 8);
-				writer.writeBits(255, 8);
-
-				// Step it up to 16-bit words
-				run -= 255 + 255;
-				bits += 8 + 8;
-				while (run >= 65535) {
-					writer.writeBits(65535, 16);
-					bits += 16;
-					run -= 65535;
-				}
-				writer.writeBits(run, 16);
-				bits += 16;
-			} else {
-				// Write out FF bytes
-				if (run >= 255) {
-					writer.writeBits(255, 8);
-					bits += 8;
-					run -= 255;
-				}
-
-				// Write out last byte
-				writer.writeBits(run, 8);
-				bits += 8;
-			}
+			writer.write255255(run - ZRLE_SYMS);
 		}
 
 		return bits;

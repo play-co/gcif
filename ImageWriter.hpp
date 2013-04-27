@@ -212,6 +212,45 @@ public:
 	}
 
 	/*
+	 * 255255-encoding
+	 *
+	 * Used for representing runs of zeroes in the entropy encoder
+	 */
+	static CAT_INLINE int write255255(u32 run) {
+		int bits = 0;
+
+		// If multiple FF bytes will be emitted,
+		if (run >= 255 + 255) {
+			writeBits(255, 8);
+			writeBits(255, 8);
+
+			// Step it up to 16-bit words
+			run -= 255 + 255;
+			bits += 8 + 8;
+			while (run >= 65535) {
+				writeBits(65535, 16);
+				bits += 16;
+				run -= 65535;
+			}
+			writeBits(run, 16);
+			bits += 16;
+		} else {
+			// Write out FF bytes
+			if (run >= 255) {
+				writeBits(255, 8);
+				bits += 8;
+				run -= 255;
+			}
+
+			// Write out last byte
+			writeBits(run, 8);
+			bits += 8;
+		}
+
+		return bits;
+	}
+
+	/*
 	 * 17-encoding
 	 *
 	 * Used for encoding Huffman codelens with values 0..16, where 16 is rare

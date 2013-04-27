@@ -104,27 +104,7 @@ public:
 			// Decode zero run from symbol
 			_zeroRun = sym - NUM_SYMS;
 		} else {
-			// Read riders
-			u32 run = ZRLE_SYMS - 1, s;
-
-			s = reader.readBits(8);
-			run += s;
-
-			// If another byte is expected,
-			if (s == 255) {
-				s = reader.readBits(8);
-				run += s;
-
-				// If the remaining data is in words,
-				if (s == 255) {
-					do {
-						s = reader.readBits(16);
-						run += s;
-					} while (s == 65535); // HuffmanDecoder emits 0 on EOF
-				}
-			}
-
-			_zeroRun = run;
+			_zeroRun = reader.read255255() + ZRLE_SYMS - 1;
 		}
 
 		_afterZero = true;

@@ -138,14 +138,42 @@ public:
 	CAT_INLINE u32 read335() {
 		u32 run = readBits(3), s;
 
+		// If another 3 bits are expected,
 		if (run == 7) {
 			s = readBits(3);
 			run += s;
+
+			// If the remaining data is in 7 bit chunks,
 			if (s == 7) {
 				do {
 					s = readBits(5);
 					run += s;
-				} while (s == 31);
+				} while (s == 31); // HuffmanDecoder emits 0 on EOF
+			}
+		}
+
+		return run;
+	}
+
+	/*
+	 * 255255-encoding
+	 *
+	 * Used for encoding runs of zeroes in the entropy encoder
+	 */
+	CAT_INLINE u32 read255255() {
+		u32 run = reader.readBits(8), s;
+
+		// If another byte is expected,
+		if (run == 255) {
+			s = reader.readBits(8);
+			run += s;
+
+			// If the remaining data is in 16-bit words,
+			if (s == 255) {
+				do {
+					s = reader.readBits(16);
+					run += s;
+				} while (s == 65535); // HuffmanDecoder emits 0 on EOF
 			}
 		}
 
