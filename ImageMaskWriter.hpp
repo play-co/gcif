@@ -64,76 +64,82 @@ namespace cat {
 //#define DUMP_FILTER_OUTPUT
 
 
-//// ImageMaskWriter
+/*
+ * Support class that does the heavy lifting for each mask layer
+ *
+ * Accepts a color to match and then dutifully compresses it as a bitmask.
+ * If the result achieves a specified compression ratio, then it is written.
+ * Otherwise a single bit is sent indicating it was not enabled to the decoder.
+ */
 
-class ImageMaskWriter {
+class Masker {
 	const GCIFKnobs *_knobs;
-	u32 *_alpha;
-	u32 *_alpha_filtered;
-	u32 *_color;
-	u32 *_color_filtered;
-	u32 _colorValue;
+
+	bool _enabled;			// Is this mask layer enabled?
+
+	u32 *_mask;				// The pre-filtered mask
+	u32 *_filtered;			// The post-filtered mask
+	const u8 *_rgba;		// Original pixel data
 	int _size, _stride, _width, _height;
-	bool _using_encoder;
+	int _covered;			// Number of pixels covered
+
+	bool _using_encoder;	// Above threshold for encodering?
+	int _min_ratio;			// Minimum compression ratio to achieve
+
+	u32 _color;				// Color value for match
+	u32 _color_mask;		// Portion of color value that must match
+
+	std::vector<u8> _lz, _rle;
+	HuffmanEncoder<256> _encoder;
 
 	void clear();
 
 	void applyFilter();
-	void performRLE(std::vector<u8> &rle);
-	void performLZ(const std::vector<u8> &rle, std::vector<u8> &lz);
-	void writeEncodedLZ(const std::vector<u8> &lz, HuffmanEncoder<256> &encoder, ImageWriter &writer);
-
-	u32 dominantColor();
-
-	void maskAlpha();
-	void maskColor(u32 color);
+	void performRLE();
+	void performLZ();
+	void writeEncodedLZ(ImageWriter &writer);
+	u32 simulate();
 
 #ifdef CAT_COLLECT_STATS
 public:
 	struct _Stats {
-		u32 alpha_table_bits, alpha_data_bits, alpha_covered;
-		int alpha_rleBytes, alpha_lzBytes;
-		double alpha_filterUsec, alpha_rleUsec, alpha_lzUsec, alpha_histogramUsec;
-		double alpha_generateTableUsec, alpha_tableEncodeUsec, alpha_dataEncodeUsec;
-		double alpha_overallUsec;
-
-		u32 color_table_bits, color_data_bits, color_covered;
-		int color_rleBytes, color_lzBytes;
-		double color_filterUsec, color_rleUsec, color_lzUsec, color_histogramUsec;
-		double color_generateTableUsec, color_tableEncodeUsec, color_dataEncodeUsec;
-		double color_overallUsec;
-
+		u32 table_bits, data_bits, covered;
+		int rleBytes, lzBytes;
+		double filterUsec, rleUsec, lzUsec, histogramUsec;
+		double generateTableUsec, tableEncodeUsec, dataSimulateUsec, dataEncodeUsec;
 		double overallUsec;
 
-		int alpha_compressedDataBits;
-		double alpha_compressionRatio;
-
-		int color_compressedDataBits;
-		double color_compressionRatio;
+		int compressedDataBits;
+		double compressionRatio;
 	} Stats;
 #endif // CAT_COLLECT_STATS
 
 public:
-	ImageMaskWriter() {
-		_alpha = 0;
-		_alpha_filtered = 0;
-		_color = 0;
-		_color_filtered = 0;
+	CAT_INLINE Masker() {
+		_mask = 0;
+		_filtered = 0;
 	}
-	virtual ~ImageMaskWriter() {
+	CAT_INLINE virtual ~Masker() {
 		clear();
 	}
 
-	int initFromRGBA(const u8 *rgba, int width, int height, const GCIFKnobs *knobs);
+	// Create mask
+	int initFromRGBA(const u8 *rgba, u32 color, u32 color_mask, int width, int height, const GCIFKnobs *knobs, int min_ratio);
 
+	// Evaluate compression ratio
+	void evaluate();
+
+	// Write result
 	void write(ImageWriter &writer);
 
 	CAT_INLINE bool masked(int x, int y) {
+		if (!_enabled) {
+			return false;
+		}
 		const int index = (x >> 5) + y * _stride;
-		const u32 word0 = _alpha[index];
-		const u32 word1 = _color[index];
-		const u32 mask = 1 << (31 - (maskX & 31));
-		return ((word0 | word1) & mask) != 0;
+		const u32 word = _mask[index];
+		const u32 mask = 1 << (31 - (x & 31));
+		return (word & mask) != 0;
 	}
 
 #ifdef CAT_COLLECT_STATS
@@ -144,6 +150,45 @@ public:
 		return false;
 	}
 #endif
+};
+
+
+//// ImageMaskWriter
+
+class ImageMaskWriter {
+	const GCIFKnobs *_knobs;
+
+	const u8 *_rgba;
+	int _width, _height;
+
+	Masker _alpha, _color;
+
+	u32 dominantColor();
+
+#ifdef CAT_COLLECT_STATS
+public:
+	struct _Stats {
+		double overallUsec;
+	} Stats;
+#endif // CAT_COLLECT_STATS
+
+public:
+	CAT_INLINE ImageMaskWriter() {
+	}
+	CAT_INLINE virtual ~ImageMaskWriter() {
+	}
+
+	int initFromRGBA(const u8 *rgba, int width, int height, const GCIFKnobs *knobs);
+
+	void write(ImageWriter &writer);
+
+	CAT_INLINE bool masked(int x, int y) {
+		return _alpha.masked(x, y) || _color.masked(x, y);
+	}
+
+	CAT_INLINE bool dumpStats() {
+		return _alpha.dumpStats() && _color.dumpStats();
+	}
 };
 
 

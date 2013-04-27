@@ -33,9 +33,9 @@
 #include "HuffmanDecoder.hpp"
 #include "Filters.hpp"
 #include "GCIFWriter.hpp"
+#include "Log.hpp"
 
 #ifdef CAT_COLLECT_STATS
-#include "Log.hpp"
 #include "Clock.hpp"
 #endif // CAT_COLLECT_STATS
 
@@ -45,15 +45,14 @@ using namespace std;
 #include "lz4.h"
 #include "lz4hc.h"
 
-
 #ifdef DUMP_FILTER_OUTPUT
 #include "lodepng.h"
 #endif // DUMP_FILTER_OUTPUT
 
 
-//// ImageMaskWriter
+//// Masker
 
-void ImageMaskWriter::applyFilter() {
+void Masker::applyFilter() {
 	// Walk backwards from the end
 	const int stride = _stride;
 	u32 *lagger = _mask + _size - stride;
@@ -112,7 +111,7 @@ void ImageMaskWriter::applyFilter() {
 #endif
 }
 
-void ImageMaskWriter::clear() {
+void Masker::clear() {
 	if (_mask) {
 		delete []_mask;
 		_mask = 0;
@@ -123,111 +122,54 @@ void ImageMaskWriter::clear() {
 	}
 }
 
-u32 ImageMaskWriter::dominantColor() {
-}
-
-void ImageMaskWriter::maskAlpha() {
-	u32 *writer = _mask;
-
-	// Set from full-transparent alpha:
-
-	u32 covered = 0;
-
-	const u8 *alpha = (const u8*)&rgba[0] + 3;
-	for (int y = 0; y < height; ++y) {
-		for (int x = 0, len = width >> 5; x < len; ++x) {
-			u32 bits = (alpha[0] == 0);
-			bits = (bits << 1) | (alpha[4] == 0);
-			bits = (bits << 1) | (alpha[8] == 0);
-			bits = (bits << 1) | (alpha[12] == 0);
-			bits = (bits << 1) | (alpha[16] == 0);
-			bits = (bits << 1) | (alpha[20] == 0);
-			bits = (bits << 1) | (alpha[24] == 0);
-			bits = (bits << 1) | (alpha[28] == 0);
-			bits = (bits << 1) | (alpha[32] == 0);
-			bits = (bits << 1) | (alpha[36] == 0);
-			bits = (bits << 1) | (alpha[40] == 0);
-			bits = (bits << 1) | (alpha[44] == 0);
-			bits = (bits << 1) | (alpha[48] == 0);
-			bits = (bits << 1) | (alpha[52] == 0);
-			bits = (bits << 1) | (alpha[56] == 0);
-			bits = (bits << 1) | (alpha[60] == 0);
-			bits = (bits << 1) | (alpha[64] == 0);
-			bits = (bits << 1) | (alpha[68] == 0);
-			bits = (bits << 1) | (alpha[72] == 0);
-			bits = (bits << 1) | (alpha[76] == 0);
-			bits = (bits << 1) | (alpha[80] == 0);
-			bits = (bits << 1) | (alpha[84] == 0);
-			bits = (bits << 1) | (alpha[88] == 0);
-			bits = (bits << 1) | (alpha[92] == 0);
-			bits = (bits << 1) | (alpha[96] == 0);
-			bits = (bits << 1) | (alpha[100] == 0);
-			bits = (bits << 1) | (alpha[104] == 0);
-			bits = (bits << 1) | (alpha[108] == 0);
-			bits = (bits << 1) | (alpha[112] == 0);
-			bits = (bits << 1) | (alpha[116] == 0);
-			bits = (bits << 1) | (alpha[120] == 0);
-			bits = (bits << 1) | (alpha[124] == 0);
-
-			*writer++ = bits;
-			alpha += 128;
-
-#ifdef CAT_COLLECT_STATS
-			covered += BitCount(bits);
-#endif // CAT_COLLECT_STATS
-		}
-
-		u32 ctr = width & 31;
-		if (ctr) {
-			u32 bits = 0;
-			while (ctr--) {
-				bits = (bits << 1) | (alpha[0] == 0);
-				alpha += 4;
-			}
-
-			*writer++ = bits;
-#ifdef CAT_COLLECT_STATS
-			covered += BitCount(bits);
-#endif // CAT_COLLECT_STATS
-		}
-	}
-
-#ifdef CAT_COLLECT_STATS
-	Stats.covered = covered;
-#endif // CAT_COLLECT_STATS
-}
-
-void ImageMaskWriter::maskColor(u32 color) {
-}
-
-int ImageMaskWriter::initFromRGBA(const u8 *rgba, int width, int height, const GCIFKnobs *knobs) {
-
-	if (!rgba || width < FILTER_ZONE_SIZE || height < FILTER_ZONE_SIZE) {
-		return WE_BAD_DIMS;
-	}
-
-	if ((width & FILTER_ZONE_SIZE_MASK) || (height & FILTER_ZONE_SIZE_MASK)) {
-		return WE_BAD_DIMS;
-	}
+int Masker::initFromRGBA(const u8 *rgba, u32 color, u32 color_mask, int width, int height, const GCIFKnobs *knobs, int min_ratio) {
+	_knobs = knobs;
+	_rgba = rgba;
+	_width = width;
+	_height = height;
+	_color = color;
+	_color_mask = color_mask;
+	_min_ratio = min_ratio;
+	_stride = (width + 31) >> 5;
+	_size = height * _stride;
 
 	clear();
 
-	const int maskWidth = width;
-	const int maskHeight = height;
-
-	// Init mask bitmatrix
-	_knobs = knobs;
-	_width = maskWidth;
-	_stride = (maskWidth + 31) >> 5;
-	_size = maskHeight * _stride;
-	_height = maskHeight;
 	_mask = new u32[_size];
 	_filtered = new u32[_size];
 
-	maskAlpha();
+	u32 *writer = _mask;
 
-	_value = dominantColor();
-	maskColor(_value);
+	// Fill in bitmask
+	int covered = 0;
+	const u32 *pixel = reinterpret_cast<const u32 *>( _rgba );
+
+	// For each scanline,
+	for (int y = 0; y < _height; ++y) {
+		u32 bits = 0, seen = 0;
+
+		// For each pixel,
+		for (int x = 0, xend = _width; x < xend; ++x) {
+			bits <<= 1;
+
+			if ((*pixel & color_mask) == color) {
+				++covered;
+				bits |= 1;
+			}
+
+			if (++seen >= 32) {
+				*writer++ = bits;
+			}
+
+			++pixel;
+		}
+
+		if (seen > 0) {
+			*writer++ = bits;
+		}
+	}
+
+	_covered = covered;
 
 #ifdef DUMP_FILTER_OUTPUT
 	{
@@ -253,19 +195,21 @@ int ImageMaskWriter::initFromRGBA(const u8 *rgba, int width, int height, const G
 	}
 #endif
 
-	return WE_OK;
+#ifdef CAT_COLLECT_STATS
+	Stats.covered = covered;
+#endif // CAT_COLLECT_STATS
 }
 
-static CAT_INLINE void byteEncode(vector<unsigned char> &bytes, u32 data) {
+static CAT_INLINE void byteEncode(vector<u8> &bytes, u32 data) {
 	while (data >= 255) {
 		bytes.push_back(255);
 		data -= 255;
 	}
+
 	bytes.push_back(data);
 }
 
-void ImageMaskWriter::performRLE(vector<u8> &rle) {
-
+void Masker::performRLE() {
 	u32 *lagger = _filtered;
 	const int stride = _stride;
 
@@ -300,11 +244,11 @@ void ImageMaskWriter::performRLE(vector<u8> &rle) {
 
 		const int deltaCount = static_cast<int>( deltas.size() );
 
-		byteEncode(rle, deltaCount);
+		byteEncode(_rle, deltaCount);
 
 		for (int kk = 0; kk < deltaCount; ++kk) {
 			int delta = deltas[kk];
-			byteEncode(rle, delta);
+			byteEncode(_rle, delta);
 		}
 
 		deltas.clear();
@@ -313,54 +257,37 @@ void ImageMaskWriter::performRLE(vector<u8> &rle) {
 	}
 }
 
-void ImageMaskWriter::performLZ(const std::vector<u8> &rle, std::vector<u8> &lz) {
-	lz.resize(LZ4_compressBound(static_cast<int>( rle.size() )));
+void Masker::performLZ() {
+	_lz.resize(LZ4_compressBound(static_cast<int>( _rle.size() )));
 
-	const int lzSize = LZ4_compressHC((char*)&rle[0], (char*)&lz[0], rle.size());
+	const int lzSize = LZ4_compressHC((char*)&_rle[0], (char*)&_lz[0], _rle.size());
 
-	lz.resize(lzSize);
+	_lz.resize(lzSize);
 
 #ifdef CAT_COLLECT_STATS
-	Stats.rleBytes = rle.size();
-	Stats.lzBytes = lz.size();
+	Stats.rleBytes = _rle.size();
+	Stats.lzBytes = _lz.size();
 #endif // CAT_COLLECT_STATS
+
+	// Determine if encoder should be used
+	_using_encoder = _lz.size() >= _knobs->mask_huffThresh;
 }
 
+u32 Masker::simulate() {
+	const int lzSize = static_cast<int>( _lz.size() );
 
-void ImageMaskWriter::writeEncodedLZ(const std::vector<u8> &lz, HuffmanEncoder<256> &encoder, ImageWriter &writer) {
-	const int lzSize = static_cast<int>( lz.size() );
-
-#ifdef CAT_COLLECT_STATS
-	u32 data_bits = 0;
-#endif // CAT_COLLECT_STATS
-
+	int bits = 0;
 	if (_using_encoder) {
 		for (int ii = 0; ii < lzSize; ++ii) {
-			u8 sym = lz[ii];
-
-			int bits = encoder.writeSymbol(sym, writer);
-#ifdef CAT_COLLECT_STATS
-			data_bits += bits;
-#endif // CAT_COLLECT_STATS
+			u8 sym = _lz[ii];
+			bits += _encoder.simulateWrite(sym);
 		}
 	} else {
-		for (int ii = 0; ii < lz.size(); ++ii) {
-			writer.writeBits(lz[ii], 8);
-#ifdef CAT_COLLECT_STATS
-			data_bits += 8;
-#endif
-		}
+		bits = lzSize * 8;
 	}
-
-
-#ifdef CAT_COLLECT_STATS
-	Stats.data_bits = data_bits;
-#endif // CAT_COLLECT_STATS
 }
 
-void ImageMaskWriter::write(ImageWriter &writer) {
-	CAT_INANE("mask") << "Writing mask...";
-
+void Masker::evaluate() {
 #ifdef CAT_COLLECT_STATS
 	Clock *clock = Clock::ref();
 	double t0 = clock->usec();
@@ -372,67 +299,117 @@ void ImageMaskWriter::write(ImageWriter &writer) {
 	double t1 = clock->usec();
 #endif // CAT_COLLECT_STATS
 
-	vector<u8> rle;
-	performRLE(rle);
+	performRLE();
 
 #ifdef CAT_COLLECT_STATS
 	double t2 = clock->usec();
 #endif // CAT_COLLECT_STATS
 
-	vector<u8> lz;
-	performLZ(rle, lz);
-
-	writer.write9(rle.size());
-	writer.write9(lz.size());
-
-	_using_encoder = lz.size() >= _knobs->mask_huffThresh;
-	writer.writeBit(_using_encoder);
+	performLZ();
 
 #ifdef CAT_COLLECT_STATS
 	double t3 = clock->usec();
 #endif // CAT_COLLECT_STATS
 
 	u16 freqs[256];
-	collectFreqs(256, lz, freqs);
+	collectFreqs(256, _lz, freqs);
 
 #ifdef CAT_COLLECT_STATS
 	double t4 = clock->usec();
 #endif // CAT_COLLECT_STATS
 
-	HuffmanEncoder<256> encoder;
-
 	if (_using_encoder) {
-		CAT_ENFORCE(encoder.init(freqs));
+		CAT_ENFORCE(_encoder.init(freqs));
 	}
 
 #ifdef CAT_COLLECT_STATS
 	double t5 = clock->usec();
 #endif // CAT_COLLECT_STATS
 
-	int table_bits = 0;
-	if (_using_encoder) {
-		table_bits = encoder.writeTable(writer);
-	}
+	u32 simulated_bits = simulate();
+	u32 ratio = (simulated_bits / _covered) >> 1; // * (4 / 8)
+	_enabled = (ratio >= _min_ratio);
 
 #ifdef CAT_COLLECT_STATS
-	Stats.table_bits = table_bits + 32 + 32;
-
 	double t6 = clock->usec();
-#endif // CAT_COLLECT_STATS
-
-	writeEncodedLZ(lz, encoder, writer);
-
-#ifdef CAT_COLLECT_STATS
-	double t7 = clock->usec();
 
 	Stats.filterUsec = t1 - t0;
 	Stats.rleUsec = t2 - t1;
 	Stats.lzUsec = t3 - t2;
 	Stats.histogramUsec = t4 - t3;
 	Stats.generateTableUsec = t5 - t4;
-	Stats.tableEncodeUsec = t6 - t5;
-	Stats.dataEncodeUsec = t7 - t6;
-	Stats.overallUsec = t7 - t0;
+	Stats.dataSimulateUsec = t6 - t5;
+	Stats.overallUsec = t6 - t0;
+#endif // CAT_COLLECT_STATS
+}
+
+void Masker::writeEncodedLZ(ImageWriter &writer) {
+	const int lzSize = static_cast<int>( _lz.size() );
+
+#ifdef CAT_COLLECT_STATS
+	u32 data_bits = 0;
+#endif // CAT_COLLECT_STATS
+
+	if (_using_encoder) {
+		for (int ii = 0; ii < lzSize; ++ii) {
+			u8 sym = _lz[ii];
+
+			int bits = _encoder.writeSymbol(sym, writer);
+#ifdef CAT_COLLECT_STATS
+			data_bits += bits;
+#endif // CAT_COLLECT_STATS
+		}
+	} else {
+		for (int ii = 0; ii < lzSize; ++ii) {
+			writer.writeBits(_lz[ii], 8);
+#ifdef CAT_COLLECT_STATS
+			data_bits += 8;
+#endif
+		}
+	}
+
+#ifdef CAT_COLLECT_STATS
+	Stats.data_bits = data_bits;
+#endif // CAT_COLLECT_STATS
+}
+
+void Masker::write(ImageWriter &writer) {
+	int table_bits = 0;
+
+#ifdef CAT_COLLECT_STATS
+	Clock *clock = Clock::ref();
+	double t0 = clock->usec();
+#endif // CAT_COLLECT_STATS
+
+	writer.writeBit(_enabled);
+
+	if (_enabled) {
+		CAT_INANE("mask") << "Writing mask for color (" << (_color & 255) << "," << ((_color >> 8) & 255) << "," << ((_color >> 16) & 255) << "," << ((_color >> 24) & 255) << ") ...";
+
+		writer.write9(_rle.size());
+		writer.write9(_lz.size());
+		writer.writeBit(_using_encoder);
+
+		if (_using_encoder) {
+			table_bits = _encoder.writeTable(writer);
+		}
+	}
+
+#ifdef CAT_COLLECT_STATS
+	double t1 = clock->usec();
+#endif // CAT_COLLECT_STATS
+
+	if (_enabled) {
+		writeEncodedLZ(writer);
+	}
+
+#ifdef CAT_COLLECT_STATS
+	double t2 = clock->usec();
+
+	Stats.table_bits = table_bits + 32 + 32;
+	Stats.tableEncodeUsec = t1 - t0;
+	Stats.dataEncodeUsec = t2 - t1;
+	Stats.overallUsec += t2 - t0;
 
 	Stats.compressedDataBits = Stats.data_bits + Stats.table_bits;
 	Stats.compressionRatio = Stats.covered * 4 / (double)(Stats.compressedDataBits/8);
@@ -442,7 +419,7 @@ void ImageMaskWriter::write(ImageWriter &writer) {
 
 #ifdef CAT_COLLECT_STATS
 
-bool ImageMaskWriter::dumpStats() {
+bool Masker::dumpStats() {
 	CAT_INANE("stats") << "(Mask Encoding)     Post-RLE Size : " <<  Stats.rleBytes << " bytes";
 	CAT_INANE("stats") << "(Mask Encoding)      Post-LZ Size : " <<  Stats.lzBytes << " bytes";
 	CAT_INANE("stats") << "(Mask Encoding) Post-Huffman Size : " << (Stats.data_bits + 7) / 8 << " bytes (" << Stats.data_bits << " bits)";
@@ -465,4 +442,55 @@ bool ImageMaskWriter::dumpStats() {
 }
 
 #endif // CAT_COLLECT_STATS
+
+
+
+//// ImageMaskWriter
+
+u32 ImageMaskWriter::dominantColor() {
+	// TODO
+	return 0xff000000;
+}
+
+int ImageMaskWriter::initFromRGBA(const u8 *rgba, int width, int height, const GCIFKnobs *knobs) {
+
+	if (!rgba || width < FILTER_ZONE_SIZE || height < FILTER_ZONE_SIZE) {
+		return WE_BAD_DIMS;
+	}
+
+	if ((width & FILTER_ZONE_SIZE_MASK) || (height & FILTER_ZONE_SIZE_MASK)) {
+		return WE_BAD_DIMS;
+	}
+
+	// Init mask bitmatrix
+	_knobs = knobs;
+	_width = width;
+	_height = height;
+
+	int err;
+
+	const u32 ALPHA_COLOR = 0;
+	const u32 ALPHA_MASK = getLE(0xff000000);
+
+	if ((err = _alpha.initFromRGBA(rgba, ALPHA_COLOR, ALPHA_MASK, width, height, knobs, _knobs->mask_minAlphaRat))) {
+		return err;
+	}
+
+	u32 domColor = dominantColor();
+	const u32 COLOR_MASK = 0xffffffff;
+
+	if ((err = _color.initFromRGBA(rgba, domColor, COLOR_MASK, width, height, knobs, _knobs->mask_minColorRat))) {
+		return err;
+	}
+
+	return WE_OK;
+}
+
+void ImageMaskWriter::write(ImageWriter &writer) {
+	_alpha.evaluate();
+	_color.evaluate();
+
+	_alpha.write(writer);
+	_color.write(writer);
+}
 
