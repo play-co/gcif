@@ -48,9 +48,10 @@ enum WriteErrors {
  * height: Pixels per column
  * output_file_path: File write location
  * compression_level:
- * 		0 = Faster: Turns off entropy calculation and custom linear filter taps
- * 		1 = Better: Sets filter select fuzz to 8
- * 		2 = Harder: Sets filter select fuzz to 20
+ * 		0 = Faster
+ * 		1 = Better
+ * 		2 = Harder
+ * 		3 = Stronger
  */
 int gcif_write(const void *rgba, int width, int height, const char *output_file_path, int compression_level);
 
