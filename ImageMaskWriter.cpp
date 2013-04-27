@@ -279,14 +279,15 @@ void Masker::performLZ() {
 u32 Masker::simulate() {
 	const int lzSize = static_cast<int>( _lz.size() );
 
-	int bits = 0;
+	int bits = 32;
+
 	if (_using_encoder) {
 		for (int ii = 0; ii < lzSize; ++ii) {
 			u8 sym = _lz[ii];
 			bits += _encoder.simulateWrite(sym);
 		}
 	} else {
-		bits = lzSize * 8;
+		bits += lzSize * 8;
 	}
 
 	return bits;
@@ -332,7 +333,7 @@ bool Masker::evaluate() {
 #endif // CAT_COLLECT_STATS
 
 	u32 simulated_bits = simulate();
-	u32 ratio = _covered ? ((simulated_bits / _covered) >> 1) : 0; // * (4 / 8)
+	u32 ratio = _covered * 32 / simulated_bits;
 	_enabled = (ratio >= _min_ratio);
 
 #ifdef CAT_COLLECT_STATS
@@ -393,9 +394,10 @@ void Masker::write(ImageWriter &writer) {
 	if (_enabled) {
 		CAT_INANE("mask") << "Writing mask for color (" << (_color & 255) << "," << ((_color >> 8) & 255) << "," << ((_color >> 16) & 255) << "," << ((_color >> 24) & 255) << ") ...";
 
-		writer.write9(_rle.size());
-		writer.write9(_lz.size());
+		table_bits += writer.write9(_rle.size());
+		table_bits += writer.write9(_lz.size());
 		writer.writeBit(_using_encoder);
+		++table_bits;
 
 		if (_using_encoder) {
 			table_bits = _encoder.writeTable(writer);
@@ -413,13 +415,13 @@ void Masker::write(ImageWriter &writer) {
 #ifdef CAT_COLLECT_STATS
 	double t2 = clock->usec();
 
-	Stats.table_bits = table_bits + 32 + 32;
+	Stats.table_bits = table_bits;
 	Stats.tableEncodeUsec = t1 - t0;
 	Stats.dataEncodeUsec = t2 - t1;
 	Stats.overallUsec += t2 - t0;
 
 	Stats.compressedDataBits = Stats.data_bits + Stats.table_bits;
-	Stats.compressionRatio = Stats.covered * 4 / (double)(Stats.compressedDataBits/8);
+	Stats.compressionRatio = Stats.covered * 32 / (double)Stats.compressedDataBits;
 #endif // CAT_COLLECT_STATS
 }
 
@@ -480,7 +482,6 @@ int ImageMaskWriter::initFromRGBA(const u8 *rgba, int width, int height, const G
 
 	const u32 ALPHA_COLOR = 0;
 	const u32 ALPHA_MASK = getLE(0xff000000);
-
 	if ((err = _alpha.initFromRGBA(rgba, ALPHA_COLOR, ALPHA_MASK, width, height, knobs, _knobs->mask_minAlphaRat))) {
 		return err;
 	}
@@ -496,8 +497,10 @@ int ImageMaskWriter::initFromRGBA(const u8 *rgba, int width, int height, const G
 }
 
 void ImageMaskWriter::write(ImageWriter &writer) {
-	_alpha.evaluate();
-	if (_color.evaluate()) {
+	bool use_alpha = _alpha.evaluate();
+	bool use_color = _color.evaluate();
+
+	if (use_color) {
 		writer.writeWord(_color.getColor());
 	}
 
@@ -505,7 +508,13 @@ void ImageMaskWriter::write(ImageWriter &writer) {
 	_color.write(writer);
 
 #ifdef CAT_COLLECT_STATS
-	Stats.compressedDataBits = _alpha.Stats.compressedDataBits + _color.Stats.compressedDataBits;
+	Stats.compressedDataBits = 0;
+	if (use_alpha) {
+		Stats.compressedDataBits += _alpha.Stats.compressedDataBits;
+	}
+	if (use_color) {
+		Stats.compressedDataBits += _color.Stats.compressedDataBits + 32;
+	}
 #endif // CAT_COLLECT_STATS
 }
 
