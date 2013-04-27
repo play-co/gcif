@@ -162,6 +162,9 @@ public:
 class ImageMaskWriter {
 	const GCIFKnobs *_knobs;
 
+	const u8 *_rgba;
+	int _width, _height;
+
 	Masker _alpha, _color;
 
 	u32 dominantColor();

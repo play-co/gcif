@@ -34,12 +34,12 @@
 #include "Filters.hpp"
 #include "GCIFWriter.hpp"
 #include "Log.hpp"
-
 #ifdef CAT_COLLECT_STATS
 #include "Clock.hpp"
 #endif // CAT_COLLECT_STATS
-
 using namespace cat;
+
+#include <map>
 using namespace std;
 
 #include "lz4.h"
@@ -461,8 +461,58 @@ bool Masker::dumpStats() {
 //// ImageMaskWriter
 
 u32 ImageMaskWriter::dominantColor() {
-	// TODO
-	return 0xff000000;
+	// Generate histogram to reduce data set
+	u32 hist[256];
+	const u32 *pixel = reinterpret_cast<const u32 *>( _rgba );
+	int count = _width * _height;
+	while (count--) {
+		u32 p = *pixel++;
+
+		p ^= p >> 16;
+		p ^= p >> 8;
+
+		hist[p & 255]++;
+	}
+
+	// Find largest bin to track
+	u32 best = 0, best_score = hist[0];
+	for (int ii = 1; ii < 256; ++ii) {
+		u32 x = hist[ii];
+
+		if (best_score < x) {
+			best_score = x;
+			best = ii;
+		}
+	}
+
+	map<u32, u32> tracker;
+
+	// Tease out the best color
+	pixel = reinterpret_cast<const u32 *>( _rgba );
+	count = _width * _height;
+	while (count--) {
+		u32 p = *pixel++;
+
+		u32 h = p;
+		h ^= h >> 16;
+		h ^= h >> 8;
+		h &= 255;
+
+		if (h == best) {
+			tracker[p]++;
+		}
+	}
+
+	u32 domColor = getLE(0xff000000), domScore = 0;
+
+	for (map<u32, u32>::iterator ii = tracker.begin(); ii != tracker.end(); ++ii) {
+		if (domScore < ii->second) {
+			domScore = ii->second;
+			domColor = ii->first;
+		}
+	}
+
+	return domColor;
 }
 
 int ImageMaskWriter::initFromRGBA(const u8 *rgba, int width, int height, const GCIFKnobs *knobs) {
@@ -475,8 +525,10 @@ int ImageMaskWriter::initFromRGBA(const u8 *rgba, int width, int height, const G
 		return WE_BAD_DIMS;
 	}
 
-	// Init mask bitmatrix
 	_knobs = knobs;
+	_rgba = rgba;
+	_width = width;
+	_height = height;
 
 	int err;
 
