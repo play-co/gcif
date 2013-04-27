@@ -138,11 +138,10 @@ int Masker::initFromRGBA(const u8 *rgba, u32 color, u32 color_mask, int width, i
 	_mask = new u32[_size];
 	_filtered = new u32[_size];
 
-	u32 *writer = _mask;
-
 	// Fill in bitmask
 	int covered = 0;
 	const u32 *pixel = reinterpret_cast<const u32 *>( _rgba );
+	u32 *writer = _mask;
 
 	// For each scanline,
 	for (int y = 0; y < _height; ++y) {
@@ -159,6 +158,8 @@ int Masker::initFromRGBA(const u8 *rgba, u32 color, u32 color_mask, int width, i
 
 			if (++seen >= 32) {
 				*writer++ = bits;
+				seen = 0;
+				bits = 0;
 			}
 
 			++pixel;
@@ -198,6 +199,8 @@ int Masker::initFromRGBA(const u8 *rgba, u32 color, u32 color_mask, int width, i
 #ifdef CAT_COLLECT_STATS
 	Stats.covered = covered;
 #endif // CAT_COLLECT_STATS
+
+	return WE_OK;
 }
 
 static CAT_INLINE void byteEncode(vector<u8> &bytes, u32 data) {
@@ -285,9 +288,11 @@ u32 Masker::simulate() {
 	} else {
 		bits = lzSize * 8;
 	}
+
+	return bits;
 }
 
-void Masker::evaluate() {
+bool Masker::evaluate() {
 #ifdef CAT_COLLECT_STATS
 	Clock *clock = Clock::ref();
 	double t0 = clock->usec();
@@ -327,7 +332,7 @@ void Masker::evaluate() {
 #endif // CAT_COLLECT_STATS
 
 	u32 simulated_bits = simulate();
-	u32 ratio = (simulated_bits / _covered) >> 1; // * (4 / 8)
+	u32 ratio = _covered ? ((simulated_bits / _covered) >> 1) : 0; // * (4 / 8)
 	_enabled = (ratio >= _min_ratio);
 
 #ifdef CAT_COLLECT_STATS
@@ -341,6 +346,8 @@ void Masker::evaluate() {
 	Stats.dataSimulateUsec = t6 - t5;
 	Stats.overallUsec = t6 - t0;
 #endif // CAT_COLLECT_STATS
+
+	return _enabled;
 }
 
 void Masker::writeEncodedLZ(ImageWriter &writer) {
@@ -413,30 +420,34 @@ void Masker::write(ImageWriter &writer) {
 
 	Stats.compressedDataBits = Stats.data_bits + Stats.table_bits;
 	Stats.compressionRatio = Stats.covered * 4 / (double)(Stats.compressedDataBits/8);
-
 #endif // CAT_COLLECT_STATS
 }
 
 #ifdef CAT_COLLECT_STATS
 
 bool Masker::dumpStats() {
-	CAT_INANE("stats") << "(Mask Encoding)     Post-RLE Size : " <<  Stats.rleBytes << " bytes";
-	CAT_INANE("stats") << "(Mask Encoding)      Post-LZ Size : " <<  Stats.lzBytes << " bytes";
-	CAT_INANE("stats") << "(Mask Encoding) Post-Huffman Size : " << (Stats.data_bits + 7) / 8 << " bytes (" << Stats.data_bits << " bits)";
-	CAT_INANE("stats") << "(Mask Encoding)        Table Size : " <<  (Stats.table_bits + 7) / 8 << " bytes (" << Stats.table_bits << " bits)";
+	if (!_enabled) {
+		CAT_INANE("mask") << "Disabled mask encoding.";
+	} else {
+		CAT_INANE("stats") << "(Mask Encoding)     Post-RLE Size : " <<  Stats.rleBytes << " bytes";
+		CAT_INANE("stats") << "(Mask Encoding)      Post-LZ Size : " <<  Stats.lzBytes << " bytes";
+		CAT_INANE("stats") << "(Mask Encoding) Post-Huffman Size : " << (Stats.data_bits + 7) / 8 << " bytes (" << Stats.data_bits << " bits)";
+		CAT_INANE("stats") << "(Mask Encoding)        Table Size : " <<  (Stats.table_bits + 7) / 8 << " bytes (" << Stats.table_bits << " bits)";
 
-	CAT_INANE("stats") << "(Mask Encoding)      Filtering : " <<  Stats.filterUsec << " usec (" << Stats.filterUsec * 100.f / Stats.overallUsec << " %total)";
-	CAT_INANE("stats") << "(Mask Encoding)            RLE : " <<  Stats.rleUsec << " usec (" << Stats.rleUsec * 100.f / Stats.overallUsec << " %total)";
-	CAT_INANE("stats") << "(Mask Encoding)             LZ : " <<  Stats.lzUsec << " usec (" << Stats.lzUsec * 100.f / Stats.overallUsec << " %total)";
-	CAT_INANE("stats") << "(Mask Encoding)      Histogram : " <<  Stats.histogramUsec << " usec (" << Stats.histogramUsec * 100.f / Stats.overallUsec << " %total)";
-	CAT_INANE("stats") << "(Mask Encoding) Generate Table : " <<  Stats.generateTableUsec << " usec (" << Stats.generateTableUsec * 100.f / Stats.overallUsec << " %total)";
-	CAT_INANE("stats") << "(Mask Encoding)   Encode Table : " <<  Stats.tableEncodeUsec << " usec (" << Stats.tableEncodeUsec * 100.f / Stats.overallUsec << " %total)";
-	CAT_INANE("stats") << "(Mask Encoding)    Encode Data : " <<  Stats.dataEncodeUsec << " usec (" << Stats.dataEncodeUsec * 100.f / Stats.overallUsec << " %total)";
-	CAT_INANE("stats") << "(Mask Encoding)        Overall : " <<  Stats.overallUsec << " usec";
+		CAT_INANE("stats") << "(Mask Encoding)      Filtering : " <<  Stats.filterUsec << " usec (" << Stats.filterUsec * 100.f / Stats.overallUsec << " %total)";
+		CAT_INANE("stats") << "(Mask Encoding)            RLE : " <<  Stats.rleUsec << " usec (" << Stats.rleUsec * 100.f / Stats.overallUsec << " %total)";
+		CAT_INANE("stats") << "(Mask Encoding)             LZ : " <<  Stats.lzUsec << " usec (" << Stats.lzUsec * 100.f / Stats.overallUsec << " %total)";
+		CAT_INANE("stats") << "(Mask Encoding)      Histogram : " <<  Stats.histogramUsec << " usec (" << Stats.histogramUsec * 100.f / Stats.overallUsec << " %total)";
+		CAT_INANE("stats") << "(Mask Encoding) Generate Table : " <<  Stats.generateTableUsec << " usec (" << Stats.generateTableUsec * 100.f / Stats.overallUsec << " %total)";
+		CAT_INANE("stats") << "(Mask Encoding)   Encode Table : " <<  Stats.tableEncodeUsec << " usec (" << Stats.tableEncodeUsec * 100.f / Stats.overallUsec << " %total)";
+		CAT_INANE("stats") << "(Mask Encoding)    Encode Data : " <<  Stats.dataEncodeUsec << " usec (" << Stats.dataEncodeUsec * 100.f / Stats.overallUsec << " %total)";
+		CAT_INANE("stats") << "(Mask Encoding)        Overall : " <<  Stats.overallUsec << " usec";
 
-	CAT_INANE("stats") << "(Mask Encoding) Throughput : " << Stats.compressedDataBits/8 / Stats.overallUsec << " MBPS (output bytes)";
+		CAT_INANE("stats") << "(Mask Encoding) Throughput : " << Stats.compressedDataBits/8 / Stats.overallUsec << " MBPS (output bytes)";
+		CAT_INANE("stats") << "(Mask Encoding) Compression ratio : " << Stats.compressionRatio << ":1 (" << Stats.compressedDataBits/8 << " bytes used overall)";
+	}
+
 	CAT_INANE("stats") << "(Mask Encoding) Pixels covered : " << Stats.covered << " (" << Stats.covered * 100. / (_width * _height) << " %total)";
-	CAT_INANE("stats") << "(Mask Encoding) Compression ratio : " << Stats.compressionRatio << ":1 (" << Stats.compressedDataBits/8 << " bytes used overall)";
 
 	return true;
 }
@@ -464,8 +475,6 @@ int ImageMaskWriter::initFromRGBA(const u8 *rgba, int width, int height, const G
 
 	// Init mask bitmatrix
 	_knobs = knobs;
-	_width = width;
-	_height = height;
 
 	int err;
 
@@ -488,9 +497,15 @@ int ImageMaskWriter::initFromRGBA(const u8 *rgba, int width, int height, const G
 
 void ImageMaskWriter::write(ImageWriter &writer) {
 	_alpha.evaluate();
-	_color.evaluate();
+	if (_color.evaluate()) {
+		writer.writeWord(_color.getColor());
+	}
 
 	_alpha.write(writer);
 	_color.write(writer);
+
+#ifdef CAT_COLLECT_STATS
+	Stats.compressedDataBits = _alpha.Stats.compressedDataBits + _color.Stats.compressedDataBits;
+#endif // CAT_COLLECT_STATS
 }
 

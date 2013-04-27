@@ -123,11 +123,15 @@ public:
 		clear();
 	}
 
+	CAT_INLINE u32 getColor() {
+		return _color;
+	}
+
 	// Create mask
 	int initFromRGBA(const u8 *rgba, u32 color, u32 color_mask, int width, int height, const GCIFKnobs *knobs, int min_ratio);
 
 	// Evaluate compression ratio
-	void evaluate();
+	bool evaluate();
 
 	// Write result
 	void write(ImageWriter &writer);
@@ -158,9 +162,6 @@ public:
 class ImageMaskWriter {
 	const GCIFKnobs *_knobs;
 
-	const u8 *_rgba;
-	int _width, _height;
-
 	Masker _alpha, _color;
 
 	u32 dominantColor();
@@ -168,6 +169,7 @@ class ImageMaskWriter {
 #ifdef CAT_COLLECT_STATS
 public:
 	struct _Stats {
+		int compressedDataBits;
 		double overallUsec;
 	} Stats;
 #endif // CAT_COLLECT_STATS
