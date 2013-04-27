@@ -461,50 +461,20 @@ bool Masker::dumpStats() {
 //// ImageMaskWriter
 
 u32 ImageMaskWriter::dominantColor() {
-	// Generate histogram to reduce data set
-	u32 hist[256];
+	map<u32, u32> tracker;
+
+	// Histogram all image colors
 	const u32 *pixel = reinterpret_cast<const u32 *>( _rgba );
 	int count = _width * _height;
 	while (count--) {
 		u32 p = *pixel++;
-
-		p ^= p >> 16;
-		p ^= p >> 8;
-
-		hist[p & 255]++;
-	}
-
-	// Find largest bin to track
-	u32 best = 0, best_score = hist[0];
-	for (int ii = 1; ii < 256; ++ii) {
-		u32 x = hist[ii];
-
-		if (best_score < x) {
-			best_score = x;
-			best = ii;
-		}
-	}
-
-	map<u32, u32> tracker;
-
-	// Tease out the best color
-	pixel = reinterpret_cast<const u32 *>( _rgba );
-	count = _width * _height;
-	while (count--) {
-		u32 p = *pixel++;
-
-		u32 h = p;
-		h ^= h >> 16;
-		h ^= h >> 8;
-		h &= 255;
-
-		if (h == best) {
+		if ((getLE(p) & 0xff000000) != 0) {
 			tracker[p]++;
 		}
 	}
 
+	// Determine dominant color
 	u32 domColor = getLE(0xff000000), domScore = 0;
-
 	for (map<u32, u32>::iterator ii = tracker.begin(); ii != tracker.end(); ++ii) {
 		if (domScore < ii->second) {
 			domScore = ii->second;
