@@ -216,7 +216,7 @@ public:
 	 *
 	 * Used for representing runs of zeroes in the entropy encoder
 	 */
-	static CAT_INLINE int write255255(u32 run) {
+	CAT_INLINE int write255255(u32 run) {
 		int bits = 0;
 
 		// If multiple FF bytes will be emitted,

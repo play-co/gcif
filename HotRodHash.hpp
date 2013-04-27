@@ -98,8 +98,8 @@ public:
  * HotRodHash - Based on MurmurHash3
  *
  * This hash isn't going to pass any tests.  It's designed to allow for
- * fast operation on ARM platforms.  This is a hotrodded version of the
- * MurmurHash3 algorithm to be used for file validation only.
+ * fast operation on ARM platforms.  This is a hot-rodded version of the
+ * MurmurHash3 algorithm to be used for fast file validation only.
  */
 class HotRodHash {
 	static const u32 c1 = 0xcc9e2d51;

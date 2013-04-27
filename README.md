@@ -20,8 +20,9 @@ being called version 1.0.  Only a few images cause crashes or other issues.
 Early test results indicate that GCIF files are ~60% the size of PNG sprites,
 and the decompression speed is comparable or better than libpng.
 
-The compression rate for this speed reaches for the Pareto frontier for
-lossless image compression without using any multithreading.
+The compression ratio for this speed reaches for the Pareto frontier for
+lossless image compression without using any multithreading, though it is a
+thread-safe codebase, allowing you to decode several images in parallel.
 
 The code is well-written in our opinion, easy to read and adapt, and easy to
 incorporate into mobile development.

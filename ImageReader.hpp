@@ -161,17 +161,17 @@ public:
 	 * Used for encoding runs of zeroes in the entropy encoder
 	 */
 	CAT_INLINE u32 read255255() {
-		u32 run = reader.readBits(8), s;
+		u32 run = readBits(8), s;
 
 		// If another byte is expected,
 		if (run == 255) {
-			s = reader.readBits(8);
+			s = readBits(8);
 			run += s;
 
 			// If the remaining data is in 16-bit words,
 			if (s == 255) {
 				do {
-					s = reader.readBits(16);
+					s = readBits(16);
 					run += s;
 				} while (s == 65535); // HuffmanDecoder emits 0 on EOF
 			}
