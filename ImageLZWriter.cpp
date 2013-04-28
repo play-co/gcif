@@ -403,8 +403,11 @@ void ImageLZWriter::write(ImageWriter &writer) {
 	if (!compressing) {
 		u16 last_dx = 0, last_dy = 0;
 
+		int bits = 0;
 		for (int ii = 0; ii < match_count; ++ii) {
 			Match *m = &_exact_matches[ii];
+
+			//CAT_WARN("LZ") << m->sx << ", " << m->sy << " -> " << m->dx << ", " << m->dy << " [" << (m->w + ZONEW) << ", " << (m->h + ZONEH) << "]";
 
 			// Apply some context modeling for better compression
 			u16 edx = m->dx;
@@ -414,15 +417,19 @@ void ImageLZWriter::write(ImageWriter &writer) {
 				edx -= last_dx;
 			}
 
-			writer.write9(m->sx);
-			writer.write9(esy);
-			writer.write9(edx);
-			writer.write9(edy);
+			bits += writer.write9(m->sx);
+			bits += writer.write9(esy);
+			bits += writer.write9(edx);
+			bits += writer.write9(edy);
 			writer.writeBits(m->w, 8);
 			writer.writeBits(m->h, 8);
+			bits += 8+8;
+
+			last_dx = m->dx;
+			last_dy = m->dy;
 		}
 #ifdef CAT_COLLECT_STATS
-		Stats.huff_bits = (32+32+16) * match_count + 16;
+		Stats.huff_bits = bits + 1 + 16;
 		Stats.covered_percent = Stats.covered * 100. / (double)(_width * _height);
 		Stats.bytes_saved = Stats.covered * 4;
 		Stats.bytes_overhead = Stats.huff_bits / 8;
@@ -465,7 +472,7 @@ void ImageLZWriter::write(ImageWriter &writer) {
 
 	encoder.finalize();
 
-	int bits = encoder.writeTables(writer) + 16;
+	int bits = encoder.writeTables(writer) + 1 + 16;
 
 	// Reset last for encoding
 	last_dx = 0;

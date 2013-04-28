@@ -288,6 +288,7 @@ static int benchmark(const char *path) {
 
 	for (int ii = 0; ii < cpu_count; ++ii) {
 		threads[ii].shutdown();
+		threads[ii].wake();
 	}
 
 	for (int ii = 0; ii < cpu_count; ++ii) {

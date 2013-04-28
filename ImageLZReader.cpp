@@ -77,6 +77,7 @@ int ImageLZReader::readHuffmanTable(ImageReader &reader) {
 
 	// If invalid data,
 	if (match_count > MAX_ZONE_COUNT) {
+		CAT_DEBUG_EXCEPTION();
 		return RE_LZ_CODES;
 	}
 
@@ -84,6 +85,7 @@ int ImageLZReader::readHuffmanTable(ImageReader &reader) {
 	if ((_using_decoder = reader.readBit())) {
 		// If not able to init Huffman decoder
 		if (!_decoder.init(reader)) {
+			CAT_DEBUG_EXCEPTION();
 			return RE_LZ_CODES;
 		}
 	}
@@ -126,18 +128,23 @@ int ImageLZReader::readZones(ImageReader &reader) {
 			z->w = reader.readBits(8) + ZONEW;
 			z->h = reader.readBits(8) + ZONEH;
 
+			//CAT_WARN("LZ") << sx << ", " << sy << " -> " << dx << ", " << dy << " [" << z->w << ", " << z->h << "]";
+
 			// Input security checks
 			if (sy > dy || (sy == dy && sx >= dx)) {
+				CAT_DEBUG_EXCEPTION();
 				return RE_LZ_BAD;
 			}
 
 			if ((u32)sx + (u32)z->w > (u32)_width ||
 					(u32)sy + (u32)z->h > (u32)_height) {
+				CAT_DEBUG_EXCEPTION();
 				return RE_LZ_BAD;
 			}
 
 			if ((u32)z->dx + (u32)z->w > (u32)_width ||
 					(u32)z->dy + (u32)z->h > (u32)_height) {
+				CAT_DEBUG_EXCEPTION();
 				return RE_LZ_BAD;
 			}
 
@@ -146,6 +153,7 @@ int ImageLZReader::readZones(ImageReader &reader) {
 		}
 
 		if (reader.eof()) {
+			CAT_DEBUG_EXCEPTION();
 			return RE_LZ_BAD;
 		}
 
@@ -182,8 +190,6 @@ int ImageLZReader::readZones(ImageReader &reader) {
 		dy += last_dy;
 		sy = dy - sy;
 
-		//CAT_WARN("LZ") << sx << ", " << sy << " -> " << dx << ", " << dy << " [" << z->w << ", " << z->h << "]";
-
 		z->sox = (s16)sx - (s16)dx;
 		z->soy = (s16)sy - (s16)dy;
 		z->dx = dx;
@@ -191,16 +197,19 @@ int ImageLZReader::readZones(ImageReader &reader) {
 
 		// Input security checks
 		if (sy > dy || (sy == dy && sx >= dx)) {
+			CAT_DEBUG_EXCEPTION();
 			return RE_LZ_BAD;
 		}
 
 		if ((u32)sx + (u32)z->w > (u32)_width ||
 			(u32)sy + (u32)z->h > (u32)_height) {
+			CAT_DEBUG_EXCEPTION();
 			return RE_LZ_BAD;
 		}
 
 		if ((u32)z->dx + (u32)z->w > (u32)_width ||
 			(u32)z->dy + (u32)z->h > (u32)_height) {
+			CAT_DEBUG_EXCEPTION();
 			return RE_LZ_BAD;
 		}
 
@@ -210,6 +219,7 @@ int ImageLZReader::readZones(ImageReader &reader) {
 
 	// If file truncated,
 	if (reader.eof()) {
+		CAT_DEBUG_EXCEPTION();
 		return RE_LZ_CODES;
 	}
 
