@@ -33,7 +33,7 @@ namespace cat {
 
 
 // Enable statistics collection
-#define CAT_COLLECT_STATS
+//#define CAT_COLLECT_STATS
 
 // Bloat the file size a lot to check for desynchronization points in decoder
 //#define CAT_DESYNCH_CHECKS
@@ -42,23 +42,13 @@ namespace cat {
 // neither exported or imported.
 #define CAT_NEUTER_EXPORT
 
-// Define this to greatly weaken the Fortuna implementation, but consume much less CPU.
-// Only disable this if you are serious about security of the implementation at expense of performance.
-#define CAT_NO_ENTROPY_THREAD
-
 // This definition changes the meaning of the CAT_EXPORT macro on Windows.  When defined,
 // the CAT_EXPORT macro will export the associated symbol.  When undefined, it will import it.
 //#define CAT_BUILD_DLL
 
-// If you want to remove server-side code from a binary distribution of a client program:
-//#define CAT_OMIT_SERVER_CODE
-
 // If you know the endianness of your target, uncomment one of these for better performance.
 //#define CAT_ENDIAN_BIG
 //#define CAT_ENDIAN_LITTLE
-
-// If you want to use faster 384-bit or 512-bit math, define this:
-//#define CAT_UNROLL_OVER_256_BITS
 
 // Adjust if your architecture uses larger than 128-byte cache line
 #define CAT_DEFAULT_CACHE_LINE_SIZE 128
@@ -68,45 +58,10 @@ namespace cat {
 #define CAT_DEFAULT_SECTOR_SIZE 512
 
 // Enable leak debug mode of the common runtime heap allocator
-#define CAT_DEBUG_LEAKS
-
-// Enable RefObject debug trace mode
-//#define CAT_TRACE_REFOBJECT
-
-// Enable event re-ordering for better batching in WorkerThreads
-#define CAT_WORKER_THREADS_REORDER_EVENTS
-
-// Dump extra settings information to the console for debugging
-#define CAT_SETTINGS_VERBOSE
-
-// Specify which file to use for persisting settings between sessions
-#if !defined(CAT_SETTINGS_FILE)
-#define CAT_SETTINGS_FILE "Settings.cfg"
-#endif
-#if !defined(CAT_SETTINGS_OVERRIDE_FILE)
-#define CAT_SETTINGS_OVERRIDE_FILE "Override.cfg"
-#endif
-
-// Enable Ragdoll-based files to store empty keys
-#define CAT_RAGDOLL_STORE_EMPTY
-
-// Enable multi-threaded version of the logger, which reduces latency
-//#define CAT_THREADED_LOGGER
-
-// Enable Re-use UDP Send Allocator
-#define CAT_UDP_SEND_ALLOCATOR
-
-// When not in debug mode, enable/disable levels of logging
-//#define CAT_RELEASE_DISABLE_INANE
-//#define CAT_RELEASE_DISABLE_INFO
-//#define CAT_RELEASE_DISABLE_WARN
-//#define CAT_RELEASE_DISABLE_OOPS
-//#define CAT_RELEASE_DISABLE_FATAL
-
-// Define this to enable auditing of data security code
-//#define CAT_AUDIT
+//#define CAT_DEBUG_LEAKS
 
 
 } // namespace cat
 
 #endif // CAT_CONFIG_HPP
+

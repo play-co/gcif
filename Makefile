@@ -21,25 +21,29 @@ gcif_objects += GCIFReader.o GCIFWriter.o EntropyEstimator.o WaitableFlag.o
 
 # List of source files
 
-SRCS = gcif.cpp lodepng.cpp Log.cpp Mutex.cpp Clock.cpp Thread.cpp
-SRCS += EndianNeutral.cpp lz4.c lz4hc.c HuffmanDecoder.cpp HuffmanEncoder.cpp
-SRCS += MappedFile.cpp SystemInfo.cpp HotRodHash.cpp ImageWriter.cpp
-SRCS += ImageReader.cpp ImageMaskWriter.cpp ImageMaskReader.cpp
-SRCS += ImageCMWriter.cpp FilterScorer.cpp Filters.cpp
-SRCS += ImageLZWriter.cpp ImageLZReader.cpp ImageCMReader.cpp
-SRCS += GCIFReader.cpp GCIFWriter.cpp EntropyEstimator.cpp WaitableFlag.cpp
+SRCS = ./gcif.cpp encoder/lodepng.cpp encoder/Log.cpp encoder/Mutex.cpp
+SRCS += encoder/Clock.cpp encoder/Thread.cpp decoder/EndianNeutral.cpp
+SRCS += decoder/lz4.c encoder/lz4hc.c decoder/HuffmanDecoder.cpp
+SRCS += encoder/HuffmanEncoder.cpp decoder/MappedFile.cpp
+SRCS += decoder/SystemInfo.cpp HotRodHash.cpp encoder/ImageWriter.cpp
+SRCS += decoder/ImageReader.cpp encoder/ImageMaskWriter.cpp
+SRCS += decoder/ImageMaskReader.cpp encoder/ImageCMWriter.cpp
+SRCS += encoder/FilterScorer.cpp decoder/Filters.cpp
+SRCS += encoder/ImageLZWriter.cpp decoder/ImageLZReader.cpp
+SRCS += decoder/ImageCMReader.cpp decoder/GCIFReader.cpp encoder/GCIFWriter.cpp
+SRCS += encoder/EntropyEstimator.cpp encoder/WaitableFlag.cpp
 #SRCS += ImageLPReader.cpp ImageLPWriter.cpp
 
 
 # Release target (default)
 
-release : CFLAGS += -O4
+release : CFLAGS += -O4 -DCAT_COLLECT_STATS
 release : gcif
 
 
 # Debug target
 
-debug : CFLAGS += -g -O0 -DDEBUG
+debug : CFLAGS += -g -O0 -DDEBUG -DCAT_COLLECT_STATS
 debug : gcif
 
 
@@ -51,89 +55,89 @@ gcif : $(gcif_objects)
 
 # Application files
 
-gcif.o : gcif.cpp
-	$(CCPP) $(CPFLAGS) -c gcif.cpp
+gcif.o : ./gcif.cpp
+	$(CCPP) $(CPFLAGS) -c ./gcif.cpp
 
-lodepng.o : lodepng.cpp
-	$(CCPP) $(CPFLAGS) -c lodepng.cpp
+lodepng.o : encoder/lodepng.cpp
+	$(CCPP) $(CPFLAGS) -c encoder/lodepng.cpp
 
-lz4.o : lz4.c
-	$(CC) $(CCFLAGS) -c lz4.c
+lz4.o : decoder/lz4.c
+	$(CC) $(CCFLAGS) -c decoder/lz4.c
 
-lz4hc.o : lz4hc.c
-	$(CC) $(CCFLAGS) -c lz4hc.c
+lz4hc.o : encoder/lz4hc.c
+	$(CC) $(CCFLAGS) -c encoder/lz4hc.c
 
-Log.o : Log.cpp
-	$(CCPP) $(CPFLAGS) -c Log.cpp
+Log.o : encoder/Log.cpp
+	$(CCPP) $(CPFLAGS) -c encoder/Log.cpp
 
-Mutex.o : Mutex.cpp
-	$(CCPP) $(CPFLAGS) -c Mutex.cpp
+Mutex.o : encoder/Mutex.cpp
+	$(CCPP) $(CPFLAGS) -c encoder/Mutex.cpp
 
-Clock.o : Clock.cpp
-	$(CCPP) $(CPFLAGS) -c Clock.cpp
+Clock.o : encoder/Clock.cpp
+	$(CCPP) $(CPFLAGS) -c encoder/Clock.cpp
 
-Thread.o : Thread.cpp
-	$(CCPP) $(CPFLAGS) -c Thread.cpp
+Thread.o : encoder/Thread.cpp
+	$(CCPP) $(CPFLAGS) -c encoder/Thread.cpp
 
-MappedFile.o : MappedFile.cpp
-	$(CCPP) $(CPFLAGS) -c MappedFile.cpp
+MappedFile.o : decoder/MappedFile.cpp
+	$(CCPP) $(CPFLAGS) -c decoder/MappedFile.cpp
 
-SystemInfo.o : SystemInfo.cpp
-	$(CCPP) $(CPFLAGS) -c SystemInfo.cpp
+SystemInfo.o : decoder/SystemInfo.cpp
+	$(CCPP) $(CPFLAGS) -c decoder/SystemInfo.cpp
 
-EndianNeutral.o : EndianNeutral.cpp
-	$(CCPP) $(CPFLAGS) -c EndianNeutral.cpp
+EndianNeutral.o : decoder/EndianNeutral.cpp
+	$(CCPP) $(CPFLAGS) -c decoder/EndianNeutral.cpp
 
-HuffmanDecoder.o : HuffmanDecoder.cpp
-	$(CCPP) $(CPFLAGS) -c HuffmanDecoder.cpp
+HuffmanDecoder.o : decoder/HuffmanDecoder.cpp
+	$(CCPP) $(CPFLAGS) -c decoder/HuffmanDecoder.cpp
 
-HuffmanEncoder.o : HuffmanEncoder.cpp
-	$(CCPP) $(CPFLAGS) -c HuffmanEncoder.cpp
+HuffmanEncoder.o : encoder/HuffmanEncoder.cpp
+	$(CCPP) $(CPFLAGS) -c encoder/HuffmanEncoder.cpp
 
-HotRodHash.o : HotRodHash.cpp
-	$(CCPP) $(CPFLAGS) -c HotRodHash.cpp
+HotRodHash.o : decoder/HotRodHash.cpp
+	$(CCPP) $(CPFLAGS) -c decoder/HotRodHash.cpp
 
-ImageReader.o : ImageReader.cpp
-	$(CCPP) $(CPFLAGS) -c ImageReader.cpp
+ImageReader.o : decoder/ImageReader.cpp
+	$(CCPP) $(CPFLAGS) -c decoder/ImageReader.cpp
 
-ImageWriter.o : ImageWriter.cpp
-	$(CCPP) $(CPFLAGS) -c ImageWriter.cpp
+ImageWriter.o : encoder/ImageWriter.cpp
+	$(CCPP) $(CPFLAGS) -c encoder/ImageWriter.cpp
 
-ImageMaskReader.o : ImageMaskReader.cpp
-	$(CCPP) $(CPFLAGS) -c ImageMaskReader.cpp
+ImageMaskReader.o : decoder/ImageMaskReader.cpp
+	$(CCPP) $(CPFLAGS) -c decoder/ImageMaskReader.cpp
 
-ImageMaskWriter.o : ImageMaskWriter.cpp
-	$(CCPP) $(CPFLAGS) -c ImageMaskWriter.cpp
+ImageMaskWriter.o : encoder/ImageMaskWriter.cpp
+	$(CCPP) $(CPFLAGS) -c encoder/ImageMaskWriter.cpp
 
-ImageCMWriter.o : ImageCMWriter.cpp
-	$(CCPP) $(CPFLAGS) -c ImageCMWriter.cpp
+ImageCMWriter.o : encoder/ImageCMWriter.cpp
+	$(CCPP) $(CPFLAGS) -c encoder/ImageCMWriter.cpp
 
-FilterScorer.o : FilterScorer.cpp
-	$(CCPP) $(CPFLAGS) -c FilterScorer.cpp
+FilterScorer.o : encoder/FilterScorer.cpp
+	$(CCPP) $(CPFLAGS) -c encoder/FilterScorer.cpp
 
-Filters.o : Filters.cpp
-	$(CCPP) $(CPFLAGS) -c Filters.cpp
+Filters.o : decoder/Filters.cpp
+	$(CCPP) $(CPFLAGS) -c decoder/Filters.cpp
 
-ImageLZWriter.o : ImageLZWriter.cpp
-	$(CCPP) $(CPFLAGS) -c ImageLZWriter.cpp
+ImageLZWriter.o : encoder/ImageLZWriter.cpp
+	$(CCPP) $(CPFLAGS) -c encoder/ImageLZWriter.cpp
 
-ImageLZReader.o : ImageLZReader.cpp
-	$(CCPP) $(CPFLAGS) -c ImageLZReader.cpp
+ImageLZReader.o : decoder/ImageLZReader.cpp
+	$(CCPP) $(CPFLAGS) -c decoder/ImageLZReader.cpp
 
-ImageCMReader.o : ImageCMReader.cpp
-	$(CCPP) $(CPFLAGS) -c ImageCMReader.cpp
+ImageCMReader.o : decoder/ImageCMReader.cpp
+	$(CCPP) $(CPFLAGS) -c decoder/ImageCMReader.cpp
 
-GCIFReader.o : GCIFReader.cpp
-	$(CCPP) $(CPFLAGS) -c GCIFReader.cpp
+GCIFReader.o : decoder/GCIFReader.cpp
+	$(CCPP) $(CPFLAGS) -c decoder/GCIFReader.cpp
 
-GCIFWriter.o : GCIFWriter.cpp
-	$(CCPP) $(CPFLAGS) -c GCIFWriter.cpp
+GCIFWriter.o : encoder/GCIFWriter.cpp
+	$(CCPP) $(CPFLAGS) -c encoder/GCIFWriter.cpp
 
-EntropyEstimator.o : EntropyEstimator.cpp
-	$(CCPP) $(CPFLAGS) -c EntropyEstimator.cpp
+EntropyEstimator.o : encoder/EntropyEstimator.cpp
+	$(CCPP) $(CPFLAGS) -c encoder/EntropyEstimator.cpp
 
-WaitableFlag.o : WaitableFlag.cpp
-	$(CCPP) $(CPFLAGS) -c WaitableFlag.cpp
+WaitableFlag.o : encoder/WaitableFlag.cpp
+	$(CCPP) $(CPFLAGS) -c encoder/WaitableFlag.cpp
 
 #ImageLPWriter.o : ImageLPWriter.cpp
 #	$(CCPP) $(CPFLAGS) -c ImageLPWriter.cpp
