@@ -34,7 +34,7 @@
 #include "Filters.hpp"
 
 /*
- * Game Closure Fully-Transparent Alpha Mask Decompression
+ * Game Closure Dominant Color Mask Decompression
  */
 
 namespace cat {
@@ -88,7 +88,8 @@ public:
 
 	int read(ImageReader &reader);
 
-	int nextScanline();
+	// Returns bitmask for scanline, MSB = first pixel
+	const u32 *nextScanline();
 
 	CAT_INLINE bool enabled() {
 		return _enabled;
@@ -96,11 +97,6 @@ public:
 
 	CAT_INLINE u32 getColor() {
 		return _color;
-	}
-
-	CAT_INLINE bool masked(int x) {
-		const u32 word = _mask[x >> 5];
-		return ((word >> (31 - (x & 31))) & 1) != 0;
 	}
 
 #ifdef CAT_COLLECT_STATS

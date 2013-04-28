@@ -195,9 +195,9 @@ int ImageMaskReader::read(ImageReader &reader) {
 	return GCIF_RE_OK;
 }
 
-int ImageMaskReader::nextScanline() {
+const u32 *ImageMaskReader::nextScanline() {
 	if (!_enabled) {
-		return GCIF_RE_OK;
+		return _mask;
 	}
 
 	// Read RLE symbol count
@@ -227,190 +227,185 @@ int ImageMaskReader::nextScanline() {
 			}
 		}
 		// Otherwise: Row is a copy of previous
+	} else {
+		// If first row,
+		int bitOn = 0;
+		if (_scanline_y == 0) {
+			// Set up specially
+			row[0] = 0;
+			bitOn = 1;
+		}
 
-		_rle_remaining = rle_remaining;
-		_rle_next = rle;
-		++_scanline_y;
-		return GCIF_RE_OK;
-	}
+		// Read this scanline
+		int bitOffset = 0;
+		int lastSum = 0;
+		int sum = 0;
 
-	// If first row,
-	int bitOn = 0;
-	if (_scanline_y == 0) {
-		// Set up specially
-		row[0] = 0;
-		bitOn = 1;
-	}
+		while (rle_remaining-- > 0) {
+			u8 sym = *rle++;
+			sum += sym;
 
-	// Read this scanline
-	int bitOffset = 0;
-	int lastSum = 0;
-	int sum = 0;
-
-	while (rle_remaining-- > 0) {
-		u8 sym = *rle++;
-		sum += sym;
-
-		// If sum is complete,
-		if (sym < 255) {
-			int wordOffset = bitOffset >> 5;
-			int newBitOffset = bitOffset + sum;
-			int newOffset = newBitOffset >> 5;
-			int shift = 31 - (newBitOffset & 31);
-
-			// If new write offset is outside of the mask,
-			if (newOffset >= _stride) {
-				CAT_DEBUG_EXCEPTION();
-				return GCIF_RE_MASK_LZ;
-			}
-
-			// If at the first row,
-			if (_scanline_y == 0) {
-				/*
-				 * First row is handled specially:
-				 *
-				 * For each input X:
-				 * 1. Write out X bits of current state
-				 * 2. Flip the state
-				 * 3. Then write out one bit of the new state
-				 * When out of input, pad to the end with current state
-				 *
-				 * Demo:
-				 *
-				 * (1) 1 0 1 0 0 0 1 1 1
-				 *     0 1 1 1 0 0 1 0 0
-				 * {1, 0, 0, 2}
-				 * --> 1 0 1 0 0 0 1 1 1
-				 */
-
-				// If previous state was 0,
-				if (bitOn ^= 1) {
-					// Fill bottom bits with 0s (do nothing)
-
-					// For each intervening word and new one,
-					for (int ii = wordOffset + 1; ii < newOffset; ++ii) {
-						row[ii] = 0;
-					}
-
-					// Write a 1 at the new location
-					row[newOffset] = 1 << shift;
-				} else {
-					u32 bitsUsedMask = 0xffffffff >> (bitOffset & 31);
-
-					if (newOffset <= wordOffset) {
-						row[newOffset] |= bitsUsedMask & (0xfffffffe << shift);
-					} else {
-						// Fill bottom bits with 1s
-						row[wordOffset] |= bitsUsedMask;
-
-						// For each intervening word,
-						for (int ii = wordOffset + 1; ii < newOffset; ++ii) {
-							row[ii] = 0xffffffff;
-						}
-
-						// Set 1s for new word, ending with a 0
-						row[newOffset] = 0xfffffffe << shift;
-					}
-				}
-			} else {
-				/*
-				 * 0011110100
-				 * 0011001100
-				 * {2,0,2,0}
-				 * 0011110100
-				 *
-				 * 0111110100
-				 * 1,0,0,0,0,1
-				 * 0110110
-				 *
-				 * Same as first row except only flip on when we get X = 0
-				 * And we will XOR with previous row
-				 */
-
-				// If previous state was toggled on,
-				if (bitOn) {
-					u32 bitsUsedMask = 0xffffffff >> (bitOffset & 31);
-
-					if (newOffset <= wordOffset) {
-						row[newOffset] ^= bitsUsedMask & (0xfffffffe << shift);
-					} else {
-						// Fill bottom bits with 1s
-						row[wordOffset] ^= bitsUsedMask;
-
-						// For each intervening word,
-						for (int ii = wordOffset + 1; ii < newOffset; ++ii) {
-							row[ii] ^= 0xffffffff;
-						}
-
-						// Set 1s for new word, ending with a 0
-						row[newOffset] ^= (0xfffffffe << shift);
-					}
-
-					bitOn ^= 1;
-					lastSum = 0;
-				} else {
-					// Fill bottom bits with 0s (do nothing)
-
-					row[newOffset] ^= (1 << shift);
-
-					if (sum == 0 && lastSum) {
-						bitOn ^= 1;
-					}
-					lastSum = 1;
-				}
-			}
-
-			bitOffset += sum + 1;
-
-			// If just finished this row,
-			if (--sym_count <= 0) {
+			// If sum is complete,
+			if (sym < 255) {
 				int wordOffset = bitOffset >> 5;
+				int newBitOffset = bitOffset + sum;
+				int newOffset = newBitOffset >> 5;
+				int shift = 31 - (newBitOffset & 31);
 
-				if CAT_LIKELY(_scanline_y > 0) {
-					// If last bit written was 1,
-					if (bitOn) {
-						// Fill bottom bits with 1s
+				// If new write offset is outside of the mask,
+				if (newOffset >= _stride) {
+					// Done
+					break;
+				}
 
-						row[wordOffset] ^= 0xffffffff >> (bitOffset & 31);
+				// If at the first row,
+				if (_scanline_y == 0) {
+					/*
+					 * First row is handled specially:
+					 *
+					 * For each input X:
+					 * 1. Write out X bits of current state
+					 * 2. Flip the state
+					 * 3. Then write out one bit of the new state
+					 * When out of input, pad to the end with current state
+					 *
+					 * Demo:
+					 *
+					 * (1) 1 0 1 0 0 0 1 1 1
+					 *     0 1 1 1 0 0 1 0 0
+					 * {1, 0, 0, 2}
+					 * --> 1 0 1 0 0 0 1 1 1
+					 */
 
-						// For each remaining word,
-						for (int ii = wordOffset + 1, iilen = _stride; ii < iilen; ++ii) {
-							row[ii] ^= 0xffffffff;
+					// If previous state was 0,
+					if (bitOn ^= 1) {
+						// Fill bottom bits with 0s (do nothing)
+
+						// For each intervening word and new one,
+						for (int ii = wordOffset + 1; ii < newOffset; ++ii) {
+							row[ii] = 0;
+						}
+
+						// Write a 1 at the new location
+						row[newOffset] = 1 << shift;
+					} else {
+						u32 bitsUsedMask = 0xffffffff >> (bitOffset & 31);
+
+						if (newOffset <= wordOffset) {
+							row[newOffset] |= bitsUsedMask & (0xfffffffe << shift);
+						} else {
+							// Fill bottom bits with 1s
+							row[wordOffset] |= bitsUsedMask;
+
+							// For each intervening word,
+							for (int ii = wordOffset + 1; ii < newOffset; ++ii) {
+								row[ii] = 0xffffffff;
+							}
+
+							// Set 1s for new word, ending with a 0
+							row[newOffset] = 0xfffffffe << shift;
 						}
 					}
 				} else {
-					// If last bit written was 1,
-					if (bitOn) {
-						// Fill bottom bits with 1s
-						row[wordOffset] |= 0xffffffff >> (bitOffset & 31);
+					/*
+					 * 0011110100
+					 * 0011001100
+					 * {2,0,2,0}
+					 * 0011110100
+					 *
+					 * 0111110100
+					 * 1,0,0,0,0,1
+					 * 0110110
+					 *
+					 * Same as first row except only flip on when we get X = 0
+					 * And we will XOR with previous row
+					 */
 
-						// For each remaining word,
-						for (int ii = wordOffset + 1, iilen = _stride; ii < iilen; ++ii) {
-							row[ii] = 0xffffffff;
+					// If previous state was toggled on,
+					if (bitOn) {
+						u32 bitsUsedMask = 0xffffffff >> (bitOffset & 31);
+
+						if (newOffset <= wordOffset) {
+							row[newOffset] ^= bitsUsedMask & (0xfffffffe << shift);
+						} else {
+							// Fill bottom bits with 1s
+							row[wordOffset] ^= bitsUsedMask;
+
+							// For each intervening word,
+							for (int ii = wordOffset + 1; ii < newOffset; ++ii) {
+								row[ii] ^= 0xffffffff;
+							}
+
+							// Set 1s for new word, ending with a 0
+							row[newOffset] ^= (0xfffffffe << shift);
 						}
+
+						bitOn ^= 1;
+						lastSum = 0;
 					} else {
 						// Fill bottom bits with 0s (do nothing)
 
-						// For each remaining word,
-						for (int ii = wordOffset + 1, iilen = _stride; ii < iilen; ++ii) {
-							row[ii] = 0;
+						row[newOffset] ^= (1 << shift);
+
+						if (sum == 0 && lastSum) {
+							bitOn ^= 1;
 						}
+						lastSum = 1;
 					}
 				}
 
-				_rle_remaining = rle_remaining;
-				_rle_next = rle;
-				++_scanline_y;
-				return GCIF_RE_OK;
-			}
+				bitOffset += sum + 1;
 
-			// Reset sum
-			sum = 0;
+				// If just finished this row,
+				if (--sym_count <= 0) {
+					int wordOffset = bitOffset >> 5;
+
+					if CAT_LIKELY(_scanline_y > 0) {
+						// If last bit written was 1,
+						if (bitOn) {
+							// Fill bottom bits with 1s
+
+							row[wordOffset] ^= 0xffffffff >> (bitOffset & 31);
+
+							// For each remaining word,
+							for (int ii = wordOffset + 1, iilen = _stride; ii < iilen; ++ii) {
+								row[ii] ^= 0xffffffff;
+							}
+						}
+					} else {
+						// If last bit written was 1,
+						if (bitOn) {
+							// Fill bottom bits with 1s
+							row[wordOffset] |= 0xffffffff >> (bitOffset & 31);
+
+							// For each remaining word,
+							for (int ii = wordOffset + 1, iilen = _stride; ii < iilen; ++ii) {
+								row[ii] = 0xffffffff;
+							}
+						} else {
+							// Fill bottom bits with 0s (do nothing)
+
+							// For each remaining word,
+							for (int ii = wordOffset + 1, iilen = _stride; ii < iilen; ++ii) {
+								row[ii] = 0;
+							}
+						}
+					}
+
+					// Done
+					break;
+				}
+
+				// Reset sum
+				sum = 0;
+			}
 		}
 	}
 
-	CAT_DEBUG_EXCEPTION();
-	return GCIF_RE_MASK_LZ;
+	_rle_remaining = rle_remaining;
+	_rle_next = rle;
+	++_scanline_y;
+	return _mask;
 }
 
 
@@ -430,4 +425,3 @@ bool ImageMaskReader::dumpStats() {
 }
 
 #endif // CAT_COLLECT_STATS
-

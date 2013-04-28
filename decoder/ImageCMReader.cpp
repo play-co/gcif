@@ -191,10 +191,6 @@ int ImageCMReader::readChaosTables(ImageReader &reader) {
 int ImageCMReader::readPixels(ImageReader &reader) {
 	const int width = _width;
 
-	CAT_DEBUG_ENFORCE(MASK_COUNT == 2); // Unrolled in here
-	CAT_DEBUG_ENFORCE(!_masks[0].enabled() || _masks[0].getColor() == 0);
-	CAT_DEBUG_ENFORCE(!_masks[1].enabled() || _masks[1].getColor() != 0);
-
 	// Get initial triggers
 	u16 trigger_x_lz = _lz->getTriggerX();
 
@@ -219,7 +215,10 @@ int ImageCMReader::readPixels(ImageReader &reader) {
 		// Clear filters data
 		CAT_CLR(_filters, _filters_bytes);
 
-		_mask->nextScanline();
+		// Read mask scanline
+		const u32 *mask_next = _mask->nextScanline();
+		int mask_left = 0;
+		u32 mask;
 
 		// Restart for scanline
 		u8 *last = lastStart;
@@ -235,13 +234,19 @@ int ImageCMReader::readPixels(ImageReader &reader) {
 				trigger_x_lz = _lz->getTriggerX();
 			}
 
+			// Next mask word
+			if (mask_left-- <= 0) {
+				mask = *mask_next++;
+				mask_left = 31;
+			}
+
 			if (lz_skip > 0) {
 				--lz_skip;
 				last[0] = 0;
 				last[1] = 0;
 				last[2] = 0;
 				last[3] = 0;
-			} else if (_mask->masked(x)) {
+			} else if ((s32)mask < 0) {
 				*reinterpret_cast<u32 *>( p ) = _mask->getColor();
 				last[0] = 0;
 				last[1] = 0;
@@ -303,6 +308,7 @@ int ImageCMReader::readPixels(ImageReader &reader) {
 			// Next pixel
 			last += COLOR_PLANES;
 			p += 4;
+			mask <<= 1;
 		}
 	}
 
@@ -320,7 +326,10 @@ int ImageCMReader::readPixels(ImageReader &reader) {
 			CAT_CLR(_filters, _filters_bytes);
 		}
 
-		_mask->nextScanline();
+		// Read mask scanline
+		const u32 *mask_next = _mask->nextScanline();
+		int mask_left = 0;
+		u32 mask;
 
 		// Restart for scanline
 		u8 *last = lastStart;
@@ -337,13 +346,18 @@ int ImageCMReader::readPixels(ImageReader &reader) {
 				trigger_x_lz = _lz->getTriggerX();
 			}
 
+			// Next mask word
+			mask = *mask_next++;
+			mask_left = 31;
+
+			// If pixel was copied with LZ subsystem,
 			if (lz_skip > 0) {
 				--lz_skip;
 				last[0] = 0;
 				last[1] = 0;
 				last[2] = 0;
 				last[3] = 0;
-			} else if (_mask->masked(x)) {
+			} else if ((s32)mask < 0) {
 				*reinterpret_cast<u32 *>( p ) = _mask->getColor();
 				last[0] = 0;
 				last[1] = 0;
@@ -401,6 +415,7 @@ int ImageCMReader::readPixels(ImageReader &reader) {
 			// Next pixel
 			last += COLOR_PLANES;
 			p += 4;
+			mask <<= 1;
 		}
 
 
@@ -417,13 +432,20 @@ int ImageCMReader::readPixels(ImageReader &reader) {
 				trigger_x_lz = _lz->getTriggerX();
 			}
 
+			// Next mask word
+			if (mask_left-- <= 0) {
+				mask = *mask_next++;
+				mask_left = 31;
+			}
+
+			// If pixel was copied with LZ subsystem,
 			if (lz_skip > 0) {
 				--lz_skip;
 				last[0] = 0;
 				last[1] = 0;
 				last[2] = 0;
 				last[3] = 0;
-			} else if (_mask->masked(x)) {
+			} else if ((s32)mask < 0) {
 				*reinterpret_cast<u32 *>( p ) = _mask->getColor();
 				last[0] = 0;
 				last[1] = 0;
@@ -481,6 +503,7 @@ int ImageCMReader::readPixels(ImageReader &reader) {
 			// Next pixel
 			last += COLOR_PLANES;
 			p += 4;
+			mask <<= 1;
 		}
 
 		
@@ -498,13 +521,19 @@ int ImageCMReader::readPixels(ImageReader &reader) {
 				trigger_x_lz = _lz->getTriggerX();
 			}
 
+			// Next mask word
+			if (mask_left <= 0) {
+				mask = *mask_next;
+			}
+
+			// If pixel was copied with LZ subsystem,
 			if (lz_skip > 0) {
 				--lz_skip;
 				last[0] = 0;
 				last[1] = 0;
 				last[2] = 0;
 				last[3] = 0;
-			} else if (_mask->masked(x)) {
+			} else if ((s32)mask < 0) {
 				*reinterpret_cast<u32 *>( p ) = _mask->getColor();
 				last[0] = 0;
 				last[1] = 0;
