@@ -4,7 +4,7 @@ GCIF
 Game Closure Image Format
 
 This is a Work-In-Progress towards a new RGBA image format that is suited for
-mobile game spritehseets.
+mobile game sprite-sheets.
 
 The format is released under the BSD license as forever free and open-source
 software.  Contributions, discussions, and a healthy dose of criticism are all

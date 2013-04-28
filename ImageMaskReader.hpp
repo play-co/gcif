@@ -78,11 +78,11 @@ public:
 
 	int read(ImageReader &reader);
 
-	CAT_INLINE bool masked(int x, int y) {
-		const int maskX = x;
-		const int maskY = y;
-		const u32 word = _mask[(maskX >> 5) + maskY * _stride];
-		return (word >> (31 - (maskX & 31))) & 1;
+	void nextRow();
+
+	CAT_INLINE bool masked(int x) {
+		const u32 word = _mask[x >> 5];
+		return (word >> (31 - (x & 31))) & 1;
 	}
 
 #ifdef CAT_COLLECT_STATS
