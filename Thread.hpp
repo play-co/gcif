@@ -103,7 +103,7 @@ public:
 /*
 	A thread that executes ThreadFunction and then exits.
 
-	Derive from this class and implement ThreadFunction().
+	Derive from this class and implement Entrypoint().
 */
 class CAT_EXPORT Thread
 {

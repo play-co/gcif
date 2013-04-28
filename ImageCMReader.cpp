@@ -182,6 +182,7 @@ int ImageCMReader::readPixels(ImageReader &reader) {
 	CAT_CLR(_chaos, _chaos_size);
 
 	const u8 *CHAOS_TABLE = _chaos_table;
+	u8 FPT[3];
 
 	// Unroll y = 0 scanline
 	{
@@ -265,7 +266,8 @@ int ImageCMReader::readPixels(ImageReader &reader) {
 				filter->cf(YUV, p);
 
 				// Reverse spatial filter
-				const u8 *pred = filter->sf.safe(p, x, y, width);
+				const u8 *pred = FPT;
+				filter->sf.safe(p, &pred, x, y, width);
 				p[0] += pred[0];
 				p[1] += pred[1];
 				p[2] += pred[2];
@@ -376,7 +378,8 @@ int ImageCMReader::readPixels(ImageReader &reader) {
 				filter->cf(YUV, p);
 
 				// Reverse spatial filter
-				const u8 *pred = filter->sf.safe(p, x, y, width);
+				const u8 *pred = FPT;
+				filter->sf.safe(p, &pred, x, y, width);
 				p[0] += pred[0];
 				p[1] += pred[1];
 				p[2] += pred[2];
@@ -462,7 +465,8 @@ int ImageCMReader::readPixels(ImageReader &reader) {
 				filter->cf(YUV, p);
 
 				// Reverse spatial filter
-				const u8 *pred = filter->sf.unsafe(p, x, y, width);
+				const u8 *pred = FPT;
+				filter->sf.unsafe(p, &pred, x, y, width);
 				p[0] += pred[0];
 				p[1] += pred[1];
 				p[2] += pred[2];
@@ -549,7 +553,8 @@ int ImageCMReader::readPixels(ImageReader &reader) {
 				filter->cf(YUV, p);
 
 				// Reverse (safe) spatial filter
-				const u8 *pred = filter->sf.safe(p, x, y, width);
+				const u8 *pred = FPT;
+				filter->sf.safe(p, &pred, x, y, width);
 				p[0] += pred[0];
 				p[1] += pred[1];
 				p[2] += pred[2];

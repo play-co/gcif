@@ -15,7 +15,7 @@ gcif_objects += MappedFile.o SystemInfo.o HotRodHash.o ImageWriter.o
 gcif_objects += ImageReader.o ImageMaskWriter.o ImageMaskReader.o
 gcif_objects += ImageCMWriter.o FilterScorer.o Filters.o
 gcif_objects += ImageLZWriter.o ImageLZReader.o ImageCMReader.o
-gcif_objects += GCIFReader.o GCIFWriter.o EntropyEstimator.o
+gcif_objects += GCIFReader.o GCIFWriter.o EntropyEstimator.o WaitableFlag.o
 #gcif_objects += ImageLPReader.o ImageLPWriter.o
 
 
@@ -27,7 +27,7 @@ SRCS += MappedFile.cpp SystemInfo.cpp HotRodHash.cpp ImageWriter.cpp
 SRCS += ImageReader.cpp ImageMaskWriter.cpp ImageMaskReader.cpp
 SRCS += ImageCMWriter.cpp FilterScorer.cpp Filters.cpp
 SRCS += ImageLZWriter.cpp ImageLZReader.cpp ImageCMReader.cpp
-SRCS += GCIFReader.cpp GCIFWriter.cpp EntropyEstimator.o
+SRCS += GCIFReader.cpp GCIFWriter.cpp EntropyEstimator.cpp WaitableFlag.cpp
 #SRCS += ImageLPReader.cpp ImageLPWriter.cpp
 
 
@@ -131,6 +131,9 @@ GCIFWriter.o : GCIFWriter.cpp
 
 EntropyEstimator.o : EntropyEstimator.cpp
 	$(CCPP) $(CPFLAGS) -c EntropyEstimator.cpp
+
+WaitableFlag.o : WaitableFlag.cpp
+	$(CCPP) $(CPFLAGS) -c WaitableFlag.cpp
 
 #ImageLPWriter.o : ImageLPWriter.cpp
 #	$(CCPP) $(CPFLAGS) -c ImageLPWriter.cpp

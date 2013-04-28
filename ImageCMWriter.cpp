@@ -138,6 +138,7 @@ void ImageCMWriter::designFilters() {
 	scores.init(SF_COUNT + TAPPED_COUNT);
 
 	int bestHist[SF_COUNT + TAPPED_COUNT] = {0};
+	u8 FPT[3];
 
 	CAT_INANE("CM") << "Designing filters...";
 
@@ -184,7 +185,8 @@ void ImageCMWriter::designFilters() {
 					}
 
 					for (int ii = 0; ii < SF_COUNT; ++ii) {
-						const u8 *pred = _sf_set.get(ii).safe(p, px, py, width);
+						const u8 *pred = FPT;
+						_sf_set.get(ii).safe(p, &pred, px, py, width);
 
 						int sum = 0;
 
@@ -299,6 +301,7 @@ void ImageCMWriter::decideFilters() {
 
 	int passes = 0;
 	int revisitCount = _knobs->cm_revisitCount;
+	u8 FPT[3];
 
 	for (;;) {
 		for (int y = 0; y < _height; y += FILTER_ZONE_SIZE) {
@@ -339,7 +342,8 @@ void ImageCMWriter::decideFilters() {
 
 							const u8 *p = _rgba + (px + py * width) * 4;
 
-							const u8 *pred = _sf_set.get(bestSF).safe(p, px, py, width);
+							const u8 *pred = FPT;
+							_sf_set.get(bestSF).safe(p, &pred, px, py, width);
 							u8 temp[3];
 							for (int jj = 0; jj < 3; ++jj) {
 								temp[jj] = p[jj] - pred[jj];
@@ -377,7 +381,8 @@ void ImageCMWriter::decideFilters() {
 						const u8 *p = _rgba + (px + py * width) * 4;
 
 						for (int ii = 0; ii < SF_COUNT; ++ii) {
-							const u8 *pred = _sf_set.get(ii).safe(p, px, py, width);
+							const u8 *pred = FPT;
+							_sf_set.get(ii).safe(p, &pred, px, py, width);
 							u8 temp[3];
 							for (int jj = 0; jj < 3; ++jj) {
 								temp[jj] = p[jj] - pred[jj];
@@ -418,7 +423,8 @@ void ImageCMWriter::decideFilters() {
 								}
 
 								const u8 *p = _rgba + (px + py * width) * 4;
-								const u8 *pred = _sf_set.get(bestSF).safe(p, px, py, width);
+								const u8 *pred = FPT;
+								_sf_set.get(bestSF).safe(p, &pred, px, py, width);
 								u8 temp[3];
 								for (int jj = 0; jj < 3; ++jj) {
 									temp[jj] = p[jj] - pred[jj];
@@ -466,7 +472,8 @@ void ImageCMWriter::decideFilters() {
 								}
 
 								const u8 *p = _rgba + (px + py * width) * 4;
-								const u8 *pred = _sf_set.get(sf).safe(p, px, py, width);
+								const u8 *pred = FPT;
+								_sf_set.get(sf).safe(p, &pred, px, py, width);
 								u8 temp[3];
 								for (int jj = 0; jj < 3; ++jj) {
 									temp[jj] = p[jj] - pred[jj];
@@ -736,6 +743,7 @@ void ImageCMWriter::chaosStats() {
 	CAT_CLR(_chaos, _chaos_size);
 
 	const u8 *CHAOS_TABLE = _chaos_table;
+	u8 FPT[3];
 
 	for (int y = 0; y < _height; ++y) {
 		u8 *last = lastStart;
@@ -756,7 +764,8 @@ void ImageCMWriter::chaosStats() {
 				const u8 sf = (u8)(filter >> 8);
 
 				// Apply spatial filter
-				const u8 *pred = _sf_set.get(sf).safe(p, x, y, width);
+				const u8 *pred = FPT;
+				_sf_set.get(sf).safe(p, &pred, x, y, width);
 				u8 temp[3];
 				for (int jj = 0; jj < 3; ++jj) {
 					temp[jj] = p[jj] - pred[jj];
@@ -907,6 +916,7 @@ bool ImageCMWriter::writeChaos(ImageWriter &writer) {
 	CAT_CLR(_chaos, _chaos_size);
 
 	const u8 *CHAOS_TABLE = _chaos_table;
+	u8 FPT[3];
 
 	for (int y = 0; y < _height; ++y) {
 		u8 *last = lastStart;
@@ -950,7 +960,8 @@ bool ImageCMWriter::writeChaos(ImageWriter &writer) {
 				}
 
 				// Apply spatial filter
-				const u8 *pred = _sf_set.get(sf).safe(p, x, y, width);
+				const u8 *pred = FPT;
+				_sf_set.get(sf).safe(p, &pred, x, y, width);
 				u8 temp[3];
 				for (int jj = 0; jj < 3; ++jj) {
 					temp[jj] = p[jj] - pred[jj];

@@ -1,5 +1,5 @@
 /*
-	Copyright (c) 2013 Christopher A. Taylor.  All rights reserved.
+	Copyright (c) 2013 Game Closure.  All rights reserved.
 
 	Redistribution and use in source and binary forms, with or without
 	modification, are permitted provided that the following conditions are met:
@@ -123,9 +123,10 @@ static int benchfile(BenchStats &stats, string filename) {
 
 	int err;
 
-	static const char *BENCHFILE = "benchmark_temp.gci";
+	string benchfile = filename + ".gci";
+	const char *cbenchfile = benchfile.c_str();
 
-	if ((err = gcif_write(&image[0], width, height, BENCHFILE, compress_level))) {
+	if ((err = gcif_write(&image[0], width, height, cbenchfile, compress_level))) {
 		CAT_WARN("main") << "Error while compressing the image: " << gcif_write_errstr(err) << " for " << filename;
 		return err;
 	}
@@ -133,7 +134,7 @@ static int benchfile(BenchStats &stats, string filename) {
 	double t2 = Clock::ref()->usec();
 
 	GCIFImage outimage;
-	if ((err = gcif_read(BENCHFILE, &outimage))) {
+	if ((err = gcif_read(cbenchfile, &outimage))) {
 		CAT_WARN("main") << "Error while decompressing the image: " << gcif_read_errstr(err) << " for " << filename;
 		return err;
 	}
@@ -149,7 +150,7 @@ static int benchfile(BenchStats &stats, string filename) {
 
 	struct stat png, gci;
 	stat(filename.c_str(), &png);
-	stat(BENCHFILE, &gci);
+	stat(cbenchfile, &gci);
 
 	u32 pngBytes = png.st_size;
 	u32 gciBytes = gci.st_size;
@@ -163,6 +164,71 @@ static int benchfile(BenchStats &stats, string filename) {
 
 	return 0;
 }
+
+#include "Thread.hpp"
+#include "WaitableFlag.hpp"
+#include "Mutex.hpp"
+#include "SystemInfo.hpp"
+
+class BenchThread : public Thread {
+	vector<string> *_files;
+	Mutex *_lock;
+	WaitableFlag _ready;
+	volatile bool _abort, _shutdown;
+
+public:
+	void init(vector<string> *files, Mutex *lock) {
+		_files = files;
+		_lock = lock;
+		_shutdown = false;
+		_abort = false;
+	}
+
+	virtual bool Entrypoint(void *param) {
+		while (!_abort) {
+			if (_ready.Wait()) {
+				string filename;
+				bool hasFile = false;
+
+				while (!_abort) {
+					{
+						AutoMutex alock(*_lock);
+
+						if (_files->size() > 0) {
+							hasFile = true;
+							filename = _files->back();
+							_files->pop_back();
+						}
+					}
+
+					if (hasFile) {
+						BenchStats stats;
+						benchfile(stats, filename);
+						continue;
+					}
+				}
+
+				if (_shutdown) {
+					break;
+				}
+			}
+		}
+
+		return true;
+	}
+
+	void wake() {
+		_ready.Set();
+	}
+
+	void abort() {
+		_abort = true;
+	}
+
+	void shutdown() {
+		_shutdown = true;
+	}
+};
 
 #ifdef CAT_COMPILER_MSVC
 #include "msvc/dirent.h"
@@ -178,20 +244,48 @@ static int benchmark(const char *path) {
 		return -1;
 	}
 
-	BenchStats stats;
+	const int MAX_CPU_COUNT = 64;
+	u32 cpu_count = SystemInfo::ref()->GetProcessorCount();
+	CAT_DEBUG_ENFORCE(cpu_count >= 1);
+	if (cpu_count > MAX_CPU_COUNT) {
+		cpu_count = MAX_CPU_COUNT;
+	}
+
+	BenchThread threads[MAX_CPU_COUNT];
+	vector<string> files;
+	Mutex lock;
+
+	for (int ii = 0; ii < cpu_count; ++ii) {
+		threads[ii].init(&files, &lock);
+		CAT_ENFORCE(threads[ii].StartThread());
+	}
 
 	/* print all the files and directories within directory */
 	while ((ent = readdir (dir)) != NULL) {
 		if (ent->d_name[0] != '.') {
-			int err;
+			string filename = string(path) + "/" + ent->d_name;
 
-			if ((err = benchfile(stats, string(path) + "/" + ent->d_name))) {
-				return err;
+			{
+				AutoMutex alock(lock);
+
+				files.push_back(filename);
+			}
+
+			for (int ii = 0; ii < cpu_count; ++ii) {
+				threads[ii].wake();
 			}
 		}
 	}
 
 	closedir (dir);
+
+	for (int ii = 0; ii < cpu_count; ++ii) {
+		threads[ii].shutdown();
+	}
+
+	for (int ii = 0; ii < cpu_count; ++ii) {
+		CAT_ENFORCE(threads[ii].WaitForThread());
+	}
 
 	return 0;
 }

@@ -91,7 +91,7 @@ enum SpatialFilters {
 	SF_PL,			// Use ABC to determine if increasing or decreasing
 };
 
-typedef const u8 *(*SpatialFilterFunction)(const u8 *p, int x, int y, int width);
+typedef void (*SpatialFilterFunction)(const u8 *p, const u8 **pred, int x, int y, int width);
 
 
 /*
