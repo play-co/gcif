@@ -29,7 +29,7 @@
 #include "ImageLZReader.hpp"
 #include "EndianNeutral.hpp"
 #include "HuffmanDecoder.hpp"
-#include "GCIFReader.hpp"
+#include "GCIFReader.h"
 using namespace cat;
 
 #ifdef CAT_COLLECT_STATS
@@ -53,7 +53,7 @@ int ImageLZReader::init(const ImageHeader *header) {
 	_width = header->width;
 	_height = header->height;
 
-	return RE_OK;
+	return GCIF_RE_OK;
 }
 
 int ImageLZReader::readHuffmanTable(ImageReader &reader) {
@@ -70,13 +70,13 @@ int ImageLZReader::readHuffmanTable(ImageReader &reader) {
 
 	// If no matches,
 	if (match_count <= 0) {
-		return RE_OK;
+		return GCIF_RE_OK;
 	}
 
 	// If invalid data,
 	if (match_count > MAX_ZONE_COUNT) {
 		CAT_DEBUG_EXCEPTION();
-		return RE_LZ_CODES;
+		return GCIF_RE_LZ_CODES;
 	}
 
 	// If minimum count is met,
@@ -85,11 +85,11 @@ int ImageLZReader::readHuffmanTable(ImageReader &reader) {
 		// If not able to init Huffman decoder
 		if (!_decoder.init(reader)) {
 			CAT_DEBUG_EXCEPTION();
-			return RE_LZ_CODES;
+			return GCIF_RE_LZ_CODES;
 		}
 	}
 
-	return RE_OK;
+	return GCIF_RE_OK;
 }
 
 int ImageLZReader::readZones(ImageReader &reader) {
@@ -97,7 +97,7 @@ int ImageLZReader::readZones(ImageReader &reader) {
 
 	// Skip if nothing to read
 	if (match_count == 0) {
-		return RE_OK;
+		return GCIF_RE_OK;
 	}
 
 	// Allocate space for zones
@@ -138,19 +138,19 @@ int ImageLZReader::readZones(ImageReader &reader) {
 			// Input security checks
 			if (sy > dy || (sy == dy && sx >= dx)) {
 				CAT_DEBUG_EXCEPTION();
-				return RE_LZ_BAD;
+				return GCIF_RE_LZ_BAD;
 			}
 
 			if ((u32)sx + (u32)z->w > (u32)_width ||
 					(u32)sy + (u32)z->h > (u32)_height) {
 				CAT_DEBUG_EXCEPTION();
-				return RE_LZ_BAD;
+				return GCIF_RE_LZ_BAD;
 			}
 
 			if ((u32)z->dx + (u32)z->w > (u32)_width ||
 					(u32)z->dy + (u32)z->h > (u32)_height) {
 				CAT_DEBUG_EXCEPTION();
-				return RE_LZ_BAD;
+				return GCIF_RE_LZ_BAD;
 			}
 
 			last_dx = dx;
@@ -195,19 +195,19 @@ int ImageLZReader::readZones(ImageReader &reader) {
 			// Input security checks
 			if (sy > dy || (sy == dy && sx >= dx)) {
 				CAT_DEBUG_EXCEPTION();
-				return RE_LZ_BAD;
+				return GCIF_RE_LZ_BAD;
 			}
 
 			if ((u32)sx + (u32)z->w > (u32)_width ||
 					(u32)sy + (u32)z->h > (u32)_height) {
 				CAT_DEBUG_EXCEPTION();
-				return RE_LZ_BAD;
+				return GCIF_RE_LZ_BAD;
 			}
 
 			if ((u32)z->dx + (u32)z->w > (u32)_width ||
 					(u32)z->dy + (u32)z->h > (u32)_height) {
 				CAT_DEBUG_EXCEPTION();
-				return RE_LZ_BAD;
+				return GCIF_RE_LZ_BAD;
 			}
 
 			last_dy = dy;
@@ -218,14 +218,14 @@ int ImageLZReader::readZones(ImageReader &reader) {
 	// If file truncated,
 	if (reader.eof()) {
 		CAT_DEBUG_EXCEPTION();
-		return RE_LZ_CODES;
+		return GCIF_RE_LZ_CODES;
 	}
 
 	// Trigger on first zone
 	_zone_next_y = 0;
 	_zone_trigger_y = _zones[0].dy;
 
-	return RE_OK;
+	return GCIF_RE_OK;
 }
 
 int ImageLZReader::triggerX(u8 *p, int &lz_lines_left) {
@@ -417,7 +417,7 @@ int ImageLZReader::read(ImageReader &reader) {
 	Stats.overallUsec = t3 - t0;
 #endif // CAT_COLLECT_STATS
 
-	return RE_OK;
+	return GCIF_RE_OK;
 }
 
 #ifdef CAT_COLLECT_STATS

@@ -32,7 +32,7 @@
 #include "Platform.hpp"
 #include "ImageWriter.hpp"
 #include "ImageLZReader.hpp"
-#include "GCIFWriter.hpp"
+#include "GCIFWriter.h"
 
 #include <vector>
 

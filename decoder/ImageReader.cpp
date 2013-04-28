@@ -28,7 +28,7 @@
 
 #include "ImageReader.hpp"
 #include "EndianNeutral.hpp"
-#include "GCIFReader.hpp"
+#include "GCIFReader.h"
 using namespace cat;
 
 
@@ -69,16 +69,16 @@ int ImageReader::init(const char *path) {
 	// Map file for reading
 
 	if CAT_UNLIKELY(!_file.OpenRead(path)) {
-		return RE_FILE;
+		return GCIF_RE_FILE;
 	}
 
 	if CAT_UNLIKELY(!_fileView.Open(&_file)) {
-		return RE_FILE;
+		return GCIF_RE_FILE;
 	}
 
 	u8 *fileData = _fileView.MapView();
 	if CAT_UNLIKELY(!fileData) {
-		return RE_FILE;
+		return GCIF_RE_FILE;
 	}
 
 	// Run from memory
@@ -86,7 +86,7 @@ int ImageReader::init(const char *path) {
 	return init(fileData, _fileView.GetLength());
 }
 
-int ImageReader::init(const void *buffer, int fileSize) {
+int ImageReader::init(const void *buffer, long fileSize) {
 	clear();
 
 	const u32 *words = reinterpret_cast<const u32 *>( buffer );
@@ -98,14 +98,14 @@ int ImageReader::init(const void *buffer, int fileSize) {
 	hh.init(HEAD_SEED);
 
 	if CAT_UNLIKELY(fileWords < HEAD_WORDS) {
-		return RE_BAD_HEAD;
+		return GCIF_RE_BAD_HEAD;
 	}
 
 	u32 word0 = getLE(words[0]);
 	hh.hashWord(word0);
 
 	if CAT_UNLIKELY(HEAD_MAGIC != word0) {
-		return RE_BAD_HEAD;
+		return GCIF_RE_BAD_HEAD;
 	}
 
 	u32 word1 = getLE(words[1]);
@@ -119,7 +119,7 @@ int ImageReader::init(const void *buffer, int fileSize) {
 
 	u32 headHash = getLE(words[4]);
 	if CAT_UNLIKELY(headHash != hh.final(HEAD_WORDS)) {
-		return RE_BAD_HEAD;
+		return GCIF_RE_BAD_HEAD;
 	}
 
 	// Read header
@@ -143,6 +143,6 @@ int ImageReader::init(const void *buffer, int fileSize) {
 	_bits = 0;
 	_bitsLeft = 0;
 
-	return RE_OK;
+	return GCIF_RE_OK;
 }
 

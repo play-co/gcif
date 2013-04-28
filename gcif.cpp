@@ -33,8 +33,8 @@ using namespace std;
 #include "Log.hpp"
 #include "Clock.hpp"
 
-#include "GCIFReader.hpp"
-#include "GCIFWriter.hpp"
+#include "GCIFReader.h"
+#include "GCIFWriter.h"
 
 using namespace cat;
 
@@ -66,8 +66,7 @@ static int compress(const char *filename, const char *outfile, int compress_leve
 		return err;
 	}
 
-	CAT_WARN("main") << "Success.";
-	return 0;
+	return GCIF_WE_OK;
 }
 
 
@@ -77,7 +76,7 @@ static int decompress(const char *filename, const char *outfile) {
 	int err;
 
 	GCIFImage image;
-	if ((err = gcif_read(filename, &image))) {
+	if ((err = gcif_read_file(filename, &image))) {
 		CAT_WARN("main") << "Error while decompressing the image: " << gcif_read_errstr(err);
 		return err;
 	}
@@ -86,10 +85,9 @@ static int decompress(const char *filename, const char *outfile) {
 
 	lodepng_encode_file(outfile, (const unsigned char*)image.rgba, image.width, image.height, LCT_RGBA, 8);
 
-	delete []image.rgba;
+	gcif_free_image(&image);
 
-	CAT_WARN("main") << "Success.";
-	return 0;
+	return GCIF_RE_OK;
 }
 
 #include "ImageWriter.hpp"
@@ -134,7 +132,7 @@ static int benchfile(BenchStats &stats, string filename) {
 	double t2 = Clock::ref()->usec();
 
 	GCIFImage outimage;
-	if ((err = gcif_read(cbenchfile, &outimage))) {
+	if ((err = gcif_read_file(cbenchfile, &outimage))) {
 		CAT_WARN("main") << "Error while decompressing the image: " << gcif_read_errstr(err) << " for " << filename;
 		return err;
 	}
@@ -162,7 +160,9 @@ static int benchfile(BenchStats &stats, string filename) {
 
 	CAT_WARN("main") << filename << " => " << gcipngrat << "x smaller than PNG and decompresses " << gcipngtime << "x faster";
 
-	return 0;
+	gcif_free_image(&outimage);
+
+	return GCIF_RE_OK;
 }
 
 #include "Thread.hpp"
@@ -310,14 +310,15 @@ static int profileit(const char *filename) {
 
 	for (int ii = 0; ii < 20; ++ii) {
 		GCIFImage image;
-		if ((err = gcif_read(filename, &image))) {
+		if ((err = gcif_read_file(filename, &image))) {
 			CAT_WARN("main") << "Error while decompressing the image: " << gcif_read_errstr(err);
 			return err;
 		}
+
+		gcif_free_image(&image);
 	}
 
-	CAT_WARN("main") << "Success.";
-	return 0;
+	return GCIF_RE_OK;
 }
 
 

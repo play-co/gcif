@@ -34,18 +34,18 @@
 #include "ImageMaskReader.hpp"
 #include "Filters.hpp"
 #include "HuffmanEncoder.hpp"
-#include "GCIFWriter.hpp"
+#include "GCIFWriter.h"
 
 #include <vector>
 
 /*
- * Game Closure Fully-Transparent Alpha Mask Compression
+ * Game Closure Dominant Color Mask Compression
  *
- * Encodes pixels with fully-transparent alpha and/or a dominant image color
- * (often black) as a monochrome bitmap.  This is designed to improve on the
- * compression ratios offered by context modeling or LZ for data that can be
- * compactly represented as a bitmask.  Most graphics files for games have
- * some sort of solid color or transparent background.
+ * Encodes pixels with a dominant image color (often black or transparent) as
+ * a monochrome bitmap.  This is designed to improve on the compression ratio
+ * offered by context modeling or LZ for data that can be compactly represented
+ * as a bitmask.  Most graphics files for games have some sort of solid color
+ * or transparent background.
  *
  * When fully-transparent alpha masks are transmitted, any color information
  * stored in the fully-transparent pixels is lost.
@@ -59,9 +59,6 @@
  */
 
 namespace cat {
-
-
-//#define DUMP_FILTER_OUTPUT
 
 
 /*
@@ -83,7 +80,7 @@ class Masker {
 	int _filtered_alloc;
 	const u8 *_rgba;		// Original pixel data
 	int _size, _stride, _width, _height;
-	int _covered;			// Number of pixels covered
+	u32 _covered;			// Number of pixels covered
 
 	bool _using_encoder;	// Above threshold for encodering?
 	int _min_ratio;			// Minimum compression ratio to achieve
@@ -167,7 +164,7 @@ class ImageMaskWriter {
 	const u8 *_rgba;
 	int _width, _height;
 
-	Masker _alpha, _color;
+	Masker _color;
 
 	u32 dominantColor();
 
@@ -190,11 +187,11 @@ public:
 	void write(ImageWriter &writer);
 
 	CAT_INLINE bool masked(int x, int y) {
-		return _alpha.masked(x, y) || _color.masked(x, y);
+		return _color.masked(x, y);
 	}
 
 	CAT_INLINE bool dumpStats() {
-		return _alpha.dumpStats() && _color.dumpStats();
+		return _color.dumpStats();
 	}
 };
 
@@ -202,4 +199,3 @@ public:
 } // namespace cat
 
 #endif // IMAGE_MASK_WRITER_HPP
-

@@ -88,11 +88,11 @@ void ImageCMWriter::clear() {
 
 int ImageCMWriter::init(int width, int height) {
 	if (width < FILTER_ZONE_SIZE || height < FILTER_ZONE_SIZE) {
-		return WE_BAD_DIMS;
+		return GCIF_WE_BAD_DIMS;
 	}
 
 	if ((width & FILTER_ZONE_SIZE_MASK) || (height & FILTER_ZONE_SIZE_MASK)) {
-		return WE_BAD_DIMS;
+		return GCIF_WE_BAD_DIMS;
 	}
 
 	_width = width;
@@ -131,7 +131,7 @@ int ImageCMWriter::init(int width, int height) {
 		_chaos_alloc = _chaos_size;
 	}
 
-	return WE_OK;
+	return GCIF_WE_OK;
 }
 
 void ImageCMWriter::designFilters() {
@@ -836,7 +836,7 @@ int ImageCMWriter::initFromRGBA(const u8 *rgba, int width, int height, ImageMask
 	}
 
 	if ((!knobs->cm_disableEntropy && knobs->cm_filterSelectFuzz <= 0)) {
-		return WE_BAD_PARAMS;
+		return GCIF_WE_BAD_PARAMS;
 	}
 
 	_knobs = knobs;
@@ -860,16 +860,16 @@ int ImageCMWriter::initFromRGBA(const u8 *rgba, int width, int height, ImageMask
 	}
 
 	if (!applyFilters()) {
-		return WE_BUG;
+		return GCIF_WE_BUG;
 	}
 
 	chaosStats();
 
-	return WE_OK;
+	return GCIF_WE_OK;
 }
 
 bool ImageCMWriter::writeFilters(ImageWriter &writer) {
-	const int rep_count = _filter_replacements.size();
+	const int rep_count = static_cast<int>( _filter_replacements.size() );
 
 	CAT_DEBUG_ENFORCE(SF_COUNT < 32);
 	CAT_DEBUG_ENFORCE(SpatialFilterSet::TAPPED_COUNT < 128);

@@ -36,7 +36,7 @@
 #include "EntropyEncoder.hpp"
 #include "FilterScorer.hpp"
 #include "Filters.hpp"
-#include "GCIFWriter.hpp"
+#include "GCIFWriter.h"
 
 #include <vector>
 

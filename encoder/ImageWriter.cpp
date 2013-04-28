@@ -29,7 +29,7 @@
 #include "ImageWriter.hpp"
 #include "EndianNeutral.hpp"
 #include "MappedFile.hpp"
-#include "GCIFWriter.hpp"
+#include "GCIFWriter.h"
 using namespace cat;
 
 
@@ -119,15 +119,15 @@ int ImageWriter::init(int width, int height) {
 	// Validate
 
 	if (width < 0 || height < 0) {
-		return WE_BAD_DIMS;
+		return GCIF_WE_BAD_DIMS;
 	}
 
 	if ((width % 8) || (height % 8)) {
-		return WE_BAD_DIMS;
+		return GCIF_WE_BAD_DIMS;
 	}
 
 	if (width > 65535 || height > 65535) {
-		return WE_BAD_DIMS;
+		return GCIF_WE_BAD_DIMS;
 	}
 
 	// Initialize
@@ -140,7 +140,7 @@ int ImageWriter::init(int width, int height) {
 	_work = 0;
 	_bits = 0;
 
-	return WE_OK;
+	return GCIF_WE_OK;
 }
 
 void ImageWriter::writeBits(u32 code, int len) {
@@ -186,19 +186,19 @@ int ImageWriter::finalizeAndWrite(const char *path) {
 	// Map the file
 
 	if (!file.OpenWrite(path, totalBytes)) {
-		return WE_FILE;
+		return GCIF_WE_FILE;
 	}
 
 	MappedView fileView;
 
 	if (!fileView.Open(&file)) {
-		return WE_FILE;
+		return GCIF_WE_FILE;
 	}
 
 	u8 *fileData = fileView.MapView();
 
 	if (!fileData) {
-		return WE_FILE;
+		return GCIF_WE_FILE;
 	}
 
 	u32 *fileWords = reinterpret_cast<u32*>( fileData );
@@ -234,6 +234,6 @@ int ImageWriter::finalizeAndWrite(const char *path) {
 
 	_words.write(fileWords);
 
-	return WE_OK;
+	return GCIF_WE_OK;
 }
 

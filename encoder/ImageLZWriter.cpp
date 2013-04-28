@@ -69,7 +69,7 @@ static CAT_INLINE u32 hashPixel(u32 key) {
 
 int ImageLZWriter::initFromRGBA(const u8 *rgba, int width, int height, const GCIFKnobs *knobs) {
 	if (width < ZONEW || height < ZONEH) {
-		return WE_BAD_DIMS;
+		return GCIF_WE_BAD_DIMS;
 	}
 
 	_knobs = knobs;
@@ -79,7 +79,7 @@ int ImageLZWriter::initFromRGBA(const u8 *rgba, int width, int height, const GCI
 
 	if (knobs->lz_tableBits < 0 || knobs->lz_tableBits > 24 ||
 		knobs->lz_nonzeroCoeff <= 0) {
-		return WE_BAD_PARAMS;
+		return GCIF_WE_BAD_PARAMS;
 	}
 
 	_table_size = 1 << knobs->lz_tableBits;
@@ -291,7 +291,7 @@ void ImageLZWriter::add(int unused, u16 sx, u16 sy, u16 dx, u16 dy, u16 w, u16 h
 
 int ImageLZWriter::match() {
 	if (!_rgba) {
-		return WE_BUG;
+		return GCIF_WE_BUG;
 	}
 
 	CAT_INANE("LZ") << "Searching for matches with " << _table_size << "-entry hash table...";
@@ -372,7 +372,7 @@ int ImageLZWriter::match() {
 		}
 	}
 
-	return WE_OK;
+	return GCIF_WE_OK;
 }
 
 bool ImageLZWriter::matchSortCompare(const Match &i, const Match &j) {
@@ -534,7 +534,7 @@ void ImageLZWriter::write(ImageWriter &writer) {
 }
 
 bool ImageLZWriter::findExtent(int x, int y, int &w, int &h) {
-	for (int ii = 0, iiend = _exact_matches.size(); ii < iiend; ++ii) {
+	for (int ii = 0, iiend = (int)_exact_matches.size(); ii < iiend; ++ii) {
 		Match *m = &_exact_matches[ii];
 		const int mw = m->w + ZONEW;
 		const int mh = m->h + ZONEH;

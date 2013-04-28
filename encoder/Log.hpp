@@ -240,7 +240,7 @@ public:
 # define CAT_DEBUG_EXCEPTION() CAT_EXCEPTION()
 #else
 # define CAT_DEBUG_ENFORCE(exp) while (false) CAT_ENFORCE(1) /* hopefully will be optimized out of existence */
-# define CAT_DEBUG_EXCEPTION()
+# define CAT_DEBUG_EXCEPTION() while (false) CAT_EXCEPTION() /* hopefully will be optimized out of existence */
 #endif
 
 

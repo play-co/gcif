@@ -26,19 +26,28 @@
 	POSSIBILITY OF SUCH DAMAGE.
 */
 
-#ifndef GCIF_WRITER_HPP
-#define GCIF_WRITER_HPP
+#ifndef GCIF_WRITER_H
+#define GCIF_WRITER_H
+
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 
 // When API functions return an int, it's all about this:
 enum WriteErrors {
-	WE_OK,			// No problemo
+	GCIF_WE_OK,			// No problemo
 
-	WE_BAD_PARAMS,	// Bad parameters passed to gcif_write
-	WE_BAD_DIMS,	// Image dimensions are invalid
-	WE_FILE,		// Unable to access file
-	WE_BUG			// Internal error
+	GCIF_WE_BAD_PARAMS,	// Bad parameters passed to gcif_write
+	GCIF_WE_BAD_DIMS,	// Image dimensions are invalid
+	GCIF_WE_FILE,		// Unable to access file
+	GCIF_WE_BUG			// Internal error
 };
+
+// Returns an error string for a return value from gcif_write()
+const char *gcif_write_errstr(int err);
+
 
 /*
  * gcif_write()
@@ -55,9 +64,6 @@ enum WriteErrors {
  */
 int gcif_write(const void *rgba, int width, int height, const char *output_file_path, int compression_level);
 
-// Returns an error string for a return value from gcif_write()
-const char *gcif_write_errstr(int err);
-
 
 // Extra twiddly knobs to eke out better performance if you prefer
 struct GCIFKnobs {
@@ -66,7 +72,6 @@ struct GCIFKnobs {
 
 	//// Image Mask writer
 
-	int mask_minAlphaRat;	// 20: Minimum full-alpha pixel compression ratio
 	int mask_minColorRat;	// 20: Minimum color pixel compression ratio
 	int mask_huffThresh;	// 60: Minimum post-LZ bytes to compress the data
 
@@ -98,5 +103,9 @@ struct GCIFKnobs {
 int gcif_write_ex(const void *rgba, int width, int height, const char *output_file_path, const GCIFKnobs *knobs);
 
 
-#endif // GCIF_WRITER_HPP
+#ifdef __cplusplus
+};
+#endif
 
+
+#endif // GCIF_WRITER_H

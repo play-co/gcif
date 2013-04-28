@@ -70,11 +70,11 @@ int ImageCMReader::init(GCIFImage *image) {
 	// Validate input dimensions
 	if (_width < FILTER_ZONE_SIZE || _height < FILTER_ZONE_SIZE) {
 		CAT_DEBUG_EXCEPTION();
-		return RE_BAD_DIMS;
+		return GCIF_RE_BAD_DIMS;
 	}
 	if (_width % FILTER_ZONE_SIZE || _height % FILTER_ZONE_SIZE) {
 		CAT_DEBUG_EXCEPTION();
-		return RE_BAD_DIMS;
+		return GCIF_RE_BAD_DIMS;
 	}
 
 	// Always allocate new RGBA data
@@ -105,7 +105,7 @@ int ImageCMReader::init(GCIFImage *image) {
 		_chaos_alloc = _chaos_size;
 	}
 
-	return RE_OK;
+	return GCIF_RE_OK;
 }
 
 int ImageCMReader::readFilterTables(ImageReader &reader) {
@@ -113,7 +113,7 @@ int ImageCMReader::readFilterTables(ImageReader &reader) {
 	int rep_count = reader.readBits(5);
 	if (rep_count > SF_COUNT) {
 		CAT_DEBUG_EXCEPTION();
-		return RE_CM_CODES;
+		return GCIF_RE_CM_CODES;
 	}
 
 	// Read in the preset index for each custom filter
@@ -122,13 +122,13 @@ int ImageCMReader::readFilterTables(ImageReader &reader) {
 
 		if (def >= SF_COUNT) {
 			CAT_DEBUG_EXCEPTION();
-			return RE_CM_CODES;
+			return GCIF_RE_CM_CODES;
 		}
 
 		u32 cust = reader.readBits(7);
 		if (cust >= SpatialFilterSet::TAPPED_COUNT) {
 			CAT_DEBUG_EXCEPTION();
-			return RE_CM_CODES;
+			return GCIF_RE_CM_CODES;
 		}
 
 		_sf_set.replace(def, cust);
@@ -137,16 +137,16 @@ int ImageCMReader::readFilterTables(ImageReader &reader) {
 	// Initialize huffman decoder
 	if (reader.eof() || !_cf.init(CF_COUNT, reader, 8)) {
 		CAT_DEBUG_EXCEPTION();
-		return RE_CM_CODES;
+		return GCIF_RE_CM_CODES;
 	}
 
 	// Initialize huffman decoder
 	if (reader.eof() || !_sf.init(SF_COUNT, reader, 8)) {
 		CAT_DEBUG_EXCEPTION();
-		return RE_CM_CODES;
+		return GCIF_RE_CM_CODES;
 	}
 
-	return RE_OK;
+	return GCIF_RE_OK;
 }
 
 int ImageCMReader::readChaosTables(ImageReader &reader) {
@@ -161,7 +161,7 @@ int ImageCMReader::readChaosTables(ImageReader &reader) {
 			break;
 		default:
 			CAT_DEBUG_EXCEPTION();
-			return RE_CM_CODES;
+			return GCIF_RE_CM_CODES;
 	}
 
 	// For each chaos level,
@@ -169,23 +169,23 @@ int ImageCMReader::readChaosTables(ImageReader &reader) {
 		// Read the decoder tables
 		if (!_y_decoder[jj].init(reader)) {
 			CAT_DEBUG_EXCEPTION();
-			return RE_CM_CODES;
+			return GCIF_RE_CM_CODES;
 		}
 		if (!_u_decoder[jj].init(reader)) {
 			CAT_DEBUG_EXCEPTION();
-			return RE_CM_CODES;
+			return GCIF_RE_CM_CODES;
 		}
 		if (!_v_decoder[jj].init(reader)) {
 			CAT_DEBUG_EXCEPTION();
-			return RE_CM_CODES;
+			return GCIF_RE_CM_CODES;
 		}
 		if (!_a_decoder[jj].init(reader)) {
 			CAT_DEBUG_EXCEPTION();
-			return RE_CM_CODES;
+			return GCIF_RE_CM_CODES;
 		}
 	}
 
-	return RE_OK;
+	return GCIF_RE_OK;
 }
 
 int ImageCMReader::readPixels(ImageReader &reader) {
@@ -219,9 +219,7 @@ int ImageCMReader::readPixels(ImageReader &reader) {
 		// Clear filters data
 		CAT_CLR(_filters, _filters_bytes);
 
-		for (int ii = 0; ii < MASK_COUNT; ++ii) {
-			_masks[ii].nextScanline();
-		}
+		_mask->nextScanline();
 
 		// Restart for scanline
 		u8 *last = lastStart;
@@ -243,14 +241,8 @@ int ImageCMReader::readPixels(ImageReader &reader) {
 				last[1] = 0;
 				last[2] = 0;
 				last[3] = 0;
-			} else if (_masks[0].masked(x)) {
-				*reinterpret_cast<u32 *>( p ) = 0;
-				last[0] = 0;
-				last[1] = 0;
-				last[2] = 0;
-				last[3] = 0;
-			} else if (_masks[1].masked(x)) {
-				*reinterpret_cast<u32 *>( p ) = _masks[1].getColor();
+			} else if (_mask->masked(x)) {
+				*reinterpret_cast<u32 *>( p ) = _mask->getColor();
 				last[0] = 0;
 				last[1] = 0;
 				last[2] = 0;
@@ -328,9 +320,7 @@ int ImageCMReader::readPixels(ImageReader &reader) {
 			CAT_CLR(_filters, _filters_bytes);
 		}
 
-		for (int ii = 0; ii < MASK_COUNT; ++ii) {
-			_masks[ii].nextScanline();
-		}
+		_mask->nextScanline();
 
 		// Restart for scanline
 		u8 *last = lastStart;
@@ -353,14 +343,8 @@ int ImageCMReader::readPixels(ImageReader &reader) {
 				last[1] = 0;
 				last[2] = 0;
 				last[3] = 0;
-			} else if (_masks[0].masked(x)) {
-				*reinterpret_cast<u32 *>( p ) = 0;
-				last[0] = 0;
-				last[1] = 0;
-				last[2] = 0;
-				last[3] = 0;
-			} else if (_masks[1].masked(x)) {
-				*reinterpret_cast<u32 *>( p ) = _masks[1].getColor();
+			} else if (_mask->masked(x)) {
+				*reinterpret_cast<u32 *>( p ) = _mask->getColor();
 				last[0] = 0;
 				last[1] = 0;
 				last[2] = 0;
@@ -439,14 +423,8 @@ int ImageCMReader::readPixels(ImageReader &reader) {
 				last[1] = 0;
 				last[2] = 0;
 				last[3] = 0;
-			} else if (_masks[0].masked(x)) {
-				*reinterpret_cast<u32 *>( p ) = 0;
-				last[0] = 0;
-				last[1] = 0;
-				last[2] = 0;
-				last[3] = 0;
-			} else if (_masks[1].masked(x)) {
-				*reinterpret_cast<u32 *>( p ) = _masks[1].getColor();
+			} else if (_mask->masked(x)) {
+				*reinterpret_cast<u32 *>( p ) = _mask->getColor();
 				last[0] = 0;
 				last[1] = 0;
 				last[2] = 0;
@@ -526,14 +504,8 @@ int ImageCMReader::readPixels(ImageReader &reader) {
 				last[1] = 0;
 				last[2] = 0;
 				last[3] = 0;
-			} else if (_masks[0].masked(x)) {
-				*reinterpret_cast<u32 *>( p ) = 0;
-				last[0] = 0;
-				last[1] = 0;
-				last[2] = 0;
-				last[3] = 0;
-			} else if (_masks[1].masked(x)) {
-				*reinterpret_cast<u32 *>( p ) = _masks[1].getColor();
+			} else if (_mask->masked(x)) {
+				*reinterpret_cast<u32 *>( p ) = _mask->getColor();
 				last[0] = 0;
 				last[1] = 0;
 				last[2] = 0;
@@ -593,10 +565,10 @@ int ImageCMReader::readPixels(ImageReader &reader) {
 		}
 	}
 
-	return RE_OK;
+	return GCIF_RE_OK;
 }
 
-int ImageCMReader::read(ImageReader &reader, ImageMaskReader *maskReaders, ImageLZReader &lzReader, GCIFImage *image) {
+int ImageCMReader::read(ImageReader &reader, ImageMaskReader &maskReader, ImageLZReader &lzReader, GCIFImage *image) {
 #ifdef CAT_COLLECT_STATS
 	m_clock = Clock::ref();
 
@@ -605,7 +577,7 @@ int ImageCMReader::read(ImageReader &reader, ImageMaskReader *maskReaders, Image
 
 	int err;
 
-	_masks = maskReaders;
+	_mask = &maskReader;
 	_lz = &lzReader;
 
 	// Initialize
@@ -653,7 +625,7 @@ int ImageCMReader::read(ImageReader &reader, ImageMaskReader *maskReaders, Image
 	Stats.readPixelsUsec = t4 - t3;
 	Stats.overallUsec = t4 - t0;
 #endif	
-	return RE_OK;
+	return GCIF_RE_OK;
 }
 
 #ifdef CAT_COLLECT_STATS

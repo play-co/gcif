@@ -35,6 +35,9 @@ namespace cat {
 // Enable statistics collection
 //#define CAT_COLLECT_STATS
 
+// Disable inane-level logging in Release mode
+#define CAT_RELEASE_DISABLE_INANE
+
 // Bloat the file size a lot to check for desynchronization points in decoder
 //#define CAT_DESYNCH_CHECKS
 

@@ -32,7 +32,7 @@
 #include "HuffmanEncoder.hpp"
 #include "HuffmanDecoder.hpp"
 #include "Filters.hpp"
-#include "GCIFWriter.hpp"
+#include "GCIFWriter.h"
 #include "Log.hpp"
 #ifdef CAT_COLLECT_STATS
 #include "Clock.hpp"
@@ -44,10 +44,6 @@ using namespace std;
 
 #include "lz4.h"
 #include "lz4hc.h"
-
-#ifdef DUMP_FILTER_OUTPUT
-#include "lodepng.h"
-#endif // DUMP_FILTER_OUTPUT
 
 
 //// Masker
@@ -83,32 +79,6 @@ void Masker::applyFilter() {
 		writer[jj] = now ^ ((now >> 1) | cb);
 		cb = now << 31;
 	}
-
-#ifdef DUMP_FILTER_OUTPUT
-	{
-		CAT_WARN("mask") << "Writing delta.png image file";
-
-		// Convert to image:
-
-		vector<unsigned char> output;
-		u8 bits = 0, bitCount = 0;
-
-		for (int ii = 0; ii < _height; ++ii) {
-			for (int jj = 0; jj < _width; ++jj) {
-				u32 set = (_filtered[ii * _stride + jj / 32] >> (31 - (jj & 31))) & 1;
-				bits <<= 1;
-				bits |= set;
-				if (++bitCount >= 8) {
-					output.push_back(bits);
-					bits = 0;
-					bitCount = 0;
-				}
-			}
-		}
-
-		lodepng_encode_file("delta.png", (const unsigned char*)&output[0], _width, _height, LCT_GREY, 1);
-	}
-#endif
 }
 
 void Masker::clear() {
@@ -182,35 +152,11 @@ int Masker::initFromRGBA(const u8 *rgba, u32 color, u32 color_mask, int width, i
 
 	_covered = covered;
 
-#ifdef DUMP_FILTER_OUTPUT
-	{
-		CAT_WARN("mask") << "Writing mask.png";
-
-		vector<unsigned char> output;
-		u8 bits = 0, bitCount = 0;
-
-		for (int ii = 0; ii < _height; ++ii) {
-			for (int jj = 0; jj < _width; ++jj) {
-				u32 set = (_mask[ii * _stride + jj / 32] >> (31 - (jj & 31))) & 1;
-				bits <<= 1;
-				bits |= set;
-				if (++bitCount >= 8) {
-					output.push_back(bits);
-					bits = 0;
-					bitCount = 0;
-				}
-			}
-		}
-
-		lodepng_encode_file("mask.png", (const unsigned char*)&output[0], _width, _height, LCT_GREY, 1);
-	}
-#endif
-
 #ifdef CAT_COLLECT_STATS
 	Stats.covered = covered;
 #endif // CAT_COLLECT_STATS
 
-	return WE_OK;
+	return GCIF_WE_OK;
 }
 
 static CAT_INLINE void byteEncode(vector<u8> &bytes, u32 data) {
@@ -273,7 +219,7 @@ void Masker::performRLE() {
 void Masker::performLZ() {
 	_lz.resize(LZ4_compressBound(static_cast<int>( _rle.size() )));
 
-	const int lzSize = LZ4_compressHC((char*)&_rle[0], (char*)&_lz[0], _rle.size());
+	const int lzSize = LZ4_compressHC((char*)&_rle[0], (char*)&_lz[0], (int)_rle.size());
 
 	_lz.resize(lzSize);
 
@@ -343,7 +289,7 @@ bool Masker::evaluate() {
 #endif // CAT_COLLECT_STATS
 
 	u32 simulated_bits = simulate();
-	u32 ratio = _covered * 32 / simulated_bits;
+	int ratio = _covered * 32 / simulated_bits;
 	_enabled = (ratio >= _min_ratio);
 
 #ifdef CAT_COLLECT_STATS
@@ -407,8 +353,8 @@ void Masker::write(ImageWriter &writer) {
 		writer.writeWord(_color);
 		table_bits += 32;
 
-		table_bits += writer.write9(_rle.size());
-		table_bits += writer.write9(_lz.size());
+		table_bits += writer.write9((u32)_rle.size());
+		table_bits += writer.write9((u32)_lz.size());
 		writer.writeBit(_using_encoder);
 		++table_bits;
 
@@ -480,15 +426,18 @@ u32 ImageMaskWriter::dominantColor() {
 	// Histogram all image colors
 	const u32 *pixel = reinterpret_cast<const u32 *>( _rgba );
 	int count = _width * _height;
+	u32 zeroes = 0;
 	while (count--) {
 		u32 p = *pixel++;
 		if ((getLE(p) & 0xff000000) != 0) {
 			tracker[p]++;
+		} else {
+			++zeroes;
 		}
 	}
 
 	// Determine dominant color
-	u32 domColor = getLE(0xff000000), domScore = 0;
+	u32 domColor = 0, domScore = zeroes;
 	for (map<u32, u32>::iterator ii = tracker.begin(); ii != tracker.end(); ++ii) {
 		if (domScore < ii->second) {
 			domScore = ii->second;
@@ -500,13 +449,12 @@ u32 ImageMaskWriter::dominantColor() {
 }
 
 int ImageMaskWriter::initFromRGBA(const u8 *rgba, int width, int height, const GCIFKnobs *knobs) {
-
 	if (!rgba || width < FILTER_ZONE_SIZE || height < FILTER_ZONE_SIZE) {
-		return WE_BAD_DIMS;
+		return GCIF_WE_BAD_DIMS;
 	}
 
 	if ((width & FILTER_ZONE_SIZE_MASK) || (height & FILTER_ZONE_SIZE_MASK)) {
-		return WE_BAD_DIMS;
+		return GCIF_WE_BAD_DIMS;
 	}
 
 	_knobs = knobs;
@@ -516,12 +464,6 @@ int ImageMaskWriter::initFromRGBA(const u8 *rgba, int width, int height, const G
 
 	int err;
 
-	const u32 ALPHA_COLOR = 0;
-	const u32 ALPHA_MASK = getLE(0xff000000);
-	if ((err = _alpha.initFromRGBA(rgba, ALPHA_COLOR, ALPHA_MASK, width, height, knobs, _knobs->mask_minAlphaRat))) {
-		return err;
-	}
-
 	u32 domColor = dominantColor();
 	const u32 COLOR_MASK = 0xffffffff;
 
@@ -529,21 +471,16 @@ int ImageMaskWriter::initFromRGBA(const u8 *rgba, int width, int height, const G
 		return err;
 	}
 
-	return WE_OK;
+	return GCIF_WE_OK;
 }
 
 void ImageMaskWriter::write(ImageWriter &writer) {
-	bool use_alpha = _alpha.evaluate();
 	bool use_color = _color.evaluate();
 
-	_alpha.write(writer);
 	_color.write(writer);
 
 #ifdef CAT_COLLECT_STATS
 	Stats.compressedDataBits = 0;
-	if (use_alpha) {
-		Stats.compressedDataBits += _alpha.Stats.compressedDataBits;
-	}
 	if (use_color) {
 		Stats.compressedDataBits += _color.Stats.compressedDataBits;
 	}

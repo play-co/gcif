@@ -31,7 +31,7 @@
 #include "BitMath.hpp"
 #include "HuffmanDecoder.hpp"
 #include "Filters.hpp"
-#include "GCIFReader.hpp"
+#include "GCIFReader.h"
 
 #ifdef CAT_COLLECT_STATS
 #include "Log.hpp"
@@ -88,7 +88,7 @@ int ImageMaskReader::decodeLZ(ImageReader &reader) {
 		HuffmanDecoder decoder;
 		if (!decoder.init(NUM_SYMS, reader, 8)) {
 			CAT_DEBUG_EXCEPTION();
-			return RE_MASK_DECI;
+			return GCIF_RE_MASK_DECI;
 		}
 
 		for (int ii = 0; ii < lzSize; ++ii) {
@@ -102,19 +102,19 @@ int ImageMaskReader::decodeLZ(ImageReader &reader) {
 
 	if (reader.eof()) {
 		CAT_DEBUG_EXCEPTION();
-		return RE_MASK_LZ;
+		return GCIF_RE_MASK_LZ;
 	}
 
 	int result = LZ4_uncompress_unknownOutputSize(reinterpret_cast<const char *>( _lz ), reinterpret_cast<char *>( _rle ), lzSize, rleSize);
 
 	if (result != rleSize) {
 		CAT_DEBUG_EXCEPTION();
-		return RE_MASK_LZ;
+		return GCIF_RE_MASK_LZ;
 	}
 
 	if (reader.eof()) {
 		CAT_DEBUG_EXCEPTION();
-		return RE_MASK_LZ;
+		return GCIF_RE_MASK_LZ;
 	}
 
 	// Set up decoder
@@ -122,18 +122,18 @@ int ImageMaskReader::decodeLZ(ImageReader &reader) {
 	_rle_remaining = rleSize;
 	_scanline_y = 0;
 
-	return RE_OK;
+	return GCIF_RE_OK;
 }
 
 int ImageMaskReader::init(const ImageHeader *header) {
 	if (header->width < FILTER_ZONE_SIZE || header->height < FILTER_ZONE_SIZE) {
 		CAT_DEBUG_EXCEPTION();
-		return RE_BAD_DIMS;
+		return GCIF_RE_BAD_DIMS;
 	}
 
 	if ((header->width & FILTER_ZONE_SIZE_MASK) || (header->height & FILTER_ZONE_SIZE_MASK)) {
 		CAT_DEBUG_EXCEPTION();
-		return RE_BAD_DIMS;
+		return GCIF_RE_BAD_DIMS;
 	}
 
 	const int maskWidth = header->width;
@@ -152,7 +152,7 @@ int ImageMaskReader::init(const ImageHeader *header) {
 		_mask_alloc = _stride;
 	}
 
-	return RE_OK;
+	return GCIF_RE_OK;
 }
 
 int ImageMaskReader::read(ImageReader &reader) {
@@ -192,12 +192,12 @@ int ImageMaskReader::read(ImageReader &reader) {
 	Stats.overallUsec = t2 - t0;
 #endif // CAT_COLLECT_STATS
 
-	return RE_OK;
+	return GCIF_RE_OK;
 }
 
 int ImageMaskReader::nextScanline() {
 	if (!_enabled) {
-		return RE_OK;
+		return GCIF_RE_OK;
 	}
 
 	// Read RLE symbol count
@@ -231,7 +231,7 @@ int ImageMaskReader::nextScanline() {
 		_rle_remaining = rle_remaining;
 		_rle_next = rle;
 		++_scanline_y;
-		return RE_OK;
+		return GCIF_RE_OK;
 	}
 
 	// If first row,
@@ -261,7 +261,7 @@ int ImageMaskReader::nextScanline() {
 			// If new write offset is outside of the mask,
 			if (newOffset >= _stride) {
 				CAT_DEBUG_EXCEPTION();
-				return RE_MASK_LZ;
+				return GCIF_RE_MASK_LZ;
 			}
 
 			// If at the first row,
@@ -401,7 +401,7 @@ int ImageMaskReader::nextScanline() {
 				_rle_remaining = rle_remaining;
 				_rle_next = rle;
 				++_scanline_y;
-				return RE_OK;
+				return GCIF_RE_OK;
 			}
 
 			// Reset sum
@@ -410,7 +410,7 @@ int ImageMaskReader::nextScanline() {
 	}
 
 	CAT_DEBUG_EXCEPTION();
-	return RE_MASK_LZ;
+	return GCIF_RE_MASK_LZ;
 }
 
 

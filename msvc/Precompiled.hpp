@@ -9,6 +9,8 @@
 #include "../encoder/HuffmanEncoder.hpp"
 #include "../decoder/HuffmanDecoder.hpp"
 #include "../decoder/Filters.hpp"
+#include "../decoder/GCIFReader.h"
+#include "../encoder/GCIFWriter.h"
 #include "../encoder/FilterScorer.hpp"
 #include "../decoder/HotRodHash.hpp"
 #include "../decoder/MappedFile.hpp"

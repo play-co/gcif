@@ -24,7 +24,7 @@
     <ClInclude Include="decoder\EndianNeutral.hpp" />
     <ClInclude Include="decoder\EntropyDecoder.hpp" />
     <ClInclude Include="decoder\Filters.hpp" />
-    <ClInclude Include="decoder\GCIFReader.hpp" />
+    <ClInclude Include="decoder\GCIFReader.h" />
     <ClInclude Include="decoder\HotRodHash.hpp" />
     <ClInclude Include="decoder\HuffmanDecoder.hpp" />
     <ClInclude Include="decoder\ImageCMReader.hpp" />
@@ -35,6 +35,25 @@
     <ClInclude Include="decoder\MappedFile.hpp" />
     <ClInclude Include="decoder\Platform.hpp" />
     <ClInclude Include="decoder\WindowsInclude.hpp" />
+    <ClInclude Include="encoder\Clock.hpp" />
+    <ClInclude Include="encoder\Delegates.hpp" />
+    <ClInclude Include="encoder\EntropyEncoder.hpp" />
+    <ClInclude Include="encoder\EntropyEstimator.hpp" />
+    <ClInclude Include="encoder\FilterScorer.hpp" />
+    <ClInclude Include="encoder\GCIFWriter.h" />
+    <ClInclude Include="encoder\HuffmanEncoder.hpp" />
+    <ClInclude Include="encoder\ImageCMWriter.hpp" />
+    <ClInclude Include="encoder\ImageLZWriter.hpp" />
+    <ClInclude Include="encoder\ImageMaskWriter.hpp" />
+    <ClInclude Include="encoder\ImageWriter.hpp" />
+    <ClInclude Include="encoder\lodepng.h" />
+    <ClInclude Include="encoder\Log.hpp" />
+    <ClInclude Include="encoder\lz4hc.h" />
+    <ClInclude Include="encoder\Mutex.hpp" />
+    <ClInclude Include="encoder\Singleton.hpp" />
+    <ClInclude Include="encoder\SystemInfo.hpp" />
+    <ClInclude Include="encoder\Thread.hpp" />
+    <ClInclude Include="encoder\WaitableFlag.hpp" />
     <ClInclude Include="msvc\Precompiled.hpp" />
   </ItemGroup>
   <ItemGroup>
@@ -62,6 +81,36 @@
       </ForcedIncludeFiles>
     </ClCompile>
     <ClCompile Include="decoder\MappedFile.cpp" />
+    <ClCompile Include="encoder\Clock.cpp" />
+    <ClCompile Include="encoder\EntropyEstimator.cpp" />
+    <ClCompile Include="encoder\FilterScorer.cpp" />
+    <ClCompile Include="encoder\GCIFWriter.cpp" />
+    <ClCompile Include="encoder\HuffmanEncoder.cpp" />
+    <ClCompile Include="encoder\ImageCMWriter.cpp" />
+    <ClCompile Include="encoder\ImageLZWriter.cpp" />
+    <ClCompile Include="encoder\ImageMaskWriter.cpp" />
+    <ClCompile Include="encoder\ImageWriter.cpp" />
+    <ClCompile Include="encoder\lodepng.cpp" />
+    <ClCompile Include="encoder\Log.cpp" />
+    <ClCompile Include="encoder\lz4hc.c">
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">NotUsing</PrecompiledHeader>
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">NotUsing</PrecompiledHeader>
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">NotUsing</PrecompiledHeader>
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">NotUsing</PrecompiledHeader>
+      <ForcedIncludeFiles Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+      </ForcedIncludeFiles>
+      <ForcedIncludeFiles Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+      </ForcedIncludeFiles>
+      <ForcedIncludeFiles Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+      </ForcedIncludeFiles>
+      <ForcedIncludeFiles Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+      </ForcedIncludeFiles>
+    </ClCompile>
+    <ClCompile Include="encoder\Mutex.cpp" />
+    <ClCompile Include="encoder\SystemInfo.cpp" />
+    <ClCompile Include="encoder\Thread.cpp" />
+    <ClCompile Include="encoder\WaitableFlag.cpp" />
+    <ClCompile Include="gcif.cpp" />
     <ClCompile Include="msvc\Precompiled.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Create</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Create</PrecompiledHeader>

@@ -26,12 +26,30 @@
 	POSSIBILITY OF SUCH DAMAGE.
 */
 
-#include "GCIFWriter.hpp"
+#include "GCIFWriter.h"
 #include "ImageWriter.hpp"
 #include "ImageMaskWriter.hpp"
 #include "ImageLZWriter.hpp"
 #include "ImageCMWriter.hpp"
 using namespace cat;
+
+
+extern "C" const char *gcif_write_errstr(int err) {
+	switch (err) {
+	case GCIF_WE_OK:			// No error
+		return "OK";
+	case GCIF_WE_BAD_DIMS:	// Image dimensions are invalid
+		return "Bad image dimensions:GCIF_WE_BAD_DIMS";
+	case GCIF_WE_FILE:		// Unable to access file
+		return "File access error:GCIF_WE_FILE";
+	case GCIF_WE_BUG:		// Internal error
+		return "Iunno:GCIF_WE_BUG";
+	default:
+		break;
+	}
+
+	return "Unknown error code";
+}
 
 
 // Default knobs for the normal compression levels
@@ -41,7 +59,6 @@ static const GCIFKnobs DEFAULT_KNOBS[COMPRESS_LEVELS] = {
 	{	// L0 Faster
 		0,			// Bump
 
-		40,			// mask_minAlphaRat
 		40,			// mask_minColorRat
 		60,			// mask_huffThresh
 
@@ -63,7 +80,6 @@ static const GCIFKnobs DEFAULT_KNOBS[COMPRESS_LEVELS] = {
 	{	// L1 Better
 		0,			// Bump
 
-		40,			// mask_minAlphaRat
 		40,			// mask_minColorRat
 		60,			// mask_huffThresh
 
@@ -85,7 +101,6 @@ static const GCIFKnobs DEFAULT_KNOBS[COMPRESS_LEVELS] = {
 	{	// L2 Harder
 		0,			// Bump
 
-		40,			// mask_minAlphaRat
 		40,			// mask_minColorRat
 		60,			// mask_huffThresh
 
@@ -107,7 +122,6 @@ static const GCIFKnobs DEFAULT_KNOBS[COMPRESS_LEVELS] = {
 	{	// L3 Stronger
 		0,			// Bump
 
-		40,			// mask_minAlphaRat
 		40,			// mask_minColorRat
 		60,			// mask_huffThresh
 
@@ -129,10 +143,10 @@ static const GCIFKnobs DEFAULT_KNOBS[COMPRESS_LEVELS] = {
 };
 
 
-int gcif_write_ex(const void *rgba, int width, int height, const char *output_file_path, const GCIFKnobs *knobs) {
+extern "C" int gcif_write_ex(const void *rgba, int width, int height, const char *output_file_path, const GCIFKnobs *knobs) {
 	// Validate input
 	if (!rgba || width < 0 || height < 0 || !output_file_path || !*output_file_path) {
-		return WE_BAD_PARAMS;
+		return GCIF_WE_BAD_PARAMS;
 	}
 
 	const u8 *image = reinterpret_cast<const u8*>( rgba );
@@ -176,13 +190,13 @@ int gcif_write_ex(const void *rgba, int width, int height, const char *output_fi
 		return err;
 	}
 
-	return WE_OK;
+	return GCIF_WE_OK;
 }
 
-int gcif_write(const void *rgba, int width, int height, const char *output_file_path, int compression_level) {
+extern "C" int gcif_write(const void *rgba, int width, int height, const char *output_file_path, int compression_level) {
 	// Error on invalid input
 	if (compression_level < 0) {
-		return WE_BAD_PARAMS;
+		return GCIF_WE_BAD_PARAMS;
 	}
 
 	// Limit to the available options
@@ -194,22 +208,3 @@ int gcif_write(const void *rgba, int width, int height, const char *output_file_
 	const GCIFKnobs *knobs = &DEFAULT_KNOBS[compression_level];
 	return gcif_write_ex(rgba, width, height, output_file_path, knobs);
 }
-
-
-const char *gcif_write_errstr(int err) {
-	switch (err) {
-		case WE_OK:			// No error
-			return "No errors";
-		case WE_BAD_DIMS:	// Image dimensions are invalid
-			return "Image dimensions are invalid";
-		case WE_FILE:		// Unable to access file
-			return "Unable to access the file";
-		case WE_BUG:		// Internal error
-			return "Internal error";
-		default:
-			break;
-	}
-
-	return "Unknown error code";
-}
-

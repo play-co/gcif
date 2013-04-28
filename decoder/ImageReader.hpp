@@ -86,7 +86,7 @@ public:
 
 	// Initialize with file or memory buffer
 	int init(const char *path);
-	int init(const void *buffer, int bytes);
+	int init(const void *buffer, long bytes);
 
 	CAT_INLINE ImageHeader *getImageHeader() {
 		return &_header;

@@ -26,41 +26,27 @@
 	POSSIBILITY OF SUCH DAMAGE.
 */
 
-#include "GCIFReader.hpp"
+#include "GCIFReader.h"
 #include "ImageReader.hpp"
 #include "ImageMaskReader.hpp"
 #include "ImageLZReader.hpp"
 #include "ImageCMReader.hpp"
 using namespace cat;
 
-
-int gcif_read(const char *input_file_path, GCIFImage *image) {
+static int gcif_read(ImageReader &reader, GCIFImage *image) {
 	int err;
-
-	// Initialize image data
-	image->rgba = 0;
-	image->width = -1;
-	image->height = -1;
-
-	// Initialize image reader
-	ImageReader reader;
-	if ((err = reader.init(input_file_path))) {
-		return err;
-	}
 
 	// Fill in image width and height
 	ImageHeader *header = reader.getImageHeader();
 	image->width = header->width;
 	image->height = header->height;
 
-	const int MASK_COUNT = ImageCMReader::MASK_COUNT;
-	ImageMaskReader maskReaders[MASK_COUNT];
-	for (int ii = 0; ii < MASK_COUNT; ++ii) {
-		if ((err = maskReaders[ii].read(reader))) {
-			return err;
-		}
-		maskReaders[ii].dumpStats();
+	// Color mask
+	ImageMaskReader maskReader;
+	if ((err = maskReader.read(reader))) {
+		return err;
 	}
+	maskReader.dumpStats();
 
 	// 2D-LZ Exact Match
 	ImageLZReader imageLZReader;
@@ -71,56 +57,97 @@ int gcif_read(const char *input_file_path, GCIFImage *image) {
 
 	// Context Modeling Decompression
 	ImageCMReader imageCMReader;
-	if ((err = imageCMReader.read(reader, maskReaders, imageLZReader, image))) {
+	if ((err = imageCMReader.read(reader, maskReader, imageLZReader, image))) {
 		return err;
 	}
 	imageCMReader.dumpStats();
 
 	// Verify hash
 	if (!reader.finalizeCheckHash()) {
-		return RE_BAD_HASH;
+		return GCIF_RE_BAD_HASH;
 	}
 
-	return 0;
+	return GCIF_RE_OK;
 }
 
+extern "C" int gcif_read_file(const char *input_file_path_in, GCIFImage *image_out) {
+	int err;
 
-const char *gcif_read_errstr(int err) {
+	// Initialize image data
+	image_out->rgba = 0;
+	image_out->width = -1;
+	image_out->height = -1;
+
+	// Initialize image reader
+	ImageReader reader;
+	if ((err = reader.init(input_file_path_in))) {
+		return err;
+	}
+
+	return gcif_read(reader, image_out);
+}
+
+extern "C" int gcif_read_memory(const void *file_data_in, long file_size_bytes_in, GCIFImage *image_out) {
+	int err;
+
+	// Initialize image data
+	image_out->rgba = 0;
+	image_out->width = -1;
+	image_out->height = -1;
+
+	// Initialize image reader
+	ImageReader reader;
+	if ((err = reader.init(file_data_in, file_size_bytes_in))) {
+		return err;
+	}
+
+	return gcif_read(reader, image_out);
+}
+
+extern "C" void gcif_free_image(GCIFImage *image) {
+	// If image data was allocated,
+	if (image->rgba) {
+		// Free it
+		delete []image->rgba;
+		image->rgba = 0;
+	}
+}
+
+extern "C" const char *gcif_read_errstr(int err) {
 	switch (err) {
-		case RE_OK:			// No problemo
-			return "No problemo";
+		case GCIF_RE_OK:			// No problemo
+			return "OK";
 
-		case RE_FILE:		// File access error
-			return "File access error";
-		case RE_BAD_HEAD:	// File header is bad
-			return "File header is bad";
-		case RE_BAD_DATA:	// File data is bad
-			return "File data is bad";
-		case RE_BAD_DIMS:	// Bad image dimensions
-			return "Bad image dimensions";
+		case GCIF_RE_FILE:		// File access error
+			return "File access error:GCIF_RE_FILE";
+		case GCIF_RE_BAD_HEAD:	// File header is bad
+			return "Wrong file type:GCIF_RE_BAD_HEAD";
+		case GCIF_RE_BAD_DATA:	// File data is bad
+			return "Corrupted:GCIF_RE_BAD_DATA";
+		case GCIF_RE_BAD_DIMS:	// Bad image dimensions
+			return "Corrupted:GCIF_RE_BAD_DIMS";
 
-		case RE_MASK_CODES:	// Mask codelen read failed
-			return "Mask codelen read failed";
-		case RE_MASK_DECI:	// Mask decode init failed
-			return "Mask decode init failed";
-		case RE_MASK_LZ:	// Mask LZ decode failed
-			return "Mask LZ decode failed";
+		case GCIF_RE_MASK_CODES:	// Mask codelen read failed
+			return "Corrupted:GCIF_RE_MASK_CODES";
+		case GCIF_RE_MASK_DECI:	// Mask decode init failed
+			return "Corrupted:GCIF_RE_MASK_DECI";
+		case GCIF_RE_MASK_LZ:	// Mask LZ decode failed
+			return "Corrupted:GCIF_RE_MASK_LZ";
 
-		case RE_LZ_CODES:	// LZ codelen read failed
-			return "LZ codelen read failed";
-		case RE_LZ_BAD:		// Bad data in LZ section
-			return "Bad data in LZ section";
+		case GCIF_RE_LZ_CODES:	// LZ codelen read failed
+			return "Corrupted:GCIF_RE_LZ_CODES";
+		case GCIF_RE_LZ_BAD:		// Bad data in LZ section
+			return "Corrupted:GCIF_RE_LZ_BAD";
 
-		case RE_CM_CODES:	// CM codelen read failed
-			return "CM codelen read failed";
+		case GCIF_RE_CM_CODES:	// CM codelen read failed
+			return "Corrupted:GCIF_RE_CM_CODES";
 
-		case RE_BAD_HASH:	// Image hash does not match
-			return "Image hash does not match";
+		case GCIF_RE_BAD_HASH:	// Image hash does not match
+			return "Corrupted:GCIF_RE_BAD_HASH";
 
 		default:
 			break;
 	}
 
-	return "Unknown error code";
+	return "(Unknown error code)";
 }
-

@@ -32,7 +32,7 @@
 #include "ImageReader.hpp"
 #include "ImageMaskReader.hpp"
 #include "ImageLZReader.hpp"
-#include "GCIFReader.hpp"
+#include "GCIFReader.h"
 #include "Filters.hpp"
 #include "EntropyDecoder.hpp"
 
@@ -68,7 +68,6 @@ public:
 	static const int ZRLE_SYMS_U = 128;
 	static const int ZRLE_SYMS_V = 128;
 	static const int ZRLE_SYMS_A = 128;
-	static const int MASK_COUNT = 2;
 
 protected:
 	// RGBA output data
@@ -97,7 +96,7 @@ protected:
 	int _filters_alloc;
 
 	// Mask and LZ subsystems
-	ImageMaskReader *_masks;
+	ImageMaskReader *_mask;
 	ImageLZReader *_lz;
 
 	// Chosen spatial filter set
@@ -137,7 +136,7 @@ public:
 		clear();
 	}
 
-	int read(ImageReader &reader, ImageMaskReader *maskReaders, ImageLZReader &lzReader, GCIFImage *image);
+	int read(ImageReader &reader, ImageMaskReader &maskReader, ImageLZReader &lzReader, GCIFImage *image);
 
 #ifdef CAT_COLLECT_STATS
 	bool dumpStats();
