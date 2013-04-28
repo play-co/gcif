@@ -151,70 +151,63 @@ int ImageLZReader::readZones(ImageReader &reader) {
 			last_dx = dx;
 			last_dy = dy;
 		}
+	} else {
+		// For each zone to read,
+		u16 last_dx = 0, last_dy = 0;
+		Zone *z = _zones;
+		for (int ii = 0; ii < match_count; ++ii, ++z) {
+			u8 b0 = (u8)_decoder.next(reader);
+			u8 b1 = (u8)_decoder.next(reader);
+			u16 sx = ((u16)b1 << 8) | b0;
 
-		if (reader.eof()) {
-			CAT_DEBUG_EXCEPTION();
-			return RE_LZ_BAD;
+			b0 = (u8)_decoder.next(reader);
+			b1 = (u8)_decoder.next(reader);
+			u16 sy = ((u16)b1 << 8) | b0;
+
+			b0 = (u8)_decoder.next(reader);
+			b1 = (u8)_decoder.next(reader);
+			u16 dx = ((u16)b1 << 8) | b0;
+
+			b0 = (u8)_decoder.next(reader);
+			b1 = (u8)_decoder.next(reader);
+			u16 dy = ((u16)b1 << 8) | b0;
+
+			z->w = _decoder.next(reader) + ZONEW;
+			z->h = _decoder.next(reader) + ZONEH;
+
+			// Reverse CM
+			if (dy == 0) {
+				dx += last_dx;
+			}
+			dy += last_dy;
+			sy = dy - sy;
+
+			z->sox = (s16)sx - (s16)dx;
+			z->soy = (s16)sy - (s16)dy;
+			z->dx = dx;
+			z->dy = dy;
+
+			// Input security checks
+			if (sy > dy || (sy == dy && sx >= dx)) {
+				CAT_DEBUG_EXCEPTION();
+				return RE_LZ_BAD;
+			}
+
+			if ((u32)sx + (u32)z->w > (u32)_width ||
+					(u32)sy + (u32)z->h > (u32)_height) {
+				CAT_DEBUG_EXCEPTION();
+				return RE_LZ_BAD;
+			}
+
+			if ((u32)z->dx + (u32)z->w > (u32)_width ||
+					(u32)z->dy + (u32)z->h > (u32)_height) {
+				CAT_DEBUG_EXCEPTION();
+				return RE_LZ_BAD;
+			}
+
+			last_dy = dy;
+			last_dx = dx;
 		}
-
-		return RE_OK;
-	}
-
-	// For each zone to read,
-	u16 last_dx = 0, last_dy = 0;
-	Zone *z = _zones;
-	for (int ii = 0; ii < match_count; ++ii, ++z) {
-		u8 b0 = (u8)_decoder.next(reader);
-		u8 b1 = (u8)_decoder.next(reader);
-		u16 sx = ((u16)b1 << 8) | b0;
-
-		b0 = (u8)_decoder.next(reader);
-		b1 = (u8)_decoder.next(reader);
-		u16 sy = ((u16)b1 << 8) | b0;
-
-		b0 = (u8)_decoder.next(reader);
-		b1 = (u8)_decoder.next(reader);
-		u16 dx = ((u16)b1 << 8) | b0;
-
-		b0 = (u8)_decoder.next(reader);
-		b1 = (u8)_decoder.next(reader);
-		u16 dy = ((u16)b1 << 8) | b0;
-
-		z->w = _decoder.next(reader) + ZONEW;
-		z->h = _decoder.next(reader) + ZONEH;
-
-		// Reverse CM
-		if (dy == 0) {
-			dx += last_dx;
-		}
-		dy += last_dy;
-		sy = dy - sy;
-
-		z->sox = (s16)sx - (s16)dx;
-		z->soy = (s16)sy - (s16)dy;
-		z->dx = dx;
-		z->dy = dy;
-
-		// Input security checks
-		if (sy > dy || (sy == dy && sx >= dx)) {
-			CAT_DEBUG_EXCEPTION();
-			return RE_LZ_BAD;
-		}
-
-		if ((u32)sx + (u32)z->w > (u32)_width ||
-			(u32)sy + (u32)z->h > (u32)_height) {
-			CAT_DEBUG_EXCEPTION();
-			return RE_LZ_BAD;
-		}
-
-		if ((u32)z->dx + (u32)z->w > (u32)_width ||
-			(u32)z->dy + (u32)z->h > (u32)_height) {
-			CAT_DEBUG_EXCEPTION();
-			return RE_LZ_BAD;
-		}
-
-		last_dy = dy;
-		last_dx = dx;
 	}
 
 	// If file truncated,

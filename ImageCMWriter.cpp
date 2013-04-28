@@ -528,8 +528,7 @@ void ImageCMWriter::decideFilters() {
 
 void ImageCMWriter::scanlineLZ() {
 
-	// If we are attempting to use ScanlineLZ, 
-	CAT_INANE("CM") << "Comparing performance with ScanlineLZ...";
+	//CAT_INANE("CM") << "Comparing performance with ScanlineLZ...";
 
 	/*
 	 * For each filter zone set of scanlines there are two options:
