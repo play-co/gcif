@@ -74,11 +74,16 @@ void FilterScorer::clear() {
 }
 
 void FilterScorer::init(int count) {
-	clear();
-
 	CAT_DEBUG_ENFORCE(count > 0);
 
-	_list = new Score[count];
+	if (!_list || count > _list_alloc) {
+		if (_list) {
+			delete []_list;
+		}
+		_list = new Score[count];
+		_list_alloc = count;
+	}
+
 	_count = count;
 }
 

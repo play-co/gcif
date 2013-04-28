@@ -37,6 +37,11 @@ using namespace cat;
 int gcif_read(const char *input_file_path, GCIFImage *image) {
 	int err;
 
+	// Initialize image data
+	image->rgba = 0;
+	image->width = -1;
+	image->height = -1;
+
 	// Initialize image reader
 	ImageReader reader;
 	if ((err = reader.init(input_file_path))) {

@@ -51,14 +51,16 @@ protected:
 	int _val_ptrs[MAX_CODE_SIZE + 1];
 	u32 _total_used_syms;
 
-	u32 _cur_sorted_symbol_order_size;
 	u16 *_sorted_symbol_order;
+	int _sorted_symbol_order_alloc;
+	u32 _cur_sorted_symbol_order_size;
 
 	u8 _min_code_size, _max_code_size;
 
 	u32 _table_bits;
 
 	u32 *_lookup;
+	int _lookup_alloc;
 	u32 _cur_lookup_size;
 
 	u32 _table_max_code;

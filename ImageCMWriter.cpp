@@ -74,10 +74,6 @@ void ImageCMWriter::clear() {
 		delete []_filters;
 		_filters = 0;
 	}
-	if (_row_filters) {
-		delete []_row_filters;
-		_row_filters = 0;
-	}
 	if (_seen_filter) {
 		delete []_seen_filter;
 		_seen_filter = 0;
@@ -91,8 +87,6 @@ void ImageCMWriter::clear() {
 }
 
 int ImageCMWriter::init(int width, int height) {
-	clear();
-
 	if (width < FILTER_ZONE_SIZE || height < FILTER_ZONE_SIZE) {
 		return WE_BAD_DIMS;
 	}
@@ -106,14 +100,36 @@ int ImageCMWriter::init(int width, int height) {
 
 	const int fw = width >> FILTER_ZONE_SIZE_SHIFT;
 	const int fh = height >> FILTER_ZONE_SIZE_SHIFT;
-	_filters = new u16[fw * fh];
-	_row_filters = new u16[fh];
+
+	const int filters_size = fw * fh;
+	if (!_filters || filters_size > _filters_alloc) {
+		if (_filters) {
+			delete []_filters;
+		}
+		_filters = new u16[filters_size];
+		_filters_alloc = filters_size;
+	}
+
 	_filter_stride = fw;
-	_seen_filter = new u8[fw];
+
+	if (!_seen_filter || fw > _seen_filter_alloc) {
+		if (!_seen_filter) {
+			delete []_seen_filter;
+		}
+		_seen_filter = new u8[fw];
+		_seen_filter_alloc = fw;
+	}
 
 	// And last row of chaos data
 	_chaos_size = (width + 1) * COLOR_PLANES;
-	_chaos = new u8[_chaos_size];
+
+	if (!_chaos || _chaos_size > _chaos_alloc) {
+		if (!_chaos) {
+			delete []_chaos;
+		}
+		_chaos = new u8[_chaos_size];
+		_chaos_alloc = _chaos_size;
+	}
 
 	return WE_OK;
 }

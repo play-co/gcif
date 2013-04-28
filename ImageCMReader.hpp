@@ -78,6 +78,7 @@ protected:
 	// Recent chaos memory
 	u8 *_chaos;
 	u32 _chaos_size;
+	int _chaos_alloc;
 
 	// Chaos lookup table
 	int _chaos_levels;
@@ -93,6 +94,7 @@ protected:
 		}
 	} *_filters;
 	int _filters_bytes;
+	int _filters_alloc;
 
 	// Mask and LZ subsystems
 	ImageMaskReader *_masks;

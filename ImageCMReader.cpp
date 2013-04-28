@@ -56,19 +56,14 @@ void ImageCMReader::clear() {
 		delete []_chaos;
 		_chaos = 0;
 	}
-	if (_rgba) {
-		delete []_rgba;
-		_rgba = 0;
-	}
 	if (_filters) {
 		delete []_filters;
 		_filters = 0;
 	}
+	// Do not free RGBA data here
 }
 
 int ImageCMReader::init(GCIFImage *image) {
-	clear();
-
 	_width = image->width;
 	_height = image->height;
 
@@ -82,6 +77,7 @@ int ImageCMReader::init(GCIFImage *image) {
 		return RE_BAD_DIMS;
 	}
 
+	// Always allocate new RGBA data
 	_rgba = new u8[_width * _height * 4];
 
 	// Fill in image pointer
@@ -89,11 +85,25 @@ int ImageCMReader::init(GCIFImage *image) {
 
 	// Just need to remember the last row of filters
 	_filters_bytes = (_width >> FILTER_ZONE_SIZE_SHIFT) * sizeof(FilterSelection);
-	_filters = new FilterSelection[_width >> FILTER_ZONE_SIZE_SHIFT];
+
+	if (!_filters || _filters_bytes > _filters_alloc) {
+		if (_filters) {
+			delete []_filters;
+		}
+		_filters = new FilterSelection[_width >> FILTER_ZONE_SIZE_SHIFT];
+		_filters_alloc = _filters_bytes;
+	}
 
 	// And last row of chaos data
 	_chaos_size = (_width + 1) * COLOR_PLANES;
-	_chaos = new u8[_chaos_size];
+
+	if (!_chaos || _chaos_alloc < _chaos_size) {
+		if (_chaos) {
+			delete []_chaos;
+		}
+		_chaos = new u8[_chaos_size];
+		_chaos_alloc = _chaos_size;
+	}
 
 	return RE_OK;
 }
@@ -234,14 +244,12 @@ int ImageCMReader::readPixels(ImageReader &reader) {
 				last[2] = 0;
 				last[3] = 0;
 			} else if (_masks[0].masked(x)) {
-				// Fully-transparent pixel
 				*reinterpret_cast<u32 *>( p ) = 0;
 				last[0] = 0;
 				last[1] = 0;
 				last[2] = 0;
 				last[3] = 0;
 			} else if (_masks[1].masked(x)) {
-				// Fully-transparent pixel
 				*reinterpret_cast<u32 *>( p ) = _masks[1].getColor();
 				last[0] = 0;
 				last[1] = 0;
@@ -346,14 +354,12 @@ int ImageCMReader::readPixels(ImageReader &reader) {
 				last[2] = 0;
 				last[3] = 0;
 			} else if (_masks[0].masked(x)) {
-				// Fully-transparent pixel
 				*reinterpret_cast<u32 *>( p ) = 0;
 				last[0] = 0;
 				last[1] = 0;
 				last[2] = 0;
 				last[3] = 0;
 			} else if (_masks[1].masked(x)) {
-				// Fully-transparent pixel
 				*reinterpret_cast<u32 *>( p ) = _masks[1].getColor();
 				last[0] = 0;
 				last[1] = 0;
@@ -440,7 +446,6 @@ int ImageCMReader::readPixels(ImageReader &reader) {
 				last[2] = 0;
 				last[3] = 0;
 			} else if (_masks[1].masked(x)) {
-				// Fully-transparent pixel
 				*reinterpret_cast<u32 *>( p ) = _masks[1].getColor();
 				last[0] = 0;
 				last[1] = 0;
@@ -528,7 +533,6 @@ int ImageCMReader::readPixels(ImageReader &reader) {
 				last[2] = 0;
 				last[3] = 0;
 			} else if (_masks[1].masked(x)) {
-				// Fully-transparent pixel
 				*reinterpret_cast<u32 *>( p ) = _masks[1].getColor();
 				last[0] = 0;
 				last[1] = 0;

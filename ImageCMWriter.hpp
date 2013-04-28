@@ -85,13 +85,15 @@ protected:
 
 	// Filter matrix, storing filter decisions made up front
 	u16 *_filters;		// One element per zone
-	u16 *_row_filters;	// One element per scanline
+	int _filters_alloc;
 	u8 *_seen_filter;	// Seen filter yet for a block
+	int _seen_filter_alloc;
 	int _filter_stride;	// Filters per scanline
 
 	// Recent measured chaos
 	u8 *_chaos;
 	int _chaos_size;
+	int _chaos_alloc;
 
 	// Recent post-filter data
 	int _chaos_levels;
@@ -159,7 +161,6 @@ public:
 	CAT_INLINE ImageCMWriter() {
 		_filters = 0;
 		_chaos = 0;
-		_row_filters = 0;
 		_seen_filter = 0;
 	}
 	CAT_INLINE virtual ~ImageCMWriter() {
@@ -178,14 +179,6 @@ public:
 		y >>= FILTER_ZONE_SIZE_SHIFT;
 		const int w = _width >> FILTER_ZONE_SIZE_SHIFT;
 		return _filters[x + y * w];
-	}
-
-	CAT_INLINE void setRowFilter(int y, u16 filter) {
-		_row_filters[y] = filter;
-	}
-
-	CAT_INLINE u16 getRowFilter(int y) {
-		return _row_filters[y];
 	}
 
 	int initFromRGBA(const u8 *rgba, int width, int height, ImageMaskWriter &mask, ImageLZWriter &lz, const GCIFKnobs *knobs);

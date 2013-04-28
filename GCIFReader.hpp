@@ -53,10 +53,9 @@ enum ReaderErrors {
 
 
 struct GCIFImage {
-	unsigned char *rgba;	// RGBA pixels
-	int width, height;		// Number of pixels
+	unsigned char *rgba;	// RGBA pixels; free with "delete []rgba" when done
+	int width, height;		// Dimensions in pixels
 };
-
 
 int gcif_read(const char *input_file_path, GCIFImage *image);
 

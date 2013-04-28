@@ -50,8 +50,6 @@ void HuffmanDecoder::clear() {
 }
 
 bool HuffmanDecoder::init(int count, const u8 *codelens, u32 table_bits) {
-	clear();
-
 	u32 min_codes[MAX_CODE_SIZE];
 
 	if (count <= 0 || (table_bits > MAX_TABLE_BITS)) {
@@ -129,7 +127,13 @@ bool HuffmanDecoder::init(int count, const u8 *codelens, u32 table_bits) {
 			_cur_sorted_symbol_order_size = count < nextPOT ? count : nextPOT;
 		}
 
-		_sorted_symbol_order = new u16[_cur_sorted_symbol_order_size];
+		if (!_sorted_symbol_order || _cur_sorted_symbol_order_size > _sorted_symbol_order_alloc) {
+			if (_sorted_symbol_order) {
+				delete []_sorted_symbol_order;
+			}
+			_sorted_symbol_order = new u16[_cur_sorted_symbol_order_size];
+			_sorted_symbol_order_alloc = _cur_sorted_symbol_order_size;
+		}
 	}
 
 	_min_code_size = static_cast<u8>( min_code_size );
@@ -154,7 +158,13 @@ bool HuffmanDecoder::init(int count, const u8 *codelens, u32 table_bits) {
 		if (_cur_lookup_size < table_size) {
 			_cur_lookup_size = table_size;
 
-			_lookup = new u32[table_size];
+			if (!_lookup || table_size > _lookup_alloc) {
+				if (_lookup) {
+					delete []_lookup;
+				}
+				_lookup = new u32[table_size];
+				_lookup_alloc = table_size;
+			}
 		}
 
 		memset(_lookup, 0xFF, 4 << table_bits);

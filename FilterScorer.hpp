@@ -44,8 +44,9 @@ public:
 	};
 
 protected:
-	Score *_list;
-	int _count;
+	Score *_list;		// List of scores
+	int _list_alloc;	// Record list size to avoid realloc
+	int _count;			// List size
 
 	CAT_INLINE void swap(int a, int b) {
 		Score temp = _list[a];
