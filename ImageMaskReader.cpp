@@ -66,8 +66,20 @@ int ImageMaskReader::decodeLZ(ImageReader &reader) {
 	int rleSize = reader.read9();
 	int lzSize = reader.read9();
 
-	_rle = new u8[rleSize];
-	_lz = new u8[lzSize];
+	if (!_rle || rleSize > _rle_alloc) {
+		if (_rle) {
+			delete []_rle;
+		}
+		_rle = new u8[rleSize];
+		_rle_alloc = rleSize;
+	}
+	if (!_lz || lzSize > _lz_alloc) {
+		if (_lz) {
+			delete []_lz;
+		}
+		_lz = new u8[lzSize];
+		_lz_alloc = lzSize;
+	}
 
 	// If compressed,
 	if (reader.readBit()) {
@@ -114,8 +126,6 @@ int ImageMaskReader::decodeLZ(ImageReader &reader) {
 }
 
 int ImageMaskReader::init(const ImageHeader *header) {
-	clear();
-
 	if (header->width < FILTER_ZONE_SIZE || header->height < FILTER_ZONE_SIZE) {
 		CAT_DEBUG_EXCEPTION();
 		return RE_BAD_DIMS;
@@ -134,7 +144,13 @@ int ImageMaskReader::init(const ImageHeader *header) {
 	_width = maskWidth;
 	_height = maskHeight;
 
-	_mask = new u32[_stride];
+	if (!_mask || _stride > _mask_alloc) {
+		if (_mask) {
+			delete []_mask;
+		}
+		_mask = new u32[_stride];
+		_mask_alloc = _stride;
+	}
 
 	return RE_OK;
 }

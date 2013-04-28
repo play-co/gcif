@@ -44,6 +44,7 @@ namespace cat {
 
 class ImageMaskReader {
 	u32 *_mask;
+	int _mask_alloc;
 
 	int _width;
 	int _height;
@@ -52,7 +53,9 @@ class ImageMaskReader {
 	bool _enabled;
 
 	u8 *_lz;
+	int _lz_alloc;
 	u8 *_rle;
+	int _rle_alloc;
 	int _rle_remaining;
 	const u8 *_rle_next;
 	int _scanline_y;

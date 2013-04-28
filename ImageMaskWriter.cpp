@@ -133,10 +133,20 @@ int Masker::initFromRGBA(const u8 *rgba, u32 color, u32 color_mask, int width, i
 	_stride = (width + 31) >> 5;
 	_size = height * _stride;
 
-	clear();
-
-	_mask = new u32[_size];
-	_filtered = new u32[_size];
+	if (!_mask || _size > _mask_alloc) {
+		if (_mask) {
+			delete []_mask;
+		}
+		_mask = new u32[_size];
+		_mask_alloc = _size;
+	}
+	if (!_filtered || _size > _filtered_alloc) {
+		if (_filtered) {
+			delete []_filtered;
+		}
+		_filtered = new u32[_size];
+		_filtered_alloc = _size;
+	}
 
 	// Fill in bitmask
 	int covered = 0;

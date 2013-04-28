@@ -78,7 +78,9 @@ class Masker {
 	bool _enabled;			// Is this mask layer enabled?
 
 	u32 *_mask;				// The pre-filtered mask
+	int _mask_alloc;
 	u32 *_filtered;			// The post-filtered mask
+	int _filtered_alloc;
 	const u8 *_rgba;		// Original pixel data
 	int _size, _stride, _width, _height;
 	int _covered;			// Number of pixels covered
