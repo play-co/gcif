@@ -1,0 +1,1 @@
+g++ -O3 -o bcif.exe *.cpp -enable-auto-import
