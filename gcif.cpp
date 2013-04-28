@@ -188,9 +188,10 @@ public:
 		while (!_abort) {
 			if (_ready.Wait()) {
 				string filename;
-				bool hasFile = false;
+				bool hasFile;
 
 				while (!_abort) {
+					hasFile = false;
 					{
 						AutoMutex alock(*_lock);
 
@@ -262,8 +263,14 @@ static int benchmark(const char *path) {
 
 	/* print all the files and directories within directory */
 	while ((ent = readdir (dir)) != NULL) {
-		if (ent->d_name[0] != '.') {
-			string filename = string(path) + "/" + ent->d_name;
+		const char *name = ent->d_name;
+		int namelen = (int)strlen(name);
+
+		if (namelen > 4 &&
+			tolower(name[namelen-3]) == 'p' &&
+			tolower(name[namelen-2]) == 'n' &&
+			tolower(name[namelen-1]) == 'g') {
+			string filename = string(path) + "/" + name;
 
 			{
 				AutoMutex alock(lock);
