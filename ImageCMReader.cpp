@@ -86,6 +86,7 @@ int ImageCMReader::init(GCIFImage *image) {
 	image->rgba = _rgba;
 
 	// Just need to remember the last row of filters
+	_filters_bytes = (_width >> FILTER_ZONE_SIZE_SHIFT) * sizeof(FilterSelection);
 	_filters = new FilterSelection[_width >> FILTER_ZONE_SIZE_SHIFT];
 
 	// And last row of chaos data
@@ -188,6 +189,9 @@ int ImageCMReader::readPixels(ImageReader &reader) {
 			trigger_x_lz = _lz->getTriggerX();
 		}
 
+		// Clear filters data
+		CAT_CLR(_filters, _filters_bytes);
+
 		// Restart for scanline
 		u8 *last = lastStart;
 		int lz_skip = 0, lz_lines_left = 0;
@@ -200,31 +204,6 @@ int ImageCMReader::readPixels(ImageReader &reader) {
 			if (x == trigger_x_lz) {
 				lz_skip = _lz->triggerX(p, lz_lines_left);
 				trigger_x_lz = _lz->getTriggerX();
-			}
-
-			// Read SF and CF for this zone
-			FilterSelection *filter = &_filters[x >> FILTER_ZONE_SIZE_SHIFT];
-
-			// If it is time to read the filter,
-			if ((x & FILTER_ZONE_SIZE_MASK) == 0) {
-				// If at least one pixel requires these filters,
-				if (lz_skip < FILTER_ZONE_SIZE || lz_lines_left < FILTER_ZONE_SIZE) {
-					for (int ii = 0; ii < FILTER_ZONE_SIZE; ++ii) {
-						for (int jj = 0; jj < FILTER_ZONE_SIZE; ++jj) {
-							if (!_mask->masked(x + jj, y + ii)) {
-								const int cfi = _cf.next(reader);
-								DESYNC_FILTER(x, y);
-								filter->cf = YUV2RGB_FILTERS[cfi];
-								const int sfi = _sf.next(reader);
-								DESYNC_FILTER(x, y);
-								filter->sf = _sf_set.get(sfi);
-
-								goto y0_had_filter;
-							}
-						}
-					}
-				}
-y0_had_filter:;
 			}
 
 			if (lz_skip > 0) {
@@ -242,6 +221,15 @@ y0_had_filter:;
 					last[c] = 0;
 				}
 			} else {
+				// Read SF and CF for this zone
+				FilterSelection *filter = &_filters[x >> FILTER_ZONE_SIZE_SHIFT];
+				if (!filter->ready()) {
+					filter->cf = YUV2RGB_FILTERS[_cf.next(reader)];
+					DESYNC_FILTER(x, y);
+					filter->sf = _sf_set.get(_sf.next(reader));
+					DESYNC_FILTER(x, y);
+				}
+
 				// Read YUV filtered pixel
 				u8 A;
 				last[0] = (u8)_y_decoder[CHAOS_TABLE[last[-4]]].next(reader);
@@ -289,6 +277,11 @@ y0_had_filter:;
 			trigger_x_lz = _lz->getTriggerX();
 		}
 
+		// If it is time to clear the filters data,
+		if ((y & FILTER_ZONE_SIZE_MASK) == 0) {
+			CAT_CLR(_filters, _filters_bytes);
+		}
+
 		// Restart for scanline
 		u8 *last = lastStart;
 		int lz_skip = 0, lz_lines_left = 0;
@@ -302,29 +295,6 @@ y0_had_filter:;
 			if (x == trigger_x_lz) {
 				lz_skip = _lz->triggerX(p, lz_lines_left);
 				trigger_x_lz = _lz->getTriggerX();
-			}
-
-			FilterSelection *filter = &_filters[x >> FILTER_ZONE_SIZE_SHIFT];
-
-			// If we are on a filter info scanline,
-			if ((y & FILTER_ZONE_SIZE_MASK) == 0) {
-				// If at least one pixel requires these filters,
-				if (lz_skip < FILTER_ZONE_SIZE || lz_lines_left < FILTER_ZONE_SIZE) {
-					for (int ii = 0; ii < FILTER_ZONE_SIZE; ++ii) {
-						for (int jj = 0; jj < FILTER_ZONE_SIZE; ++jj) {
-							if (!_mask->masked(x + jj, y + ii)) {
-								const int cfi = _cf.next(reader);
-								DESYNC_FILTER(x, y);
-								filter->cf = YUV2RGB_FILTERS[cfi];
-								const int sfi = _sf.next(reader);
-								DESYNC_FILTER(x, y);
-								filter->sf = _sf_set.get(sfi);
-								goto x0_had_filter;
-							}
-						}
-					}
-				}
-x0_had_filter:;
 			}
 
 			if (lz_skip > 0) {
@@ -342,6 +312,15 @@ x0_had_filter:;
 					last[c] = 0;
 				}
 			} else {
+				// Read SF and CF for this zone
+				FilterSelection *filter = &_filters[x >> FILTER_ZONE_SIZE_SHIFT];
+				if (!filter->ready()) {
+					filter->cf = YUV2RGB_FILTERS[_cf.next(reader)];
+					DESYNC_FILTER(x, y);
+					filter->sf = _sf_set.get(_sf.next(reader));
+					DESYNC_FILTER(x, y);
+				}
+
 				// Read YUV filtered pixel
 				u8 A;
 				last[0] = (u8)_y_decoder[CHAOS_TABLE[last[0]]].next(reader);;
@@ -389,37 +368,22 @@ x0_had_filter:;
 				trigger_x_lz = _lz->getTriggerX();
 			}
 
-			FilterSelection *filter = &_filters[x >> FILTER_ZONE_SIZE_SHIFT];
-
-			// If it is time to read the filter,
-			if ((y & FILTER_ZONE_SIZE_MASK) == 0 &&
-					(x & FILTER_ZONE_SIZE_MASK) == 0) {
-				// If at least one pixel requires these filters,
-				if (lz_skip < FILTER_ZONE_SIZE || lz_lines_left < FILTER_ZONE_SIZE) {
-					for (int ii = 0; ii < FILTER_ZONE_SIZE; ++ii) {
-						for (int jj = 0; jj < FILTER_ZONE_SIZE; ++jj) {
-							if (!_mask->masked(x + jj, y + ii)) {
-								const int cfi = _cf.next(reader);
-								DESYNC_FILTER(x, y);
-								filter->cf = YUV2RGB_FILTERS[cfi];
-								const int sfi = _sf.next(reader);
-								DESYNC_FILTER(x, y);
-								filter->sf = _sf_set.get(sfi);
-								goto had_filter;
-							}
-						}
-					}
-				}
-			}
-
-had_filter:;
-			u8 yuva[4] = {0};
+			u8 yuva[4] = { 0 };
 
 			if (lz_skip > 0) {
 				--lz_skip;
 			} else if (_mask->masked(x, y)) {
 				*reinterpret_cast<u32 *>( p ) = 0;
 			} else {
+				// Read SF and CF for this zone
+				FilterSelection *filter = &_filters[x >> FILTER_ZONE_SIZE_SHIFT];
+				if (!filter->ready()) {
+					filter->cf = YUV2RGB_FILTERS[_cf.next(reader)];
+					DESYNC_FILTER(x, y);
+					filter->sf = _sf_set.get(_sf.next(reader));
+					DESYNC_FILTER(x, y);
+				}
+
 				const u32 chaos_y = CHAOS_TABLE[last[-4] + (u16)last[0]];
 				const u32 chaos_u = CHAOS_TABLE[last[-3] + (u16)last[1]];
 				const u32 chaos_v = CHAOS_TABLE[last[-2] + (u16)last[2]];
@@ -491,6 +455,15 @@ had_filter:;
 					last[c] = 0;
 				}
 			} else {
+				// Read SF and CF for this zone
+				FilterSelection *filter = &_filters[x >> FILTER_ZONE_SIZE_SHIFT];
+				if (!filter->ready()) {
+					filter->cf = YUV2RGB_FILTERS[_cf.next(reader)];
+					DESYNC_FILTER(x, y);
+					filter->sf = _sf_set.get(_sf.next(reader));
+					DESYNC_FILTER(x, y);
+				}
+
 				// Read YUV filtered pixel
 				last[0] = (u8)_y_decoder[CHAOS_TABLE[last[-4] + (u16)last[0]]].next(reader);
 				DESYNC(x, y);
@@ -498,8 +471,6 @@ had_filter:;
 				DESYNC(x, y);
 				last[2] = (u8)_v_decoder[CHAOS_TABLE[last[-2] + (u16)last[2]]].next(reader);
 				DESYNC(x, y);
-
-				FilterSelection *filter = &_filters[x >> FILTER_ZONE_SIZE_SHIFT];
 
 				// Reverse color filter
 				filter->cf(last, p);

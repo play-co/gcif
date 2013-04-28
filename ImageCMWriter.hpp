@@ -86,6 +86,8 @@ protected:
 	// Filter matrix, storing filter decisions made up front
 	u16 *_filters;		// One element per zone
 	u16 *_row_filters;	// One element per scanline
+	u8 *_seen_filter;	// Seen filter yet for a block
+	int _filter_stride;	// Filters per scanline
 
 	// Recent measured chaos
 	u8 *_chaos;
@@ -158,6 +160,7 @@ public:
 		_filters = 0;
 		_chaos = 0;
 		_row_filters = 0;
+		_seen_filter = 0;
 	}
 	CAT_INLINE virtual ~ImageCMWriter() {
 		clear();

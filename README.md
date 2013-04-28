@@ -228,6 +228,13 @@ on the first 4000-ish selections to choose better filters with knowledge about
 the full image.  This further improves compression by tuning all of the filters
 equally well across the whole image.
 
+The filter selections are written out interleaved with the pixel data.  This is
+done since sometimes filter data does not need to be sent due to the LZ or mask
+steps, which make the filtering unnecessary for those pixels.  The decoder will
+keep track of whether or not filter selection has been read for each zone and
+will expect to read in the filter selection exactly when the first pixel in a
+zone is encountered.
+
 
 ### Step 3. Order-1 Chaos Modeling and Encoding
 

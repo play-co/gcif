@@ -86,7 +86,12 @@ protected:
 	struct FilterSelection {
 		YUV2RGBFilterFunction cf;
 		SpatialFilterSet::Functions sf;
+
+		CAT_INLINE bool ready() {
+			return cf != 0;
+		}
 	} *_filters;
+	int _filters_bytes;
 
 	// Mask and LZ subsystems
 	ImageMaskReader *_mask;

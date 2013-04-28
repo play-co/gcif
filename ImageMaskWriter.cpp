@@ -394,6 +394,9 @@ void Masker::write(ImageWriter &writer) {
 	if (_enabled) {
 		CAT_INANE("mask") << "Writing mask for color (" << (_color & 255) << "," << ((_color >> 8) & 255) << "," << ((_color >> 16) & 255) << "," << ((_color >> 24) & 255) << ") ...";
 
+		writer.writeWord(_color);
+		table_bits += 32;
+
 		table_bits += writer.write9(_rle.size());
 		table_bits += writer.write9(_lz.size());
 		writer.writeBit(_using_encoder);
@@ -521,10 +524,6 @@ int ImageMaskWriter::initFromRGBA(const u8 *rgba, int width, int height, const G
 void ImageMaskWriter::write(ImageWriter &writer) {
 	bool use_alpha = _alpha.evaluate();
 	bool use_color = _color.evaluate();
-
-	if (use_color) {
-		writer.writeWord(_color.getColor());
-	}
 
 	_alpha.write(writer);
 	_color.write(writer);

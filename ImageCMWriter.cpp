@@ -78,6 +78,10 @@ void ImageCMWriter::clear() {
 		delete []_row_filters;
 		_row_filters = 0;
 	}
+	if (_seen_filter) {
+		delete []_seen_filter;
+		_seen_filter = 0;
+	}
 	if (_chaos) {
 		delete []_chaos;
 		_chaos = 0;
@@ -104,6 +108,8 @@ int ImageCMWriter::init(int width, int height) {
 	const int fh = height >> FILTER_ZONE_SIZE_SHIFT;
 	_filters = new u16[fw * fh];
 	_row_filters = new u16[fh];
+	_filter_stride = fw;
+	_seen_filter = new u8[fw];
 
 	// And last row of chaos data
 	_chaos_size = (width + 1) * COLOR_PLANES;
@@ -642,15 +648,13 @@ void ImageCMWriter::maskFilters() {
 			bool on = true;
 
 			int w, h;
-			if (!_lz->findExtent(x, y, w, h) ||
-				w < FILTER_ZONE_SIZE || h < FILTER_ZONE_SIZE) {
-				for (int ii = 0; ii < FILTER_ZONE_SIZE; ++ii) {
-					for (int jj = 0; jj < FILTER_ZONE_SIZE; ++jj) {
-						if (!_mask->masked(x + ii, y + jj)) {
-							on = false;
-							ii = FILTER_ZONE_SIZE;
-							break;
-						}
+			for (int ii = 0; ii < FILTER_ZONE_SIZE; ++ii) {
+				for (int jj = 0; jj < FILTER_ZONE_SIZE; ++jj) {
+					if (!_mask->masked(x + ii, y + jj) &&
+						!_lz->visited(x + ii, y + jj)) {
+						on = false;
+						ii = FILTER_ZONE_SIZE;
+						break;
 					}
 				}
 			}
@@ -914,20 +918,26 @@ bool ImageCMWriter::writeChaos(ImageWriter &writer) {
 		last[2 - 4] = 0;
 		last[3 - 4] = 0;
 
+		// If it is time to clear the seen filters,
+		if ((y & FILTER_ZONE_SIZE_MASK) == 0) {
+			CAT_CLR(_seen_filter, _filter_stride);
+		}
+
 		// For each pixel,
 		for (int x = 0; x < width; ++x) {
 			DESYNC(x, y);
 
-			// If it is time to write out a filter,
-			if ((x & FILTER_ZONE_SIZE_MASK) == 0 &&
-				(y & FILTER_ZONE_SIZE_MASK) == 0) {
-
+			// If not masked out,
+			if (!_lz->visited(x, y) && !_mask->masked(x, y)) {
+				// Get filter for this pixel
 				u16 filter = getFilter(x, y);
+				CAT_DEBUG_ENFORCE(filter != UNUSED_FILTER);
+				u8 cf = (u8)filter;
+				u8 sf = (u8)(filter >> 8);
 
-				// If filter is not unused,
-				if (filter != UNUSED_FILTER) {
-					u8 sf = filter >> 8;
-					u8 cf = (u8)filter;
+				// If it is time to write out the filter information,
+				if (!_seen_filter[x >> FILTER_ZONE_SIZE_SHIFT]) {
+					_seen_filter[x >> FILTER_ZONE_SIZE_SHIFT] = true;
 
 					int cf_bits = _cf_encoder.writeSymbol(cf, writer);
 					DESYNC_FILTER(x, y);
@@ -939,15 +949,6 @@ bool ImageCMWriter::writeChaos(ImageWriter &writer) {
 					filter_table_bits[1] += cf_bits;
 #endif
 				}
-			}
-
-			// If not masked out,
-			if (!_lz->visited(x, y) && !_mask->masked(x, y)) {
-				// Get filter for this pixel
-				u16 filter = getFilter(x, y);
-				CAT_DEBUG_ENFORCE(filter != UNUSED_FILTER);
-				u8 cf = (u8)filter;
-				u8 sf = (u8)(filter >> 8);
 
 				// Apply spatial filter
 				const u8 *pred = _sf_set.get(sf).safe(p, x, y, width);

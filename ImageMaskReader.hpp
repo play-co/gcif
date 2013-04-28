@@ -44,12 +44,17 @@ namespace cat {
 
 class ImageMaskReader {
 	u32 *_mask;
+
 	int _width;
 	int _height;
 	int _stride;
 
+	bool _enabled;
+
 	u8 *_lz;
 	u8 *_rle;
+
+	u32 _color;
 
 	int decodeRLE(u8 *rle, int len);
 	int decodeLZ(ImageReader &reader);
