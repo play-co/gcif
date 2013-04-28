@@ -27,8 +27,6 @@
 */
 
 #include "MappedFile.hpp"
-#include "Log.hpp"
-#include "SystemInfo.hpp"
 using namespace cat;
 
 #if defined(CAT_OS_LINUX) || defined(CAT_OS_OSX)
@@ -37,6 +35,43 @@ using namespace cat;
 # include <sys/fcntl.h>
 # include <errno.h>
 #endif
+
+#if defined(CAT_OS_WINDOWS)
+# include "WindowsInclude.hpp"
+#elif defined(CAT_OS_LINUX) || defined(CAT_OS_AIX) || defined(CAT_OS_SOLARIS) || defined(CAT_OS_IRIX)
+# include <unistd.h>
+#elif defined(CAT_OS_OSX) || defined(CAT_OS_BSD)
+# include <sys/sysctl.h>
+# include <unistd.h>
+#elif defined(CAT_OS_HPUX)
+# include <sys/mpctl.h>
+#endif
+
+static u32 GetAllocationGranularity()
+{
+	u32 alloc_gran = 0;
+
+#if defined(CAT_OS_WINDOWS)
+
+	SYSTEM_INFO sys_info;
+	GetSystemInfo(&sys_info);
+	alloc_gran = sys_info.dwAllocationGranularity;
+
+#elif defined(CAT_OS_OSX) || defined(CAT_OS_BSD)
+
+	alloc_gran = (u32)getpagesize();
+
+#else
+
+	alloc_gran = (u32)sysconf(_SC_PAGE_SIZE);
+
+#endif
+
+	return alloc_gran > 0 ? alloc_gran : CAT_DEFAULT_ALLOCATION_GRANULARITY;
+}
+
+
+//// MappedFile
 
 MappedFile::MappedFile()
 {
@@ -71,13 +106,11 @@ bool MappedFile::OpenRead(const char *path, bool read_ahead, bool no_cache)
 	_file = CreateFileA(path, GENERIC_READ, FILE_SHARE_READ, 0, OPEN_EXISTING, access_pattern, 0);
 	if (_file == INVALID_HANDLE_VALUE)
 	{
-		CAT_WARN("MappedFile") << "CreateFileA error " << GetLastError() << " for " << path;
 		return false;
 	}
 
 	if (!GetFileSizeEx(_file, (LARGE_INTEGER*)&_len))
 	{
-		CAT_WARN("MappedFile") << "GetFileSizeEx error " << GetLastError() << " for " << path;
 		return false;
 	}
 
@@ -86,13 +119,11 @@ bool MappedFile::OpenRead(const char *path, bool read_ahead, bool no_cache)
 	_file = open(path, O_RDONLY, (mode_t)0444);
 
 	if (_file == -1) {
-		CAT_WARN("MappedFile") << "open error " << errno << " for " << path;
 		return false;
 	} else {
 		_len = lseek(_file, 0, SEEK_END);
 
 		if (_len <= 0) {
-			CAT_WARN("MappedFile") << "lseek error " << errno << " for " << path;
 			return false;
 		} else {
 			if (read_ahead) {
@@ -143,15 +174,12 @@ bool MappedFile::OpenWrite(const char *path, u64 size)
 	_file = open(path, O_RDWR|O_CREAT|O_TRUNC, (mode_t)0666);
 
 	if (_file == -1) {
-		CAT_WARN("MappedFile") << "open error " << errno << " for " << path;
 		return false;
 	} else {
 		if (-1 == lseek(_file, size - 1, SEEK_SET)) {
-			CAT_WARN("MappedFile") << "lseek error " << errno << " for " << path;
 			return false;
 		} else {
 			if (1 != write(_file, "", 1)) {
-				CAT_WARN("MappedFile") << "write error " << errno << " for " << path;
 				return false;
 			}
 		}
@@ -239,7 +267,7 @@ u8 *MappedView::MapView(u64 offset, u32 length)
 	}
 
 	if (offset) {
-		u32 granularity = SystemInfo::ref()->GetAllocationGranularity();
+		u32 granularity = GetAllocationGranularity();
 
 		CAT_DEBUG_ENFORCE(CAT_IS_POWER_OF_2(granularity)) << "Allocation granularity is not a power of 2!";
 
@@ -255,11 +283,6 @@ u8 *MappedView::MapView(u64 offset, u32 length)
 
 #if defined(CAT_OS_WINDOWS)
 
-	if (_data && !UnmapViewOfFile(_data))
-	{
-		CAT_INANE("MappedView") << "UnmapViewOfFile error " << GetLastError();
-	}
-
 	u32 flags = FILE_MAP_READ;
 	if (!_file->IsReadOnly()) {
 		flags |= FILE_MAP_WRITE;
@@ -268,7 +291,6 @@ u8 *MappedView::MapView(u64 offset, u32 length)
 	_data = (u8*)MapViewOfFile(_map, flags, (u32)(offset >> 32), (u32)offset, length);
 	if (!_data)
 	{
-		CAT_WARN("MappedView") << "MapViewOfFile error " << GetLastError();
 		return 0;
 	}
 
@@ -282,7 +304,6 @@ u8 *MappedView::MapView(u64 offset, u32 length)
 	_map = mmap(0, length, prot, MAP_SHARED, _file->_file, offset);
 
 	if (_map == MAP_FAILED) {
-		CAT_WARN("MappedView") << "mmap error " << errno;
 		return 0;
 	}
 
@@ -326,107 +347,3 @@ void MappedView::Close()
 	_offset = 0;
 }
 
-
-//// MappedSequentialReader
-
-bool MappedSequentialReader::Open(MappedFile *file)
-{
-	_offset = 0;
-
-	return _view.Open(file);
-}
-
-u8 *MappedSequentialReader::Peek(u32 bytes)
-{
-	CAT_DEBUG_ENFORCE(bytes <= MAX_READ_SIZE);
-
-	u32 map_offset = _offset;
-	u32 map_size = _view.GetLength();
-
-	// If bytes read is available,
-	if (bytes <= map_size - map_offset)
-		return _view.GetFront() + map_offset;
-
-	u64 file_offset = GetOffset();
-	u64 file_remaining = GetLength() - file_offset;
-
-	// If requested data is beyond the end of the file,
-	if (bytes > file_remaining)
-		return 0;
-
-	u32 acquire = bytes;
-	if (acquire < READ_AHEAD_CACHE)
-	{
-		if (READ_AHEAD_CACHE > file_remaining)
-			acquire = (u32)file_remaining;
-		else
-			acquire = READ_AHEAD_CACHE;
-	}
-
-	// Map new view of file
-	u8 *data = _view.MapView(file_offset, acquire);
-
-	_offset = 0;
-
-	return data;
-}
-
-int MappedSequentialReader::ReadLine(char *outs, int len)
-{
-	// Check if any data is available for reading
-	u8 *data = Read(1);
-	if (!data) return -1;
-
-	int count = 0;
-
-	// While there is room in the output buffer,
-	while (len > 1)
-	{
-		char ch = (char)*data;
-
-		// If character is a line delimiter token,
-		if (ch == '\r')
-		{
-			// Peek at next character
-			u8 *next = Peek(1);
-			if (!next) break;
-
-			// If next character is a NL/CR pair,
-			if ((char)*next == '\n')
-			{
-				// Skip it so that next call will not treat it as a blank line
-				Skip(1);
-			}
-
-			break;
-		}
-		else if (ch == '\n')
-		{
-			// Peek at next character
-			u8 *next = Peek(1);
-			if (!next) break;
-
-			// If next character is a NL/CR pair,
-			if ((char)*next == '\r')
-			{
-				// Skip it so that next call will not treat it as a blank line
-				Skip(1);
-			}
-
-			break;
-		}
-		else
-		{
-			// Copy other characters directly
-			*outs++ = ch;
-			--len;
-			++count;
-		}
-
-		data = Read(1);
-		if (!data) break;
-	}
-
-	*outs = '\0';
-	return count;
-}

@@ -129,53 +129,6 @@ public:
 };
 
 
-// Memory mapped file sequential reader
-class CAT_EXPORT MappedSequentialReader
-{
-	MappedView _view;
-	u32 _offset; // Offset in bytes into the mapped view for next read
-
-public:
-	static const u32 READ_AHEAD_CACHE = 16000000;	// 16 MB read ahead cache
-	static const u32 MAX_READ_SIZE = 512000000;		// 512 MB read limit (per read)
-
-	bool Open(MappedFile *file);		// Returns false on error
-	u8 *Peek(u32 bytes);				// Returns 0 if read would be beyond end of file
-
-	CAT_INLINE void Skip(u32 bytes)
-	{
-		_offset += bytes;
-	}
-
-	CAT_INLINE u8 *Read(u32 bytes)
-	{
-		u8 *data = Peek(bytes);
-		Skip(bytes);
-		return data;
-	}
-
-	int ReadLine(char *outs, int len);	// Returns < 0 on eof, otherwise the line length
-
-	CAT_INLINE void Close() { _view.Close(); }
-
-	CAT_INLINE bool IsValid() { return _view.IsValid(); }
-	CAT_INLINE u64 GetLength() { return _view.GetFile()->GetLength(); }
-	CAT_INLINE u64 GetOffset() { return _view.GetOffset() + _offset; }
-	CAT_INLINE u64 GetRemaining() { return GetLength() - GetOffset(); }
-};
-
-
-// Simplified version that does not allow for caching between views of a file
-class CAT_EXPORT SequentialFileReader : public MappedSequentialReader
-{
-	MappedFile _file;
-
-public:
-	CAT_INLINE bool Open(const char *path) { MappedSequentialReader::Close(); return _file.OpenRead(path) && MappedSequentialReader::Open(&_file); }
-	CAT_INLINE void Close() { MappedSequentialReader::Close(); _file.Close(); }
-};
-
-
 } // namespace cat
 
 #endif // CAT_MAPPED_FILE_HPP
