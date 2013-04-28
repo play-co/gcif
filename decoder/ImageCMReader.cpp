@@ -501,9 +501,9 @@ int ImageCMReader::readPixels(ImageReader &reader) {
 			}
 
 			// Next pixel
-			last += COLOR_PLANES;
-			mask <<= 1;
 			p += 4;
+			mask <<= 1;
+			last += COLOR_PLANES;
 		}
 
 		

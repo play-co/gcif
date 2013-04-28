@@ -44,7 +44,7 @@ u32 ImageReader::refill() {
 
 	CAT_DEBUG_ENFORCE(bitsLeft < 32);
 
-	if CAT_LIKELY(_wordsLeft > 0) {
+	if (_wordsLeft > 0) {
 		--_wordsLeft;
 
 		u32 nextWord = getLE(*_words++);

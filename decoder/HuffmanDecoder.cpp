@@ -360,7 +360,7 @@ u32 HuffmanDecoder::next(ImageReader &reader) {
 	u32 sym, len;
 
 	// If the symbol can be looked up in the table,
-	if CAT_LIKELY(k <= _table_max_code) {
+	if (k <= _table_max_code) {
 		u32 t = _lookup[code >> (32 - _table_bits)];
 
 		// Seriously that fast.
@@ -375,7 +375,7 @@ u32 HuffmanDecoder::next(ImageReader &reader) {
 		const u32 *max_codes = _max_codes;
 
 		for (;;) {
-			if CAT_LIKELY(k <= max_codes[len - 1])
+			if (k <= max_codes[len - 1])
 				break;
 			len++;
 		}
