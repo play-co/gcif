@@ -155,17 +155,14 @@ bool MappedFile::OpenWrite(const char *path, u64 size)
 	_file = CreateFileA(path, GENERIC_WRITE|GENERIC_READ, FILE_SHARE_WRITE, 0, CREATE_ALWAYS, access_pattern, 0);
 	if (_file == INVALID_HANDLE_VALUE)
 	{
-		CAT_WARN("MappedFile") << "CreateFileA error " << GetLastError() << " for " << path;
 		return false;
 	}
 
 	// Set file size
 	if (!SetFilePointerEx(_file, *(LARGE_INTEGER*)&_len, 0, FILE_BEGIN)) {
-		CAT_WARN("MappedFile") << "SetFilePointerEx error " << GetLastError() << " for " << path;
 		return false;
 	}
 	if (!SetEndOfFile(_file)) {
-		CAT_WARN("MappedFile") << "SetEndOfFile error " << GetLastError() << " for " << path;
 		return false;
 	}
 
@@ -251,7 +248,6 @@ bool MappedView::Open(MappedFile *file)
 	_map = CreateFileMapping(file->_file, 0, flags, 0, 0, 0);
 	if (!_map)
 	{
-		CAT_WARN("MappedView") << "CreateFileMapping error " << GetLastError();
 		return false;
 	}
 
@@ -268,8 +264,6 @@ u8 *MappedView::MapView(u64 offset, u32 length)
 
 	if (offset) {
 		u32 granularity = GetAllocationGranularity();
-
-		CAT_DEBUG_ENFORCE(CAT_IS_POWER_OF_2(granularity)) << "Allocation granularity is not a power of 2!";
 
 		// Bring offset back to the previous allocation granularity
 		u32 mask = granularity - 1;

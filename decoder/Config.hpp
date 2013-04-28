@@ -32,6 +32,9 @@
 namespace cat {
 
 
+// Only building the decoder
+//#define CAT_DECODER_ONLY
+
 // Enable statistics collection
 //#define CAT_COLLECT_STATS
 

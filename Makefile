@@ -3,7 +3,7 @@
 CCPP = clang++
 CC = clang
 
-CFLAGS = -Wall -fstrict-aliasing -I.
+CFLAGS = -Wall -fstrict-aliasing -I. -Iencoder -Idecoder
 CPFLAGS = $(CFLAGS)
 
 
@@ -25,7 +25,7 @@ SRCS = ./gcif.cpp encoder/lodepng.cpp encoder/Log.cpp encoder/Mutex.cpp
 SRCS += encoder/Clock.cpp encoder/Thread.cpp decoder/EndianNeutral.cpp
 SRCS += decoder/lz4.c encoder/lz4hc.c decoder/HuffmanDecoder.cpp
 SRCS += encoder/HuffmanEncoder.cpp decoder/MappedFile.cpp
-SRCS += decoder/SystemInfo.cpp HotRodHash.cpp encoder/ImageWriter.cpp
+SRCS += encoder/SystemInfo.cpp decoder/HotRodHash.cpp encoder/ImageWriter.cpp
 SRCS += decoder/ImageReader.cpp encoder/ImageMaskWriter.cpp
 SRCS += decoder/ImageMaskReader.cpp encoder/ImageCMWriter.cpp
 SRCS += encoder/FilterScorer.cpp decoder/Filters.cpp
@@ -37,13 +37,13 @@ SRCS += encoder/EntropyEstimator.cpp encoder/WaitableFlag.cpp
 
 # Release target (default)
 
-release : CFLAGS += -O4 -DCAT_COLLECT_STATS
+release : CFLAGS += -O4
 release : gcif
 
 
 # Debug target
 
-debug : CFLAGS += -g -O0 -DDEBUG -DCAT_COLLECT_STATS
+debug : CFLAGS += -g -O0 -DDEBUG
 debug : gcif
 
 
@@ -82,8 +82,8 @@ Thread.o : encoder/Thread.cpp
 MappedFile.o : decoder/MappedFile.cpp
 	$(CCPP) $(CPFLAGS) -c decoder/MappedFile.cpp
 
-SystemInfo.o : decoder/SystemInfo.cpp
-	$(CCPP) $(CPFLAGS) -c decoder/SystemInfo.cpp
+SystemInfo.o : encoder/SystemInfo.cpp
+	$(CCPP) $(CPFLAGS) -c encoder/SystemInfo.cpp
 
 EndianNeutral.o : decoder/EndianNeutral.cpp
 	$(CCPP) $(CPFLAGS) -c decoder/EndianNeutral.cpp

@@ -247,3 +247,4 @@ public:
 } // namespace cat
 
 #endif // CAT_LOG_HPP
+
