@@ -209,6 +209,7 @@ std::string Clock::format(const char *format_string)
 #else
     struct tm localTime = {0};
     time_t long_time = 0;
+    time(&long_time);
     localtime_r(&long_time, &localTime);
     pLocalTime = &localTime;
 #endif
