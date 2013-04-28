@@ -36,7 +36,7 @@ namespace cat {
 #define CAT_COLLECT_STATS
 
 // Bloat the file size a lot to check for desynchronization points in decoder
-#define CAT_DESYNCH_CHECKS
+//#define CAT_DESYNCH_CHECKS
 
 // This definition overrides CAT_BUILD_DLL below.  Neuters CAT_EXPORT macro so symbols are
 // neither exported or imported.
