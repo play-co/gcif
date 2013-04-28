@@ -47,7 +47,7 @@
  * as a bitmask.  Most graphics files for games have some sort of solid color
  * or transparent background.
  *
- * When fully-transparent alpha masks are transmitted, any color information
+ * When fully-transparent alpha masks are transmitted, any RGB information
  * stored in the fully-transparent pixels is lost.
  *
  * It first performs bitwise filtering to reduce the data down to a few pixels.
@@ -199,3 +199,4 @@ public:
 } // namespace cat
 
 #endif // IMAGE_MASK_WRITER_HPP
+

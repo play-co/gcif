@@ -158,7 +158,7 @@ extern "C" int gcif_write_ex(const void *rgba, int width, int height, const char
 		return err;
 	}
 
-	// Fully-Transparent Alpha Mask
+	// Dominant Color Mask
 	ImageMaskWriter imageMaskWriter;
 	if ((err = imageMaskWriter.initFromRGBA(image, width, height, knobs))) {
 		return err;

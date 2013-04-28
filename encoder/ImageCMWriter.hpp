@@ -50,7 +50,7 @@
  * Notable improvements:
  * + Much better compression ratios
  * + Maintainable codebase for future improvements
- * + 2D LZ Exact Match and Fully-Transparent Alpha Mask integration
+ * + 2D LZ Exact Match and Dominant Color Mask integration
  * + Uses 4x4 zones instead of 8x8
  * + More/better non-linear spatial and more color filters supported
  * + Linear spatial filters tuned to image where improvement is found
@@ -103,7 +103,7 @@ protected:
 	const u8 *_rgba;
 	int _width, _height;
 
-	// Fully-transparent alpha mask subsystem
+	// Dominant color mask subsystem
 	ImageMaskWriter *_mask;
 
 	// 2D-LZ subsystem

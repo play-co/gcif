@@ -68,10 +68,6 @@ static CAT_INLINE u32 hashPixel(u32 key) {
 }
 
 int ImageLZWriter::initFromRGBA(const u8 *rgba, int width, int height, const GCIFKnobs *knobs) {
-	if (width < ZONEW || height < ZONEH) {
-		return GCIF_WE_BAD_DIMS;
-	}
-
 	_knobs = knobs;
 	_rgba = rgba;
 	_width = width;
@@ -103,6 +99,12 @@ int ImageLZWriter::initFromRGBA(const u8 *rgba, int width, int height, const GCI
 		_visited_alloc = visited_size;
 	}
 	memset(_visited, 0, visited_size * sizeof(u32));
+
+	// If image is too small for processing,
+	if (width < ZONEW || height < ZONEH) {
+		// Do not try to match on it
+		return GCIF_WE_OK;
+	}
 
 	return match();
 }

@@ -103,6 +103,14 @@ int Masker::initFromRGBA(const u8 *rgba, u32 color, u32 color_mask, int width, i
 	_stride = (width + 31) >> 5;
 	_size = height * _stride;
 
+	// If image is too small,
+	if (width < FILTER_ZONE_SIZE && height < FILTER_ZONE_SIZE) {
+		// Do not use mask
+		_enable = false;
+		return GCIF_WE_OK;
+	}
+	_enabled = true;
+
 	if (!_mask || _size > _mask_alloc) {
 		if (_mask) {
 			delete []_mask;
@@ -250,6 +258,10 @@ u32 Masker::simulate() {
 }
 
 bool Masker::evaluate() {
+	if (!_enabled) {
+		return false;
+	}
+
 #ifdef CAT_COLLECT_STATS
 	Clock *clock = Clock::ref();
 	double t0 = clock->usec();
@@ -449,14 +461,6 @@ u32 ImageMaskWriter::dominantColor() {
 }
 
 int ImageMaskWriter::initFromRGBA(const u8 *rgba, int width, int height, const GCIFKnobs *knobs) {
-	if (!rgba || width < FILTER_ZONE_SIZE || height < FILTER_ZONE_SIZE) {
-		return GCIF_WE_BAD_DIMS;
-	}
-
-	if ((width & FILTER_ZONE_SIZE_MASK) || (height & FILTER_ZONE_SIZE_MASK)) {
-		return GCIF_WE_BAD_DIMS;
-	}
-
 	_knobs = knobs;
 	_rgba = rgba;
 	_width = width;

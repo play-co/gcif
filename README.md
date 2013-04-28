@@ -220,9 +220,11 @@ since we found that the code could be significantly improved in decompression
 speed, and we also disagreed with some of the finer points of the algorithm.
 
 
-### Step 0. Fully-Transparent Pixel Encoding
+### Step 0. Dominant Color Pixel Encoding
 
-Fully-transparent pixels are combined into a monochrome raster and a filter is
+The dominant color is first detected.  It is usually black or full-transparent.
+
+Dominant color pixels are combined into a monochrome raster and a filter is
 applied to each pixel:
 
 For the first row:
@@ -244,7 +246,7 @@ This is encoded as a byte stream, which is then LZ compressed with LZ4HC.
 
 Static Huffman entropy encoding is then performed for further compression.
 
-Pixels that are fully-transparent are skipped over during encoding/decoding.
+Pixels that are in the bitmask are skipped over during encoding/decoding.
 
 
 ### Step 1. 2D LZ
