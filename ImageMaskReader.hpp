@@ -87,6 +87,10 @@ public:
 
 	int nextScanline();
 
+	CAT_INLINE bool enabled() {
+		return _enabled;
+	}
+
 	CAT_INLINE u32 getColor() {
 		return _color;
 	}

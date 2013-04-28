@@ -169,6 +169,10 @@ int ImageCMReader::readChaosTables(ImageReader &reader) {
 int ImageCMReader::readPixels(ImageReader &reader) {
 	const int width = _width;
 
+	CAT_DEBUG_ENFORCE(MASK_COUNT == 2); // Unrolled in here
+	CAT_DEBUG_ENFORCE(!_masks[0].enabled() || _masks[0].getColor() == 0);
+	CAT_DEBUG_ENFORCE(!_masks[1].enabled() || _masks[1].getColor() != 0);
+
 	// Get initial triggers
 	u16 trigger_x_lz = _lz->getTriggerX();
 
@@ -192,7 +196,9 @@ int ImageCMReader::readPixels(ImageReader &reader) {
 		// Clear filters data
 		CAT_CLR(_filters, _filters_bytes);
 
-		_mask->nextScanline();
+		for (int ii = 0; ii < MASK_COUNT; ++ii) {
+			_masks[ii].nextScanline();
+		}
 
 		// Restart for scanline
 		u8 *last = lastStart;
@@ -214,9 +220,16 @@ int ImageCMReader::readPixels(ImageReader &reader) {
 				last[1] = 0;
 				last[2] = 0;
 				last[3] = 0;
-			} else if (_mask->masked(x)) {
+			} else if (_masks[0].masked(x)) {
 				// Fully-transparent pixel
 				*reinterpret_cast<u32 *>( p ) = 0;
+				last[0] = 0;
+				last[1] = 0;
+				last[2] = 0;
+				last[3] = 0;
+			} else if (_masks[1].masked(x)) {
+				// Fully-transparent pixel
+				*reinterpret_cast<u32 *>( p ) = _masks[1].getColor();
 				last[0] = 0;
 				last[1] = 0;
 				last[2] = 0;
@@ -293,7 +306,9 @@ int ImageCMReader::readPixels(ImageReader &reader) {
 			CAT_CLR(_filters, _filters_bytes);
 		}
 
-		_mask->nextScanline();
+		for (int ii = 0; ii < MASK_COUNT; ++ii) {
+			_masks[ii].nextScanline();
+		}
 
 		// Restart for scanline
 		u8 *last = lastStart;
@@ -316,9 +331,16 @@ int ImageCMReader::readPixels(ImageReader &reader) {
 				last[1] = 0;
 				last[2] = 0;
 				last[3] = 0;
-			} else if (_mask->masked(x)) {
+			} else if (_masks[0].masked(x)) {
 				// Fully-transparent pixel
 				*reinterpret_cast<u32 *>( p ) = 0;
+				last[0] = 0;
+				last[1] = 0;
+				last[2] = 0;
+				last[3] = 0;
+			} else if (_masks[1].masked(x)) {
+				// Fully-transparent pixel
+				*reinterpret_cast<u32 *>( p ) = _masks[1].getColor();
 				last[0] = 0;
 				last[1] = 0;
 				last[2] = 0;
@@ -396,8 +418,15 @@ int ImageCMReader::readPixels(ImageReader &reader) {
 				last[1] = 0;
 				last[2] = 0;
 				last[3] = 0;
-			} else if (_mask->masked(x)) {
+			} else if (_masks[0].masked(x)) {
 				*reinterpret_cast<u32 *>( p ) = 0;
+				last[0] = 0;
+				last[1] = 0;
+				last[2] = 0;
+				last[3] = 0;
+			} else if (_masks[1].masked(x)) {
+				// Fully-transparent pixel
+				*reinterpret_cast<u32 *>( p ) = _masks[1].getColor();
 				last[0] = 0;
 				last[1] = 0;
 				last[2] = 0;
@@ -476,8 +505,15 @@ int ImageCMReader::readPixels(ImageReader &reader) {
 				last[1] = 0;
 				last[2] = 0;
 				last[3] = 0;
-			} else if (_mask->masked(x)) {
+			} else if (_masks[0].masked(x)) {
 				*reinterpret_cast<u32 *>( p ) = 0;
+				last[0] = 0;
+				last[1] = 0;
+				last[2] = 0;
+				last[3] = 0;
+			} else if (_masks[1].masked(x)) {
+				// Fully-transparent pixel
+				*reinterpret_cast<u32 *>( p ) = _masks[1].getColor();
 				last[0] = 0;
 				last[1] = 0;
 				last[2] = 0;
@@ -539,7 +575,7 @@ int ImageCMReader::readPixels(ImageReader &reader) {
 	return RE_OK;
 }
 
-int ImageCMReader::read(ImageReader &reader, ImageMaskReader &maskReader, ImageLZReader &lzReader, GCIFImage *image) {
+int ImageCMReader::read(ImageReader &reader, ImageMaskReader *maskReaders, ImageLZReader &lzReader, GCIFImage *image) {
 #ifdef CAT_COLLECT_STATS
 	m_clock = Clock::ref();
 
@@ -548,7 +584,7 @@ int ImageCMReader::read(ImageReader &reader, ImageMaskReader &maskReader, ImageL
 
 	int err;
 
-	_mask = &maskReader;
+	_masks = maskReaders;
 	_lz = &lzReader;
 
 	// Initialize

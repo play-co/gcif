@@ -68,6 +68,7 @@ public:
 	static const int ZRLE_SYMS_U = 128;
 	static const int ZRLE_SYMS_V = 128;
 	static const int ZRLE_SYMS_A = 128;
+	static const int MASK_COUNT = 2;
 
 protected:
 	// RGBA output data
@@ -94,7 +95,7 @@ protected:
 	int _filters_bytes;
 
 	// Mask and LZ subsystems
-	ImageMaskReader *_mask;
+	ImageMaskReader *_masks;
 	ImageLZReader *_lz;
 
 	// Chosen spatial filter set
@@ -134,7 +135,7 @@ public:
 		clear();
 	}
 
-	int read(ImageReader &reader, ImageMaskReader &maskReader, ImageLZReader &lzReader, GCIFImage *image);
+	int read(ImageReader &reader, ImageMaskReader *maskReaders, ImageLZReader &lzReader, GCIFImage *image);
 
 #ifdef CAT_COLLECT_STATS
 	bool dumpStats();

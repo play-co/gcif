@@ -153,7 +153,7 @@ int ImageMaskReader::read(ImageReader &reader) {
 	_enabled = reader.readBit();
 
 	if (_enabled) {
-		_color = reader.readWord();
+		_color = getLE(reader.readWord());
 
 		if ((err = decodeLZ(reader))) {
 			return err;

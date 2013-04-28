@@ -42,7 +42,7 @@ struct ImageHeader {
 
 	u32 headHash;	// Hash of head words
 	u32 fastHash;	// Fast hash of data words (used during normal decoding)
-	u32 goodHash;	// Good hash of data words
+	u32 goodHash;	// Good hash of data words (used during verification mode)
 };
 
 

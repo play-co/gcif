@@ -48,35 +48,35 @@ int gcif_read(const char *input_file_path, GCIFImage *image) {
 	image->width = header->width;
 	image->height = header->height;
 
-	// Fully-Transparent Alpha Mask
-	ImageMaskReader imageMaskReader;
-	if ((err = imageMaskReader.read(reader))) {
-		return err;
+	const int MASK_COUNT = ImageCMReader::MASK_COUNT;
+	ImageMaskReader maskReaders[MASK_COUNT];
+	for (int ii = 0; ii < MASK_COUNT; ++ii) {
+		if ((err = maskReaders[ii].read(reader))) {
+			return err;
+		}
+		maskReaders[ii].dumpStats();
 	}
 
-#ifdef CAT_COLLECT_STATS
-	imageMaskReader.dumpStats();
-#endif
+	// Dominant Color Mask
+	ImageMaskReader colorMaskReader;
+	if ((err = colorMaskReader.read(reader))) {
+		return err;
+	}
+	colorMaskReader.dumpStats();
 
 	// 2D-LZ Exact Match
 	ImageLZReader imageLZReader;
 	if ((err = imageLZReader.read(reader))) {
 		return err;
 	}
-
-#ifdef CAT_COLLECT_STATS
 	imageLZReader.dumpStats();
-#endif
 
 	// Context Modeling Decompression
 	ImageCMReader imageCMReader;
-	if ((err = imageCMReader.read(reader, imageMaskReader, imageLZReader, image))) {
+	if ((err = imageCMReader.read(reader, maskReaders, imageLZReader, image))) {
 		return err;
 	}
-
-#ifdef CAT_COLLECT_STATS
 	imageCMReader.dumpStats();
-#endif
 
 	// Verify hash
 	if (!reader.finalizeCheckHash()) {
