@@ -57,13 +57,6 @@ int gcif_read(const char *input_file_path, GCIFImage *image) {
 		maskReaders[ii].dumpStats();
 	}
 
-	// Dominant Color Mask
-	ImageMaskReader colorMaskReader;
-	if ((err = colorMaskReader.read(reader))) {
-		return err;
-	}
-	colorMaskReader.dumpStats();
-
 	// 2D-LZ Exact Match
 	ImageLZReader imageLZReader;
 	if ((err = imageLZReader.read(reader))) {
