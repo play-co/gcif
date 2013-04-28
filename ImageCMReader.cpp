@@ -231,14 +231,22 @@ int ImageCMReader::readPixels(ImageReader &reader) {
 					DESYNC_FILTER(x, y);
 				}
 
+				// Calculate YUV chaos
+				const u32 chaos_y = CHAOS_TABLE[last[-4]];
+				const u32 chaos_u = CHAOS_TABLE[last[-3]];
+				const u32 chaos_v = CHAOS_TABLE[last[-2]];
+
 				// Read YUV filtered pixel
 				u8 YUV[3];
-				YUV[0] = (u8)_y_decoder[CHAOS_TABLE[last[-4]]].next(reader);
+				YUV[0] = (u8)_y_decoder[chaos_y].next(reader);
 				DESYNC(x, y);
-				YUV[1] = (u8)_u_decoder[CHAOS_TABLE[last[-3]]].next(reader);
+				YUV[1] = (u8)_u_decoder[chaos_u].next(reader);
 				DESYNC(x, y);
-				YUV[2] = (u8)_v_decoder[CHAOS_TABLE[last[-2]]].next(reader);
+				YUV[2] = (u8)_v_decoder[chaos_v].next(reader);
 				DESYNC(x, y);
+
+				// Calculate alpha chaos
+				const u32 chaos_a = CHAOS_TABLE[last[-1]];
 
 				// Reverse color filter
 				filter->cf(YUV, p);
@@ -249,7 +257,8 @@ int ImageCMReader::readPixels(ImageReader &reader) {
 				p[1] += pred[1];
 				p[2] += pred[2];
 
-				u8 A = (u8)_a_decoder[CHAOS_TABLE[last[-1]]].next(reader);
+				// Read alpha pixel
+				u8 A = (u8)_a_decoder[chaos_a].next(reader);
 				DESYNC(x, y);
 				if (x > 0) {
 					p[3] = p[-1] - A;
@@ -324,14 +333,22 @@ int ImageCMReader::readPixels(ImageReader &reader) {
 					DESYNC_FILTER(x, y);
 				}
 
+				// Calculate YUV chaos
+				const u32 chaos_y = CHAOS_TABLE[last[0]];
+				const u32 chaos_u = CHAOS_TABLE[last[1]];
+				const u32 chaos_v = CHAOS_TABLE[last[2]];
+
 				// Read YUV filtered pixel
 				u8 YUV[3];
-				YUV[0] = (u8)_y_decoder[CHAOS_TABLE[last[0]]].next(reader);;
+				YUV[0] = (u8)_y_decoder[chaos_y].next(reader);;
 				DESYNC(x, y);
-				YUV[1] = (u8)_u_decoder[CHAOS_TABLE[last[1]]].next(reader);
+				YUV[1] = (u8)_u_decoder[chaos_u].next(reader);
 				DESYNC(x, y);
-				YUV[2] = (u8)_v_decoder[CHAOS_TABLE[last[2]]].next(reader);
+				YUV[2] = (u8)_v_decoder[chaos_v].next(reader);
 				DESYNC(x, y);
+
+				// Calculate alpha chaos
+				const u32 chaos_a = CHAOS_TABLE[last[3]];
 
 				// Reverse color filter
 				filter->cf(YUV, p);
@@ -342,7 +359,8 @@ int ImageCMReader::readPixels(ImageReader &reader) {
 				p[1] += pred[1];
 				p[2] += pred[2];
 
-				u8 A = (u8)_a_decoder[CHAOS_TABLE[last[3]]].next(reader);
+				// Read alpha pixel
+				u8 A = (u8)_a_decoder[chaos_a].next(reader);
 				DESYNC(x, y);
 				p[3] = 255 - A;
 
@@ -394,6 +412,7 @@ int ImageCMReader::readPixels(ImageReader &reader) {
 					DESYNC_FILTER(x, y);
 				}
 
+				// Calculate YUV chaos
 				const u32 chaos_y = CHAOS_TABLE[last[-4] + (u16)last[0]];
 				const u32 chaos_u = CHAOS_TABLE[last[-3] + (u16)last[1]];
 				const u32 chaos_v = CHAOS_TABLE[last[-2] + (u16)last[2]];
@@ -407,7 +426,7 @@ int ImageCMReader::readPixels(ImageReader &reader) {
 				YUV[2] = (u8)_v_decoder[chaos_v].next(reader);
 				DESYNC(x, y);
 
-				// Pipeline calculate alpha chaos
+				// Calculate alpha chaos
 				const u32 chaos_a = CHAOS_TABLE[last[-1] + (u16)last[3]];
 
 				// Reverse color filter
@@ -473,14 +492,22 @@ int ImageCMReader::readPixels(ImageReader &reader) {
 					DESYNC_FILTER(x, y);
 				}
 
+				// Calculate YUV chaos
+				const u32 chaos_y = CHAOS_TABLE[last[-4] + (u16)last[0]];
+				const u32 chaos_u = CHAOS_TABLE[last[-3] + (u16)last[1]];
+				const u32 chaos_v = CHAOS_TABLE[last[-2] + (u16)last[2]];
+
 				// Read YUV filtered pixel
 				u8 YUV[3];
-				YUV[0] = (u8)_y_decoder[CHAOS_TABLE[last[-4] + (u16)last[0]]].next(reader);
+				YUV[0] = (u8)_y_decoder[chaos_y].next(reader);
 				DESYNC(x, y);
-				YUV[1] = (u8)_u_decoder[CHAOS_TABLE[last[-3] + (u16)last[1]]].next(reader);
+				YUV[1] = (u8)_u_decoder[chaos_u].next(reader);
 				DESYNC(x, y);
-				YUV[2] = (u8)_v_decoder[CHAOS_TABLE[last[-2] + (u16)last[2]]].next(reader);
+				YUV[2] = (u8)_v_decoder[chaos_v].next(reader);
 				DESYNC(x, y);
+
+				// Calculate alpha chaos
+				const u32 chaos_a = CHAOS_TABLE[last[-1] + (u16)last[3]];
 
 				// Reverse color filter
 				filter->cf(YUV, p);
@@ -492,7 +519,7 @@ int ImageCMReader::readPixels(ImageReader &reader) {
 				p[2] += pred[2];
 
 				// Read alpha pixel
-				u8 A = (u8)_a_decoder[CHAOS_TABLE[last[-1] + (u16)last[3]]].next(reader);
+				u8 A = (u8)_a_decoder[chaos_a].next(reader);
 				DESYNC(x, y);
 				p[3] = p[-1] - A;
 
