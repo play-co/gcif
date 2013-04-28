@@ -158,7 +158,7 @@ static int benchfile(BenchStats &stats, string filename) {
 
 	double pngtime = t1 - t0;
 	double gcitime = t3 - t2;
-	double gcipngtime = gcitime / pngtime;
+	double gcipngtime = pngtime / gcitime;
 
 	CAT_WARN("main") << filename << " => " << gcipngrat << "x smaller than PNG and decompresses " << gcipngtime << "x faster";
 
@@ -205,7 +205,8 @@ public:
 					if (hasFile) {
 						BenchStats stats;
 						benchfile(stats, filename);
-						continue;
+					} else {
+						break;
 					}
 				}
 
@@ -246,10 +247,13 @@ static int benchmark(const char *path) {
 	}
 
 	const int MAX_CPU_COUNT = 64;
-	u32 cpu_count = SystemInfo::ref()->GetProcessorCount();
-	CAT_DEBUG_ENFORCE(cpu_count >= 1);
+	int cpu_count = SystemInfo::ref()->GetProcessorCount();
 	if (cpu_count > MAX_CPU_COUNT) {
 		cpu_count = MAX_CPU_COUNT;
+	}
+	cpu_count--;
+	if (cpu_count < 1) {
+		cpu_count = 1;
 	}
 
 	BenchThread threads[MAX_CPU_COUNT];
@@ -319,7 +323,7 @@ static int profileit(const char *filename) {
 
 //// Command-line parameter parsing
 
-enum  optionIndex { UNKNOWN, HELP, L0, L1, L2, L3, VERBOSE, SILENT, COMPRESS, DECOMPRESS, TEST, BENCHMARK, PROFILE };
+enum  optionIndex { UNKNOWN, HELP, L0, L1, L2, L3, VERBOSE, SILENT, COMPRESS, DECOMPRESS, /*TEST,*/ BENCHMARK, PROFILE };
 const option::Descriptor usage[] =
 {
   {UNKNOWN, 0,"" , ""    ,option::Arg::None, "USAGE: ./gcif [options] [output file path]\n\n"
@@ -333,7 +337,7 @@ const option::Descriptor usage[] =
   {SILENT,0,"s" , "silent",option::Arg::None, "  --[s]ilent \tNo console output (even on errors)" },
   {COMPRESS,0,"c" , "compress",option::Arg::Optional, "  --[c]ompress <input PNG file path> \tCompress the given .PNG image." },
   {DECOMPRESS,0,"d" , "decompress",option::Arg::Optional, "  --[d]ecompress <input GCI file path> \tDecompress the given .GCI image" },
-  {TEST,0,"t" , "test",option::Arg::Optional, "  --[t]est <input PNG file path> \tTest compression to verify it is lossless" },
+/*  {TEST,0,"t" , "test",option::Arg::Optional, "  --[t]est <input PNG file path> \tTest compression to verify it is lossless" }, */
   {BENCHMARK,0,"b" , "benchmark",option::Arg::Optional, "  --[b]enchmark <test set path> \tTest compression ratio and decompression speed for a whole directory at once" },
   {PROFILE,0,"p" , "profile",option::Arg::Optional, "  --[p]rofile <input GCI file path> \tDecode same GCI file 100x to enhance profiling of decoder" },
   {UNKNOWN, 0,"" ,  ""   ,option::Arg::None, "\nExamples:\n"
@@ -400,8 +404,8 @@ int processParameters(option::Parser &parse, option::Option options[]) {
 
 			return 0;
 		}
-	} else if (options[TEST]) {
-		CAT_FATAL("main") << "TODO";
+/*	} else if (options[TEST]) {
+		CAT_FATAL("main") << "TODO";*/
 	} else if (options[BENCHMARK]) {
 		if (parse.nonOptionsCount() != 1) {
 			CAT_WARN("main") << "Input error: Please provide input directory path";

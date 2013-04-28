@@ -53,6 +53,94 @@ From one of our more challenging game sprite-sheets chosen at random:
 
 In this case we get a file that is 73% the size of the equivalent PNG image.
 
+Early performance results for the graphics for one of our mobile games:
+
+~~~
+ $ ./gcif -b testset
+[Dec 31 16:00] <main> testset/resources-images-framesicons1.png => 1.75625x smaller than PNG and decompresses 7.04094x faster
+[Dec 31 16:00] <main> testset/resources-images-Home-text_rankup_ko0.png => 0.992812x smaller than PNG and decompresses 3.88826x faster
+[Dec 31 16:00] <main> testset/resources-images-Turrets-turretYellowSuper0.png => 1.18335x smaller than PNG and decompresses 1.2164x faster
+[Dec 31 16:00] <main> testset/resources-images-Turrets-turretYellow0.png => 1.46555x smaller than PNG and decompresses 1.37387x faster
+[Dec 31 16:00] <main> testset/resources-images-Turrets-turretRedSuper0.png => 1.30006x smaller than PNG and decompresses 1.01516x faster
+[Dec 31 16:00] <main> testset/resources-images-Turrets-turretRed0.png => 1.28121x smaller than PNG and decompresses 1.12822x faster
+[Dec 31 16:00] <main> testset/resources-images-framesicons0.png => 1.31902x smaller than PNG and decompresses 1.5044x faster
+[Dec 31 16:00] <main> testset/resources-images0.png => 0.669346x smaller than PNG and decompresses 0.6974x faster
+[Dec 31 16:00] <main> testset/resources-images-Turrets-turretPinkSuper0.png => 1.06437x smaller than PNG and decompresses 1.08671x faster
+[Dec 31 16:00] <main> testset/resources-images-Turrets-turretPink0.png => 1.08251x smaller than PNG and decompresses 0.846248x faster
+[Dec 31 16:00] <main> testset/resources-images-Turrets-turretOrange0.png => 1.20659x smaller than PNG and decompresses 1.03191x faster
+[Dec 31 16:00] <main> testset/resources-images-Turrets-turretOrangeSuper0.png => 1.50955x smaller than PNG and decompresses 1.39038x faster
+[Dec 31 16:00] <main> testset/resources-images-Turrets-turretLightBlueSuper0.png => 1.12861x smaller than PNG and decompresses 1.04088x faster
+[Dec 31 16:00] <main> testset/resources-images-Turrets-turretLightBlue0.png => 1.3948x smaller than PNG and decompresses 0.961959x faster
+[Dec 31 16:00] <main> testset/resources-images-Turrets-turretIndigoSuper0.png => 1.4876x smaller than PNG and decompresses 1.19117x faster
+[Dec 31 16:00] <main> testset/resources-images-Turrets-turretGreenSuper0.png => 1.30728x smaller than PNG and decompresses 1.09789x faster
+[Dec 31 16:00] <main> testset/resources-images-Turrets-turretGreen0.png => 1.93208x smaller than PNG and decompresses 1.21834x faster
+[Dec 31 16:00] <main> testset/resources-images-Turrets-turretBoss0.png => 1.19626x smaller than PNG and decompresses 1.1319x faster
+[Dec 31 16:00] <main> testset/resources-images-Turrets-turretBlueSuper0.png => 0.993504x smaller than PNG and decompresses 0.88003x faster
+[Dec 31 16:00] <main> testset/resources-images-Turrets-turretBlue0.png => 1.39541x smaller than PNG and decompresses 1.16276x faster
+[Dec 31 16:00] <main> testset/resources-images-Turrets-turretBlackSuper0.png => 1.23804x smaller than PNG and decompresses 0.934572x faster
+[Dec 31 16:00] <main> testset/resources-images-Turrets-turretBlack0.png => 1.20735x smaller than PNG and decompresses 0.977956x faster
+[Dec 31 16:00] <main> testset/resources-images-social0.png => 0.866316x smaller than PNG and decompresses 1.00124x faster
+[Dec 31 16:00] <main> testset/resources-images-Shop1.png => 1.59938x smaller than PNG and decompresses 1.44197x faster
+[Dec 31 16:00] <main> testset/resources-images-Title1.png => 1.74347x smaller than PNG and decompresses 0.787983x faster
+[Dec 31 16:00] <main> testset/resources-images-promo0.png => 2.70415x smaller than PNG and decompresses 1.57118x faster
+[Dec 31 16:00] <main> testset/resources-images-promo-PushNotification0.png => 1.01566x smaller than PNG and decompresses 1.20703x faster
+[Dec 31 16:00] <main> testset/resources-images-Title0.png => 2.22506x smaller than PNG and decompresses 0.593514x faster
+[Dec 31 16:00] <main> testset/resources-images-Shop0.png => 1.87135x smaller than PNG and decompresses 1.15799x faster
+[Dec 31 16:00] <main> testset/resources-images-powers-shockwave0.png => 0.890466x smaller than PNG and decompresses 1.71712x faster
+[Dec 31 16:00] <main> testset/resources-images-powers-shock-taser0.png => 0.898863x smaller than PNG and decompresses 0.957275x faster
+[Dec 31 16:00] <main> testset/resources-images-powers-timewarp-timewarp0.png => 1.70648x smaller than PNG and decompresses 1.66046x faster
+[Dec 31 16:00] <main> testset/resources-images-powers-shock-boom0.png => 1.4266x smaller than PNG and decompresses 0.215297x faster
+[Dec 31 16:00] <main> testset/resources-images-powers-shock-powerspike0.png => 1.18009x smaller than PNG and decompresses 1.59512x faster
+[Dec 31 16:00] <main> testset/resources-images-powers-fire-incendiary0.png => 0.904564x smaller than PNG and decompresses 0.840675x faster
+[Dec 31 16:00] <main> testset/resources-images-powers-forcefield0.png => 1.42794x smaller than PNG and decompresses 1.73586x faster
+[Dec 31 16:00] <main> testset/resources-images-powers-fire-firebomb0.png => 1.40619x smaller than PNG and decompresses 1.38987x faster
+[Dec 31 16:00] <main> testset/resources-images-powers-caustic-mininuke0.png => 1.01784x smaller than PNG and decompresses 1.4356x faster
+[Dec 31 16:00] <main> testset/resources-images-powers-fire-boom0.png => 1.3362x smaller than PNG and decompresses 1.29537x faster
+[Dec 31 16:00] <main> testset/resources-images-powers-caustic-meltdown0.png => 1.13112x smaller than PNG and decompresses 0.986452x faster
+[Dec 31 16:00] <main> testset/resources-images-powers-caustic-boom0.png => 0.979232x smaller than PNG and decompresses 1.04221x faster
+[Dec 31 16:00] <main> testset/resources-images-PostBattle0.png => 1.35105x smaller than PNG and decompresses 1.309x faster
+[Dec 31 16:00] <main> testset/resources-images-PostBattle-victory_zh0.png => 1.34603x smaller than PNG and decompresses 1.81319x faster
+[Dec 31 16:00] <main> testset/resources-images-PostBattle-victory_ko0.png => 1.43115x smaller than PNG and decompresses 1.96813x faster
+[Dec 31 16:00] <main> testset/resources-images-PostBattle-totalvictory_zh0.png => 1.29997x smaller than PNG and decompresses 0.870801x faster
+[Dec 31 16:00] <main> testset/resources-images-PostBattle-totalvictory_ko0.png => 1.44423x smaller than PNG and decompresses 0.948119x faster
+[Dec 31 16:00] <main> testset/resources-images-PostBattle-defeat_zh0.png => 1.22141x smaller than PNG and decompresses 1.85532x faster
+[Dec 31 16:00] <main> testset/resources-images-notificationScreen0.png => 1.30008x smaller than PNG and decompresses 1.57727x faster
+[Dec 31 16:00] <main> testset/resources-images-PostBattle-defeat_ko0.png => 1.64354x smaller than PNG and decompresses 1.3661x faster
+[Dec 31 16:00] <main> testset/resources-images-level1.png => 1.35593x smaller than PNG and decompresses 1.22477x faster
+[Dec 31 16:00] <main> testset/resources-images-Home-text_rankup_zh0.png => 0.818357x smaller than PNG and decompresses 0.894886x faster
+[Dec 31 16:00] <main> testset/resources-images-drones-stealthBot0.png => 1.43412x smaller than PNG and decompresses 1.35887x faster
+[Dec 31 16:00] <main> testset/resources-images-Home0.png => 1.60892x smaller than PNG and decompresses 1.20986x faster
+[Dec 31 16:00] <main> testset/resources-images-level0.png => 1.44596x smaller than PNG and decompresses 1.39746x faster
+[Dec 31 16:00] <main> testset/resources-images-drones-stackerBot0.png => 1.17975x smaller than PNG and decompresses 1.43525x faster
+[Dec 31 16:00] <main> testset/resources-images-drones-soldierDrone0.png => 1.21962x smaller than PNG and decompresses 1.19192x faster
+[Dec 31 16:00] <main> testset/resources-images-drones-speedyDrone0.png => 1.49722x smaller than PNG and decompresses 1.45015x faster
+[Dec 31 16:00] <main> testset/resources-images-drones-rangedDrone0.png => 1.57694x smaller than PNG and decompresses 1.35299x faster
+[Dec 31 16:00] <main> testset/resources-images-drones-kamikaze0.png => 1.12935x smaller than PNG and decompresses 1.31404x faster
+[Dec 31 16:00] <main> testset/resources-images-drones-boss1.png => 1.57121x smaller than PNG and decompresses 0.859151x faster
+[Dec 31 16:00] <main> testset/resources-images-drones-boss0.png => 1.55335x smaller than PNG and decompresses 1.34731x faster
+[Dec 31 16:00] <main> testset/resources-images-drones-boss-swarm0.png => 1.70196x smaller than PNG and decompresses 0.841537x faster
+[Dec 31 16:00] <main> testset/resources-images-drones-boss-summon0.png => 1.65099x smaller than PNG and decompresses 0.794444x faster
+[Dec 31 16:00] <main> testset/resources-images-drones-boss-jetattack0.png => 1.54336x smaller than PNG and decompresses 1.28082x faster
+[Dec 31 16:00] <main> testset/resources-images-drones-boss-megabeam0.png => 1.56369x smaller than PNG and decompresses 1.50526x faster
+[Dec 31 16:00] <main> testset/resources-images-drones-boss-cannon0.png => 1.57124x smaller than PNG and decompresses 1.13757x faster
+[Dec 31 16:00] <main> testset/resources-images-drones-borBot0.png => 1.6735x smaller than PNG and decompresses 1.23571x faster
+[Dec 31 16:00] <main> testset/resources-images-drones-bigDrone0.png => 1.4847x smaller than PNG and decompresses 1.36593x faster
+[Dec 31 16:00] <main> testset/resources-images-backgrounds-water1.png => 2.38352x smaller than PNG and decompresses 0.528636x faster
+[Dec 31 16:00] <main> testset/resources-images-backgrounds-water0.png => 3.5172x smaller than PNG and decompresses 1.9607x faster
+[Dec 31 16:00] <main> testset/resources-images-backgrounds-scrapyard1.png => 2.19247x smaller than PNG and decompresses 0.914975x faster
+[Dec 31 16:00] <main> testset/resources-images-backgrounds-scrapyard0.png => 2.67617x smaller than PNG and decompresses 1.50965x faster
+[Dec 31 16:00] <main> testset/resources-images-backgrounds-lab1.png => 1.8791x smaller than PNG and decompresses 1.4023x faster
+[Dec 31 16:00] <main> testset/resources-images-backgrounds-home0.png => 0.833052x smaller than PNG and decompresses 0.742549x faster
+[Dec 31 16:00] <main> testset/resources-images-backgrounds-garden1.png => 2.20296x smaller than PNG and decompresses 1.27448x faster
+[Dec 31 16:00] <main> testset/resources-images-backgrounds-lab0.png => 1.88179x smaller than PNG and decompresses 1.15571x faster
+[Dec 31 16:00] <main> testset/resources-images-backgrounds-foundry1.png => 2.188x smaller than PNG and decompresses 1.37702x faster
+[Dec 31 16:00] <main> testset/resources-images-backgrounds-garden0.png => 2.84748x smaller than PNG and decompresses 1.58658x faster
+[Dec 31 16:00] <main> testset/resources-images-backgrounds-foundry0.png => 2.49762x smaller than PNG and decompresses 1.56083x faster
+[Dec 31 16:00] <main> testset/lena.png => 1.44104x smaller than PNG and decompresses 1.06219x faster
+~~~
+
+`Note` that this is on a desktop running several decoder threads in parallel and does not accurately reflect the speed of the decoder.
+
 
 Credit Where It's Due
 =====================
