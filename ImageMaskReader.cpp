@@ -75,6 +75,7 @@ int ImageMaskReader::decodeLZ(ImageReader &reader) {
 
 		HuffmanDecoder decoder;
 		if (!decoder.init(NUM_SYMS, reader, 8)) {
+			CAT_DEBUG_EXCEPTION();
 			return RE_MASK_DECI;
 		}
 
@@ -88,16 +89,19 @@ int ImageMaskReader::decodeLZ(ImageReader &reader) {
 	}
 
 	if (reader.eof()) {
+		CAT_DEBUG_EXCEPTION();
 		return RE_MASK_LZ;
 	}
 
 	int result = LZ4_uncompress_unknownOutputSize(reinterpret_cast<const char *>( _lz ), reinterpret_cast<char *>( _rle ), lzSize, rleSize);
 
 	if (result != rleSize) {
+		CAT_DEBUG_EXCEPTION();
 		return RE_MASK_LZ;
 	}
 
 	if (reader.eof()) {
+		CAT_DEBUG_EXCEPTION();
 		return RE_MASK_LZ;
 	}
 
@@ -113,10 +117,12 @@ int ImageMaskReader::init(const ImageHeader *header) {
 	clear();
 
 	if (header->width < FILTER_ZONE_SIZE || header->height < FILTER_ZONE_SIZE) {
+		CAT_DEBUG_EXCEPTION();
 		return RE_BAD_DIMS;
 	}
 
 	if ((header->width & FILTER_ZONE_SIZE_MASK) || (header->height & FILTER_ZONE_SIZE_MASK)) {
+		CAT_DEBUG_EXCEPTION();
 		return RE_BAD_DIMS;
 	}
 
@@ -239,6 +245,7 @@ int ImageMaskReader::nextScanline() {
 
 			// If new write offset is outside of the mask,
 			if (newOffset >= _stride) {
+				CAT_DEBUG_EXCEPTION();
 				return RE_MASK_LZ;
 			}
 

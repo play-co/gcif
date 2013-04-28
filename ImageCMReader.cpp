@@ -74,9 +74,11 @@ int ImageCMReader::init(GCIFImage *image) {
 
 	// Validate input dimensions
 	if (_width < FILTER_ZONE_SIZE || _height < FILTER_ZONE_SIZE) {
+		CAT_DEBUG_EXCEPTION();
 		return RE_BAD_DIMS;
 	}
 	if (_width % FILTER_ZONE_SIZE || _height % FILTER_ZONE_SIZE) {
+		CAT_DEBUG_EXCEPTION();
 		return RE_BAD_DIMS;
 	}
 
@@ -100,6 +102,7 @@ int ImageCMReader::readFilterTables(ImageReader &reader) {
 	// Read in count of custom spatial filters
 	u32 rep_count = reader.readBits(5);
 	if (rep_count > SF_COUNT) {
+		CAT_DEBUG_EXCEPTION();
 		return RE_CM_CODES;
 	}
 
@@ -108,11 +111,13 @@ int ImageCMReader::readFilterTables(ImageReader &reader) {
 		u32 def = reader.readBits(5);
 
 		if (def >= SF_COUNT) {
+			CAT_DEBUG_EXCEPTION();
 			return RE_CM_CODES;
 		}
 
 		u32 cust = reader.readBits(7);
 		if (cust >= SpatialFilterSet::TAPPED_COUNT) {
+			CAT_DEBUG_EXCEPTION();
 			return RE_CM_CODES;
 		}
 
@@ -121,11 +126,13 @@ int ImageCMReader::readFilterTables(ImageReader &reader) {
 
 	// Initialize huffman decoder
 	if (reader.eof() || !_cf.init(CF_COUNT, reader, 8)) {
+		CAT_DEBUG_EXCEPTION();
 		return RE_CM_CODES;
 	}
 
 	// Initialize huffman decoder
 	if (reader.eof() || !_sf.init(SF_COUNT, reader, 8)) {
+		CAT_DEBUG_EXCEPTION();
 		return RE_CM_CODES;
 	}
 
@@ -143,6 +150,7 @@ int ImageCMReader::readChaosTables(ImageReader &reader) {
 			_chaos_table = CHAOS_TABLE_8;
 			break;
 		default:
+			CAT_DEBUG_EXCEPTION();
 			return RE_CM_CODES;
 	}
 
@@ -150,15 +158,19 @@ int ImageCMReader::readChaosTables(ImageReader &reader) {
 	for (int jj = 0; jj < _chaos_levels; ++jj) {
 		// Read the decoder tables
 		if (!_y_decoder[jj].init(reader)) {
+			CAT_DEBUG_EXCEPTION();
 			return RE_CM_CODES;
 		}
 		if (!_u_decoder[jj].init(reader)) {
+			CAT_DEBUG_EXCEPTION();
 			return RE_CM_CODES;
 		}
 		if (!_v_decoder[jj].init(reader)) {
+			CAT_DEBUG_EXCEPTION();
 			return RE_CM_CODES;
 		}
 		if (!_a_decoder[jj].init(reader)) {
+			CAT_DEBUG_EXCEPTION();
 			return RE_CM_CODES;
 		}
 	}
