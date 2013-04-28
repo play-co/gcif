@@ -123,6 +123,7 @@ int ImageMaskReader::init(const ImageHeader *header) {
 	const int maskWidth = header->width;
 	const int maskHeight = header->height;
 
+	_color = 0;
 	_stride = (maskWidth + 31) >> 5;
 	_width = maskWidth;
 	_height = maskHeight;
@@ -149,8 +150,17 @@ int ImageMaskReader::read(ImageReader &reader) {
 	double t1 = m_clock->usec();
 #endif // CAT_COLLECT_STATS
 
-	if ((err = decodeLZ(reader))) {
-		return err;
+	_enabled = reader.readBit();
+
+	if (_enabled) {
+		_color = reader.readWord();
+
+		if ((err = decodeLZ(reader))) {
+			return err;
+		}
+	} else {
+		// Clear mask when disabled to avoid two checks
+		CAT_CLR(_mask, sizeof(u32) * _stride);
 	}
 
 #ifdef CAT_COLLECT_STATS
