@@ -44,13 +44,6 @@ using namespace cat;
 
 #include "lz4.h"
 
-//#define DUMP_MONOCHROME
-
-#ifdef DUMP_MONOCHROME
-#include "lodepng.h"
-#include <vector>
-#endif
-
 
 //// ImageMaskReader
 
@@ -134,7 +127,7 @@ int ImageMaskReader::init(const ImageHeader *header) {
 	_width = maskWidth;
 	_height = maskHeight;
 
-	_mask = new u32[_stride * _height];
+	_mask = new u32[_stride];
 
 	return RE_OK;
 }
@@ -168,38 +161,21 @@ int ImageMaskReader::read(ImageReader &reader) {
 	Stats.overallUsec = t2 - t0;
 #endif // CAT_COLLECT_STATS
 
-#ifdef DUMP_MONOCHROME
-	std::vector<unsigned char> output;
-	u8 bits = 0, bitCount = 0;
-
-	for (int ii = 0; ii < _height; ++ii) {
-		for (int jj = 0; jj < _width; ++jj) {
-			u32 set = (_mask[ii * _stride + jj / 32] >> (31 - (jj & 31))) & 1;
-			bits <<= 1;
-			bits |= set;
-			if (++bitCount >= 8) {
-				output.push_back(bits);
-				bits = 0;
-				bitCount = 0;
-			}
-		}
-	}
-
-	lodepng_encode_file("decoded_mono.png", (const unsigned char*)&output[0], _width, _height, LCT_GREY, 1);
-#endif
-
 	return RE_OK;
 }
 
 int ImageMaskReader::nextScanline() {
+	if (!_enabled) {
+		return RE_OK;
+	}
+
 	// Read RLE symbol count
 	int sym_count = 0;
 	const u8 *rle = _rle_next;
 	int rle_remaining = _rle_remaining;
 
-	while (rle_remaining > 0) {	
+	while (rle_remaining-- > 0) {	
 		u8 sym = *rle++;
-		--rle_remaining;
 		sym_count += sym;
 
 		if (sym < 255) {
@@ -240,10 +216,9 @@ int ImageMaskReader::nextScanline() {
 	int lastSum = 0;
 	int sum = 0;
 
-	while (rle_remaining > 0) {
+	while (rle_remaining-- > 0) {
 		u8 sym = *rle++;
-		--rle_remaining;
-		sym_count += sym;
+		sum += sym;
 
 		// If sum is complete,
 		if (sym < 255) {
@@ -356,7 +331,7 @@ int ImageMaskReader::nextScanline() {
 			bitOffset += sum + 1;
 
 			// If just finished this row,
-			if CAT_UNLIKELY(--sym_count <= 0) {
+			if (--sym_count <= 0) {
 				int wordOffset = bitOffset >> 5;
 
 				if CAT_LIKELY(_scanline_y > 0) {
@@ -410,9 +385,14 @@ int ImageMaskReader::nextScanline() {
 #ifdef CAT_COLLECT_STATS
 
 bool ImageMaskReader::dumpStats() {
-	CAT_INANE("stats") << "(Mask Decode) Initialization : " <<  Stats.initUsec << " usec (" << Stats.initUsec * 100.f / Stats.overallUsec << " %total)";
-	CAT_INANE("stats") << "(Mask Decode)     Huffman+LZ : " <<  Stats.lzUsec << " usec (" << Stats.lzUsec * 100.f / Stats.overallUsec << " %total)";
-	CAT_INANE("stats") << "(Mask Decode)        Overall : " <<  Stats.overallUsec << " usec";
+	if (!_enabled) {
+		CAT_INANE("stats") << "(Mask Decode)   Disabled.";
+	} else {
+		CAT_INANE("stats") << "(Mask Decode)   Chosen Color : (" << (_color & 255) << "," << ((_color >> 8) & 255) << "," << ((_color >> 16) & 255) << "," << ((_color >> 24) & 255) << ") ...";
+		CAT_INANE("stats") << "(Mask Decode) Initialization : " <<  Stats.initUsec << " usec (" << Stats.initUsec * 100.f / Stats.overallUsec << " %total)";
+		CAT_INANE("stats") << "(Mask Decode)     Huffman+LZ : " <<  Stats.lzUsec << " usec (" << Stats.lzUsec * 100.f / Stats.overallUsec << " %total)";
+		CAT_INANE("stats") << "(Mask Decode)        Overall : " <<  Stats.overallUsec << " usec";
+	}
 
 	return true;
 }

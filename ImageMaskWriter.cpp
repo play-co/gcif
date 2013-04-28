@@ -432,8 +432,9 @@ void Masker::write(ImageWriter &writer) {
 
 bool Masker::dumpStats() {
 	if (!_enabled) {
-		CAT_INANE("mask") << "Disabled mask encoding.";
+		CAT_INANE("stats") << "(Mask Encoding)   Disabled.";
 	} else {
+		CAT_INANE("stats") << "(Mask Encoding)      Chosen Color : (" << (_color & 255) << "," << ((_color >> 8) & 255) << "," << ((_color >> 16) & 255) << "," << ((_color >> 24) & 255) << ") ...";
 		CAT_INANE("stats") << "(Mask Encoding)     Post-RLE Size : " <<  Stats.rleBytes << " bytes";
 		CAT_INANE("stats") << "(Mask Encoding)      Post-LZ Size : " <<  Stats.lzBytes << " bytes";
 		CAT_INANE("stats") << "(Mask Encoding) Post-Huffman Size : " << (Stats.data_bits + 7) / 8 << " bytes (" << Stats.data_bits << " bits)";
