@@ -11,6 +11,29 @@ software.  Contributions, discussions, and a healthy dose of criticism are all
 welcome.
 
 
+TODO
+====
+
+Immediately:
++ Split decoder into separate source files
++ Clean up source code
++ Compare clang++ to g++ decoder speed
++ Look at unrolling second mask check from inner loop for speed
++ MSVC port
++ Retest everything
++ Tag 1.0
++ Benchmarking
++ Whitepaper
+
+For version 1.1:
++ Support for images not a multiple of 4x4 pixels
++ Scanline filters and LZ
++ Palette mode
++ Java port
++ Use strong file hash in new verification mode
++ Better spriter to go with GCIF
+
+
 What works right now
 ====================
 
