@@ -83,11 +83,11 @@ public:
 
 	int read(ImageReader &reader);
 
-	void nextRow();
+	void nextScanline();
 
 	CAT_INLINE bool masked(int x) {
 		const u32 word = _mask[x >> 5];
-		return (word >> (31 - (x & 31))) & 1;
+		return ((word >> (31 - (x & 31))) & 1) != 0;
 	}
 
 #ifdef CAT_COLLECT_STATS

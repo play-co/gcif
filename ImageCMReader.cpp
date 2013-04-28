@@ -192,6 +192,8 @@ int ImageCMReader::readPixels(ImageReader &reader) {
 		// Clear filters data
 		CAT_CLR(_filters, _filters_bytes);
 
+		_mask->nextScanline();
+
 		// Restart for scanline
 		u8 *last = lastStart;
 		int lz_skip = 0, lz_lines_left = 0;
@@ -208,18 +210,17 @@ int ImageCMReader::readPixels(ImageReader &reader) {
 
 			if (lz_skip > 0) {
 				--lz_skip;
-
-				for (int c = 0; c < COLOR_PLANES; ++c) {
-					last[c] = 0;
-				}
-			} else if (_mask->masked(x, y)) {
+				last[0] = 0;
+				last[1] = 0;
+				last[2] = 0;
+				last[3] = 0;
+			} else if (_mask->masked(x)) {
 				// Fully-transparent pixel
-				u32 *zp = reinterpret_cast<u32 *>( p );
-				*zp = 0;
-
-				for (int c = 0; c < COLOR_PLANES; ++c) {
-					last[c] = 0;
-				}
+				*reinterpret_cast<u32 *>( p ) = 0;
+				last[0] = 0;
+				last[1] = 0;
+				last[2] = 0;
+				last[3] = 0;
 			} else {
 				// Read SF and CF for this zone
 				FilterSelection *filter = &_filters[x >> FILTER_ZONE_SIZE_SHIFT];
@@ -231,24 +232,25 @@ int ImageCMReader::readPixels(ImageReader &reader) {
 				}
 
 				// Read YUV filtered pixel
-				u8 A;
-				last[0] = (u8)_y_decoder[CHAOS_TABLE[last[-4]]].next(reader);
+				u8 YUV[3];
+				YUV[0] = (u8)_y_decoder[CHAOS_TABLE[last[-4]]].next(reader);
 				DESYNC(x, y);
-				last[1] = (u8)_u_decoder[CHAOS_TABLE[last[-3]]].next(reader);
+				YUV[1] = (u8)_u_decoder[CHAOS_TABLE[last[-3]]].next(reader);
 				DESYNC(x, y);
-				last[2] = (u8)_v_decoder[CHAOS_TABLE[last[-2]]].next(reader);
-				DESYNC(x, y);
-				last[3] = A = (u8)_a_decoder[CHAOS_TABLE[last[-1]]].next(reader);
+				YUV[2] = (u8)_v_decoder[CHAOS_TABLE[last[-2]]].next(reader);
 				DESYNC(x, y);
 
 				// Reverse color filter
-				filter->cf(last, p);
+				filter->cf(YUV, p);
 
 				// Reverse spatial filter
 				const u8 *pred = filter->sf.safe(p, x, y, width);
 				p[0] += pred[0];
 				p[1] += pred[1];
 				p[2] += pred[2];
+
+				u8 A = (u8)_a_decoder[CHAOS_TABLE[last[-1]]].next(reader);
+				DESYNC(x, y);
 				if (x > 0) {
 					p[3] = p[-1] - A;
 				} else {
@@ -256,10 +258,10 @@ int ImageCMReader::readPixels(ImageReader &reader) {
 				}
 
 				// Convert last to score
-				last[0] = chaosScore(last[0]);
-				last[1] = chaosScore(last[1]);
-				last[2] = chaosScore(last[2]);
-				last[3] = chaosScore(last[3]);
+				last[0] = chaosScore(YUV[0]);
+				last[1] = chaosScore(YUV[1]);
+				last[2] = chaosScore(YUV[2]);
+				last[3] = chaosScore(A);
 			}
 
 			// Next pixel
@@ -282,6 +284,8 @@ int ImageCMReader::readPixels(ImageReader &reader) {
 			CAT_CLR(_filters, _filters_bytes);
 		}
 
+		_mask->nextScanline();
+
 		// Restart for scanline
 		u8 *last = lastStart;
 		int lz_skip = 0, lz_lines_left = 0;
@@ -299,18 +303,17 @@ int ImageCMReader::readPixels(ImageReader &reader) {
 
 			if (lz_skip > 0) {
 				--lz_skip;
-
-				for (int c = 0; c < COLOR_PLANES; ++c) {
-					last[c] = 0;
-				}
-			} else if (_mask->masked(x, y)) {
+				last[0] = 0;
+				last[1] = 0;
+				last[2] = 0;
+				last[3] = 0;
+			} else if (_mask->masked(x)) {
 				// Fully-transparent pixel
-				u32 *zp = reinterpret_cast<u32 *>( p );
-				*zp = 0;
-
-				for (int c = 0; c < COLOR_PLANES; ++c) {
-					last[c] = 0;
-				}
+				*reinterpret_cast<u32 *>( p ) = 0;
+				last[0] = 0;
+				last[1] = 0;
+				last[2] = 0;
+				last[3] = 0;
 			} else {
 				// Read SF and CF for this zone
 				FilterSelection *filter = &_filters[x >> FILTER_ZONE_SIZE_SHIFT];
@@ -322,31 +325,32 @@ int ImageCMReader::readPixels(ImageReader &reader) {
 				}
 
 				// Read YUV filtered pixel
-				u8 A;
-				last[0] = (u8)_y_decoder[CHAOS_TABLE[last[0]]].next(reader);;
+				u8 YUV[3];
+				YUV[0] = (u8)_y_decoder[CHAOS_TABLE[last[0]]].next(reader);;
 				DESYNC(x, y);
-				last[1] = (u8)_u_decoder[CHAOS_TABLE[last[1]]].next(reader);
+				YUV[1] = (u8)_u_decoder[CHAOS_TABLE[last[1]]].next(reader);
 				DESYNC(x, y);
-				last[2] = (u8)_v_decoder[CHAOS_TABLE[last[2]]].next(reader);
-				DESYNC(x, y);
-				last[3] = A = (u8)_a_decoder[CHAOS_TABLE[last[3]]].next(reader);
+				YUV[2] = (u8)_v_decoder[CHAOS_TABLE[last[2]]].next(reader);
 				DESYNC(x, y);
 
 				// Reverse color filter
-				filter->cf(last, p);
+				filter->cf(YUV, p);
 
 				// Reverse spatial filter
 				const u8 *pred = filter->sf.safe(p, x, y, width);
 				p[0] += pred[0];
 				p[1] += pred[1];
 				p[2] += pred[2];
+
+				u8 A = (u8)_a_decoder[CHAOS_TABLE[last[3]]].next(reader);
+				DESYNC(x, y);
 				p[3] = 255 - A;
 
 				// Convert last to score
-				last[0] = chaosScore(last[0]);
-				last[1] = chaosScore(last[1]);
-				last[2] = chaosScore(last[2]);
-				last[3] = chaosScore(last[3]);
+				last[0] = chaosScore(YUV[0]);
+				last[1] = chaosScore(YUV[1]);
+				last[2] = chaosScore(YUV[2]);
+				last[3] = chaosScore(A);
 			}
 
 			// Next pixel
@@ -368,12 +372,18 @@ int ImageCMReader::readPixels(ImageReader &reader) {
 				trigger_x_lz = _lz->getTriggerX();
 			}
 
-			u8 yuva[4] = { 0 };
-
 			if (lz_skip > 0) {
 				--lz_skip;
-			} else if (_mask->masked(x, y)) {
+				last[0] = 0;
+				last[1] = 0;
+				last[2] = 0;
+				last[3] = 0;
+			} else if (_mask->masked(x)) {
 				*reinterpret_cast<u32 *>( p ) = 0;
+				last[0] = 0;
+				last[1] = 0;
+				last[2] = 0;
+				last[3] = 0;
 			} else {
 				// Read SF and CF for this zone
 				FilterSelection *filter = &_filters[x >> FILTER_ZONE_SIZE_SHIFT];
@@ -389,18 +399,19 @@ int ImageCMReader::readPixels(ImageReader &reader) {
 				const u32 chaos_v = CHAOS_TABLE[last[-2] + (u16)last[2]];
 
 				// Read YUV filtered pixel
-				yuva[0] = (u8)_y_decoder[chaos_y].next(reader);
+				u8 YUV[3];
+				YUV[0] = (u8)_y_decoder[chaos_y].next(reader);
 				DESYNC(x, y);
-				yuva[1] = (u8)_u_decoder[chaos_u].next(reader);
+				YUV[1] = (u8)_u_decoder[chaos_u].next(reader);
 				DESYNC(x, y);
-				yuva[2] = (u8)_v_decoder[chaos_v].next(reader);
+				YUV[2] = (u8)_v_decoder[chaos_v].next(reader);
 				DESYNC(x, y);
 
 				// Pipeline calculate alpha chaos
 				const u32 chaos_a = CHAOS_TABLE[last[-1] + (u16)last[3]];
 
 				// Reverse color filter
-				filter->cf(yuva, p);
+				filter->cf(YUV, p);
 
 				// Reverse spatial filter
 				const u8 *pred = filter->sf.unsafe(p, x, y, width);
@@ -409,16 +420,16 @@ int ImageCMReader::readPixels(ImageReader &reader) {
 				p[2] += pred[2];
 
 				// Read alpha pixel
-				yuva[3] = (u8)_a_decoder[chaos_a].next(reader);
-				p[3] = p[-1] - yuva[3];
+				u32 A = (u8)_a_decoder[chaos_a].next(reader);
+				p[3] = p[-1] - A;
 				DESYNC(x, y);
-			}
 
-			// Convert last to score
-			last[0] = chaosScore(yuva[0]);
-			last[1] = chaosScore(yuva[1]);
-			last[2] = chaosScore(yuva[2]);
-			last[3] = chaosScore(yuva[3]);
+				// Convert last to score
+				last[0] = chaosScore(YUV[0]);
+				last[1] = chaosScore(YUV[1]);
+				last[2] = chaosScore(YUV[2]);
+				last[3] = chaosScore(A);
+			}
 
 			// Next pixel
 			last += COLOR_PLANES;
@@ -442,18 +453,16 @@ int ImageCMReader::readPixels(ImageReader &reader) {
 
 			if (lz_skip > 0) {
 				--lz_skip;
-
-				for (int c = 0; c < COLOR_PLANES; ++c) {
-					last[c] = 0;
-				}
-			} else if (_mask->masked(x, y)) {
-				// Fully-transparent pixel
-				u32 *zp = reinterpret_cast<u32 *>( p );
-				*zp = 0;
-
-				for (int c = 0; c < COLOR_PLANES; ++c) {
-					last[c] = 0;
-				}
+				last[0] = 0;
+				last[1] = 0;
+				last[2] = 0;
+				last[3] = 0;
+			} else if (_mask->masked(x)) {
+				*reinterpret_cast<u32 *>( p ) = 0;
+				last[0] = 0;
+				last[1] = 0;
+				last[2] = 0;
+				last[3] = 0;
 			} else {
 				// Read SF and CF for this zone
 				FilterSelection *filter = &_filters[x >> FILTER_ZONE_SIZE_SHIFT];
@@ -465,15 +474,16 @@ int ImageCMReader::readPixels(ImageReader &reader) {
 				}
 
 				// Read YUV filtered pixel
-				last[0] = (u8)_y_decoder[CHAOS_TABLE[last[-4] + (u16)last[0]]].next(reader);
+				u8 YUV[3];
+				YUV[0] = (u8)_y_decoder[CHAOS_TABLE[last[-4] + (u16)last[0]]].next(reader);
 				DESYNC(x, y);
-				last[1] = (u8)_u_decoder[CHAOS_TABLE[last[-3] + (u16)last[1]]].next(reader);
+				YUV[1] = (u8)_u_decoder[CHAOS_TABLE[last[-3] + (u16)last[1]]].next(reader);
 				DESYNC(x, y);
-				last[2] = (u8)_v_decoder[CHAOS_TABLE[last[-2] + (u16)last[2]]].next(reader);
+				YUV[2] = (u8)_v_decoder[CHAOS_TABLE[last[-2] + (u16)last[2]]].next(reader);
 				DESYNC(x, y);
 
 				// Reverse color filter
-				filter->cf(last, p);
+				filter->cf(YUV, p);
 
 				// Reverse (safe) spatial filter
 				const u8 *pred = filter->sf.safe(p, x, y, width);
@@ -482,16 +492,15 @@ int ImageCMReader::readPixels(ImageReader &reader) {
 				p[2] += pred[2];
 
 				// Read alpha pixel
-				u8 A;
-				last[3] = A = (u8)_a_decoder[CHAOS_TABLE[last[-1] + (u16)last[3]]].next(reader);
+				u8 A = (u8)_a_decoder[CHAOS_TABLE[last[-1] + (u16)last[3]]].next(reader);
 				DESYNC(x, y);
 				p[3] = p[-1] - A;
 
 				// Convert last to score
-				last[0] = chaosScore(last[0]);
-				last[1] = chaosScore(last[1]);
-				last[2] = chaosScore(last[2]);
-				last[3] = chaosScore(last[3]);
+				last[0] = chaosScore(YUV[0]);
+				last[1] = chaosScore(YUV[1]);
+				last[2] = chaosScore(YUV[2]);
+				last[3] = chaosScore(A);
 			}
 
 			// Next pixel

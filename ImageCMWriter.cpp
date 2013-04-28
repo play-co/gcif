@@ -647,7 +647,6 @@ void ImageCMWriter::maskFilters() {
 		for (int x = 0, width = _width; x < width; x += FILTER_ZONE_SIZE) {
 			bool on = true;
 
-			int w, h;
 			for (int ii = 0; ii < FILTER_ZONE_SIZE; ++ii) {
 				for (int jj = 0; jj < FILTER_ZONE_SIZE; ++jj) {
 					if (!_mask->masked(x + ii, y + jj) &&
