@@ -80,7 +80,8 @@ int ImageLZReader::readHuffmanTable(ImageReader &reader) {
 	}
 
 	// If minimum count is met,
-	if ((_using_decoder = reader.readBit())) {
+	_using_decoder = reader.readBit() != 0;
+	if (_using_decoder) {
 		// If not able to init Huffman decoder
 		if (!_decoder.init(reader)) {
 			CAT_DEBUG_EXCEPTION();

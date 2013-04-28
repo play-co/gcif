@@ -172,8 +172,7 @@ int ImageMaskReader::read(ImageReader &reader) {
 	double t1 = m_clock->usec();
 #endif // CAT_COLLECT_STATS
 
-	_enabled = reader.readBit();
-
+	_enabled = reader.readBit() != 0;
 	if (_enabled) {
 		_color = getLE(reader.readWord());
 

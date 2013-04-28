@@ -263,7 +263,7 @@ bool MappedView::Open(MappedFile *file)
 u8 *MappedView::MapView(u64 offset, u32 length)
 {
 	if (length == 0) {
-		length = _file->GetLength();
+		length = static_cast<u32>( _file->GetLength() );
 	}
 
 	if (offset) {

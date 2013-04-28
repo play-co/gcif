@@ -110,7 +110,7 @@ int ImageCMReader::init(GCIFImage *image) {
 
 int ImageCMReader::readFilterTables(ImageReader &reader) {
 	// Read in count of custom spatial filters
-	u32 rep_count = reader.readBits(5);
+	int rep_count = reader.readBits(5);
 	if (rep_count > SF_COUNT) {
 		CAT_DEBUG_EXCEPTION();
 		return RE_CM_CODES;

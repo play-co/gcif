@@ -78,7 +78,7 @@ protected:
 	// Recent chaos memory
 	u8 *_chaos;
 	u32 _chaos_size;
-	int _chaos_alloc;
+	u32 _chaos_alloc;
 
 	// Chaos lookup table
 	int _chaos_levels;

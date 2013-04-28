@@ -18,6 +18,65 @@
       <Platform>x64</Platform>
     </ProjectConfiguration>
   </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="decoder\BitMath.hpp" />
+    <ClInclude Include="decoder\Config.hpp" />
+    <ClInclude Include="decoder\EndianNeutral.hpp" />
+    <ClInclude Include="decoder\EntropyDecoder.hpp" />
+    <ClInclude Include="decoder\Filters.hpp" />
+    <ClInclude Include="decoder\GCIFReader.hpp" />
+    <ClInclude Include="decoder\HotRodHash.hpp" />
+    <ClInclude Include="decoder\HuffmanDecoder.hpp" />
+    <ClInclude Include="decoder\ImageCMReader.hpp" />
+    <ClInclude Include="decoder\ImageLZReader.hpp" />
+    <ClInclude Include="decoder\ImageMaskReader.hpp" />
+    <ClInclude Include="decoder\ImageReader.hpp" />
+    <ClInclude Include="decoder\lz4.h" />
+    <ClInclude Include="decoder\MappedFile.hpp" />
+    <ClInclude Include="decoder\Platform.hpp" />
+    <ClInclude Include="decoder\WindowsInclude.hpp" />
+    <ClInclude Include="msvc\Precompiled.hpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="decoder\EndianNeutral.cpp" />
+    <ClCompile Include="decoder\Filters.cpp" />
+    <ClCompile Include="decoder\GCIFReader.cpp" />
+    <ClCompile Include="decoder\HotRodHash.cpp" />
+    <ClCompile Include="decoder\HuffmanDecoder.cpp" />
+    <ClCompile Include="decoder\ImageCMReader.cpp" />
+    <ClCompile Include="decoder\ImageLZReader.cpp" />
+    <ClCompile Include="decoder\ImageMaskReader.cpp" />
+    <ClCompile Include="decoder\ImageReader.cpp" />
+    <ClCompile Include="decoder\lz4.c">
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">NotUsing</PrecompiledHeader>
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">NotUsing</PrecompiledHeader>
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">NotUsing</PrecompiledHeader>
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">NotUsing</PrecompiledHeader>
+      <ForcedIncludeFiles Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+      </ForcedIncludeFiles>
+      <ForcedIncludeFiles Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+      </ForcedIncludeFiles>
+      <ForcedIncludeFiles Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+      </ForcedIncludeFiles>
+      <ForcedIncludeFiles Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+      </ForcedIncludeFiles>
+    </ClCompile>
+    <ClCompile Include="decoder\MappedFile.cpp" />
+    <ClCompile Include="msvc\Precompiled.cpp">
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Create</PrecompiledHeader>
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Create</PrecompiledHeader>
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Create</PrecompiledHeader>
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Create</PrecompiledHeader>
+      <ForcedIncludeFiles Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+      </ForcedIncludeFiles>
+      <ForcedIncludeFiles Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+      </ForcedIncludeFiles>
+      <ForcedIncludeFiles Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+      </ForcedIncludeFiles>
+      <ForcedIncludeFiles Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+      </ForcedIncludeFiles>
+    </ClCompile>
+  </ItemGroup>
   <PropertyGroup Label="Globals">
     <ProjectGuid>{1B85839B-03A4-4839-8568-A4FD3592D0AE}</ProjectGuid>
     <RootNamespace>gcif</RootNamespace>
@@ -67,8 +126,9 @@
       <WarningLevel>Level3</WarningLevel>
       <Optimization>Disabled</Optimization>
       <PrecompiledHeader>Use</PrecompiledHeader>
-      <PrecompiledHeaderFile>msvc/Precompiled.hpp</PrecompiledHeaderFile>
-      <ForcedIncludeFiles>msvc/Precompiled.hpp</ForcedIncludeFiles>
+      <PrecompiledHeaderFile>Precompiled.hpp</PrecompiledHeaderFile>
+      <ForcedIncludeFiles>Precompiled.hpp</ForcedIncludeFiles>
+      <AdditionalIncludeDirectories>./encoder;./decoder;./msvc</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <GenerateDebugInformation>true</GenerateDebugInformation>
@@ -79,8 +139,9 @@
       <WarningLevel>Level3</WarningLevel>
       <Optimization>Disabled</Optimization>
       <PrecompiledHeader>Use</PrecompiledHeader>
-      <PrecompiledHeaderFile>msvc/Precompiled.hpp</PrecompiledHeaderFile>
-      <ForcedIncludeFiles>msvc/Precompiled.hpp</ForcedIncludeFiles>
+      <PrecompiledHeaderFile>Precompiled.hpp</PrecompiledHeaderFile>
+      <ForcedIncludeFiles>Precompiled.hpp</ForcedIncludeFiles>
+      <AdditionalIncludeDirectories>./encoder;./decoder;./msvc</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <GenerateDebugInformation>true</GenerateDebugInformation>
@@ -100,8 +161,9 @@
       <EnableEnhancedInstructionSet>StreamingSIMDExtensions2</EnableEnhancedInstructionSet>
       <RuntimeTypeInfo>false</RuntimeTypeInfo>
       <PrecompiledHeader>Use</PrecompiledHeader>
-      <PrecompiledHeaderFile>msvc/Precompiled.hpp</PrecompiledHeaderFile>
-      <ForcedIncludeFiles>msvc/Precompiled.hpp</ForcedIncludeFiles>
+      <PrecompiledHeaderFile>Precompiled.hpp</PrecompiledHeaderFile>
+      <ForcedIncludeFiles>Precompiled.hpp</ForcedIncludeFiles>
+      <AdditionalIncludeDirectories>./encoder;./decoder;./msvc</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <GenerateDebugInformation>true</GenerateDebugInformation>
@@ -124,8 +186,9 @@
       <EnableEnhancedInstructionSet>StreamingSIMDExtensions2</EnableEnhancedInstructionSet>
       <RuntimeTypeInfo>false</RuntimeTypeInfo>
       <PrecompiledHeader>Use</PrecompiledHeader>
-      <PrecompiledHeaderFile>msvc/Precompiled.hpp</PrecompiledHeaderFile>
-      <ForcedIncludeFiles>msvc/Precompiled.hpp</ForcedIncludeFiles>
+      <PrecompiledHeaderFile>Precompiled.hpp</PrecompiledHeaderFile>
+      <ForcedIncludeFiles>Precompiled.hpp</ForcedIncludeFiles>
+      <AdditionalIncludeDirectories>./encoder;./decoder;./msvc</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <GenerateDebugInformation>true</GenerateDebugInformation>
@@ -134,133 +197,6 @@
       <Profile>true</Profile>
     </Link>
   </ItemDefinitionGroup>
-  <ItemGroup>
-    <ClCompile Include="Clock.cpp" />
-    <ClCompile Include="EndianNeutral.cpp" />
-    <ClCompile Include="Filters.cpp" />
-    <ClCompile Include="FilterScorer.cpp" />
-    <ClCompile Include="gcif.cpp" />
-    <ClCompile Include="GCIFReader.cpp" />
-    <ClCompile Include="GCIFWriter.cpp" />
-    <ClCompile Include="HotRodHash.cpp" />
-    <ClCompile Include="HuffmanDecoder.cpp" />
-    <ClCompile Include="HuffmanEncoder.cpp" />
-    <ClCompile Include="ImageCMReader.cpp" />
-    <ClCompile Include="ImageCMWriter.cpp" />
-    <ClCompile Include="ImageLZReader.cpp" />
-    <ClCompile Include="ImageLZWriter.cpp" />
-    <ClCompile Include="ImageMaskReader.cpp" />
-    <ClCompile Include="ImageMaskWriter.cpp" />
-    <ClCompile Include="ImageReader.cpp" />
-    <ClCompile Include="ImageWriter.cpp" />
-    <ClCompile Include="lodepng.cpp" />
-    <ClCompile Include="Log.cpp" />
-    <ClCompile Include="lz4.c">
-      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">NotUsing</PrecompiledHeader>
-      <PrecompiledHeaderFile Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
-      </PrecompiledHeaderFile>
-      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">NotUsing</PrecompiledHeader>
-      <PrecompiledHeaderFile Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
-      </PrecompiledHeaderFile>
-      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">NotUsing</PrecompiledHeader>
-      <PrecompiledHeaderFile Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
-      </PrecompiledHeaderFile>
-      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">NotUsing</PrecompiledHeader>
-      <PrecompiledHeaderFile Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
-      </PrecompiledHeaderFile>
-      <ForcedIncludeFiles Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
-      </ForcedIncludeFiles>
-      <ForcedIncludeFiles Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
-      </ForcedIncludeFiles>
-      <ForcedIncludeFiles Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
-      </ForcedIncludeFiles>
-      <ForcedIncludeFiles Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
-      </ForcedIncludeFiles>
-    </ClCompile>
-    <ClCompile Include="lz4hc.c">
-      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">NotUsing</PrecompiledHeader>
-      <PrecompiledHeaderFile Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
-      </PrecompiledHeaderFile>
-      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">NotUsing</PrecompiledHeader>
-      <PrecompiledHeaderFile Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
-      </PrecompiledHeaderFile>
-      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">NotUsing</PrecompiledHeader>
-      <PrecompiledHeaderFile Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
-      </PrecompiledHeaderFile>
-      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">NotUsing</PrecompiledHeader>
-      <PrecompiledHeaderFile Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
-      </PrecompiledHeaderFile>
-      <ForcedIncludeFiles Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
-      </ForcedIncludeFiles>
-      <ForcedIncludeFiles Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
-      </ForcedIncludeFiles>
-      <ForcedIncludeFiles Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
-      </ForcedIncludeFiles>
-      <ForcedIncludeFiles Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
-      </ForcedIncludeFiles>
-    </ClCompile>
-    <ClCompile Include="MappedFile.cpp" />
-    <ClCompile Include="msvc\Precompiled.cpp">
-      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Create</PrecompiledHeader>
-      <ForcedIncludeFiles Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
-      </ForcedIncludeFiles>
-      <PrecompiledHeaderFile Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Precompiled.hpp</PrecompiledHeaderFile>
-      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Create</PrecompiledHeader>
-      <PrecompiledHeaderFile Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Precompiled.hpp</PrecompiledHeaderFile>
-      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Create</PrecompiledHeader>
-      <PrecompiledHeaderFile Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Precompiled.hpp</PrecompiledHeaderFile>
-      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Create</PrecompiledHeader>
-      <PrecompiledHeaderFile Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Precompiled.hpp</PrecompiledHeaderFile>
-      <ForcedIncludeFiles Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
-      </ForcedIncludeFiles>
-      <ForcedIncludeFiles Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
-      </ForcedIncludeFiles>
-      <ForcedIncludeFiles Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
-      </ForcedIncludeFiles>
-    </ClCompile>
-    <ClCompile Include="Mutex.cpp" />
-    <ClCompile Include="SystemInfo.cpp" />
-    <ClCompile Include="Thread.cpp" />
-  </ItemGroup>
-  <ItemGroup>
-    <ClInclude Include="BitMath.hpp" />
-    <ClInclude Include="Clock.hpp" />
-    <ClInclude Include="Config.hpp" />
-    <ClInclude Include="Delegates.hpp" />
-    <ClInclude Include="EndianNeutral.hpp" />
-    <ClInclude Include="EntropyDecoder.hpp" />
-    <ClInclude Include="EntropyEncoder.hpp" />
-    <ClInclude Include="EntropyEstimator.hpp" />
-    <ClInclude Include="Filters.hpp" />
-    <ClInclude Include="FilterScorer.hpp" />
-    <ClInclude Include="GCIFReader.hpp" />
-    <ClInclude Include="GCIFWriter.hpp" />
-    <ClInclude Include="HotRodHash.hpp" />
-    <ClInclude Include="HuffmanDecoder.hpp" />
-    <ClInclude Include="HuffmanEncoder.hpp" />
-    <ClInclude Include="ImageCMReader.hpp" />
-    <ClInclude Include="ImageCMWriter.hpp" />
-    <ClInclude Include="ImageLZReader.hpp" />
-    <ClInclude Include="ImageLZWriter.hpp" />
-    <ClInclude Include="ImageMaskReader.hpp" />
-    <ClInclude Include="ImageMaskWriter.hpp" />
-    <ClInclude Include="ImageReader.hpp" />
-    <ClInclude Include="ImageWriter.hpp" />
-    <ClInclude Include="lodepng.h" />
-    <ClInclude Include="Log.hpp" />
-    <ClInclude Include="lz4.h" />
-    <ClInclude Include="lz4hc.h" />
-    <ClInclude Include="MappedFile.hpp" />
-    <ClInclude Include="msvc\Precompiled.hpp" />
-    <ClInclude Include="Mutex.hpp" />
-    <ClInclude Include="optionparser.h" />
-    <ClInclude Include="Platform.hpp" />
-    <ClInclude Include="RefObject.hpp" />
-    <ClInclude Include="Singleton.hpp" />
-    <ClInclude Include="SystemInfo.hpp" />
-    <ClInclude Include="Thread.hpp" />
-    <ClInclude Include="WindowsInclude.hpp" />
-  </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
   </ImportGroup>
