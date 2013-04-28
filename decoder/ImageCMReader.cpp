@@ -299,16 +299,16 @@ int ImageCMReader::readPixels(ImageReader &reader) {
 				}
 
 				// Convert last to score
-				last[0] = chaosScore(YUV[0]);
-				last[1] = chaosScore(YUV[1]);
-				last[2] = chaosScore(YUV[2]);
-				last[3] = chaosScore(A);
+				last[0] = CHAOS_SCORE[YUV[0]];
+				last[1] = CHAOS_SCORE[YUV[1]];
+				last[2] = CHAOS_SCORE[YUV[2]];
+				last[3] = CHAOS_SCORE[A];
 			}
 
 			// Next pixel
 			last += COLOR_PLANES;
-			p += 4;
 			mask <<= 1;
+			p += 4;
 		}
 	}
 
@@ -406,16 +406,16 @@ int ImageCMReader::readPixels(ImageReader &reader) {
 				p[3] = 255 - A;
 
 				// Convert last to score
-				last[0] = chaosScore(YUV[0]);
-				last[1] = chaosScore(YUV[1]);
-				last[2] = chaosScore(YUV[2]);
-				last[3] = chaosScore(A);
+				last[0] = CHAOS_SCORE[YUV[0]];
+				last[1] = CHAOS_SCORE[YUV[1]];
+				last[2] = CHAOS_SCORE[YUV[2]];
+				last[3] = CHAOS_SCORE[A];
 			}
 
 			// Next pixel
 			last += COLOR_PLANES;
-			p += 4;
 			mask <<= 1;
+			p += 4;
 		}
 
 
@@ -494,16 +494,16 @@ int ImageCMReader::readPixels(ImageReader &reader) {
 				DESYNC(x, y);
 
 				// Convert last to score
-				last[0] = chaosScore(YUV[0]);
-				last[1] = chaosScore(YUV[1]);
-				last[2] = chaosScore(YUV[2]);
-				last[3] = chaosScore(A);
+				last[0] = CHAOS_SCORE[YUV[0]];
+				last[1] = CHAOS_SCORE[YUV[1]];
+				last[2] = CHAOS_SCORE[YUV[2]];
+				last[3] = CHAOS_SCORE[A];
 			}
 
 			// Next pixel
 			last += COLOR_PLANES;
-			p += 4;
 			mask <<= 1;
+			p += 4;
 		}
 
 		
@@ -582,14 +582,13 @@ int ImageCMReader::readPixels(ImageReader &reader) {
 				p[3] = p[-1] - A;
 
 				// Convert last to score
-				last[0] = chaosScore(YUV[0]);
-				last[1] = chaosScore(YUV[1]);
-				last[2] = chaosScore(YUV[2]);
-				last[3] = chaosScore(A);
+				last[0] = CHAOS_SCORE[YUV[0]];
+				last[1] = CHAOS_SCORE[YUV[1]];
+				last[2] = CHAOS_SCORE[YUV[2]];
+				last[3] = CHAOS_SCORE[A];
 			}
 
 			// Next pixel
-			last += COLOR_PLANES;
 			p += 4;
 		}
 	}

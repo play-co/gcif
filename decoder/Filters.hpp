@@ -34,9 +34,6 @@
 namespace cat {
 
 
-//#define GENERATE_CHAOS_TABLE
-//#define TEST_COLOR_FILTERS /* Verify color filters are reversible unit test */
-
 static const int FILTER_ZONE_SIZE_SHIFT = 2; // Block size pow2
 static const int FILTER_ZONE_SIZE = 1 << FILTER_ZONE_SIZE_SHIFT; // 4x4
 static const int FILTER_ZONE_SIZE_MASK = FILTER_ZONE_SIZE - 1;
@@ -190,26 +187,14 @@ extern YUV2RGBFilterFunction YUV2RGB_FILTERS[];
 
 const char *GetColorFilterString(int cf);
 
-#ifdef TEST_COLOR_FILTERS
-void testColorFilters();
-#endif
-
 
 //// Chaos
 
 extern const u8 CHAOS_TABLE_1[512];
 extern const u8 CHAOS_TABLE_8[512];
-
-static CAT_INLINE int chaosScore(u8 p) {
-	if (p < 128) {
-		return p;
-	} else {
-		return 256 - p;
-	}
-}
+extern const u8 CHAOS_SCORE[256];
 
 
 } // namespace cat
 
 #endif // FILTERS_HPP
-
