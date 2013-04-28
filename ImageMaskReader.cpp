@@ -69,48 +69,196 @@ void ImageMaskReader::clear() {
 	}
 }
 
-int ImageMaskReader::decodeRLE(u8 *rle, int len) {
-	if CAT_UNLIKELY(len <= 0) {
+int ImageMaskReader::decodeLZ(ImageReader &reader) {
+	int rleSize = reader.read9();
+	int lzSize = reader.read9();
+
+	_rle = new u8[rleSize];
+	_lz = new u8[lzSize];
+
+	// If compressed,
+	if (reader.readBit()) {
+		static const int NUM_SYMS = 256;
+
+		HuffmanDecoder decoder;
+		if (!decoder.init(NUM_SYMS, reader, 8)) {
+			return RE_MASK_DECI;
+		}
+
+		for (int ii = 0; ii < lzSize; ++ii) {
+			_lz[ii] = decoder.next(reader);
+		}
+	} else {
+		for (int ii = 0; ii < lzSize; ++ii) {
+			_lz[ii] = reader.readBits(8);
+		}
+	}
+
+	if (reader.eof()) {
 		return RE_MASK_LZ;
 	}
 
+	int result = LZ4_uncompress_unknownOutputSize(reinterpret_cast<const char *>( _lz ), reinterpret_cast<char *>( _rle ), lzSize, rleSize);
+
+	if (result != rleSize) {
+		return RE_MASK_LZ;
+	}
+
+	if (reader.eof()) {
+		return RE_MASK_LZ;
+	}
+
+	// Set up decoder
+	_rle_next = _rle;
+	_rle_remaining = rleSize;
+	_scanline_y = 0;
+
+	return RE_OK;
+}
+
+int ImageMaskReader::init(const ImageHeader *header) {
+	clear();
+
+	if (header->width < FILTER_ZONE_SIZE || header->height < FILTER_ZONE_SIZE) {
+		return RE_BAD_DIMS;
+	}
+
+	if ((header->width & FILTER_ZONE_SIZE_MASK) || (header->height & FILTER_ZONE_SIZE_MASK)) {
+		return RE_BAD_DIMS;
+	}
+
+	const int maskWidth = header->width;
+	const int maskHeight = header->height;
+
+	_stride = (maskWidth + 31) >> 5;
+	_width = maskWidth;
+	_height = maskHeight;
+
+	_mask = new u32[_stride * _height];
+
+	return RE_OK;
+}
+
+int ImageMaskReader::read(ImageReader &reader) {
 #ifdef CAT_COLLECT_STATS
+	m_clock = Clock::ref();
+
 	double t0 = m_clock->usec();
 #endif // CAT_COLLECT_STATS
 
-	u32 lastSum = 0;
-	bool rowStarted = false;
-	int rowLeft = 0;
-	u32 *row = _mask;
-	int bitOffset = 0;
-	int bitOn = 1;
-	int writeRow = 0;
+	int err;
 
-	const int offsetLimit = _stride * _height;
+	if ((err = init(reader.getImageHeader()))) {
+		return err;
+	}
 
-	u32 sum = 0;
-	for (int ii = 0; ii < len; ++ii) {
-		u8 symbol = rle[ii];
-		if (symbol >= 255) {
-			sum += 255;
-			continue;
+#ifdef CAT_COLLECT_STATS
+	double t1 = m_clock->usec();
+#endif // CAT_COLLECT_STATS
+
+	if ((err = decodeLZ(reader))) {
+		return err;
+	}
+
+#ifdef CAT_COLLECT_STATS
+	double t2 = m_clock->usec();
+
+	Stats.initUsec = t1 - t0;
+	Stats.lzUsec = t2 - t1;
+	Stats.overallUsec = t2 - t0;
+#endif // CAT_COLLECT_STATS
+
+#ifdef DUMP_MONOCHROME
+	std::vector<unsigned char> output;
+	u8 bits = 0, bitCount = 0;
+
+	for (int ii = 0; ii < _height; ++ii) {
+		for (int jj = 0; jj < _width; ++jj) {
+			u32 set = (_mask[ii * _stride + jj / 32] >> (31 - (jj & 31))) & 1;
+			bits <<= 1;
+			bits |= set;
+			if (++bitCount >= 8) {
+				output.push_back(bits);
+				bits = 0;
+				bitCount = 0;
+			}
 		}
-		sum += symbol;
+	}
 
-		// If has read row length yet,
-		if CAT_LIKELY(rowStarted) {
+	lodepng_encode_file("decoded_mono.png", (const unsigned char*)&output[0], _width, _height, LCT_GREY, 1);
+#endif
+
+	return RE_OK;
+}
+
+int ImageMaskReader::nextScanline() {
+	// Read RLE symbol count
+	int sym_count = 0;
+	const u8 *rle = _rle_next;
+	int rle_remaining = _rle_remaining;
+
+	while (rle_remaining > 0) {	
+		u8 sym = *rle++;
+		--rle_remaining;
+		sym_count += sym;
+
+		if (sym < 255) {
+			break;
+		}
+	}
+
+	const int stride = _stride;
+	u32 *row = _mask;
+
+	// If no symbols on this row,
+	if (sym_count == 0) {
+		// If first row,
+		if (_scanline_y == 0) {
+			// Initialize to all 1
+			for (int ii = 0; ii < stride; ++ii) {
+				row[ii] = 0xffffffff;
+			}
+		}
+		// Otherwise: Row is a copy of previous
+
+		_rle_remaining = rle_remaining;
+		_rle_next = rle;
+		++_scanline_y;
+		return RE_OK;
+	}
+
+	// If first row,
+	int bitOn = 0;
+	if (_scanline_y == 0) {
+		// Set up specially
+		row[0] = 0;
+		bitOn = 1;
+	}
+
+	// Read this scanline
+	int bitOffset = 0;
+	int lastSum = 0;
+	int sum = 0;
+
+	while (rle_remaining > 0) {
+		u8 sym = *rle++;
+		--rle_remaining;
+		sym_count += sym;
+
+		// If sum is complete,
+		if (sym < 255) {
 			int wordOffset = bitOffset >> 5;
 			int newBitOffset = bitOffset + sum;
 			int newOffset = newBitOffset >> 5;
 			int shift = 31 - (newBitOffset & 31);
 
 			// If new write offset is outside of the mask,
-			if (newOffset >= offsetLimit) {
+			if (newOffset >= _stride) {
 				return RE_MASK_LZ;
 			}
 
 			// If at the first row,
-			if CAT_UNLIKELY(writeRow <= 0) {
+			if (_scanline_y == 0) {
 				/*
 				 * First row is handled specially:
 				 *
@@ -208,10 +356,10 @@ int ImageMaskReader::decodeRLE(u8 *rle, int len) {
 			bitOffset += sum + 1;
 
 			// If just finished this row,
-			if CAT_UNLIKELY(--rowLeft <= 0) {
+			if CAT_UNLIKELY(--sym_count <= 0) {
 				int wordOffset = bitOffset >> 5;
 
-				if CAT_LIKELY(writeRow > 0) {
+				if CAT_LIKELY(_scanline_y > 0) {
 					// If last bit written was 1,
 					if (bitOn) {
 						// Fill bottom bits with 1s
@@ -243,207 +391,27 @@ int ImageMaskReader::decodeRLE(u8 *rle, int len) {
 					}
 				}
 
-				if CAT_UNLIKELY(++writeRow >= _height) {
-					// done!
-#ifdef CAT_COLLECT_STATS
-					double t1 = m_clock->usec();
-					Stats.rleUsec += t1 - t0;
-#endif // CAT_COLLECT_STATS
-					return RE_OK;
-				}
-
-				rowStarted = false;
-				row += _stride;
+				_rle_remaining = rle_remaining;
+				_rle_next = rle;
+				++_scanline_y;
+				return RE_OK;
 			}
-		} else {
-			rowLeft = sum;
 
-			// If row was empty,
-			if (rowLeft == 0) {
-				const int stride = _stride;
-
-				// Decode as an exact copy of the row above it
-				if (writeRow > 0) {
-					u32 *copy = row - stride;
-					for (int ii = 0; ii < stride; ++ii) {
-						row[ii] = copy[ii];
-					}
-				} else {
-					for (int ii = 0; ii < stride; ++ii) {
-						row[ii] = 0xffffffff;
-					}
-				}
-
-				if (++writeRow >= _height) {
-					// done!
-#ifdef CAT_COLLECT_STATS
-					double t1 = m_clock->usec();
-					Stats.rleUsec += t1 - t0;
-#endif // CAT_COLLECT_STATS
-					return RE_OK;
-				}
-
-				row += stride;
-			} else {
-				rowStarted = true;
-
-				// Setup first word
-				if CAT_LIKELY(writeRow > 0) {
-					// Reset row decode state
-					bitOn = 0;
-					bitOffset = 0;
-					lastSum = 0;
-
-					const int stride = _stride;
-
-					u32 *copy = row - stride;
-					for (int ii = 0; ii < stride; ++ii) {
-						row[ii] = copy[ii];
-					}
-				} else {
-					row[0] = 0;
-				}
-			}
+			// Reset sum
+			sum = 0;
 		}
-
-		// Reset sum
-		sum = 0;
 	}
 
-#ifdef CAT_COLLECT_STATS
-	double t1 = m_clock->usec();
-	Stats.rleUsec += t1 - t0;
-#endif // CAT_COLLECT_STATS
-
+	CAT_DEBUG_EXCEPTION();
 	return RE_MASK_LZ;
 }
 
-
-int ImageMaskReader::decodeLZ(ImageReader &reader) {
-	int rleSize = reader.read9();
-	int lzSize = reader.read9();
-
-	_rle = new u8[rleSize];
-	_lz = new u8[lzSize];
-
-	// If compressed,
-	if (reader.readBit()) {
-		static const int NUM_SYMS = 256;
-
-		HuffmanDecoder decoder;
-		if (!decoder.init(NUM_SYMS, reader, 8)) {
-			return RE_MASK_DECI;
-		}
-
-		for (int ii = 0; ii < lzSize; ++ii) {
-			_lz[ii] = decoder.next(reader);
-		}
-	} else {
-		for (int ii = 0; ii < lzSize; ++ii) {
-			_lz[ii] = reader.readBits(8);
-		}
-	}
-
-	if (reader.eof()) {
-		return RE_MASK_LZ;
-	}
-
-	int result = LZ4_uncompress_unknownOutputSize(reinterpret_cast<const char *>( _lz ), reinterpret_cast<char *>( _rle ), lzSize, rleSize);
-
-	if (result != rleSize) {
-		return RE_MASK_LZ;
-	}
-
-	if (reader.eof()) {
-		return RE_MASK_LZ;
-	}
-
-	return decodeRLE(_rle, rleSize);
-}
-
-int ImageMaskReader::init(const ImageHeader *header) {
-	clear();
-
-	if (header->width < FILTER_ZONE_SIZE || header->height < FILTER_ZONE_SIZE) {
-		return RE_BAD_DIMS;
-	}
-
-	if ((header->width & FILTER_ZONE_SIZE_MASK) || (header->height & FILTER_ZONE_SIZE_MASK)) {
-		return RE_BAD_DIMS;
-	}
-
-	const int maskWidth = header->width;
-	const int maskHeight = header->height;
-
-	_stride = (maskWidth + 31) >> 5;
-	_width = maskWidth;
-	_height = maskHeight;
-
-	_mask = new u32[_stride * _height];
-
-	return RE_OK;
-}
-
-int ImageMaskReader::read(ImageReader &reader) {
-#ifdef CAT_COLLECT_STATS
-	m_clock = Clock::ref();
-
-	double t0 = m_clock->usec();
-#endif // CAT_COLLECT_STATS
-
-	int err;
-
-	if ((err = init(reader.getImageHeader()))) {
-		return err;
-	}
-
-#ifdef CAT_COLLECT_STATS
-	double t1 = m_clock->usec();
-
-	Stats.rleUsec = 0;
-#endif // CAT_COLLECT_STATS
-
-	if ((err = decodeLZ(reader))) {
-		return err;
-	}
-
-#ifdef CAT_COLLECT_STATS
-	double t2 = m_clock->usec();
-
-	Stats.initUsec = t1 - t0;
-	Stats.lzUsec = t2 - t1 - Stats.rleUsec;
-	Stats.overallUsec = t2 - t0;
-#endif // CAT_COLLECT_STATS
-
-#ifdef DUMP_MONOCHROME
-	std::vector<unsigned char> output;
-	u8 bits = 0, bitCount = 0;
-
-	for (int ii = 0; ii < _height; ++ii) {
-		for (int jj = 0; jj < _width; ++jj) {
-			u32 set = (_mask[ii * _stride + jj / 32] >> (31 - (jj & 31))) & 1;
-			bits <<= 1;
-			bits |= set;
-			if (++bitCount >= 8) {
-				output.push_back(bits);
-				bits = 0;
-				bitCount = 0;
-			}
-		}
-	}
-
-	lodepng_encode_file("decoded_mono.png", (const unsigned char*)&output[0], _width, _height, LCT_GREY, 1);
-#endif
-
-	return RE_OK;
-}
 
 #ifdef CAT_COLLECT_STATS
 
 bool ImageMaskReader::dumpStats() {
 	CAT_INANE("stats") << "(Mask Decode) Initialization : " <<  Stats.initUsec << " usec (" << Stats.initUsec * 100.f / Stats.overallUsec << " %total)";
 	CAT_INANE("stats") << "(Mask Decode)     Huffman+LZ : " <<  Stats.lzUsec << " usec (" << Stats.lzUsec * 100.f / Stats.overallUsec << " %total)";
-	CAT_INANE("stats") << "(Mask Decode)     RLE+Filter : " <<  Stats.rleUsec << " usec (" << Stats.rleUsec * 100.f / Stats.overallUsec << " %total)";
 	CAT_INANE("stats") << "(Mask Decode)        Overall : " <<  Stats.overallUsec << " usec";
 
 	return true;

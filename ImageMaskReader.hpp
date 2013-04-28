@@ -53,10 +53,12 @@ class ImageMaskReader {
 
 	u8 *_lz;
 	u8 *_rle;
+	int _rle_remaining;
+	const u8 *_rle_next;
+	int _scanline_y;
 
 	u32 _color;
 
-	int decodeRLE(u8 *rle, int len);
 	int decodeLZ(ImageReader &reader);
 	void clear();
 
@@ -66,7 +68,7 @@ class ImageMaskReader {
 public:
 	struct _Stats {
 		double initUsec;
-		double lzUsec, rleUsec;
+		double lzUsec;
 		double overallUsec;
 	} Stats;
 #endif // CAT_COLLECT_STATS
@@ -83,7 +85,7 @@ public:
 
 	int read(ImageReader &reader);
 
-	void nextScanline();
+	int nextScanline();
 
 	CAT_INLINE bool masked(int x) {
 		const u32 word = _mask[x >> 5];

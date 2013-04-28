@@ -534,7 +534,7 @@ void ImageMaskWriter::write(ImageWriter &writer) {
 		Stats.compressedDataBits += _alpha.Stats.compressedDataBits;
 	}
 	if (use_color) {
-		Stats.compressedDataBits += _color.Stats.compressedDataBits + 32;
+		Stats.compressedDataBits += _color.Stats.compressedDataBits;
 	}
 #endif // CAT_COLLECT_STATS
 }
