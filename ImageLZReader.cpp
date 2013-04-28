@@ -50,8 +50,6 @@ void ImageLZReader::clear() {
 }
 
 int ImageLZReader::init(const ImageHeader *header) {
-	clear();
-
 	_width = header->width;
 	_height = header->height;
 
@@ -102,7 +100,13 @@ int ImageLZReader::readZones(ImageReader &reader) {
 	}
 
 	// Allocate space for zones
-	_zones = new Zone[match_count];
+	if (!_zones || match_count > _zones_alloc) {
+		if (!_zones) {
+			delete []_zones;
+		}
+		_zones = new Zone[match_count];
+		_zones_alloc = match_count;
+	}
 
 	if (!_using_decoder) {
 		u16 last_dx = 0, last_dy = 0;

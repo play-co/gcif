@@ -68,8 +68,6 @@ static CAT_INLINE u32 hashPixel(u32 key) {
 }
 
 int ImageLZWriter::initFromRGBA(const u8 *rgba, int width, int height, const GCIFKnobs *knobs) {
-	clear();
-
 	if (width < ZONEW || height < ZONEH) {
 		return WE_BAD_DIMS;
 	}
@@ -87,11 +85,23 @@ int ImageLZWriter::initFromRGBA(const u8 *rgba, int width, int height, const GCI
 	_table_size = 1 << knobs->lz_tableBits;
 	_table_mask = _table_size - 1;
 
-	_table = new u32[_table_size];
+	if (!_table || _table_size > _table_alloc) {
+		if (_table) {
+			delete []_table;
+		}
+		_table = new u32[_table_size];
+		_table_alloc = _table_size;
+	}
 	memset(_table, 0xff, _table_size * sizeof(u32));
 
 	const int visited_size = (width * height + 31) / 32;
-	_visited = new u32[visited_size];
+	if (!_visited || visited_size > _visited_alloc) {
+		if (_visited) {
+			delete []_visited;
+		}
+		_visited = new u32[visited_size];
+		_visited_alloc = visited_size;
+	}
 	memset(_visited, 0, visited_size * sizeof(u32));
 
 	return match();

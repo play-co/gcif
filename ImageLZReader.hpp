@@ -81,6 +81,7 @@ protected:
 		u16 prev, next;		// Doubly-linked work list
 	} *_zones;			// Array of zones
 	u32 _zones_size;	// Size of array
+	int _zones_alloc;
 
 	// Lists
 	u16 _zone_work_head;	// List of active work items sorted by x

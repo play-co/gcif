@@ -94,9 +94,11 @@ class ImageLZWriter {
 
 	// Value is 16-bit x, y coordinates
 	u32 *_table;
+	int _table_alloc;
 
 	// Visited bitmask
 	u32 *_visited;
+	int _visited_alloc;
 
 	CAT_INLINE void visit(int x, int y) {
 		int off = x + y * _width;
