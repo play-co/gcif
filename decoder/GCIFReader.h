@@ -93,13 +93,18 @@ int gcif_read_file(const char *input_file_path_in, GCIFImage *image_out);
 int gcif_read_memory(const void *file_data_in, long file_size_bytes_in, GCIFImage *image_out);
 
 /*
+ * Returns GCIF_RE_OK if the data is for a GCIF file.
+ */
+int gcif_sig_cmp(const void *file_data_in, long file_size_bytes_in);
+
+/*
 	gcif_free_image
 
 	Frees memory associated with the given image file.
 
 	This is safe to call when the read function fails.
 */
-void gcif_free_image(GCIFImage *image);
+void gcif_free_image(const void *rgba);
 
 
 #ifdef __cplusplus

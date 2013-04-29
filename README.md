@@ -19,6 +19,9 @@ The code is well-written in our opinion, easy to read and adapt, and easy to
 incorporate into mobile development.  The decoder is split off into a minimal
 set of portable C++ source files that implement the image reader capability.
 
+The image reader is split off into a light-weight repository here:
+https://github.com/gameclosure/gcif-reader
+
 
 Compression performance
 =======================
@@ -468,7 +471,9 @@ Immediately:
 
 Slated for inclusion in version 1.1 of the file format:
 
-+ Support for images as large as 65536x65536 with custom memory allocator.
++ Support for images as large as 65536x65536 with custom memory allocator and
+a container format that breaks the image into smaller chunks that are each GCIF
+compressed.
 
 + Use strong file hash in new verification mode for command-line tool.
 

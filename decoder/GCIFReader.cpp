@@ -31,6 +31,7 @@
 #include "ImageMaskReader.hpp"
 #include "ImageLZReader.hpp"
 #include "ImageCMReader.hpp"
+#include "EndianNeutral.hpp"
 using namespace cat;
 
 static int gcif_read(ImageReader &reader, GCIFImage *image) {
@@ -87,6 +88,21 @@ extern "C" int gcif_read_file(const char *input_file_path_in, GCIFImage *image_o
 	return gcif_read(reader, image_out);
 }
 
+extern "C" int gcif_sig_cmp(const void *file_data_in, long file_size_bytes_in) {
+	// Validate length
+	if (file_size_bytes_in / sizeof(u32) < ImageReader::HEAD_WORDS) {
+		return GCIF_RE_BAD_HEAD;
+	}
+
+	// Validate signature
+	u32 sig = getLE(*reinterpret_cast<const u32 *>( file_data_in ));
+	if (sig != ImageReader::HEAD_MAGIC) {
+		return GCIF_RE_BAD_HEAD;
+	}
+
+	return GCIF_RE_OK;
+}
+
 extern "C" int gcif_read_memory(const void *file_data_in, long file_size_bytes_in, GCIFImage *image_out) {
 	int err;
 
@@ -104,12 +120,11 @@ extern "C" int gcif_read_memory(const void *file_data_in, long file_size_bytes_i
 	return gcif_read(reader, image_out);
 }
 
-extern "C" void gcif_free_image(GCIFImage *image) {
+extern "C" void gcif_free_image(const void *rgba) {
 	// If image data was allocated,
-	if (image->rgba) {
+	if (rgba) {
 		// Free it
-		delete []image->rgba;
-		image->rgba = 0;
+		delete []reinterpret_cast<const u8 *>( rgba );
 	}
 }
 
