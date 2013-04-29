@@ -85,7 +85,7 @@ static int decompress(const char *filename, const char *outfile) {
 
 	lodepng_encode_file(outfile, (const unsigned char*)image.rgba, image.width, image.height, LCT_RGBA, 8);
 
-	gcif_free_image(&image);
+	gcif_free_image(image.rgba);
 
 	return GCIF_RE_OK;
 }
@@ -155,7 +155,7 @@ static int benchfile(BenchStats &stats, string filename) {
 
 	CAT_WARN("main") << filename << " => " << gcipngrat << "x smaller than PNG and decompresses " << gcipngtime << "x faster";
 
-	gcif_free_image(&outimage);
+	gcif_free_image(outimage.rgba);
 
 	return GCIF_RE_OK;
 }
@@ -260,7 +260,6 @@ static int benchmark(const char *path) {
 		CAT_ENFORCE(threads[ii].StartThread());
 	}
 
-	/* print all the files and directories within directory */
 	while ((ent = readdir (dir)) != NULL) {
 		const char *name = ent->d_name;
 		int namelen = (int)strlen(name);
@@ -283,7 +282,7 @@ static int benchmark(const char *path) {
 		}
 	}
 
-	closedir (dir);
+	closedir(dir);
 
 	for (int ii = 0; ii < cpu_count; ++ii) {
 		threads[ii].shutdown();
@@ -298,6 +297,196 @@ static int benchmark(const char *path) {
 }
 
 
+
+
+static int replacefile(string filename) {
+	vector<unsigned char> image;
+	unsigned width, height;
+
+	const int compress_level = 9999;
+
+	double t0 = Clock::ref()->usec();
+
+	unsigned error = lodepng::decode(image, width, height, filename);
+
+	double t1 = Clock::ref()->usec();
+
+	if (error) {
+		CAT_WARN("main") << "PNG read error " << error << ": " << lodepng_error_text(error) << " for " << filename;
+		return 0;
+		//return error;
+	}
+
+	int err;
+
+	string benchfile = filename + ".gci";
+	const char *cbenchfile = benchfile.c_str();
+
+	if ((err = gcif_write(&image[0], width, height, cbenchfile, compress_level))) {
+		CAT_WARN("main") << "Error while compressing the image: " << gcif_write_errstr(err) << " for " << filename;
+		return err;
+	}
+
+	double t2 = Clock::ref()->usec();
+
+	GCIFImage outimage;
+	if ((err = gcif_read_file(cbenchfile, &outimage))) {
+		CAT_WARN("main") << "Error while decompressing the image: " << gcif_read_errstr(err) << " for " << filename;
+		return err;
+	}
+
+	double t3 = Clock::ref()->usec();
+
+	for (u32 ii = 0; ii < width * height * 4; ++ii) {
+		if (outimage.rgba[ii] != image[ii]) {
+			CAT_WARN("main") << "Error: Output GCIF image does not match input image for " << filename;
+			break;
+		}
+	}
+
+	struct stat png, gci;
+	const char *cfilename = filename.c_str();
+	stat(cfilename, &png);
+	stat(cbenchfile, &gci);
+
+	u32 pngBytes = png.st_size;
+	u32 gciBytes = gci.st_size;
+	double gcipngrat = pngBytes / (double)gciBytes;
+
+	double pngtime = t1 - t0;
+	double gcitime = t3 - t2;
+	double gcipngtime = pngtime / gcitime;
+
+	if (gciBytes <= pngBytes) {
+		CAT_WARN("main") << filename << " => Replaced with GCIF : " << gcipngrat << "x smaller than PNG and decompresses " << gcipngtime << "x faster";
+
+		unlink(cfilename);
+		rename(cbenchfile, cfilename);
+	} else {
+		CAT_WARN("main") << filename << " => Keeping PNG for this file";
+		unlink(cbenchfile);
+	}
+
+	gcif_free_image(outimage.rgba);
+
+	return GCIF_RE_OK;
+}
+
+
+
+class ReplaceThread : public Thread {
+	vector<string> *_files;
+	Mutex *_lock;
+	volatile bool _shutdown;
+
+public:
+	void init(vector<string> *files, Mutex *lock) {
+		_files = files;
+		_lock = lock;
+		_shutdown = false;
+	}
+
+	virtual bool Entrypoint(void *param) {
+		while (!_shutdown) {
+			string filename;
+			bool hasFile;
+
+			do {
+				hasFile = false;
+				{
+					AutoMutex alock(*_lock);
+
+					if (_files->size() > 0) {
+						hasFile = true;
+						filename = _files->back();
+						_files->pop_back();
+					}
+				}
+
+				if (hasFile) {
+					replacefile(filename);
+				} else {
+					break;
+				}
+			} while (hasFile);
+		}
+
+		return true;
+	}
+
+	void shutdown() {
+		_shutdown = true;
+	}
+};
+
+
+
+
+
+static int replace(const char *path) {
+	DIR *dir;
+	struct dirent *ent;
+
+	if ((dir = opendir (path)) == NULL) {
+		return -1;
+	}
+
+	const int MAX_CPU_COUNT = 64;
+	int cpu_count = SystemInfo::ref()->GetProcessorCount();
+	if (cpu_count > MAX_CPU_COUNT) {
+		cpu_count = MAX_CPU_COUNT;
+	}
+	cpu_count--;
+	if (cpu_count < 1) {
+		cpu_count = 1;
+	}
+
+	ReplaceThread threads[MAX_CPU_COUNT];
+	vector<string> files;
+	Mutex lock;
+
+	while ((ent = readdir (dir)) != NULL) {
+		const char *name = ent->d_name;
+		int namelen = (int)strlen(name);
+
+		if (namelen > 4 &&
+			tolower(name[namelen-3]) == 'p' &&
+			tolower(name[namelen-2]) == 'n' &&
+			tolower(name[namelen-1]) == 'g') {
+			string filename = string(path) + "/" + name;
+
+			{
+				AutoMutex alock(lock);
+
+				files.push_back(filename);
+			}
+		}
+	}
+
+	closedir(dir);
+
+	for (int ii = 0; ii < cpu_count; ++ii) {
+		threads[ii].init(&files, &lock);
+		CAT_ENFORCE(threads[ii].StartThread());
+		threads[ii].shutdown();
+	}
+
+	for (int ii = 0; ii < cpu_count; ++ii) {
+		CAT_ENFORCE(threads[ii].WaitForThread());
+	}
+
+	return 0;
+}
+
+
+
+
+
+
+
+
+
+
 static int profileit(const char *filename) {
 	CAT_WARN("main") << "Decoding input GCIF image file hard: " << filename;
 
@@ -310,7 +499,7 @@ static int profileit(const char *filename) {
 			return err;
 		}
 
-		gcif_free_image(&image);
+		gcif_free_image(image.rgba);
 	}
 
 	return GCIF_RE_OK;
@@ -319,7 +508,7 @@ static int profileit(const char *filename) {
 
 //// Command-line parameter parsing
 
-enum  optionIndex { UNKNOWN, HELP, L0, L1, L2, L3, VERBOSE, SILENT, COMPRESS, DECOMPRESS, /*TEST,*/ BENCHMARK, PROFILE };
+enum  optionIndex { UNKNOWN, HELP, L0, L1, L2, L3, VERBOSE, SILENT, COMPRESS, DECOMPRESS, /*TEST,*/ BENCHMARK, PROFILE, REPLACE };
 const option::Descriptor usage[] =
 {
   {UNKNOWN, 0,"" , ""    ,option::Arg::None, "USAGE: ./gcif [options] [output file path]\n\n"
@@ -336,6 +525,7 @@ const option::Descriptor usage[] =
 /*  {TEST,0,"t" , "test",option::Arg::Optional, "  --[t]est <input PNG file path> \tTest compression to verify it is lossless" }, */
   {BENCHMARK,0,"b" , "benchmark",option::Arg::Optional, "  --[b]enchmark <test set path> \tTest compression ratio and decompression speed for a whole directory at once" },
   {PROFILE,0,"p" , "profile",option::Arg::Optional, "  --[p]rofile <input GCI file path> \tDecode same GCI file 100x to enhance profiling of decoder" },
+  {REPLACE,0,"r" , "replace",option::Arg::Optional, "  --[r]eplace <directory path> \tCompress all images in the given directory, replacing the original if the GCIF version is smaller without changing file name" },
   {UNKNOWN, 0,"" ,  ""   ,option::Arg::None, "\nExamples:\n"
                                              "  ./gcif -c ./original.png test.gci\n"
                                              "  ./gcif -d ./test.gci decoded.png" },
@@ -409,6 +599,20 @@ int processParameters(option::Parser &parse, option::Option options[]) {
 			int err;
 
 			if ((err = benchmark(inFilePath))) {
+				CAT_INFO("main") << "Error during conversion [retcode:" << err << "]";
+				return err;
+			}
+
+			return 0;
+		}
+	} else if (options[REPLACE]) {
+		if (parse.nonOptionsCount() != 1) {
+			CAT_WARN("main") << "Input error: Please provide input directory path";
+		} else {
+			const char *inFilePath = parse.nonOption(0);
+			int err;
+
+			if ((err = replace(inFilePath))) {
 				CAT_INFO("main") << "Error during conversion [retcode:" << err << "]";
 				return err;
 			}

@@ -46,6 +46,7 @@ using namespace cat;
 #endif
 
 #else
+#include <signal.h>
 # define CAT_ARTIFICIAL_BREAKPOINT raise(SIGTRAP);
 #endif
 
