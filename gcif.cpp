@@ -337,7 +337,6 @@ const option::Descriptor usage[] =
   {BENCHMARK,0,"b" , "benchmark",option::Arg::Optional, "  --[b]enchmark <test set path> \tTest compression ratio and decompression speed for a whole directory at once" },
   {PROFILE,0,"p" , "profile",option::Arg::Optional, "  --[p]rofile <input GCI file path> \tDecode same GCI file 100x to enhance profiling of decoder" },
   {UNKNOWN, 0,"" ,  ""   ,option::Arg::None, "\nExamples:\n"
-                                             "  ./gcif -tv ./original.png\n"
                                              "  ./gcif -c ./original.png test.gci\n"
                                              "  ./gcif -d ./test.gci decoded.png" },
   {0,0,0,0,0,0}
