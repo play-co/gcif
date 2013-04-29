@@ -66,6 +66,9 @@ typedef struct _GCIFImage {
 } GCIFImage;
 
 
+// Compiled optionally
+#ifdef CAT_COMPILE_MMAP
+
 /*
 	gcif_read_file
 
@@ -82,6 +85,9 @@ typedef struct _GCIFImage {
 	the gcif_free_image() function below.
 */
 int gcif_read_file(const char *input_file_path_in, GCIFImage *image_out);
+
+#endif // CAT_COMPILE_MMAP
+
 
 /*
 	gcif_read_memory

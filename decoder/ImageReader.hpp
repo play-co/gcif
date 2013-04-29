@@ -49,8 +49,10 @@ struct ImageHeader {
 //// ImageReader
 
 class ImageReader {
+#ifdef CAT_COMPILE_MMAP
 	MappedFile _file;
 	MappedView _fileView;
+#endif // CAT_COMPILE_MMAP
 
 	ImageHeader _header;
 
@@ -85,7 +87,9 @@ public:
 	}
 
 	// Initialize with file or memory buffer
+#ifdef CAT_COMPILE_MMAP
 	int init(const char *path);
+#endif // CAT_COMPILE_MMAP
 	int init(const void *buffer, long bytes);
 
 	CAT_INLINE ImageHeader *getImageHeader() {

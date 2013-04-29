@@ -31,6 +31,8 @@
 
 #include "Platform.hpp"
 
+#ifdef CAT_COMPILE_MMAP
+
 #ifdef CAT_OS_WINDOWS
 #include "WindowsInclude.hpp"
 #endif
@@ -122,5 +124,7 @@ public:
 
 
 } // namespace cat
+
+#endif // CAT_COMPILE_MMAP
 
 #endif // CAT_MAPPED_FILE_HPP

@@ -29,6 +29,8 @@
 #include "MappedFile.hpp"
 using namespace cat;
 
+#ifdef CAT_COMPILE_MMAP
+
 #if defined(CAT_OS_LINUX) || defined(CAT_OS_OSX)
 # include <sys/mman.h>
 # include <sys/stat.h>
@@ -344,4 +346,6 @@ void MappedView::Close()
 	_length = 0;
 	_offset = 0;
 }
+
+#endif // CAT_COMPILE_MMAP
 

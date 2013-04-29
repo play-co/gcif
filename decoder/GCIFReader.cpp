@@ -71,6 +71,8 @@ static int gcif_read(ImageReader &reader, GCIFImage *image) {
 	return GCIF_RE_OK;
 }
 
+#ifdef CAT_COMPILE_MMAP
+
 extern "C" int gcif_read_file(const char *input_file_path_in, GCIFImage *image_out) {
 	int err;
 
@@ -87,6 +89,8 @@ extern "C" int gcif_read_file(const char *input_file_path_in, GCIFImage *image_o
 
 	return gcif_read(reader, image_out);
 }
+
+#endif // CAT_COMPILE_MMAP
 
 extern "C" int gcif_sig_cmp(const void *file_data_in, long file_size_bytes_in) {
 	// Validate length

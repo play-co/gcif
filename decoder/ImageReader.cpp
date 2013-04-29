@@ -64,6 +64,8 @@ u32 ImageReader::refill() {
 	return bits >> 32;
 }
 
+#ifdef CAT_COMPILE_MMAP
+
 int ImageReader::init(const char *path) {
 
 	// Map file for reading
@@ -85,6 +87,8 @@ int ImageReader::init(const char *path) {
 
 	return init(fileData, _fileView.GetLength());
 }
+
+#endif // CAT_COMPILE_MMAP
 
 int ImageReader::init(const void *buffer, long fileSize) {
 	clear();
