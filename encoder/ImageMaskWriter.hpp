@@ -29,10 +29,10 @@
 #ifndef IMAGE_MASK_WRITER_HPP
 #define IMAGE_MASK_WRITER_HPP
 
-#include "Platform.hpp"
+#include "../decoder/Platform.hpp"
 #include "ImageWriter.hpp"
-#include "ImageMaskReader.hpp"
-#include "Filters.hpp"
+#include "../decoder/ImageMaskReader.hpp"
+#include "../decoder/Filters.hpp"
 #include "HuffmanEncoder.hpp"
 #include "GCIFWriter.h"
 

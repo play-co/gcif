@@ -29,7 +29,7 @@
 #ifndef CAT_MUTEX_HPP
 #define CAT_MUTEX_HPP
 
-#include "Platform.hpp"
+#include "../decoder/Platform.hpp"
 
 #if !defined(CAT_OS_WINDOWS)
 # include <pthread.h>

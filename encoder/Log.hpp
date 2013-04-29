@@ -39,9 +39,7 @@ namespace cat {
 
 
 class Log;
-class LogThread;
 class Recorder;
-class Enforcer;
 
 
 //// Enumerations
@@ -186,62 +184,6 @@ public:
 # endif // CAT_RELEASE_DISABLE_FATAL
 
 #endif // !CAT_DEBUG
-
-
-//// Enforcer
-
-class CAT_EXPORT Enforcer
-{
-	CAT_NO_COPY(Enforcer);
-
-protected:
-	std::ostringstream oss;
-
-public:
-	Enforcer(const char *locus);
-	~Enforcer();
-
-public:
-	template<class T> inline Enforcer &operator<<(const T &t)
-	{
-		oss << t;
-		return *this;
-	}
-};
-
-
-#define CAT_USE_ENFORCE_EXPRESSION_STRING
-#define CAT_USE_ENFORCE_FILE_LINE_STRING
-
-
-#if defined(CAT_USE_ENFORCE_EXPRESSION_STRING)
-# define CAT_ENFORCE_EXPRESSION_STRING(exp) "Failed assertion (" #exp ")"
-#else
-# define CAT_ENFORCE_EXPRESSION_STRING(exp) "Failed assertion"
-#endif
-
-#if defined(CAT_USE_ENFORCE_FILE_LINE_STRING)
-# define CAT_ENFORCE_FILE_LINE_STRING " at " CAT_FILE_LINE_STRING
-#else
-# define CAT_ENFORCE_FILE_LINE_STRING ""
-#endif
-
-// Because there is an IF statement in the macro, you cannot use the
-// braceless if-else construction:
-//  if (XYZ) ENFORCE(A == B) << "ERROR"; else INFO("SS") << "OK";	   <-- bad!
-// Instead use:
-//  if (XYZ) { ENFORCE(A == B) << "ERROR"; } else INFO("SS") << "OK";   <-- good!
-
-#define CAT_ENFORCE(exp) if ( (exp) == 0 ) Enforcer(CAT_ENFORCE_EXPRESSION_STRING(exp) CAT_ENFORCE_FILE_LINE_STRING "\n")
-#define CAT_EXCEPTION() Enforcer("Exception" CAT_ENFORCE_FILE_LINE_STRING "\n")
-
-#if defined(CAT_DEBUG)
-# define CAT_DEBUG_ENFORCE(exp) CAT_ENFORCE(exp)
-# define CAT_DEBUG_EXCEPTION() CAT_EXCEPTION()
-#else
-# define CAT_DEBUG_ENFORCE(exp) while (false) CAT_ENFORCE(1) /* hopefully will be optimized out of existence */
-# define CAT_DEBUG_EXCEPTION() while (false) CAT_EXCEPTION() /* hopefully will be optimized out of existence */
-#endif
 
 
 } // namespace cat

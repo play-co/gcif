@@ -3,7 +3,7 @@
 CCPP = clang++
 CC = clang
 
-CFLAGS = -Wall -fstrict-aliasing -I. -Iencoder -Idecoder
+CFLAGS = -Wall -fstrict-aliasing
 CPFLAGS = $(CFLAGS)
 
 
@@ -13,7 +13,7 @@ gcif_objects = gcif.o lodepng.o Log.o Mutex.o Clock.o Thread.o
 gcif_objects += EndianNeutral.o lz4.o lz4hc.o HuffmanDecoder.o HuffmanEncoder.o
 gcif_objects += MappedFile.o SystemInfo.o HotRodHash.o ImageWriter.o
 gcif_objects += ImageReader.o ImageMaskWriter.o ImageMaskReader.o
-gcif_objects += ImageCMWriter.o FilterScorer.o Filters.o
+gcif_objects += ImageCMWriter.o FilterScorer.o Filters.o Enforcer.o
 gcif_objects += ImageLZWriter.o ImageLZReader.o ImageCMReader.o
 gcif_objects += GCIFReader.o GCIFWriter.o EntropyEstimator.o WaitableFlag.o
 #gcif_objects += ImageLPReader.o ImageLPWriter.o
@@ -28,7 +28,7 @@ SRCS += encoder/HuffmanEncoder.cpp decoder/MappedFile.cpp
 SRCS += encoder/SystemInfo.cpp decoder/HotRodHash.cpp encoder/ImageWriter.cpp
 SRCS += decoder/ImageReader.cpp encoder/ImageMaskWriter.cpp
 SRCS += decoder/ImageMaskReader.cpp encoder/ImageCMWriter.cpp
-SRCS += encoder/FilterScorer.cpp decoder/Filters.cpp
+SRCS += encoder/FilterScorer.cpp decoder/Filters.cpp decoder/Enforcer.cpp
 SRCS += encoder/ImageLZWriter.cpp decoder/ImageLZReader.cpp
 SRCS += decoder/ImageCMReader.cpp decoder/GCIFReader.cpp encoder/GCIFWriter.cpp
 SRCS += encoder/EntropyEstimator.cpp encoder/WaitableFlag.cpp
@@ -138,6 +138,9 @@ EntropyEstimator.o : encoder/EntropyEstimator.cpp
 
 WaitableFlag.o : encoder/WaitableFlag.cpp
 	$(CCPP) $(CPFLAGS) -c encoder/WaitableFlag.cpp
+
+Enforcer.o : decoder/Enforcer.cpp
+	$(CCPP) $(CPFLAGS) -c decoder/Enforcer.cpp
 
 #ImageLPWriter.o : ImageLPWriter.cpp
 #	$(CCPP) $(CPFLAGS) -c ImageLPWriter.cpp

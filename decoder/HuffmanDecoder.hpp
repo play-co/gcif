@@ -41,6 +41,7 @@ namespace cat {
 
 class HuffmanDecoder {
 public:
+	static const u32 MAX_SYMS = 512; // Maximum symbols in a Huffman encoding
 	static const u32 MAX_CODE_SIZE = 16; // Max bits per Huffman code (16 is upper limit)
 	static const u32 MAX_TABLE_BITS = 11; // Time-memory tradeoff LUT optimization limit
 	static const int TABLE_THRESH = 20; // Number of symbols before table is compressed

@@ -27,9 +27,9 @@
 */
 
 #include "ImageLZWriter.hpp"
-#include "EndianNeutral.hpp"
+#include "../decoder/EndianNeutral.hpp"
 #include "EntropyEncoder.hpp"
-#include "ImageLZReader.hpp"
+#include "../decoder/ImageLZReader.hpp"
 #include "Log.hpp"
 using namespace cat;
 

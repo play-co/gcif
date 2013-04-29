@@ -27,8 +27,8 @@
 */
 
 #include "ImageWriter.hpp"
-#include "EndianNeutral.hpp"
-#include "MappedFile.hpp"
+#include "../decoder/EndianNeutral.hpp"
+#include "../decoder/MappedFile.hpp"
 #include "GCIFWriter.h"
 using namespace cat;
 
@@ -145,7 +145,7 @@ int ImageWriter::init(int width, int height) {
 
 void ImageWriter::writeBits(u32 code, int len) {
 	CAT_DEBUG_ENFORCE(len >= 1 && len <= 32);
-	CAT_DEBUG_ENFORCE(len == 32 || (code >> len) == 0) << "Attempted to write " << len << " with dirty bits : " << code;
+	CAT_DEBUG_ENFORCE(len == 32 || (code >> len) == 0);
 
 	int bits = _bits;
 

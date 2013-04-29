@@ -29,10 +29,10 @@
 #ifndef IMAGE_WRITER_HPP
 #define IMAGE_WRITER_HPP
 
-#include "Platform.hpp"
-#include "HotRodHash.hpp"
-#include "ImageReader.hpp"
-#include "EndianNeutral.hpp"
+#include "../decoder/Platform.hpp"
+#include "../decoder/HotRodHash.hpp"
+#include "../decoder/ImageReader.hpp"
+#include "../decoder/EndianNeutral.hpp"
 #include "Log.hpp"
 
 namespace cat {

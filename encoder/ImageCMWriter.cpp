@@ -27,8 +27,8 @@
 */
 
 #include "ImageCMWriter.hpp"
-#include "BitMath.hpp"
-#include "Filters.hpp"
+#include "../decoder/BitMath.hpp"
+#include "../decoder/Filters.hpp"
 #include "EntropyEstimator.hpp"
 #include "Log.hpp"
 #include "ImageLZWriter.hpp"
@@ -37,7 +37,7 @@ using namespace cat;
 #include <vector>
 using namespace std;
 
-#include "lz4.h"
+#include "../decoder/lz4.h"
 #include "lz4hc.h"
 #include "Log.hpp"
 #include "HuffmanEncoder.hpp"
@@ -778,7 +778,7 @@ static int CalculateChaos(int sum) {
 using namespace std;
 
 void GenerateChaosTable() {
-	cout << "static const u8 CHAOS_TABLE[512] = {";
+	cout << "const u8 cat::CHAOS_TABLE[512] = {";
 
 	for (int sum = 0; sum < 256*2; ++sum) {
 		if ((sum & 31) == 0) {
@@ -789,13 +789,17 @@ void GenerateChaosTable() {
 
 	cout << endl << "};" << endl;
 
-	cout << "static const u8 CHAOS_SCORE[256] = {";
+	cout << "const u8 cat::CHAOS_SCORE[256] = {";
 
 	for (int sum = 0; sum < 256; ++sum) {
 		if ((sum & 15) == 0) {
 			cout << endl << '\t';
 		}
-		cout << "0x" << setw(2) << setfill('0') << hex << sum << ",";
+		int score = sum;
+		if (score >= 128) {
+			score = 256 - score;
+		}
+		cout << "0x" << setw(2) << setfill('0') << hex << score << ",";
 	}
 
 	cout << endl << "};" << endl;

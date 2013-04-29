@@ -29,9 +29,9 @@
 #ifndef IMAGE_LZ_WRITER_HPP
 #define IMAGE_LZ_WRITER_HPP
 
-#include "Platform.hpp"
+#include "../decoder/Platform.hpp"
 #include "ImageWriter.hpp"
-#include "ImageLZReader.hpp"
+#include "../decoder/ImageLZReader.hpp"
 #include "GCIFWriter.h"
 
 #include <vector>

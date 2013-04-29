@@ -32,10 +32,10 @@
 #include "ImageWriter.hpp"
 #include "ImageMaskWriter.hpp"
 #include "ImageLZWriter.hpp"
-#include "ImageCMReader.hpp"
+#include "../decoder/ImageCMReader.hpp"
 #include "EntropyEncoder.hpp"
 #include "FilterScorer.hpp"
-#include "Filters.hpp"
+#include "../decoder/Filters.hpp"
 #include "GCIFWriter.h"
 
 #include <vector>

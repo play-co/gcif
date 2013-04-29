@@ -27,7 +27,7 @@
 */
 
 #include "FilterScorer.hpp"
-#include "Log.hpp"
+#include "../decoder/Enforcer.hpp"
 using namespace cat;
 
 

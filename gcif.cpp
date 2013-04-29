@@ -30,15 +30,15 @@
 #include <vector>
 using namespace std;
 
-#include "Log.hpp"
-#include "Clock.hpp"
+#include "encoder/Log.hpp"
+#include "encoder/Clock.hpp"
+#include "decoder/Enforcer.hpp"
 
-#include "GCIFReader.h"
-#include "GCIFWriter.h"
-
+#include "decoder/GCIFReader.h"
+#include "encoder/GCIFWriter.h"
 using namespace cat;
 
-#include "lodepng.h"
+#include "encoder/lodepng.h"
 #include "optionparser.h"
 
 
@@ -89,11 +89,6 @@ static int decompress(const char *filename, const char *outfile) {
 
 	return GCIF_RE_OK;
 }
-
-#include "ImageWriter.hpp"
-#include "ImageMaskWriter.hpp"
-#include "ImageLZWriter.hpp"
-#include "ImageCMWriter.hpp"
 
 struct BenchStats {
 	int x;
@@ -165,10 +160,10 @@ static int benchfile(BenchStats &stats, string filename) {
 	return GCIF_RE_OK;
 }
 
-#include "Thread.hpp"
-#include "WaitableFlag.hpp"
-#include "Mutex.hpp"
-#include "SystemInfo.hpp"
+#include "encoder/Thread.hpp"
+#include "encoder/WaitableFlag.hpp"
+#include "encoder/Mutex.hpp"
+#include "encoder/SystemInfo.hpp"
 
 class BenchThread : public Thread {
 	vector<string> *_files;

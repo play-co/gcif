@@ -27,9 +27,9 @@
 */
 
 #include "HuffmanEncoder.hpp"
-#include "HuffmanDecoder.hpp"
+#include "../decoder/HuffmanDecoder.hpp"
 #include "Log.hpp"
-#include "BitMath.hpp"
+#include "../decoder/BitMath.hpp"
 using namespace cat;
 using namespace huffman;
 
@@ -222,8 +222,8 @@ static void calculate_minimum_redundancy(int A[], int n) {
 bool huffman::generate_huffman_codes(huffman_work_tables *state, u32 num_syms, const u16 *pFreq, u8 *pCodesizes, u32 &max_code_size, u32 &total_freq_ret, u32 &one_sym) {
 	one_sym = 0;
 
-	if ((!num_syms) || (num_syms > cHuffmanMaxSupportedSyms)) {
-		CAT_EXCEPTION();
+	if ((!num_syms) || (num_syms > HuffmanDecoder::MAX_SYMS)) {
+		CAT_DEBUG_EXCEPTION();
 		return false;
 	}
 
@@ -258,7 +258,7 @@ bool huffman::generate_huffman_codes(huffman_work_tables *state, u32 num_syms, c
 
 	sym_freq *syms = radix_sort_syms(num_used_syms, state->syms0, state->syms1);
 
-	int x[cHuffmanMaxSupportedSyms];
+	int x[HuffmanDecoder::MAX_SYMS];
 
 	for (u32 ii = 0; ii < num_used_syms; ++ii) {
 		x[ii] = syms[ii].freq;
@@ -285,7 +285,7 @@ bool huffman::generate_huffman_codes(huffman_work_tables *state, u32 num_syms, c
 bool huffman::limit_max_code_size(u32 num_syms, u8 *pCodesizes, u32 max_code_size) {
 	const u32 cMaxEverCodeSize = 34;
 
-	if ((!num_syms) || (num_syms > cHuffmanMaxSupportedSyms) || (max_code_size < 1) || (max_code_size > cMaxEverCodeSize)) {
+	if ((!num_syms) || (num_syms > HuffmanDecoder::MAX_SYMS) || (max_code_size < 1) || (max_code_size > cMaxEverCodeSize)) {
 		CAT_EXCEPTION();
 		return false;
 	}
@@ -316,7 +316,7 @@ bool huffman::limit_max_code_size(u32 num_syms, u8 *pCodesizes, u32 max_code_siz
 		ofs += num_codes[ii];
 	}
 
-	if ((ofs < 2) || (ofs > cHuffmanMaxSupportedSyms)) {
+	if ((ofs < 2) || (ofs > HuffmanDecoder::MAX_SYMS)) {
 		return true;
 	}
 
@@ -360,7 +360,7 @@ bool huffman::limit_max_code_size(u32 num_syms, u8 *pCodesizes, u32 max_code_siz
 		total--;   
 	} while (total != (1U << max_code_size));
 
-	u8 new_codesizes[cHuffmanMaxSupportedSyms];
+	u8 new_codesizes[HuffmanDecoder::MAX_SYMS];
 	u8 *p = new_codesizes;
 
 	for (u32 ii = 1; ii <= max_code_size; ++ii) {
@@ -501,7 +501,7 @@ void cat::normalizeFreqs(u32 max_freq, int num_syms, u32 hist[], u16 freqs[]) {
 }
 
 void cat::collectArrayFreqs(int num_syms, int data_size, u8 data[], u16 freqs[]) {
-	u32 hist[cHuffmanMaxSupportedSyms] = {0};
+	u32 hist[HuffmanDecoder::MAX_SYMS] = {0};
 	int max_freq = 0;
 
 	// Perform histogram, and find maximum symbol count

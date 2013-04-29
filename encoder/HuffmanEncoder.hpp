@@ -29,9 +29,9 @@
 #ifndef CAT_HUFFMAN_ENCODER_H
 #define CAT_HUFFMAN_ENCODER_H
 
-#include "Platform.hpp"
+#include "../decoder/Platform.hpp"
+#include "../decoder/HuffmanDecoder.hpp"
 #include "ImageWriter.hpp"
-#include "HuffmanDecoder.hpp"
 #include "Log.hpp"
 #include <vector>
 
@@ -67,8 +67,6 @@ namespace cat {
 namespace huffman {
 
 
-static const u32 cHuffmanMaxSupportedSyms = 512;
-
 struct sym_freq
 {
 	u32 freq;
@@ -82,10 +80,10 @@ struct sym_freq
 
 
 struct huffman_work_tables {
-	enum { cMaxInternalNodes = cHuffmanMaxSupportedSyms };
+	enum { cMaxInternalNodes = HuffmanDecoder::MAX_SYMS };
 
-	sym_freq syms0[cHuffmanMaxSupportedSyms + 1 + cMaxInternalNodes];
-	sym_freq syms1[cHuffmanMaxSupportedSyms + 1 + cMaxInternalNodes];
+	sym_freq syms0[HuffmanDecoder::MAX_SYMS + 1 + cMaxInternalNodes];
+	sym_freq syms1[HuffmanDecoder::MAX_SYMS + 1 + cMaxInternalNodes];
 };
 
 

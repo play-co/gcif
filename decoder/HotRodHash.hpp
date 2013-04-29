@@ -30,7 +30,7 @@
 #define HOTROD_HASH_HPP
 
 #include "Platform.hpp"
-#include "Log.hpp"
+#include "Enforcer.hpp"
 
 namespace cat {
 

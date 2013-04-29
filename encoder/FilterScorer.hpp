@@ -29,7 +29,7 @@
 #ifndef FILTER_SCORER_HPP
 #define FILTER_SCORER_HPP
 
-#include "Platform.hpp"
+#include "../decoder/Platform.hpp"
 
 namespace cat {
 

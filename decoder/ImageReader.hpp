@@ -32,7 +32,7 @@
 #include "Platform.hpp"
 #include "HotRodHash.hpp"
 #include "MappedFile.hpp"
-#include "Log.hpp"
+#include "Enforcer.hpp"
 
 namespace cat {
 

@@ -29,7 +29,7 @@
 #ifndef CAT_WAITABLE_FLAG_HPP
 #define CAT_WAITABLE_FLAG_HPP
 
-#include "Platform.hpp"
+#include "../decoder/Platform.hpp"
 
 #if !defined(CAT_OS_WINDOWS)
 # include <pthread.h>

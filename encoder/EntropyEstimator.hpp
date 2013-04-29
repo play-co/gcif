@@ -29,7 +29,7 @@
 #ifndef ENTROPY_ESTIMATOR_HPP
 #define ENTROPY_ESTIMATOR_HPP
 
-#include "Platform.hpp"
+#include "../decoder/Platform.hpp"
 
 namespace cat {
 

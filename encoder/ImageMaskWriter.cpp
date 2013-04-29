@@ -27,11 +27,11 @@
 */
 
 #include "ImageMaskWriter.hpp"
-#include "EndianNeutral.hpp"
-#include "BitMath.hpp"
+#include "../decoder/EndianNeutral.hpp"
+#include "../decoder/BitMath.hpp"
 #include "HuffmanEncoder.hpp"
-#include "HuffmanDecoder.hpp"
-#include "Filters.hpp"
+#include "../decoder/HuffmanDecoder.hpp"
+#include "../decoder/Filters.hpp"
 #include "GCIFWriter.h"
 #include "Log.hpp"
 #ifdef CAT_COLLECT_STATS
@@ -42,7 +42,7 @@ using namespace cat;
 #include <map>
 using namespace std;
 
-#include "lz4.h"
+#include "../decoder/lz4.h"
 #include "lz4hc.h"
 
 
@@ -106,7 +106,7 @@ int Masker::initFromRGBA(const u8 *rgba, u32 color, u32 color_mask, int width, i
 	// If image is too small,
 	if (width < FILTER_ZONE_SIZE && height < FILTER_ZONE_SIZE) {
 		// Do not use mask
-		_enable = false;
+		_enabled = false;
 		return GCIF_WE_OK;
 	}
 	_enabled = true;

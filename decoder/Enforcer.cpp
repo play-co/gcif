@@ -26,52 +26,36 @@
 	POSSIBILITY OF SUCH DAMAGE.
 */
 
-#ifndef CAT_CONFIG_HPP
-#define CAT_CONFIG_HPP
+#include "Enforcer.hpp"
+using namespace cat;
 
-namespace cat {
+#if defined(CAT_OS_WINDOWS)
+# include <process.h>
+#endif
 
+#if defined(CAT_ISA_X86)
 
-// Only building the decoder
-//#define CAT_DECODER_ONLY
+#if defined(CAT_WORD_64) && defined(CAT_COMPILER_MSVC)
+# define CAT_ARTIFICIAL_BREAKPOINT { ::DebugBreak(); }
+#elif defined(CAT_ASM_INTEL)
+# define CAT_ARTIFICIAL_BREAKPOINT { CAT_ASM_BEGIN int 3 CAT_ASM_END }
+#elif defined(CAT_ASM_ATT)
+# define CAT_ARTIFICIAL_BREAKPOINT { CAT_ASM_BEGIN "int $3" CAT_ASM_END }
+#else
+# error "wut"
+#endif
 
-// Enable statistics collection
-#define CAT_COLLECT_STATS
+#else
+# define CAT_ARTIFICIAL_BREAKPOINT raise(SIGTRAP);
+#endif
 
-// Disable inane-level (verbose) logging in Release mode
-//#define CAT_RELEASE_DISABLE_INANE
+#include <cstdio>
+using namespace std;
 
-// Modify level of detail for enforcer strings
-#define CAT_USE_ENFORCE_EXPRESSION_STRING
-#define CAT_USE_ENFORCE_FILE_LINE_STRING
+void cat::RuntimeAssertionFailure(const char *locus)
+{
+	fprintf(stderr, "Runtime assertion failure: %s\n", locus);
 
-// Bloat the file size a lot to check for desynchronization points in decoder
-//#define CAT_DESYNCH_CHECKS
-
-// This definition overrides CAT_BUILD_DLL below.  Neuters CAT_EXPORT macro so symbols are
-// neither exported or imported.
-#define CAT_NEUTER_EXPORT
-
-// This definition changes the meaning of the CAT_EXPORT macro on Windows.  When defined,
-// the CAT_EXPORT macro will export the associated symbol.  When undefined, it will import it.
-//#define CAT_BUILD_DLL
-
-// If you know the endianness of your target, uncomment one of these for better performance.
-//#define CAT_ENDIAN_BIG
-//#define CAT_ENDIAN_LITTLE
-
-// Adjust if your architecture uses larger than 128-byte cache line
-#define CAT_DEFAULT_CACHE_LINE_SIZE 128
-#define CAT_DEFAULT_CPU_COUNT 1
-#define CAT_DEFAULT_PAGE_SIZE 65536
-#define CAT_DEFAULT_ALLOCATION_GRANULARITY CAT_DEFAULT_PAGE_SIZE
-#define CAT_DEFAULT_SECTOR_SIZE 512
-
-// Enable leak debug mode of the common runtime heap allocator
-//#define CAT_DEBUG_LEAKS
-
-
-} // namespace cat
-
-#endif // CAT_CONFIG_HPP
+	CAT_ARTIFICIAL_BREAKPOINT;
+}
 

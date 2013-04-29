@@ -27,11 +27,12 @@
 */
 
 #include "ImageCMReader.hpp"
+#include "Enforcer.hpp"
 using namespace cat;
 
 #ifdef CAT_COLLECT_STATS
-#include "Log.hpp"
-#include "Clock.hpp"
+#include "../encoder/Log.hpp"
+#include "../encoder/Clock.hpp"
 
 static cat::Clock *m_clock = 0;
 #endif // CAT_COLLECT_STATS

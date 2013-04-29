@@ -27,7 +27,7 @@
 */
 
 #include "EntropyEstimator.hpp"
-#include "BitMath.hpp"
+#include "../decoder/BitMath.hpp"
 #include "Log.hpp"
 using namespace cat;
 

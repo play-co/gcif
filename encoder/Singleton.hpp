@@ -85,7 +85,7 @@
 		-> Use RefObjects for singletons that need cleanup.
 */
 
-#include "Platform.hpp"
+#include "../decoder/Platform.hpp"
 
 namespace cat {
 

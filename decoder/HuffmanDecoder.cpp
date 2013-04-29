@@ -27,12 +27,10 @@
 */
 
 #include "HuffmanDecoder.hpp"
-#include "HuffmanEncoder.hpp"
 #include "BitMath.hpp"
-#include "Log.hpp"
 #include "EndianNeutral.hpp"
+#include "Enforcer.hpp"
 using namespace cat;
-using namespace huffman;
 
 
 //// HuffmanDecoder
@@ -114,7 +112,7 @@ bool HuffmanDecoder::init(int count, const u8 *codelens, u32 table_bits) {
 
 	_one_sym = 0;
 
-	CAT_DEBUG_ENFORCE(total_used_syms > 1) << total_used_syms;
+	CAT_DEBUG_ENFORCE(total_used_syms > 1);
 
 	_total_used_syms = total_used_syms;
 
@@ -237,7 +235,7 @@ bool HuffmanDecoder::init(int count, const u8 *codelens, u32 table_bits) {
 
 bool HuffmanDecoder::init(int num_syms_orig, ImageReader &reader, u32 table_bits) {
 	static const int HUFF_SYMS = MAX_CODE_SIZE + 1;
-	u8 codelens[huffman::cHuffmanMaxSupportedSyms];
+	u8 codelens[MAX_SYMS];
 
 	CAT_DEBUG_ENFORCE(HUFF_SYMS == 17);
 	CAT_DEBUG_ENFORCE(num_syms_orig >= 2);

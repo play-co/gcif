@@ -36,25 +36,6 @@
 using namespace std;
 using namespace cat;
 
-#if defined(CAT_OS_WINDOWS)
-# include <process.h>
-#endif
-
-#if defined(CAT_ISA_X86)
-
-#if defined(CAT_WORD_64) && defined(CAT_COMPILER_MSVC)
-# define CAT_ARTIFICIAL_BREAKPOINT { ::DebugBreak(); }
-#elif defined(CAT_ASM_INTEL)
-# define CAT_ARTIFICIAL_BREAKPOINT { CAT_ASM_BEGIN int 3 CAT_ASM_END }
-#elif defined(CAT_ASM_ATT)
-# define CAT_ARTIFICIAL_BREAKPOINT { CAT_ASM_BEGIN "int $3" CAT_ASM_END }
-#endif
-
-#else
-# define CAT_ARTIFICIAL_BREAKPOINT
-#endif
-
-
 static const char *const EVENT_NAME[5] = { "Inane", "Info", "Warn", "Oops", "Fatal" };
 static const char *const SHORT_EVENT_NAME[5] = { ".", "I", "W", "!", "F" };
 
@@ -143,15 +124,6 @@ void Log::InvokeBackendAndUnlock(EventSeverity severity, const char *source, con
 	_lock.Leave();
 }
 
-
-void Log::FatalStop(const char *message)
-{
-	Log::ref()->InvokeBackend(LVL_FATAL, "FatalStop", message);
-
-	CAT_ARTIFICIAL_BREAKPOINT;
-
-	std::exit(EXIT_FAILURE);
-}
 
 void Log::InvokeFrontend(EventSeverity severity, const char *source, const std::string &msg)
 {
@@ -259,20 +231,3 @@ Recorder::~Recorder()
 	Log::ref()->InvokeFrontend(_severity, _source, msg);
 }
 
-
-//// Enforcer
-
-Enforcer::Enforcer(const char *locus)
-{
-	oss << locus;
-}
-
-#if defined(CAT_COMPILER_MSVC)
-#pragma warning(disable:4722) // Dtor never returns
-#endif
-
-Enforcer::~Enforcer()
-{
-	std::string result = oss.str();
-	Log::FatalStop(result.c_str());
-}
