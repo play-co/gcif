@@ -25,22 +25,20 @@ Compression performance
 
 It is too early to release real benchmarks here, but getting closer.
 
-BCIF out-performs lossless WebP for a lot of images, so we chose it as the
-baseline comparison for RGB images.
-
 From one of our more challenging game sprite-sheets chosen at random:
 
 ~~~
 -rw-r--r--  1 cat  staff   3.0M Mar 31 20:40 noalpha.bmp (original)
--rw-r--r--@ 1 cat  staff   1.2M Apr 28 18:45 noalpha.png (lossless)
 -rw-r--r--@ 1 cat  staff   1.2M Apr 28 18:48 noalpha.jp2 (lossless)
+-rw-r--r--  1 cat  staff   1.1M Apr 28 18:55 noalpha.png (lossless)
+-rw-r--r--  1 cat  staff   912K Apr 28 18:51 noalpha.webp (lossless)
 -rw-r--r--  1 cat  staff   877K Apr  2 14:05 noalpha.bcif (lossless)
 -rw-r--r--  1 cat  staff   803K Apr 28 18:47 noalpha.gci (lossless) <- GCIF
 -rw-r--r--@ 1 cat  staff   682K Apr 28 18:46 noalpha.jpg (lossy)
 -rw-r--r--@ 1 cat  staff   441K Apr 28 18:46 noalpha.gif (lossy)
 ~~~
 
-In this case we get a file that is 73% the size of the equivalent PNG image.
+In this case the result is 70% the size of the equivalent PNGCRUSH file output.
 
 The compression ratio for this speed reaches for the Pareto frontier for
 lossless image compression without using any multithreading, though it is a
