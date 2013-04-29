@@ -87,19 +87,15 @@ void ImageCMWriter::clear() {
 }
 
 int ImageCMWriter::init(int width, int height) {
-	if (width < FILTER_ZONE_SIZE || height < FILTER_ZONE_SIZE) {
-		return GCIF_WE_BAD_DIMS;
-	}
-
-	if ((width & FILTER_ZONE_SIZE_MASK) || (height & FILTER_ZONE_SIZE_MASK)) {
+	if (width < 0 || height < 0) {
 		return GCIF_WE_BAD_DIMS;
 	}
 
 	_width = width;
 	_height = height;
 
-	const int fw = width >> FILTER_ZONE_SIZE_SHIFT;
-	const int fh = height >> FILTER_ZONE_SIZE_SHIFT;
+	const int fw = (width + FILTER_ZONE_SIZE_MASK) >> FILTER_ZONE_SIZE_SHIFT;
+	const int fh = (height + FILTER_ZONE_SIZE_MASK) >> FILTER_ZONE_SIZE_SHIFT;
 
 	const int filters_size = fw * fh;
 	if (!_filters || filters_size > _filters_alloc) {
@@ -171,6 +167,9 @@ void ImageCMWriter::designFilters() {
 			for (int yy = 0; yy < FILTER_ZONE_SIZE; ++yy) {
 				for (int xx = 0; xx < FILTER_ZONE_SIZE; ++xx) {
 					int px = x + xx, py = y + yy;
+					if (px >= _width || py >= _height) {
+						continue;
+					}
 					if (_mask->masked(px, py)) {
 						continue;
 					}
@@ -349,6 +348,9 @@ void ImageCMWriter::decideFilters() {
 					for (int yy = 0; yy < FILTER_ZONE_SIZE; ++yy) {
 						for (int xx = 0; xx < FILTER_ZONE_SIZE; ++xx) {
 							int px = x + xx, py = y + yy;
+							if (px >= _width || py >= _height) {
+								continue;
+							}
 							if (_mask->masked(px, py)) {
 								continue;
 							}
@@ -387,6 +389,9 @@ void ImageCMWriter::decideFilters() {
 				for (int yy = 0; yy < FILTER_ZONE_SIZE; ++yy) {
 					for (int xx = 0; xx < FILTER_ZONE_SIZE; ++xx) {
 						int px = x + xx, py = y + yy;
+						if (px >= _width || py >= _height) {
+							continue;
+						}
 						if (_mask->masked(px, py)) {
 							continue;
 						}
@@ -431,6 +436,9 @@ void ImageCMWriter::decideFilters() {
 						for (int yy = 0; yy < FILTER_ZONE_SIZE; ++yy) {
 							for (int xx = 0; xx < FILTER_ZONE_SIZE; ++xx) {
 								int px = x + xx, py = y + yy;
+								if (px >= _width || py >= _height) {
+									continue;
+								}
 								if (_mask->masked(px, py)) {
 									continue;
 								}
@@ -480,6 +488,9 @@ void ImageCMWriter::decideFilters() {
 						for (int yy = 0; yy < FILTER_ZONE_SIZE; ++yy) {
 							for (int xx = 0; xx < FILTER_ZONE_SIZE; ++xx) {
 								int px = x + xx, py = y + yy;
+								if (px >= _width || py >= _height) {
+									continue;
+								}
 								if (_mask->masked(px, py)) {
 									continue;
 								}
@@ -671,8 +682,12 @@ void ImageCMWriter::maskFilters() {
 
 			for (int ii = 0; ii < FILTER_ZONE_SIZE; ++ii) {
 				for (int jj = 0; jj < FILTER_ZONE_SIZE; ++jj) {
-					if (!_mask->masked(x + ii, y + jj) &&
-						!_lz->visited(x + ii, y + jj)) {
+					int px = x + ii, py = y + jj;
+					if (px >= _width || py >= _height) {
+						continue;
+					}
+					if (!_mask->masked(px, py) &&
+						!_lz->visited(px, py)) {
 						on = false;
 						ii = FILTER_ZONE_SIZE;
 						break;

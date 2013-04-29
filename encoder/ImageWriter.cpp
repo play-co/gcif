@@ -122,10 +122,6 @@ int ImageWriter::init(int width, int height) {
 		return GCIF_WE_BAD_DIMS;
 	}
 
-	if ((width % 8) || (height % 8)) {
-		return GCIF_WE_BAD_DIMS;
-	}
-
 	if (width > 65535 || height > 65535) {
 		return GCIF_WE_BAD_DIMS;
 	}

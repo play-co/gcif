@@ -126,16 +126,6 @@ int ImageMaskReader::decodeLZ(ImageReader &reader) {
 }
 
 int ImageMaskReader::init(const ImageHeader *header) {
-	if (header->width < FILTER_ZONE_SIZE || header->height < FILTER_ZONE_SIZE) {
-		CAT_DEBUG_EXCEPTION();
-		return GCIF_RE_BAD_DIMS;
-	}
-
-	if ((header->width & FILTER_ZONE_SIZE_MASK) || (header->height & FILTER_ZONE_SIZE_MASK)) {
-		CAT_DEBUG_EXCEPTION();
-		return GCIF_RE_BAD_DIMS;
-	}
-
 	const int maskWidth = header->width;
 	const int maskHeight = header->height;
 
@@ -426,3 +416,4 @@ bool ImageMaskReader::dumpStats() {
 }
 
 #endif // CAT_COLLECT_STATS
+

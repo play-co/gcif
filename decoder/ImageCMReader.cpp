@@ -68,16 +68,6 @@ int ImageCMReader::init(GCIFImage *image) {
 	_width = image->width;
 	_height = image->height;
 
-	// Validate input dimensions
-	if (_width < FILTER_ZONE_SIZE || _height < FILTER_ZONE_SIZE) {
-		CAT_DEBUG_EXCEPTION();
-		return GCIF_RE_BAD_DIMS;
-	}
-	if (_width % FILTER_ZONE_SIZE || _height % FILTER_ZONE_SIZE) {
-		CAT_DEBUG_EXCEPTION();
-		return GCIF_RE_BAD_DIMS;
-	}
-
 	// Always allocate new RGBA data
 	_rgba = new u8[_width * _height * 4];
 
@@ -85,13 +75,14 @@ int ImageCMReader::init(GCIFImage *image) {
 	image->rgba = _rgba;
 
 	// Just need to remember the last row of filters
-	_filters_bytes = (_width >> FILTER_ZONE_SIZE_SHIFT) * sizeof(FilterSelection);
+	const int filter_count = (_width + FILTER_ZONE_SIZE_MASK) >> FILTER_ZONE_SIZE_SHIFT;
+	_filters_bytes = filter_count * sizeof(FilterSelection);
 
 	if (!_filters || _filters_bytes > _filters_alloc) {
 		if (_filters) {
 			delete []_filters;
 		}
-		_filters = new FilterSelection[_width >> FILTER_ZONE_SIZE_SHIFT];
+		_filters = new FilterSelection[filter_count];
 		_filters_alloc = _filters_bytes;
 	}
 

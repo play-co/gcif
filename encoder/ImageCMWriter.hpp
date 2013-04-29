@@ -170,14 +170,14 @@ public:
 	CAT_INLINE void setFilter(int x, int y, u16 filter) {
 		x >>= FILTER_ZONE_SIZE_SHIFT;
 		y >>= FILTER_ZONE_SIZE_SHIFT;
-		const int w = _width >> FILTER_ZONE_SIZE_SHIFT;
+		const int w = (_width + FILTER_ZONE_SIZE_MASK) >> FILTER_ZONE_SIZE_SHIFT;
 		_filters[x + y * w] = filter;
 	}
 
 	CAT_INLINE u16 getFilter(int x, int y) {
 		x >>= FILTER_ZONE_SIZE_SHIFT;
 		y >>= FILTER_ZONE_SIZE_SHIFT;
-		const int w = _width >> FILTER_ZONE_SIZE_SHIFT;
+		const int w = (_width + FILTER_ZONE_SIZE_MASK) >> FILTER_ZONE_SIZE_SHIFT;
 		return _filters[x + y * w];
 	}
 
