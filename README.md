@@ -31,10 +31,13 @@ baseline comparison for RGB images.
 From one of our more challenging game sprite-sheets chosen at random:
 
 ~~~
--rw-r--r--  1 cat  staff   3.0M Mar 31 20:40 noalpha.bmp
--rw-r--r--  1 cat  staff   1.1M Mar 31 20:40 noalpha.png
--rw-r--r--  1 cat  staff   877K Apr  2 14:05 noalpha.bcif
--rw-r--r--  1 cat  staff   804K Apr 27 19:00 noalpha.gci
+-rw-r--r--  1 cat  staff   3.0M Mar 31 20:40 noalpha.bmp (original)
+-rw-r--r--@ 1 cat  staff   1.2M Apr 28 18:45 noalpha.png (lossless)
+-rw-r--r--@ 1 cat  staff   1.2M Apr 28 18:48 noalpha.jp2 (lossless)
+-rw-r--r--  1 cat  staff   877K Apr  2 14:05 noalpha.bcif (lossless)
+-rw-r--r--  1 cat  staff   803K Apr 28 18:47 noalpha.gci (lossless) <- GCIF
+-rw-r--r--@ 1 cat  staff   682K Apr 28 18:46 noalpha.jpg (lossy)
+-rw-r--r--@ 1 cat  staff   441K Apr 28 18:46 noalpha.gif (lossy)
 ~~~
 
 In this case we get a file that is 73% the size of the equivalent PNG image.
