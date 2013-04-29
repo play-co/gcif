@@ -387,7 +387,7 @@ public:
 	}
 
 	virtual bool Entrypoint(void *param) {
-		while (!_shutdown) {
+		do {
 			string filename;
 			bool hasFile;
 
@@ -409,7 +409,7 @@ public:
 					break;
 				}
 			} while (hasFile);
-		}
+		} while (!_shutdown);
 
 		return true;
 	}
