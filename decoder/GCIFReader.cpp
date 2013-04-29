@@ -151,3 +151,4 @@ extern "C" const char *gcif_read_errstr(int err) {
 
 	return "(Unknown error code)";
 }
+

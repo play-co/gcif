@@ -59,6 +59,7 @@ enum GCIFReaderErrors {
 const char *gcif_read_errstr(int err);
 
 
+// Return data
 typedef struct _GCIFImage {
 	unsigned char *rgba;	// RGBA pixels; free with "delete []rgba" when done
 	int width, height;		// Dimensions in pixels
@@ -107,3 +108,4 @@ void gcif_free_image(GCIFImage *image);
 
 
 #endif // GCIF_READER_H
+

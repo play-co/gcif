@@ -1355,52 +1355,6 @@ YUV2RGBFilterFunction cat::YUV2RGB_FILTERS[CF_COUNT] = {
 };
 
 
-const char *cat::GetColorFilterString(int cf) {
-	switch (cf) {
-		case CF_YUVr:	// YUVr from JPEG2000
-			return "YUVr";
-
-		case CF_E2_R:	// derived from E2 and YCgCo-R
-			 return "E2-R";
-
-		case CF_D8:		// from the Strutz paper
-			 return "D8";
-		case CF_D9:		// from the Strutz paper
-			 return "D9";
-		case CF_D14:		// from the Strutz paper
-			 return "D14";
-
-		case CF_D10:		// from the Strutz paper
-			 return "D10";
-		case CF_D11:		// from the Strutz paper
-			 return "D11";
-		case CF_D12:		// from the Strutz paper
-			 return "D12";
-		case CF_D18:		// from the Strutz paper
-			 return "D18";
-
-		case CF_YCgCo_R:	// Malvar's YCgCo-R
-			 return "YCgCo-R";
-
-		case CF_GB_RG:	// from BCIF
-			 return "BCIF-GB-RG";
-		case CF_GB_RB:	// from BCIF
-			 return "BCIF-GB-RB";
-		case CF_GR_BR:	// from BCIF
-			 return "BCIF-GR-BR";
-		case CF_GR_BG:	// from BCIF
-			 return "BCIF-GR-BG";
-		case CF_BG_RG:	// from BCIF (recommendation from LOCO-I paper)
-			 return "BCIF-BG-RG";
-
-		case CF_B_GR_R:		// RGB -> B, G-R, R
-			 return "B_GR_R";
-	}
-
-	return "Unknown";
-}
-
-
 //// Chaos
 
 const u8 cat::CHAOS_TABLE_1[512] = {

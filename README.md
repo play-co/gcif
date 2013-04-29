@@ -1,60 +1,19 @@
 GCIF
 ====
 
-Game Closure Image Format
+Game Closure Image Format : 1.0
 
-This is a Work-In-Progress towards a new RGBA image format that is suited for
-mobile game sprite-sheets.
+This is a lossless RGBA image format suited for mobile game sprite-sheets and
+other usage cases (such as webpages) where you want to compress tightly once,
+and then read it back many times.
 
-The format is released under the BSD license as forever free and open-source
-software.  Contributions, discussions, and a healthy dose of criticism are all
-welcome.
-
-
-TODO
-====
-
-Immediately:
-+ Split decoder into separate source files
-+ Clean up source code
-+ Compare clang++ to g++ decoder speed
-+ Look at unrolling second mask check from inner loop for speed
-+ MSVC port
-+ Retest everything
-+ Tag 1.0
-+ Benchmarking
-+ Whitepaper
-
-For version 1.1:
-+ Support for images not a multiple of 4x4 pixels
-+ Scanline filters and LZ
-+ Palette mode
-+ Java port
-+ Use strong file hash in new verification mode
-+ Better spriter to go with GCIF
-
-
-What works right now
-====================
-
-The codec supports full RGBA.  The compressor and decompressor are close to
-being called version 1.0.  Only a few images cause crashes or other issues.
-
-Early test results indicate that GCIF files are ~60% the size of PNG sprites,
-and the decompression speed is comparable or better than libpng.
-
-The compression ratio for this speed reaches for the Pareto frontier for
-lossless image compression without using any multithreading, though it is a
-thread-safe codebase, allowing you to decode several images in parallel.
+The format is released under the BSD license as forever patent-free, montarily
+free, and open-source software.  Contributions, discussions, and a healthy dose
+of criticism are all welcome.
 
 The code is well-written in our opinion, easy to read and adapt, and easy to
-incorporate into mobile development.
-
-We plan to release a Java version for the encoder after the RGBA compression is
-functional in C++ code, so that the encoder can be run on any platform without
-having to compile it.  The decoder will be split off so that only a minimal
-amount of code needs to be added to support this file format.  We're shooting
-for one large C++ file, though it may end up being a small number of files.
+incorporate into mobile development.  The decoder is split off into a minimal
+set of portable C++ source files that implement the image reader capability.
 
 
 Compression performance
@@ -75,6 +34,10 @@ From one of our more challenging game sprite-sheets chosen at random:
 ~~~
 
 In this case we get a file that is 73% the size of the equivalent PNG image.
+
+The compression ratio for this speed reaches for the Pareto frontier for
+lossless image compression without using any multithreading, though it is a
+thread-safe codebase, allowing you to decode several images in parallel.
 
 Early performance results for the graphics for one of our mobile games:
 
@@ -524,5 +487,25 @@ Examples:
 ~~~
 
 
-Stay tuned! =) -cat
+Future plans
+============
+
+We plan to release a Java version for the encoder after the RGBA compression is
+functional in C++ code, so that the encoder can be run on any platform without
+having to compile it.
+
++ Clean up source code
++ Compare clang++ to g++ decoder speed
++ MSVC port
++ Retest everything
++ Tag 1.0
++ Benchmarking
++ Whitepaper
+
++ Support for images not a multiple of 4x4 pixels
++ Scanline filters and LZ
++ Palette mode
++ Java port
++ Use strong file hash in new verification mode
++ Better spriter to go with GCIF
 
