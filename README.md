@@ -471,6 +471,8 @@ Immediately:
 
 Slated for inclusion in version 1.1 of the file format:
 
++ Try filter zone rectangles: 8x2, 16x1, etc
+
 + Support for images as large as 65536x65536 with custom memory allocator and
 a container format that breaks the image into smaller chunks that are each GCIF
 compressed.

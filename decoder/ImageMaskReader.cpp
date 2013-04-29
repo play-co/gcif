@@ -37,6 +37,9 @@
 #include "../encoder/Log.hpp"
 #include "../encoder/Clock.hpp"
 
+#include <iomanip>
+using namespace std;
+
 static cat::Clock *m_clock = 0;
 #endif // CAT_COLLECT_STATS
 
@@ -277,7 +280,11 @@ const u32 *ImageMaskReader::nextScanline() {
 						}
 
 						// Write a 1 at the new location
-						row[newOffset] = 1 << shift;
+						if (newOffset <= wordOffset) {
+							row[newOffset] |= 1 << shift;
+						} else {
+							row[newOffset] = 1 << shift;
+						}
 					} else {
 						u32 bitsUsedMask = 0xffffffff >> (bitOffset & 31);
 

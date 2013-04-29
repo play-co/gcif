@@ -39,11 +39,11 @@ static cat::Clock *m_clock = 0;
 
 #ifdef CAT_DESYNCH_CHECKS
 #define DESYNC(x, y) \
-	CAT_ENFORCE(reader.readBits(16) == (x ^ 12345)) << x << ", " << y; \
-	CAT_ENFORCE(reader.readBits(16) == (y ^ 54321)) << x << ", " << y;
+	CAT_ENFORCE(reader.readBits(16) == (x ^ 12345)); \
+	CAT_ENFORCE(reader.readBits(16) == (y ^ 54321));
 #define DESYNC_FILTER(x, y) \
-	CAT_ENFORCE(reader.readBits(16) == (x ^ 31337)) << x << ", " << y; \
-	CAT_ENFORCE(reader.readBits(16) == (y ^ 31415)) << x << ", " << y;
+	CAT_ENFORCE(reader.readBits(16) == (x ^ 31337)); \
+	CAT_ENFORCE(reader.readBits(16) == (y ^ 31415));
 #else
 #define DESYNC(x, y)
 #define DESYNC_FILTER(x, y)

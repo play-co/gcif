@@ -192,6 +192,8 @@ int ImageLZReader::readZones(ImageReader &reader) {
 			z->dx = dx;
 			z->dy = dy;
 
+			//CAT_WARN("LZ") << sx << ", " << sy << " -> " << dx << ", " << dy << " [" << z->w << ", " << z->h << "]";
+
 			// Input security checks
 			if (sy > dy || (sy == dy && sx >= dx)) {
 				CAT_DEBUG_EXCEPTION();
