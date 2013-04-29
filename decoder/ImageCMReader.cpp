@@ -119,14 +119,14 @@ int ImageCMReader::readFilterTables(ImageReader &reader) {
 
 	// Read in the preset index for each custom filter
 	for (int ii = 0; ii < rep_count; ++ii) {
-		u32 def = reader.readBits(5);
+		int def = reader.readBits(5);
 
 		if (def >= SF_COUNT) {
 			CAT_DEBUG_EXCEPTION();
 			return GCIF_RE_CM_CODES;
 		}
 
-		u32 cust = reader.readBits(7);
+		int cust = reader.readBits(7);
 		if (cust >= SpatialFilterSet::TAPPED_COUNT) {
 			CAT_DEBUG_EXCEPTION();
 			return GCIF_RE_CM_CODES;

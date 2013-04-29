@@ -224,7 +224,6 @@ int ImageLZReader::readZones(ImageReader &reader) {
 	// Trigger on first zone
 	_zone_next_y = 0;
 	_zone_trigger_y = _zones[0].dy;
-
 	return GCIF_RE_OK;
 }
 

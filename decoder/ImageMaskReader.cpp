@@ -254,7 +254,7 @@ const u32 *ImageMaskReader::nextScanline() {
 
 				// If new write offset is outside of the mask,
 				if (newOffset >= _stride) {
-					// Done
+					CAT_DEBUG_EXCEPTION();
 					break;
 				}
 
@@ -402,6 +402,7 @@ const u32 *ImageMaskReader::nextScanline() {
 		}
 	}
 
+	// Update RLE pointer
 	_rle_remaining = rle_remaining;
 	_rle_next = rle;
 	++_scanline_y;

@@ -42,14 +42,9 @@
 		+ Much easier to implement in a portable way
 		+ Automatically paged in and out of RAM
 		+ Automatically read-ahead cached
-		+ Simple enough to put in my Common library
-		+ Almost as good for performance
 
 	When asynch io is not available or blocking is acceptable then this is a
 	great alternative with low overhead and similar performance.
-
-	For sequential file access, use MappedSequentialReader with a MappedFile
-	that has been opened with random_access = false.
 
 	For random file access, use MappedView with a MappedFile that has been
 	opened with random_access = true.  Random access is usually used for a
@@ -61,7 +56,6 @@ namespace cat {
 
 class MappedFile;
 class MappedView;
-class MappedFileReader;
 
 
 // Read-only memory mapped file
@@ -100,8 +94,6 @@ public:
 // View of a portion of the memory mapped file
 class CAT_EXPORT MappedView
 {
-	friend class MappedSequentialReader;
-
 #if defined(CAT_OS_WINDOWS)
 	HANDLE _map;
 #else

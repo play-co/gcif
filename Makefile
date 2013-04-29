@@ -1,8 +1,11 @@
 # Change your compiler settings here
 
+#CCPP = g++
+#CC = gcc
+#OPTFLAGS = -O3 -fomit-frame-pointer -funroll-loops
 CCPP = clang++
 CC = clang
-
+OPTFLAGS = -O4
 CFLAGS = -Wall -fstrict-aliasing
 CPFLAGS = $(CFLAGS)
 
@@ -37,7 +40,7 @@ SRCS += encoder/EntropyEstimator.cpp encoder/WaitableFlag.cpp
 
 # Release target (default)
 
-release : CFLAGS += -O4
+release : CFLAGS += $(OPTFLAGS)
 release : gcif
 
 

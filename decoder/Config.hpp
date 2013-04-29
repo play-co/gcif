@@ -32,10 +32,7 @@
 namespace cat {
 
 
-// Only building the decoder
-//#define CAT_DECODER_ONLY
-
-// Enable statistics collection
+// Enable statistics collection (disable when building decoder only)
 #define CAT_COLLECT_STATS
 
 // Disable inane-level (verbose) logging in Release mode

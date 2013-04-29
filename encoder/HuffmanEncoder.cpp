@@ -401,7 +401,7 @@ bool huffman::generate_codes(u32 num_syms, const u8 *pCodesizes, u16 *pCodes) {
 	u32 next_code[MAX_CODE_SIZE + 1];
 	next_code[0] = 0;
 
-	for (u32 ii = 1; ii <= MAX_CODE_SIZE; ++ii) {
+	for (int ii = 1; ii <= MAX_CODE_SIZE; ++ii) {
 		next_code[ii] = code;
 
 		code = (code + num_codes[ii]) << 1;
@@ -410,7 +410,7 @@ bool huffman::generate_codes(u32 num_syms, const u8 *pCodesizes, u16 *pCodes) {
 	if (code != (1 << (MAX_CODE_SIZE + 1))) {
 		u32 tt = 0;
 
-		for (u32 ii = 1; ii <= MAX_CODE_SIZE; ++ii) {
+		for (int ii = 1; ii <= MAX_CODE_SIZE; ++ii) {
 			tt += num_codes[ii];
 
 			if (tt > 1) {
@@ -471,7 +471,7 @@ void cat::collectFreqs(int num_syms, const std::vector<u8> &lz, u16 freqs[]) {
 }
 
 void cat::normalizeFreqs(u32 max_freq, int num_syms, u32 hist[], u16 freqs[]) {
-	static const int MAX_FREQ = 0xffff;
+	static const u32 MAX_FREQ = 0xffff;
 
 	// Scale to fit in 16-bit frequency counter
 	while (max_freq > MAX_FREQ) {

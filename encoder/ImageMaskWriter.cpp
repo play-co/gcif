@@ -237,7 +237,7 @@ void Masker::performLZ() {
 #endif // CAT_COLLECT_STATS
 
 	// Determine if encoder should be used
-	_using_encoder = _lz.size() >= _knobs->mask_huffThresh;
+	_using_encoder = (int)_lz.size() >= _knobs->mask_huffThresh;
 }
 
 u32 Masker::simulate() {

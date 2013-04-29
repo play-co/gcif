@@ -119,6 +119,7 @@ int ImageReader::init(const void *buffer, long fileSize) {
 
 	u32 headHash = getLE(words[4]);
 	if CAT_UNLIKELY(headHash != hh.final(HEAD_WORDS)) {
+		CAT_DEBUG_EXCEPTION();
 		return GCIF_RE_BAD_HEAD;
 	}
 
