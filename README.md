@@ -358,36 +358,6 @@ This table compression is exceptionally good.  It compresses about 8KB of table
 data down into about 3KB using several tricks including truncation.
 
 
-Future plans
-============
-
-We have tried a lot of crazy things to improve compression, and only a few of
-them stuck to the project.  Here are some more wild ideas:
-
-+ Support a full palette mode for small or GIF-quantized images.
--- First determine the palette.
--- Sort the palette so that the image data attains maximum smoothness.
--- Apply all of the normal spatial filtering without color filters.
--- Encode it as one channel instead of RGBA.
-
-+ Support scanline spatial and color filters.
--- Define one filter pair for an entire row.
--- Compare the result of doing this with tightly tuned filters; send the best.
-
-+ Support LZ at the scanline level.
--- Make post-filter LZ a part of the scanline filter mode.
--- This is exciting because right now LZ is useless with the post-filter data.
--- WILL be better for some computer-generated images I am looking at.
--- WILL make us better than PNG for ALL images rather than just the majority.
-
-+ A new spritesheet generator that uses GCIF as an in/output file format.
--- Even better image compression by eliminating a lot of image data.
--- There is a lot of room for improvement in our current spriter.
--- Incorporate it into the GCIF codebase to make it a one-stop shop for games.
-
-+ Benchmarks in the README!
-
-
 Example usage
 =============
 
@@ -491,22 +461,42 @@ Examples:
 Future plans
 ============
 
-We plan to release a Java version for the encoder after the RGBA compression is
-functional in C++ code, so that the encoder can be run on any platform without
-having to compile it.
+Immediately:
 
-+ Clean up source code
-+ Compare clang++ to g++ decoder speed
-+ MSVC port
-+ Retest everything
++ Support for images not a multiple of 4x4 pixels.
+
 + Tag 1.0
+
 + Benchmarking
+
 + Whitepaper
 
-+ Support for images not a multiple of 4x4 pixels
-+ Scanline filters and LZ
-+ Palette mode
-+ Java port
-+ Use strong file hash in new verification mode
-+ Better spriter to go with GCIF
+Slated for inclusion in version 1.1 of the file format:
+
++ Support for images as large as 65536x65536 with custom memory allocator.
+
++ Use strong file hash in new verification mode for command-line tool.
+
++ Support a full palette mode for small or GIF-quantized images.
+-- First determine the palette.
+-- Sort the palette so that the image data attains maximum smoothness.
+-- Apply all of the normal spatial filtering without color filters.
+-- Encode it as one channel instead of RGBA.
+
++ Support scanline spatial and color filters.
+-- Define one filter pair for an entire row.
+-- Compare the result of doing this with tightly tuned filters; send the best.
+
++ Support LZ at the scanline level.
+-- Make post-filter LZ a part of the scanline filter mode.
+-- This is exciting because right now LZ is useless with the post-filter data.
+-- WILL be better for some computer-generated images I am looking at.
+-- WILL make us better than PNG for ALL images rather than just the majority.
+
++ A new spritesheet generator that uses GCIF as an in/output file format.
+-- Even better image compression by eliminating a lot of image data.
+-- There is a lot of room for improvement in our current spriter.
+-- Incorporate it into the GCIF codebase to make it a one-stop shop for games.
+
++ Java version of the encoder.
 
