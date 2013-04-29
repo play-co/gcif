@@ -33,10 +33,10 @@ namespace cat {
 
 
 // Enable statistics collection (disable when building decoder only)
-#define CAT_COLLECT_STATS
+//#define CAT_COLLECT_STATS
 
 // Disable inane-level (verbose) logging in Release mode
-//#define CAT_RELEASE_DISABLE_INANE
+#define CAT_RELEASE_DISABLE_INANE
 
 // Modify level of detail for enforcer strings
 #define CAT_USE_ENFORCE_EXPRESSION_STRING
