@@ -464,10 +464,6 @@ Future plans
 
 Immediately:
 
-+ Support for images not a multiple of 4x4 pixels.
-
-+ Tag 1.0
-
 + Benchmarking
 
 + Whitepaper
