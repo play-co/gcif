@@ -8,6 +8,9 @@ other usage cases (such as webpages) where you want to compress tightly once,
 and then read it back many times.  For these images the expected size should be
 about 1024x1024 pixels or smaller.
 
+It typically produces files that are 60% the size of PNGCRUSH output and decode
+about 2-3x faster.
+
 The format is released under the BSD license as forever patent-free, monetarily
 free, and open-source software.  Contributions, discussions, and a healthy dose
 of criticism are all welcome.
