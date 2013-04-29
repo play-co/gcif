@@ -32,7 +32,7 @@ using namespace cat;
 #if defined(CAT_OS_LINUX) || defined(CAT_OS_OSX)
 # include <sys/mman.h>
 # include <sys/stat.h>
-# include <sys/fcntl.h>
+# include <fcntl.h>
 # include <errno.h>
 #endif
 
@@ -126,13 +126,17 @@ bool MappedFile::OpenRead(const char *path, bool read_ahead, bool no_cache)
 		if (_len <= 0) {
 			return false;
 		} else {
+#ifdef F_RDAHEAD
 			if (read_ahead) {
 				fcntl(_file, F_RDAHEAD, 1);
 			}
+#endif
 
+#ifdef F_NOCACHE
 			if (no_cache) {
 				fcntl(_file, F_NOCACHE, 1);
 			}
+#endif
 		}
 	}
 
