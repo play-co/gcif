@@ -23,8 +23,6 @@ set of portable C++ source files that implement the image reader capability.
 Compression performance
 =======================
 
-It is too early to release real benchmarks here, but getting closer.
-
 From one of our more challenging game sprite-sheets chosen at random:
 
 ~~~
