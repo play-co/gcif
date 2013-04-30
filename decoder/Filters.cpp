@@ -408,9 +408,11 @@ static void SFF_ABCD(const u8 *p, const u8 **pred, int x, int y, int width) {
 			*pred = a;
 		}
 	} else if (y > 0) {
-		// Assumes image is not really narrow
 		const u8 *b = p - width*4; // B
-		const u8 *d = b + 4; // D
+		const u8 *d = b; // D
+		if CAT_LIKELY(x < width-1) {
+			b += 4;
+		}
 
 		u8 *FPT = (u8*)*pred;
 		FPT[0] = (b[0] + (u16)d[0]) >> 1;
@@ -530,9 +532,10 @@ static CAT_INLINE u8 clampGrad(int b, int a, int c) {
 
 static void SFF_CLAMP_GRAD(const u8 *p, const u8 **pred, int x, int y, int width) {
 	if (y > 0) {
+		const u8 *b = p - width*4; // B
+
 		if (x > 0) {
 			const u8 *a = p - 4; // A
-			const u8 *b = p - width*4; // B
 			const u8 *c = b - 4; // C
 
 			u8 *FPT = (u8*)*pred;
@@ -540,8 +543,7 @@ static void SFF_CLAMP_GRAD(const u8 *p, const u8 **pred, int x, int y, int width
 			FPT[1] = clampGrad(b[1], a[1], c[1]);
 			FPT[2] = clampGrad(b[2], a[2], c[2]);
 		} else {
-			// Assume image is not really narrow
-			*pred = p - width*4 + 4; // D
+			*pred = b;
 		}
 	} else if (x > 0) {
 		*pred = p - 4; // A
@@ -576,9 +578,10 @@ static u8 skewGrad(int b, int a, int c) {
 
 static void SFF_SKEW_GRAD(const u8 *p, const u8 **pred, int x, int y, int width) {
 	if (y > 0) {
+		const u8 *b = p - width*4; // B
+
 		if (x > 0) {
 			const u8 *a = p - 4; // A
-			const u8 *b = p - width*4; // B
 			const u8 *c = b - 4; // C
 
 			u8 *FPT = (u8*)*pred;
@@ -586,8 +589,7 @@ static void SFF_SKEW_GRAD(const u8 *p, const u8 **pred, int x, int y, int width)
 			FPT[1] = skewGrad(b[1], a[1], c[1]);
 			FPT[2] = skewGrad(b[2], a[2], c[2]);
 		} else {
-			// Assume image is not really narrow
-			*pred = p - width*4 + 4; // D
+			*pred = b;
 		}
 	} else if (x > 0) {
 		*pred = p - 4; // A
@@ -611,10 +613,10 @@ static void SFFU_SKEW_GRAD(const u8 *p, const u8 **pred, int x, int y, int width
 
 static void SFF_AD(const u8 *p, const u8 **pred, int x, int y, int width) {
 	if (y > 0) {
+		const u8 *src = p - width*4; // B
+
 		if (x > 0) {
 			const u8 *a = p - 4; // A
-
-			const u8 *src = p - width*4; // B
 			if (x < width-1) {
 				src += 4; // D
 			}
@@ -624,8 +626,7 @@ static void SFF_AD(const u8 *p, const u8 **pred, int x, int y, int width) {
 			FPT[1] = (a[1] + (u16)src[1]) >> 1;
 			FPT[2] = (a[2] + (u16)src[2]) >> 1;
 		} else {
-			// Assume image is not really narrow
-			*pred = p - width*4 + 4; // D
+			*pred = src; // B
 		}
 	} else if (x > 0) {
 		*pred = p - 4; // A
@@ -869,7 +870,7 @@ static u8 PSFF_D(const u8 *p, int x, int y, int width) {
 	if (y > 0) {
 		const u8 *fp = p - width; // B
 		if (x < width-1) {
-			fp += 1; // D
+			++fp; // D
 		}
 		return *fp;
 	} else if (x > 0) {
@@ -969,7 +970,7 @@ static u8 PSFF_BD(const u8 *p, int x, int y, int width) {
 		const u8 *b = p - width; // B
 		const u8 *src = b; // B
 		if (x < width-1) {
-			src++; // D
+			++src; // D
 		}
 
 		return (b[0] + (u16)src[0]) >> 1;
@@ -1086,7 +1087,7 @@ static u8 PSFF_PLO(const u8 *p, int x, int y, int width) {
 
 			const u8 *src = b; // B
 			if (x < width-1) {
-				src++; // D
+				++src; // D
 			}
 
 			return predLevel(a[0], src[0], b[0]);
@@ -1120,7 +1121,7 @@ static u8 PSFF_ABCD(const u8 *p, int x, int y, int width) {
 
 			const u8 *src = b; // B
 			if (x < width-1) {
-				src++; // D
+				++src; // D
 			}
 
 			return (a[0] + (int)b[0] + c[0] + (int)src[0] + 1) >> 2;
@@ -1128,9 +1129,11 @@ static u8 PSFF_ABCD(const u8 *p, int x, int y, int width) {
 			return a[0];
 		}
 	} else if (y > 0) {
-		// Assumes image is not really narrow
 		const u8 *b = p - width; // B
-		const u8 *d = b + 1; // D
+		const u8 *d = b;
+		if CAT_LIKELY(x < width-1) {
+			++d; // D
+		}
 
 		return (b[0] + (u16)d[0]) >> 1;
 	} else {
@@ -1209,8 +1212,7 @@ static u8 PSFF_CLAMP_GRAD(const u8 *p, int x, int y, int width) {
 
 			return clampGrad(b[0], a[0], c[0]);
 		} else {
-			// Assume image is not really narrow
-			return p[-width + 1]; // D
+			return p[-width]; // B
 		}
 	} else if (x > 0) {
 		return p[-1]; // A
@@ -1238,8 +1240,7 @@ static u8 PSFF_SKEW_GRAD(const u8 *p, int x, int y, int width) {
 
 			return skewGrad(b[0], a[0], c[0]);
 		} else {
-			// Assume image is not really narrow
-			return p[-width + 1]; // D
+			return p[-width]; // B
 		}
 	} else if (x > 0) {
 		return p[-1]; // A
@@ -1265,13 +1266,12 @@ static u8 PSFF_AD(const u8 *p, int x, int y, int width) {
 
 			const u8 *src = p - width; // B
 			if (x < width-1) {
-				src++; // D
+				++src; // D
 			}
 
 			return (a[0] + (u16)src[0]) >> 1;
 		} else {
-			// Assume image is not really narrow
-			return p[-width + 1]; // D
+			return p[-width]; // B
 		}
 	} else if (x > 0) {
 		return p[-1]; // A
