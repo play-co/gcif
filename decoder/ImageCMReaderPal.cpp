@@ -240,7 +240,7 @@ int ImageCMReaderPal::readPixels(ImageReader &reader) {
 			} else if ((s32)mask < 0) {
 				*rgba = MASK_COLOR; 
 			} else {
-				// Read SF and CF for this zone
+				// Read filter for this zone
 				FilterSelection *filter = &_filters[x >> PALETTE_ZONE_SIZE_SHIFT_W];
 				if (!filter->ready()) {
 					filter->sf = _pf_set.get(_pf.next(reader));
@@ -262,17 +262,17 @@ int ImageCMReaderPal::readPixels(ImageReader &reader) {
 				*rgba = _pal->getColor(index);
 				*p = code;
 
-				// Convert last to score
-				*last = CHAOS_SCORE[code];
+				// Convert to score
+				code = CHAOS_SCORE[code];
 			}
-
-			// Record chaos
-			*last = code;
 
 			// Next pixel
 			++rgba;
 			++p;
 			mask <<= 1;
+
+			// Record chaos
+			*last++ = code;
 		}
 	}
 
@@ -333,7 +333,7 @@ int ImageCMReaderPal::readPixels(ImageReader &reader) {
 			} else if ((s32)mask < 0) {
 				*rgba = MASK_COLOR; 
 			} else {
-				// Read SF and CF for this zone
+				// Read filter for this zone
 				FilterSelection *filter = &_filters[x >> PALETTE_ZONE_SIZE_SHIFT_W];
 				if (!filter->ready()) {
 					filter->sf = _pf_set.get(_pf.next(reader));
@@ -355,81 +355,17 @@ int ImageCMReaderPal::readPixels(ImageReader &reader) {
 				*rgba = _pal->getColor(index);
 				*p = code;
 
-				// Convert last to score
-				*last = CHAOS_SCORE[code];
+				// Convert to score
+				code = CHAOS_SCORE[code];
 			}
+
+			// Next pixel
+			++rgba;
+			++p;
+			mask <<= 1;
 
 			// Record chaos
-			*last = code;
-
-			// Next pixel
-			++rgba;
-			++p;
-			mask <<= 1;
-
-
-
-			// If pixel was copied with LZ subsystem,
-			if (lz_skip > 0) {
-				--lz_skip;
-				last[0] = 0;
-			} else if ((s32)mask < 0) {
-				*reinterpret_cast<u32 *>( p ) = _mask->getColor();
-				last[0] = 0;
-			} else {
-				// Read SF and CF for this zone
-				FilterSelection *filter = &_filters[x >> FILTER_ZONE_SIZE_SHIFT_W];
-				if (!filter->ready()) {
-					filter->cf = YUV2RGB_FILTERS[_cf.next(reader)];
-					DESYNC_FILTER(x, y);
-					filter->sf = _sf_set.get(_sf.next(reader));
-					DESYNC_FILTER(x, y);
-				}
-
-				// Calculate YUV chaos
-				const u32 chaos_y = CHAOS_TABLE[last[0]];
-				const u32 chaos_u = CHAOS_TABLE[last[1]];
-				const u32 chaos_v = CHAOS_TABLE[last[2]];
-
-				// Read YUV filtered pixel
-				u8 YUV[3];
-				YUV[0] = (u8)_y_decoder[chaos_y].next(reader);;
-				DESYNC(x, y);
-				YUV[1] = (u8)_u_decoder[chaos_u].next(reader);
-				DESYNC(x, y);
-				YUV[2] = (u8)_v_decoder[chaos_v].next(reader);
-				DESYNC(x, y);
-
-				// Calculate alpha chaos
-				const u32 chaos_a = CHAOS_TABLE[last[3]];
-
-				// Reverse color filter
-				filter->cf(YUV, p);
-
-				// Reverse spatial filter
-				const u8 *pred = FPT;
-				filter->sf.safe(p, &pred, x, y, width);
-				p[0] += pred[0];
-				p[1] += pred[1];
-				p[2] += pred[2];
-
-				// Read alpha pixel
-				u8 A = (u8)_a_decoder[chaos_a].next(reader);
-				DESYNC(x, y);
-				p[3] = 255 - A;
-
-				// Convert last to score
-				last[0] = CHAOS_SCORE[YUV[0]];
-				last[1] = CHAOS_SCORE[YUV[1]];
-				last[2] = CHAOS_SCORE[YUV[2]];
-				last[3] = CHAOS_SCORE[A];
-			}
-
-			// Next pixel
-			++rgba;
-			++p;
-			mask <<= 1;
-			++last
+			*last++ = code;
 		}
 
 
@@ -442,7 +378,7 @@ int ImageCMReaderPal::readPixels(ImageReader &reader) {
 
 			// If LZ triggered,
 			if (x == trigger_x_lz) {
-				lz_skip = _lz->triggerXPal(p, lz_src);
+				lz_skip = _lz->triggerXPal(p, rgba);
 				trigger_x_lz = _lz->getTriggerX();
 			}
 
@@ -452,73 +388,46 @@ int ImageCMReaderPal::readPixels(ImageReader &reader) {
 				mask_left = 31;
 			}
 
-			// If pixel was copied with LZ subsystem,
+			u8 code = 0;
+
 			if (lz_skip > 0) {
 				--lz_skip;
-				last[0] = 0;
-				last[1] = 0;
-				last[2] = 0;
-				last[3] = 0;
 			} else if ((s32)mask < 0) {
-				*reinterpret_cast<u32 *>( p ) = _mask->getColor();
-				last[0] = 0;
-				last[1] = 0;
-				last[2] = 0;
-				last[3] = 0;
+				*rgba = MASK_COLOR; 
 			} else {
-				// Read SF and CF for this zone
-				FilterSelection *filter = &_filters[x >> FILTER_ZONE_SIZE_SHIFT_W];
+				// Read filter for this zone
+				FilterSelection *filter = &_filters[x >> PALETTE_ZONE_SIZE_SHIFT_W];
 				if (!filter->ready()) {
-					filter->cf = YUV2RGB_FILTERS[_cf.next(reader)];
-					DESYNC_FILTER(x, y);
-					filter->sf = _sf_set.get(_sf.next(reader));
+					filter->sf = _pf_set.get(_pf.next(reader));
 					DESYNC_FILTER(x, y);
 				}
 
-				// Calculate YUV chaos
-				const u32 chaos_y = CHAOS_TABLE[last[-4] + (u16)last[0]];
-				const u32 chaos_u = CHAOS_TABLE[last[-3] + (u16)last[1]];
-				const u32 chaos_v = CHAOS_TABLE[last[-2] + (u16)last[2]];
+				// Calculate chaos
+				const u32 chaos = CHAOS_TABLE[last[-1] + (u16)last[0]];
 
-				// Read YUV filtered pixel
-				u8 YUV[3];
-				YUV[0] = (u8)_y_decoder[chaos_y].next(reader);
+				// Read filtered pixel
+				code = (u8)_decoder[chaos].next(reader);
 				DESYNC(x, y);
-				YUV[1] = (u8)_u_decoder[chaos_u].next(reader);
-				DESYNC(x, y);
-				YUV[2] = (u8)_v_decoder[chaos_v].next(reader);
-				DESYNC(x, y);
-
-				// Calculate alpha chaos
-				const u32 chaos_a = CHAOS_TABLE[last[-1] + (u16)last[3]];
-
-				// Reverse color filter
-				filter->cf(YUV, p);
 
 				// Reverse spatial filter
-				const u8 *pred = FPT;
-				filter->sf.unsafe(p, &pred, x, y, width);
-				p[0] += pred[0];
-				p[1] += pred[1];
-				p[2] += pred[2];
+				const u8 pred = filter->sf.safe(p, x, y, width);
+				u8 index = (code + pred) % PAL_SIZE;
 
-				// Read alpha pixel
-				u32 A = (u8)_a_decoder[chaos_a].next(reader);
-				p[3] = p[-1] - A;
-				DESYNC(x, y);
+				// Reverse palette to RGBA
+				*rgba = _pal->getColor(index);
+				*p = code;
 
-				// Convert last to score
-				last[0] = CHAOS_SCORE[YUV[0]];
-				last[1] = CHAOS_SCORE[YUV[1]];
-				last[2] = CHAOS_SCORE[YUV[2]];
-				last[3] = CHAOS_SCORE[A];
+				// Convert to score
+				code = CHAOS_SCORE[code];
 			}
 
 			// Next pixel
 			++rgba;
 			++p;
 			mask <<= 1;
-			++last
+
+			// Record chaos
+			*last++ = code;
 		}
 
 		
@@ -532,7 +441,7 @@ int ImageCMReaderPal::readPixels(ImageReader &reader) {
 
 			// If LZ triggered,
 			if (x == trigger_x_lz) {
-				lz_skip = _lz->triggerXPal(p, lz_src);
+				lz_skip = _lz->triggerXPal(p, rgba);
 				trigger_x_lz = _lz->getTriggerX();
 			}
 
@@ -541,71 +450,45 @@ int ImageCMReaderPal::readPixels(ImageReader &reader) {
 				mask = *mask_next;
 			}
 
-			// If pixel was copied with LZ subsystem,
+			u8 code = 0;
+
 			if (lz_skip > 0) {
 				--lz_skip;
-				last[0] = 0;
-				last[1] = 0;
-				last[2] = 0;
-				last[3] = 0;
 			} else if ((s32)mask < 0) {
-				*reinterpret_cast<u32 *>( p ) = _mask->getColor();
-				last[0] = 0;
-				last[1] = 0;
-				last[2] = 0;
-				last[3] = 0;
+				*rgba = MASK_COLOR; 
 			} else {
-				// Read SF and CF for this zone
-				FilterSelection *filter = &_filters[x >> FILTER_ZONE_SIZE_SHIFT_W];
+				// Read filter for this zone
+				FilterSelection *filter = &_filters[x >> PALETTE_ZONE_SIZE_SHIFT_W];
 				if (!filter->ready()) {
-					filter->cf = YUV2RGB_FILTERS[_cf.next(reader)];
-					DESYNC_FILTER(x, y);
-					filter->sf = _sf_set.get(_sf.next(reader));
+					filter->sf = _pf_set.get(_pf.next(reader));
 					DESYNC_FILTER(x, y);
 				}
 
-				// Calculate YUV chaos
-				const u32 chaos_y = CHAOS_TABLE[last[-4] + (u16)last[0]];
-				const u32 chaos_u = CHAOS_TABLE[last[-3] + (u16)last[1]];
-				const u32 chaos_v = CHAOS_TABLE[last[-2] + (u16)last[2]];
+				// Calculate chaos
+				const u32 chaos = CHAOS_TABLE[last[-1] + (u16)last[0]];
 
-				// Read YUV filtered pixel
-				u8 YUV[3];
-				YUV[0] = (u8)_y_decoder[chaos_y].next(reader);
-				DESYNC(x, y);
-				YUV[1] = (u8)_u_decoder[chaos_u].next(reader);
-				DESYNC(x, y);
-				YUV[2] = (u8)_v_decoder[chaos_v].next(reader);
+				// Read filtered pixel
+				code = (u8)_decoder[chaos].next(reader);
 				DESYNC(x, y);
 
-				// Calculate alpha chaos
-				const u32 chaos_a = CHAOS_TABLE[last[-1] + (u16)last[3]];
+				// Reverse spatial filter
+				const u8 pred = filter->sf.safe(p, x, y, width);
+				u8 index = (code + pred) % PAL_SIZE;
 
-				// Reverse color filter
-				filter->cf(YUV, p);
+				// Reverse palette to RGBA
+				*rgba = _pal->getColor(index);
+				*p = code;
 
-				// Reverse (safe) spatial filter
-				const u8 *pred = FPT;
-				filter->sf.safe(p, &pred, x, y, width);
-				p[0] += pred[0];
-				p[1] += pred[1];
-				p[2] += pred[2];
-
-				// Read alpha pixel
-				u8 A = (u8)_a_decoder[chaos_a].next(reader);
-				DESYNC(x, y);
-				p[3] = p[-1] - A;
-
-				// Convert last to score
-				last[0] = CHAOS_SCORE[YUV[0]];
-				last[1] = CHAOS_SCORE[YUV[1]];
-				last[2] = CHAOS_SCORE[YUV[2]];
-				last[3] = CHAOS_SCORE[A];
+				// Convert to score
+				code = CHAOS_SCORE[code];
 			}
 
 			// Next pixel
 			++rgba;
 			++p;
+
+			// Record chaos
+			*last = code;
 		} // next x
 
 		++recent_index;

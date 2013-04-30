@@ -65,7 +65,6 @@ public:
 	CAT_INLINE ImagePaletteReader() {
 	}
 	virtual CAT_INLINE ~ImagePaletteReader() {
-		clear();
 	}
 
 	CAT_INLINE bool enabled() {

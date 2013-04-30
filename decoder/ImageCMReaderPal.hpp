@@ -116,12 +116,13 @@ public:
 #endif
 
 public:
-	CAT_INLINE ImageCMReader() {
+	CAT_INLINE ImageCMReaderPal() {
 		_rgba = 0;
 		_chaos = 0;
 		_filters = 0;
+		_recent = 0;
 	}
-	virtual CAT_INLINE ~ImageCMReader() {
+	virtual CAT_INLINE ~ImageCMReaderPal() {
 		clear();
 	}
 

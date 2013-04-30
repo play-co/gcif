@@ -145,9 +145,6 @@ ImageMaskReader.o : decoder/ImageMaskReader.cpp
 ImageMaskWriter.o : encoder/ImageMaskWriter.cpp
 	$(CCPP) $(CPFLAGS) -c encoder/ImageMaskWriter.cpp
 
-ImageCMWriter.o : encoder/ImageCMWriter.cpp
-	$(CCPP) $(CPFLAGS) -c encoder/ImageCMWriter.cpp
-
 FilterScorer.o : encoder/FilterScorer.cpp
 	$(CCPP) $(CPFLAGS) -c encoder/FilterScorer.cpp
 
@@ -163,8 +160,11 @@ ImageLZReader.o : decoder/ImageLZReader.cpp
 ImagePaletteWriter.o : encoder/ImagePaletteWriter.cpp
 	$(CCPP) $(CPFLAGS) -c encoder/ImagePaletteWriter.cpp
 
-ImagePaletteReader.o : encoder/ImagePaletteReader.cpp
-	$(CCPP) $(CPFLAGS) -c encoder/ImagePaletteReader.cpp
+ImagePaletteReader.o : decoder/ImagePaletteReader.cpp
+	$(CCPP) $(CPFLAGS) -c decoder/ImagePaletteReader.cpp
+
+ImageCMWriter.o : encoder/ImageCMWriter.cpp
+	$(CCPP) $(CPFLAGS) -c encoder/ImageCMWriter.cpp
 
 ImageCMReader.o : decoder/ImageCMReader.cpp
 	$(CCPP) $(CPFLAGS) -c decoder/ImageCMReader.cpp

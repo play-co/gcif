@@ -50,7 +50,7 @@ public:
 	static const int BZ_SYMS = NUM_SYMS + ZRLE_SYMS;
 	static const int AZ_SYMS = NUM_SYMS;
 	static const int BZ_TAIL_SYM = BZ_SYMS - 1;
-	static const int HUFF_LUT_BITS = 9;
+	static const int HUFF_LUT_BITS = 7; // Tuned for cellphones
 
 protected:
 	int _zeroRun;
