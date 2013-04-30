@@ -33,6 +33,7 @@ From one of our more challenging game sprite-sheets chosen at random:
 -rw-r--r--@ 1 cat  staff   1.2M Apr 28 18:48 noalpha.jp2 (lossless)
 -rw-r--r--  1 cat  staff   1.1M Apr 28 18:55 noalpha.png (lossless)
 -rw-r--r--  1 cat  staff   912K Apr 28 18:51 noalpha.webp (lossless)
+-rw-r--r--  1 cat  staff   883K Apr 29 17:01 noalpha.m6.webp (lossless)
 -rw-r--r--  1 cat  staff   877K Apr  2 14:05 noalpha.bcif (lossless)
 -rw-r--r--  1 cat  staff   803K Apr 28 18:47 noalpha.gci (lossless) <- GCIF
 -rw-r--r--@ 1 cat  staff   682K Apr 28 18:46 noalpha.jpg (lossy)
