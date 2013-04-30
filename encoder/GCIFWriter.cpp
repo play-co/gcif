@@ -30,6 +30,7 @@
 #include "ImageWriter.hpp"
 #include "ImageMaskWriter.hpp"
 #include "ImageLZWriter.hpp"
+#include "ImagePaletteWriter.hpp"
 #include "ImageCMWriter.hpp"
 using namespace cat;
 
@@ -176,9 +177,18 @@ extern "C" int gcif_write_ex(const void *rgba, int width, int height, const char
 	imageLZWriter.write(writer);
 	imageLZWriter.dumpStats();
 
+	// Global Palette
+	ImagePaletteWriter imagePaletteWriter;
+	if ((err = imagePaletteWriter.initFromRGBA(image, width, height, knobs, imageMaskWriter, imageLZWriter))) {
+		return err;
+	}
+
+	imagePaletteWriter.write(writer);
+	imagePaletteWriter.dumpStats();
+
 	// Context Modeling Decompression
 	ImageCMWriter imageCMWriter;
-	if ((err = imageCMWriter.initFromRGBA(image, width, height, imageMaskWriter, imageLZWriter, knobs))) {
+	if ((err = imageCMWriter.initFromRGBA(image, width, height, imageMaskWriter, imageLZWriter, imagePaletteWriter, knobs))) {
 		return err;
 	}
 

@@ -472,6 +472,12 @@ Immediately:
 
 Slated for inclusion in version 1.1 of the file format:
 
++ Try global filter and direct Huffman/LZ encoding of the input data for very
+small images.
+
++ Try scanline filtering and direct Huffman/LZ encoding of the input data for
+very small images, like PNG.
+
 + Try filter zone rectangles: 8x2, 16x1, etc
 
 + Support for images as large as 65536x65536 with custom memory allocator and

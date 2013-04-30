@@ -34,9 +34,21 @@
 namespace cat {
 
 
-static const int FILTER_ZONE_SIZE_SHIFT = 2; // Block size pow2
-static const int FILTER_ZONE_SIZE = 1 << FILTER_ZONE_SIZE_SHIFT; // 4x4
-static const int FILTER_ZONE_SIZE_MASK = FILTER_ZONE_SIZE - 1;
+// Zone size for RGBA filters
+static const int FILTER_ZONE_SIZE_SHIFT_W = 2; // Block size pow2
+static const int FILTER_ZONE_SIZE_W = 1 << FILTER_ZONE_SIZE_SHIFT_W; // 4x4
+static const int FILTER_ZONE_SIZE_MASK_W = FILTER_ZONE_SIZE_W - 1;
+static const int FILTER_ZONE_SIZE_SHIFT_H = 2; // Block size pow2
+static const int FILTER_ZONE_SIZE_H = 1 << FILTER_ZONE_SIZE_SHIFT_H; // 4x4
+static const int FILTER_ZONE_SIZE_MASK_H = FILTER_ZONE_SIZE_H - 1;
+
+// Zone size for Palette-mode filters
+static const int PALETTE_ZONE_SIZE_SHIFT_W = 4; // Block size pow2
+static const int PALETTE_ZONE_SIZE_W = 1 << PALETTE_ZONE_SIZE_SHIFT_W; // 16x16
+static const int PALETTE_ZONE_SIZE_MASK_W = PALETTE_ZONE_SIZE_W - 1;
+static const int PALETTE_ZONE_SIZE_SHIFT_H = 4; // Block size pow2
+static const int PALETTE_ZONE_SIZE_H = 1 << PALETTE_ZONE_SIZE_SHIFT_H; // 16x16
+static const int PALETTE_ZONE_SIZE_MASK_H = PALETTE_ZONE_SIZE_H - 1;
 
 
 //// Spatial Filters
@@ -89,6 +101,7 @@ enum SpatialFilters {
 };
 
 typedef void (*SpatialFilterFunction)(const u8 *p, const u8 **pred, int x, int y, int width);
+typedef u8 (*PaletteFilterFunction)(const u8 *p, int x, int y, int width);
 
 
 /*
@@ -128,13 +141,65 @@ public:
 
 public:
 	CAT_INLINE SpatialFilterSet() {
-		reset();
 	}
 	CAT_INLINE virtual ~SpatialFilterSet() {
 	}
 
 	// Set filters back to defaults
-	void reset();
+	void init();
+
+	// Choose a linear tapped filter from the FILTER_TAPS set over default
+	void replace(int defaultIndex, int tappedIndex);
+
+	CAT_INLINE Functions get(int index) {
+		return _filters[index];
+	}
+};
+
+
+/*
+ * Palette Filter Set
+ *
+ * This class wraps the spatial filter arrays so that multiple threads can be
+ * decoding images simultaneously, each with its own filter set.
+ */
+class PaletteFilterSet {
+public:
+	struct Functions {
+		PaletteFilterFunction safe;
+
+		// The unsafe version assumes x>0, y>0 and x<width-1 for speed
+		PaletteFilterFunction unsafe;
+	};
+
+protected:
+	Functions _filters[SF_COUNT];
+
+public:
+	/*
+	 * Extended tapped linear filters
+	 *
+	 * The taps correspond to coefficients in the expression:
+	 *
+	 * Prediction = (t0*A + t1*B + t2*C + t3*D) / 2
+	 *
+	 * And the taps are selected from: {-4, -3, -2, -1, 0, 1, 2, 3, 4}.
+	 *
+	 * We ran simulations with a number of test images and chose the linear filters
+	 * of this form that were consistently better than the default spatial filters.
+	 * The selected linear filters are in the FILTER_TAPS[TAPPED_COUNT] array.
+	 */
+	static const int TAPPED_COUNT = 80;
+	static const int FILTER_TAPS[TAPPED_COUNT][4];
+
+public:
+	CAT_INLINE PaletteFilterSet() {
+	}
+	CAT_INLINE virtual ~PaletteFilterSet() {
+	}
+
+	// Set filters back to defaults
+	void init();
 
 	// Choose a linear tapped filter from the FILTER_TAPS set over default
 	void replace(int defaultIndex, int tappedIndex);
@@ -179,8 +244,8 @@ enum ColorFilters {
 	// Disabled filters:
 };
 
-typedef void (*RGB2YUVFilterFunction)(const u8 rgb[3], u8 yuv[3]);
-typedef void (*YUV2RGBFilterFunction)(const u8 yuv[3], u8 out[3]);
+typedef void (*RGB2YUVFilterFunction)(const u8 rgb_in[3], u8 yuv_out[3]);
+typedef void (*YUV2RGBFilterFunction)(const u8 yuv_in[3], u8 rgb_out[3]);
 
 extern RGB2YUVFilterFunction RGB2YUV_FILTERS[];
 extern YUV2RGBFilterFunction YUV2RGB_FILTERS[];
@@ -198,3 +263,4 @@ extern const u8 CHAOS_SCORE[256];
 } // namespace cat
 
 #endif // FILTERS_HPP
+

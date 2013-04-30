@@ -32,6 +32,7 @@
 #include "ImageWriter.hpp"
 #include "ImageMaskWriter.hpp"
 #include "ImageLZWriter.hpp"
+#include "ImagePaletteWriter.hpp"
 #include "../decoder/ImageCMReader.hpp"
 #include "EntropyEncoder.hpp"
 #include "FilterScorer.hpp"
@@ -79,6 +80,7 @@ protected:
 
 	// Chosen spatial filter set
 	SpatialFilterSet _sf_set;
+	PaletteFilterSet _pf_set;
 
 	// Twiddly knobs from the write API
 	const GCIFKnobs *_knobs;
@@ -89,6 +91,34 @@ protected:
 	u8 *_seen_filter;	// Seen filter yet for a block
 	int _seen_filter_alloc;
 	int _filter_stride;	// Filters per scanline
+
+	CAT_INLINE void setSpatialFilter(int x, int y, u16 filter) {
+		x >>= FILTER_ZONE_SIZE_SHIFT_W;
+		y >>= FILTER_ZONE_SIZE_SHIFT_H;
+		const int w = (_width + FILTER_ZONE_SIZE_MASK_W) >> FILTER_ZONE_SIZE_SHIFT_W;
+		_filters[x + y * w] = filter;
+	}
+
+	CAT_INLINE u16 getSpatialFilter(int x, int y) {
+		x >>= FILTER_ZONE_SIZE_SHIFT_W;
+		y >>= FILTER_ZONE_SIZE_SHIFT_H;
+		const int w = (_width + FILTER_ZONE_SIZE_MASK_W) >> FILTER_ZONE_SIZE_SHIFT_W;
+		return _filters[x + y * w];
+	}
+
+	CAT_INLINE void setPaletteFilter(int x, int y, u16 filter) {
+		x >>= PALETTE_ZONE_SIZE_SHIFT_W;
+		y >>= PALETTE_ZONE_SIZE_SHIFT_H;
+		const int w = (_width + PALETTE_ZONE_SIZE_MASK_W) >> PALETTE_ZONE_SIZE_SHIFT_W;
+		_filters[x + y * w] = filter;
+	}
+
+	CAT_INLINE u16 getPaletteFilter(int x, int y) {
+		x >>= PALETTE_ZONE_SIZE_SHIFT_W;
+		y >>= PALETTE_ZONE_SIZE_SHIFT_H;
+		const int w = (_width + PALETTE_ZONE_SIZE_MASK_W) >> PALETTE_ZONE_SIZE_SHIFT_W;
+		return _filters[x + y * w];
+	}
 
 	// Recent measured chaos
 	u8 *_chaos;
@@ -103,11 +133,10 @@ protected:
 	const u8 *_rgba;
 	int _width, _height;
 
-	// Dominant color mask subsystem
+	// Subsystems
 	ImageMaskWriter *_mask;
-
-	// 2D-LZ subsystem
 	ImageLZWriter *_lz;
+	ImagePaletteWriter *_pal;
 
 	// List of custom linear filter replacements
 	std::vector<u32> _filter_replacements;
@@ -125,15 +154,27 @@ protected:
 	void clear();
 
 	int init(int width, int height);
+
 	void maskFilters();
+	void maskPalFilters();
+
 	void designFilters();
 	void decideFilters();
-	void scanlineLZ();
+	void designPalFilters();
+	void decidePalFilters();
+
+	void scanlineLZ(); // In progress
+
 	bool applyFilters();
+	bool applyPalFilters();
+
 	void chaosStats();
+	void chaosPalStats();
 
 	bool writeFilters(ImageWriter &writer);
 	bool writeChaos(ImageWriter &writer);
+	bool writePalFilters(ImageWriter &writer);
+	bool writePalChaos(ImageWriter &writer);
 
 #ifdef CAT_COLLECT_STATS
 public:
@@ -167,21 +208,7 @@ public:
 		clear();
 	}
 
-	CAT_INLINE void setFilter(int x, int y, u16 filter) {
-		x >>= FILTER_ZONE_SIZE_SHIFT;
-		y >>= FILTER_ZONE_SIZE_SHIFT;
-		const int w = (_width + FILTER_ZONE_SIZE_MASK) >> FILTER_ZONE_SIZE_SHIFT;
-		_filters[x + y * w] = filter;
-	}
-
-	CAT_INLINE u16 getFilter(int x, int y) {
-		x >>= FILTER_ZONE_SIZE_SHIFT;
-		y >>= FILTER_ZONE_SIZE_SHIFT;
-		const int w = (_width + FILTER_ZONE_SIZE_MASK) >> FILTER_ZONE_SIZE_SHIFT;
-		return _filters[x + y * w];
-	}
-
-	int initFromRGBA(const u8 *rgba, int width, int height, ImageMaskWriter &mask, ImageLZWriter &lz, const GCIFKnobs *knobs);
+	int initFromRGBA(const u8 *rgba, int width, int height, ImageMaskWriter &mask, ImageLZWriter &lz, ImagePaletteWriter &pal, const GCIFKnobs *knobs);
 	void write(ImageWriter &writer);
 
 #ifdef CAT_COLLECT_STATS

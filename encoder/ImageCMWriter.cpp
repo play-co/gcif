@@ -94,8 +94,15 @@ int ImageCMWriter::init(int width, int height) {
 	_width = width;
 	_height = height;
 
-	const int fw = (width + FILTER_ZONE_SIZE_MASK) >> FILTER_ZONE_SIZE_SHIFT;
-	const int fh = (height + FILTER_ZONE_SIZE_MASK) >> FILTER_ZONE_SIZE_SHIFT;
+	int fw, fh;
+
+	if (_pal->enabled()) {
+		fw = (width + PALETTE_ZONE_SIZE_MASK_W) >> PALETTE_ZONE_SIZE_SHIFT_W;
+		fh = (height + PALETTE_ZONE_SIZE_MASK_H) >> PALETTE_ZONE_SIZE_SHIFT_H;
+	} else {
+		fw = (width + FILTER_ZONE_SIZE_MASK_W) >> FILTER_ZONE_SIZE_SHIFT_W;
+		fh = (height + FILTER_ZONE_SIZE_MASK_H) >> FILTER_ZONE_SIZE_SHIFT_H;
+	}
 
 	const int filters_size = fw * fh;
 	if (!_filters || filters_size > _filters_alloc) {
@@ -130,7 +137,18 @@ int ImageCMWriter::init(int width, int height) {
 	return GCIF_WE_OK;
 }
 
+
+
+
+
+
+
+
+
+
 void ImageCMWriter::designFilters() {
+	_sf_set.init();
+
 	// If disabled,
 	if (!_knobs->cm_designFilters) {
 		CAT_INANE("CM") << "Skipping filter design";
@@ -154,18 +172,18 @@ void ImageCMWriter::designFilters() {
 
 	CAT_INANE("CM") << "Designing filters...";
 
-	for (int y = 0; y < _height; y += FILTER_ZONE_SIZE) {
-		for (int x = 0; x < width; x += FILTER_ZONE_SIZE) {
+	for (int y = 0; y < _height; y += FILTER_ZONE_SIZE_H) {
+		for (int x = 0; x < width; x += FILTER_ZONE_SIZE_W) {
 			// If this zone is skipped,
-			if (getFilter(x, y) == UNUSED_FILTER) {
+			if (getSpatialFilter(x, y) == UNUSED_FILTER) {
 				continue;
 			}
 
 			scores.reset();
 
-			// For each pixel in the 8x8 zone,
-			for (int yy = 0; yy < FILTER_ZONE_SIZE; ++yy) {
-				for (int xx = 0; xx < FILTER_ZONE_SIZE; ++xx) {
+			// For each pixel in the zone,
+			for (int yy = 0; yy < FILTER_ZONE_SIZE_H; ++yy) {
+				for (int xx = 0; xx < FILTER_ZONE_SIZE_W; ++xx) {
 					int px = x + xx, py = y + yy;
 					if (px >= _width || py >= _height) {
 						continue;
@@ -232,7 +250,6 @@ void ImageCMWriter::designFilters() {
 				}
 			}
 
-			// Super Mario Kart scoring
 			FilterScorer::Score *top = scores.getLowest();
 			bestHist[top[0].index] += 4;
 
@@ -319,10 +336,10 @@ void ImageCMWriter::decideFilters() {
 	u8 FPT[3];
 
 	for (;;) {
-		for (int y = 0; y < _height; y += FILTER_ZONE_SIZE) {
-			for (int x = 0; x < width; x += FILTER_ZONE_SIZE) {
+		for (int y = 0; y < _height; y += FILTER_ZONE_SIZE_H) {
+			for (int x = 0; x < width; x += FILTER_ZONE_SIZE_W) {
 				// If this zone is skipped,
-				const u16 filter = getFilter(x, y);
+				const u16 filter = getSpatialFilter(x, y);
 				if (filter == UNUSED_FILTER) {
 					continue;
 				}
@@ -341,12 +358,12 @@ void ImageCMWriter::decideFilters() {
 					bestSF = (u8)(filter >> 8);
 					bestCF = (u8)filter;
 
-					u8 codes[3][16];
+					u8 codes[3][FILTER_ZONE_SIZE_W*FILTER_ZONE_SIZE_H];
 					int count = 0;
 
-					// For each pixel in the 8x8 zone,
-					for (int yy = 0; yy < FILTER_ZONE_SIZE; ++yy) {
-						for (int xx = 0; xx < FILTER_ZONE_SIZE; ++xx) {
+					// For each pixel in the zone,
+					for (int yy = 0; yy < FILTER_ZONE_SIZE_H; ++yy) {
+						for (int xx = 0; xx < FILTER_ZONE_SIZE_W; ++xx) {
 							int px = x + xx, py = y + yy;
 							if (px >= _width || py >= _height) {
 								continue;
@@ -385,9 +402,9 @@ void ImageCMWriter::decideFilters() {
 
 				scores.reset();
 
-				// For each pixel in the 8x8 zone,
-				for (int yy = 0; yy < FILTER_ZONE_SIZE; ++yy) {
-					for (int xx = 0; xx < FILTER_ZONE_SIZE; ++xx) {
+				// For each pixel in the zone,
+				for (int yy = 0; yy < FILTER_ZONE_SIZE_H; ++yy) {
+					for (int xx = 0; xx < FILTER_ZONE_SIZE_W; ++xx) {
 						int px = x + xx, py = y + yy;
 						if (px >= _width || py >= _height) {
 							continue;
@@ -429,12 +446,12 @@ void ImageCMWriter::decideFilters() {
 					bestCF = lowest->index / SF_COUNT;
 
 					if (!_knobs->cm_disableEntropy) {
-						u8 codes[3][16];
+						u8 codes[3][FILTER_ZONE_SIZE_W*FILTER_ZONE_SIZE_H];
 						int count = 0;
 
 						// Record this choice
-						for (int yy = 0; yy < FILTER_ZONE_SIZE; ++yy) {
-							for (int xx = 0; xx < FILTER_ZONE_SIZE; ++xx) {
+						for (int yy = 0; yy < FILTER_ZONE_SIZE_H; ++yy) {
+							for (int xx = 0; xx < FILTER_ZONE_SIZE_W; ++xx) {
 								int px = x + xx, py = y + yy;
 								if (px >= _width || py >= _height) {
 									continue;
@@ -469,12 +486,15 @@ void ImageCMWriter::decideFilters() {
 						ee[2].add(codes[2], count);
 					}
 				} else {
-					const int TOP_COUNT = _knobs->cm_filterSelectFuzz;
+					int TOP_COUNT = _knobs->cm_filterSelectFuzz;
+					if (TOP_COUNT > SF_COUNT*CF_COUNT) {
+						TOP_COUNT = SF_COUNT*CF_COUNT;
+					}
 
 					FilterScorer::Score *top = scores.getTop(TOP_COUNT, _knobs->cm_sortFilters);
 
 					u32 best_entropy = 0x7fffffff; // lower = better
-					u8 best_codes[3][16];
+					u8 best_codes[3][FILTER_ZONE_SIZE_W * FILTER_ZONE_SIZE_H];
 					int best_count;
 
 					for (int ii = 0; ii < TOP_COUNT; ++ii) {
@@ -482,11 +502,11 @@ void ImageCMWriter::decideFilters() {
 						u8 sf = index % SF_COUNT;
 						u8 cf = index / SF_COUNT;
 
-						u8 codes[3][16];
+						u8 codes[3][FILTER_ZONE_SIZE_W*FILTER_ZONE_SIZE_H];
 						int count = 0;
 
-						for (int yy = 0; yy < FILTER_ZONE_SIZE; ++yy) {
-							for (int xx = 0; xx < FILTER_ZONE_SIZE; ++xx) {
+						for (int yy = 0; yy < FILTER_ZONE_SIZE_H; ++yy) {
+							for (int xx = 0; xx < FILTER_ZONE_SIZE_W; ++xx) {
 								int px = x + xx, py = y + yy;
 								if (px >= _width || py >= _height) {
 									continue;
@@ -536,7 +556,7 @@ void ImageCMWriter::decideFilters() {
 				}
 
 				// Set filter for this zone
-				setFilter(x, y, ((u16)bestSF << 8) | bestCF);
+				setSpatialFilter(x, y, ((u16)bestSF << 8) | bestCF);
 			}
 		}
 
@@ -552,6 +572,383 @@ void ImageCMWriter::decideFilters() {
 		++passes;
 	}
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+void ImageCMWriter::designPalFilters() {
+	_pf_set.init();
+
+	// If disabled,
+	if (!_knobs->cm_designFilters) {
+		CAT_INANE("CM") << "Skipping filter design";
+		return;
+	}
+
+	/* Inputs: A, B, C, D same as described in Filters.hpp
+	 *
+	 * PRED = (a*A + b*B + c*C + d*D) / 2
+	 * a,b,c,d = {-4, -3, -2, -1, 0, 1, 2, 3, 4}
+	 */
+
+	const int width = _width;
+
+	FilterScorer scores;
+	const int TAPPED_COUNT = PaletteFilterSet::TAPPED_COUNT;
+	scores.init(SF_COUNT + TAPPED_COUNT);
+
+	int bestHist[SF_COUNT + TAPPED_COUNT] = {0};
+
+	CAT_INANE("CM") << "Designing filters...";
+
+	const u16 PAL_SIZE = _pal->getPaletteSize();
+
+	for (int y = 0; y < _height; y += PALETTE_ZONE_SIZE_H) {
+		for (int x = 0; x < width; x += PALETTE_ZONE_SIZE_W) {
+			// If this zone is skipped,
+			if (getPaletteFilter(x, y) == UNUSED_FILTER) {
+				continue;
+			}
+
+			scores.reset();
+
+			// For each pixel in the zone,
+			for (int yy = 0; yy < PALETTE_ZONE_SIZE_H; ++yy) {
+				for (int xx = 0; xx < PALETTE_ZONE_SIZE_W; ++xx) {
+					int px = x + xx, py = y + yy;
+					if (px >= _width || py >= _height) {
+						continue;
+					}
+					if (_mask->masked(px, py)) {
+						continue;
+					}
+					if (_lz->visited(px, py)) {
+						continue;
+					}
+
+					u8 *p = _pal->get(px, py);
+					u8 A = 0, B = 0, C = 0, D = 0;
+
+					if (px > 0) {
+						A = p[-1];
+					}
+					if (py > 0 ) {
+						B = p[-width];
+						if (px > 0) {
+							C = p[-width - 1];
+						}
+						if (px < width - 1) {
+							D = p[-width + 1];
+						}
+					}
+
+					for (int ii = 0; ii < SF_COUNT; ++ii) {
+						u8 pred = _pf_set.get(ii).safe(p, px, py, width);
+
+						int err = p[0] - (int)pred;
+						if (err < 0) err = -err;
+						scores.add(ii, err);
+					}
+
+					for (int ii = 0; ii < TAPPED_COUNT; ++ii) {
+						const int a = PaletteFilterSet::FILTER_TAPS[ii][0];
+						const int b = PaletteFilterSet::FILTER_TAPS[ii][1];
+						const int c = PaletteFilterSet::FILTER_TAPS[ii][2];
+						const int d = PaletteFilterSet::FILTER_TAPS[ii][3];
+
+						const u8 pred = (u8)((a * A + b * B + c * C + d * D) / 2) % PAL_SIZE;
+						int err = p[0];
+						err -= pred;
+						if (err < 0) err = -err;
+
+						scores.add(ii + SF_COUNT, err);
+					}
+				}
+			}
+
+			FilterScorer::Score *top = scores.getLowest();
+			bestHist[top[0].index] += 4;
+
+			top = scores.getTop(4, false);
+			bestHist[top[0].index] += 1;
+			bestHist[top[1].index] += 1;
+			bestHist[top[2].index] += 1;
+			bestHist[top[3].index] += 1;
+		}
+	}
+
+	// Replace filters
+	for (int jj = 0; jj < SF_COUNT; ++jj) {
+		// Find worst default filter
+		int lowest_sf = 0x7fffffffUL, lowest_index = 0;
+
+		for (int ii = 0; ii < SF_COUNT; ++ii) {
+			if (bestHist[ii] < lowest_sf) {
+				lowest_sf = bestHist[ii];
+				lowest_index = ii;
+			}
+		}
+
+		// Find best custom filter
+		int best_tap = -1, highest_index = -1;
+
+		for (int ii = 0; ii < TAPPED_COUNT; ++ii) {
+			int score = bestHist[ii + SF_COUNT];
+
+			if (score > best_tap) {
+				best_tap = score;
+				highest_index = ii;
+			}
+		}
+
+		// If it not an improvement,
+		if (best_tap <= lowest_sf) {
+			break;
+		}
+
+		// Verify it is good enough to bother with
+		double ratio = best_tap / (double)lowest_sf;
+		if (ratio < _knobs->cm_minTapQuality) {
+			break;
+		}
+
+		// Insert it at this location
+		const int a = PaletteFilterSet::FILTER_TAPS[highest_index][0];
+		const int b = PaletteFilterSet::FILTER_TAPS[highest_index][1];
+		const int c = PaletteFilterSet::FILTER_TAPS[highest_index][2];
+		const int d = PaletteFilterSet::FILTER_TAPS[highest_index][3];
+
+		CAT_INANE("CM") << "Replacing default filter " << lowest_index << " with tapped filter " << highest_index << " that is " << ratio << "x more preferable : PRED = (" << a << "A + " << b << "B + " << c << "C + " << d << "D) / 2";
+
+		_filter_replacements.push_back((lowest_index << 16) | highest_index);
+
+		_pf_set.replace(lowest_index, highest_index);
+
+		// Install grave markers
+		bestHist[lowest_index] = 0x7fffffffUL;
+		bestHist[highest_index + SF_COUNT] = 0;
+	}
+}
+
+void ImageCMWriter::decidePalFilters() {
+	EntropyEstimator ee;
+	ee.init();
+
+	FilterScorer scores;
+	scores.init(SF_COUNT);
+
+	const int width = _width;
+	const u16 PAL_SIZE = _pal->getPaletteSize();
+
+	if (!_knobs->cm_disableEntropy) {
+		CAT_INANE("CM") << "Scoring filters using " << _knobs->cm_filterSelectFuzz << " entropy-based trials...";
+	} else {
+		CAT_INANE("CM") << "Scoring filters using L1-norm...";
+	}
+
+	int passes = 0;
+	int revisitCount = _knobs->cm_revisitCount;
+
+	for (;;) {
+		for (int y = 0; y < _height; y += PALETTE_ZONE_SIZE_H) {
+			for (int x = 0; x < width; x += PALETTE_ZONE_SIZE_W) {
+				// If this zone is skipped,
+				const u16 filter = getPaletteFilter(x, y);
+				if (filter == UNUSED_FILTER) {
+					continue;
+				}
+
+				// Determine best filter combination to use
+				int bestSF = 0;
+
+				// If we are on the second or later pass,
+				if (passes > 0) {
+					// If just finished revisiting old zones,
+					if (--revisitCount < 0) {
+						// Done!
+						return;
+					}
+
+					bestSF = (u8)filter;
+
+					u8 codes[PALETTE_ZONE_SIZE_W*PALETTE_ZONE_SIZE_H];
+					int count = 0;
+
+					// For each pixel in the zone,
+					for (int yy = 0; yy < PALETTE_ZONE_SIZE_H; ++yy) {
+						for (int xx = 0; xx < PALETTE_ZONE_SIZE_W; ++xx) {
+							int px = x + xx, py = y + yy;
+							if (px >= _width || py >= _height) {
+								continue;
+							}
+							if (_mask->masked(px, py)) {
+								continue;
+							}
+							if (_lz->visited(px, py)) {
+								continue;
+							}
+
+							const u8 *p = _pal->get(px, py);
+							const u8 pred = _pf_set.get(bestSF).safe(p, px, py, width) % PAL_SIZE;
+							codes[count++] = (u8)(p[0] - pred) % PAL_SIZE;
+						}
+					}
+
+					// Subtract old choice back out
+					ee.subtract(codes, count);
+				}
+
+				scores.reset();
+
+				// For each pixel in the zone,
+				for (int yy = 0; yy < PALETTE_ZONE_SIZE_H; ++yy) {
+					for (int xx = 0; xx < PALETTE_ZONE_SIZE_W; ++xx) {
+						int px = x + xx, py = y + yy;
+						if (px >= _width || py >= _height) {
+							continue;
+						}
+						if (_mask->masked(px, py)) {
+							continue;
+						}
+						if (_lz->visited(px, py)) {
+							continue;
+						}
+
+						const u8 *p = _pal->get(px, py);
+
+						for (int ii = 0; ii < SF_COUNT; ++ii) {
+							const u8 pred = _pf_set.get(bestSF).safe(p, px, py, width) % PAL_SIZE;
+							int error = p[0];
+							error -= pred;
+							if (error < 0) {
+								error = -error;
+							}
+
+							scores.add(ii, error);
+						}
+					}
+				}
+
+				FilterScorer::Score *lowest = scores.getLowest();
+
+				if (_knobs->cm_disableEntropy ||
+						lowest->score <= _knobs->cm_maxEntropySkip) {
+					bestSF = lowest->index;
+
+					if (!_knobs->cm_disableEntropy) {
+						u8 codes[PALETTE_ZONE_SIZE_W*PALETTE_ZONE_SIZE_H];
+						int count = 0;
+
+						// Record this choice
+						for (int yy = 0; yy < PALETTE_ZONE_SIZE_H; ++yy) {
+							for (int xx = 0; xx < PALETTE_ZONE_SIZE_W; ++xx) {
+								int px = x + xx, py = y + yy;
+								if (px >= _width || py >= _height) {
+									continue;
+								}
+								if (_mask->masked(px, py)) {
+									continue;
+								}
+								if (_lz->visited(px, py)) {
+									continue;
+								}
+
+								const u8 *p = _pal->get(px, py);
+								const u8 pred = _pf_set.get(bestSF).safe(p, px, py, width) % PAL_SIZE;
+								codes[count++] = (u8)(p[0] - pred) % PAL_SIZE;
+							}
+						}
+
+						ee.add(codes, count);
+					}
+				} else {
+					int TOP_COUNT = _knobs->cm_filterSelectFuzz;
+					if (TOP_COUNT > SF_COUNT) {
+						TOP_COUNT = SF_COUNT;
+					}
+
+					FilterScorer::Score *top = scores.getTop(TOP_COUNT, _knobs->cm_sortFilters);
+
+					u32 best_entropy = 0x7fffffff; // lower = better
+					u8 best_codes[PALETTE_ZONE_SIZE_W*PALETTE_ZONE_SIZE_H];
+					int best_count = -1;
+
+					for (int ii = 0; ii < TOP_COUNT; ++ii) {
+						const int index = top[ii].index;
+						u8 sf = (u8)index;
+
+						u8 codes[PALETTE_ZONE_SIZE_W*PALETTE_ZONE_SIZE_H];
+						int count = 0;
+
+						for (int yy = 0; yy < PALETTE_ZONE_SIZE_H; ++yy) {
+							for (int xx = 0; xx < PALETTE_ZONE_SIZE_W; ++xx) {
+								int px = x + xx, py = y + yy;
+								if (px >= _width || py >= _height) {
+									continue;
+								}
+								if (_mask->masked(px, py)) {
+									continue;
+								}
+								if (_lz->visited(px, py)) {
+									continue;
+								}
+
+								const u8 *p = _pal->get(px, py);
+								const u8 pred = _pf_set.get(sf).safe(p, px, py, width) % PAL_SIZE;
+								codes[count++] = (u8)(p[0] - pred) % PAL_SIZE;
+							}
+						}
+
+						u32 entropy = ee.entropy(codes, count);
+
+						if (best_entropy > entropy) {
+							best_entropy = entropy;
+							memcpy(best_codes, codes, sizeof(best_codes));
+							best_count = count;
+
+							bestSF = sf;
+						}
+					}
+
+					ee.add(best_codes, best_count);
+				}
+
+				// Set filter for this zone
+				setPaletteFilter(x, y, bestSF);
+			}
+		}
+
+		// After good statistics are collected, revisit the first few zones
+		if (revisitCount <= 0) {
+			// Exit now!
+			return;
+		}
+
+		if (passes < 4) {
+			CAT_INANE("CM") << "Revisiting filter selections from the top... " << revisitCount << " left";
+		}
+		++passes;
+	}
+}
+
+
+
+
+
+
+
+
 
 void ImageCMWriter::scanlineLZ() {
 
@@ -676,12 +1073,12 @@ void ImageCMWriter::scanlineLZ() {
 
 void ImageCMWriter::maskFilters() {
 	// For each zone,
-	for (int y = 0, height = _height; y < height; y += FILTER_ZONE_SIZE) {
-		for (int x = 0, width = _width; x < width; x += FILTER_ZONE_SIZE) {
+	for (int y = 0, height = _height; y < height; y += FILTER_ZONE_SIZE_H) {
+		for (int x = 0, width = _width; x < width; x += FILTER_ZONE_SIZE_W) {
 			bool on = true;
 
-			for (int ii = 0; ii < FILTER_ZONE_SIZE; ++ii) {
-				for (int jj = 0; jj < FILTER_ZONE_SIZE; ++jj) {
+			for (int ii = 0; ii < FILTER_ZONE_SIZE_W; ++ii) {
+				for (int jj = 0; jj < FILTER_ZONE_SIZE_H; ++jj) {
 					int px = x + ii, py = y + jj;
 					if (px >= _width || py >= _height) {
 						continue;
@@ -689,16 +1086,47 @@ void ImageCMWriter::maskFilters() {
 					if (!_mask->masked(px, py) &&
 						!_lz->visited(px, py)) {
 						on = false;
-						ii = FILTER_ZONE_SIZE;
+						ii = FILTER_ZONE_SIZE_W;
 						break;
 					}
 				}
 			}
 
 			if (on) {
-				setFilter(x, y, UNUSED_FILTER);
+				setSpatialFilter(x, y, UNUSED_FILTER);
 			} else {
-				setFilter(x, y, TODO_FILTER);
+				setSpatialFilter(x, y, TODO_FILTER);
+			}
+		}
+	}
+}
+
+
+void ImageCMWriter::maskPalFilters() {
+	// For each zone,
+	for (int y = 0, height = _height; y < height; y += PALETTE_ZONE_SIZE_H) {
+		for (int x = 0, width = _width; x < width; x += PALETTE_ZONE_SIZE_W) {
+			bool on = true;
+
+			for (int ii = 0; ii < PALETTE_ZONE_SIZE_W; ++ii) {
+				for (int jj = 0; jj < PALETTE_ZONE_SIZE_H; ++jj) {
+					int px = x + ii, py = y + jj;
+					if (px >= _width || py >= _height) {
+						continue;
+					}
+					if (!_mask->masked(px, py) &&
+						!_lz->visited(px, py)) {
+						on = false;
+						ii = PALETTE_ZONE_SIZE_W;
+						break;
+					}
+				}
+			}
+
+			if (on) {
+				setPaletteFilter(x, y, UNUSED_FILTER);
+			} else {
+				setPaletteFilter(x, y, TODO_FILTER);
 			}
 		}
 	}
@@ -709,10 +1137,10 @@ bool ImageCMWriter::applyFilters() {
 	FreqHistogram<CF_COUNT> cf_hist;
 
 	// For each zone,
-	for (int y = 0, height = _height; y < height; y += FILTER_ZONE_SIZE) {
-		for (int x = 0, width = _width; x < width; x += FILTER_ZONE_SIZE) {
+	for (int y = 0, height = _height; y < height; y += FILTER_ZONE_SIZE_H) {
+		for (int x = 0, width = _width; x < width; x += FILTER_ZONE_SIZE_W) {
 			// Read filter
-			u16 filter = getFilter(x, y);
+			u16 filter = getSpatialFilter(x, y);
 			if (filter != UNUSED_FILTER) {
 				u8 cf = (u8)filter;
 				u8 sf = (u8)(filter >> 8);
@@ -734,144 +1162,34 @@ bool ImageCMWriter::applyFilters() {
 	return true;
 }
 
+bool ImageCMWriter::applyPalFilters() {
+	FreqHistogram<SF_COUNT> sf_hist;
 
+	// For each zone,
+	for (int y = 0, height = _height; y < height; y += PALETTE_ZONE_SIZE_H) {
+		for (int x = 0, width = _width; x < width; x += PALETTE_ZONE_SIZE_W) {
+			// Read filter
+			u16 filter = getPaletteFilter(x, y);
+			if (filter != UNUSED_FILTER) {
+				u8 sf = (u8)filter;
 
-//#define TEST_COLOR_FILTERS
-
-#ifdef TEST_COLOR_FILTERS
-
-#include <iostream>
-using namespace std;
-
-const char *cat::GetColorFilterString(int cf) {
-	switch (cf) {
-		case CF_YUVr:	// YUVr from JPEG2000
-			return "YUVr";
-
-		case CF_E2_R:	// derived from E2 and YCgCo-R
-			 return "E2-R";
-
-		case CF_D8:		// from the Strutz paper
-			 return "D8";
-		case CF_D9:		// from the Strutz paper
-			 return "D9";
-		case CF_D14:		// from the Strutz paper
-			 return "D14";
-
-		case CF_D10:		// from the Strutz paper
-			 return "D10";
-		case CF_D11:		// from the Strutz paper
-			 return "D11";
-		case CF_D12:		// from the Strutz paper
-			 return "D12";
-		case CF_D18:		// from the Strutz paper
-			 return "D18";
-
-		case CF_YCgCo_R:	// Malvar's YCgCo-R
-			 return "YCgCo-R";
-
-		case CF_GB_RG:	// from BCIF
-			 return "BCIF-GB-RG";
-		case CF_GB_RB:	// from BCIF
-			 return "BCIF-GB-RB";
-		case CF_GR_BR:	// from BCIF
-			 return "BCIF-GR-BR";
-		case CF_GR_BG:	// from BCIF
-			 return "BCIF-GR-BG";
-		case CF_BG_RG:	// from BCIF (recommendation from LOCO-I paper)
-			 return "BCIF-BG-RG";
-
-		case CF_B_GR_R:		// RGB -> B, G-R, R
-			 return "B_GR_R";
-	}
-
-	return "Unknown";
-}
-
-void cat::testColorFilters() {
-	for (int cf = 0; cf < CF_COUNT; ++cf) {
-		for (int r = 0; r < 256; ++r) {
-			for (int g = 0; g < 256; ++g) {
-				for (int b = 0; b < 256; ++b) {
-					u8 yuv[3];
-					u8 rgb[3] = {r, g, b};
-					RGB2YUV_FILTERS[cf](rgb, yuv);
-					u8 rgb2[3];
-					YUV2RGB_FILTERS[cf](yuv, rgb2);
-
-					if (rgb2[0] != r || rgb2[1] != g || rgb2[2] != b) {
-						cout << "Color filter " << GetColorFilterString(cf) << " is lossy for " << r << "," << g << "," << b << " -> " << (int)rgb2[0] << "," << (int)rgb2[1] << "," << (int)rgb2[2] << endl;
-						goto nextcf;
-					}
-				}
+				sf_hist.add(sf);
 			}
 		}
-
-		cout << "Color filter " << GetColorFilterString(cf) << " is reversible with YUV888!" << endl;
-nextcf:
-		;
 	}
+
+	// Geneerate huffman codes from final histogram
+	if (!_sf_encoder.init(sf_hist)) {
+		return false;
+	}
+
+	return true;
 }
 
-#endif // TEST_COLOR_FILTERS
 
 
-
-//#define GENERATE_CHAOS_TABLE
-
-#ifdef GENERATE_CHAOS_TABLE
-
-static int CalculateChaos(int sum) {
-	if (sum <= 0) {
-		return 0;
-	} else {
-		int chaos = BSR32(sum - 1) + 1;
-		if (chaos > 7) {
-			chaos = 7;
-		}
-		return chaos;
-	}
-}
-
-#include <iostream>
-#include <iomanip>
-using namespace std;
-
-void GenerateChaosTable() {
-	cout << "const u8 cat::CHAOS_TABLE[512] = {";
-
-	for (int sum = 0; sum < 256*2; ++sum) {
-		if ((sum & 31) == 0) {
-			cout << endl << '\t';
-		}
-		cout << CalculateChaos(sum) << ",";
-	}
-
-	cout << endl << "};" << endl;
-
-	cout << "const u8 cat::CHAOS_SCORE[256] = {";
-
-	for (int sum = 0; sum < 256; ++sum) {
-		if ((sum & 15) == 0) {
-			cout << endl << '\t';
-		}
-		int score = sum;
-		if (score >= 128) {
-			score = 256 - score;
-		}
-		cout << "0x" << setw(2) << setfill('0') << hex << score << ",";
-	}
-
-	cout << endl << "};" << endl;
-}
-
-#endif // GENERATE_CHAOS_TABLE
 
 void ImageCMWriter::chaosStats() {
-#ifdef GENERATE_CHAOS_TABLE
-	GenerateChaosTable();
-#endif
-
 	// Find number of pixels to encode
 	int chaos_count = 0;
 	for (int y = 0; y < _height; ++y) {
@@ -922,7 +1240,7 @@ void ImageCMWriter::chaosStats() {
 			// If not masked out,
 			if (!_lz->visited(x, y) && !_mask->masked(x, y)) {
 				// Get filter for this pixel
-				const u16 filter = getFilter(x, y);
+				const u16 filter = getSpatialFilter(x, y);
 				const u8 cf = (u8)filter;
 				const u8 sf = (u8)(filter >> 8);
 
@@ -976,8 +1294,100 @@ void ImageCMWriter::chaosStats() {
 	}
 }
 
-int ImageCMWriter::initFromRGBA(const u8 *rgba, int width, int height, ImageMaskWriter &mask, ImageLZWriter &lz, const GCIFKnobs *knobs) {
+
+
+
+
+void ImageCMWriter::chaosPalStats() {
+	// Find number of pixels to encode
+	int chaos_count = 0;
+	for (int y = 0; y < _height; ++y) {
+		for (int x = 0; x < _width; ++x) {
+			if (!_lz->visited(x, y) && !_mask->masked(x, y)) {
+				++chaos_count;
+			}
+		}
+	}
+
+#ifdef CAT_COLLECT_STATS
+	Stats.chaos_count = chaos_count;
+#endif
+
+	// If it is above a threshold,
+	if (chaos_count >= _knobs->cm_chaosThresh) {
+		CAT_DEBUG_ENFORCE(CHAOS_LEVELS_MAX == 8);
+
+		// Use more chaos levels for better compression
+		_chaos_levels = CHAOS_LEVELS_MAX;
+		_chaos_table = CHAOS_TABLE_8;
+	} else {
+		_chaos_levels = 1;
+		_chaos_table = CHAOS_TABLE_1;
+	}
+
+	const int width = _width;
+	const int PAL_SIZE = _pal->getPaletteSize();
+
+	// For each scanline,
+	const u8 *p = _pal->get(0, 0);
+	u8 *lastStart = _chaos + 1;
+	CAT_CLR(_chaos, _chaos_size);
+
+	const u8 *CHAOS_TABLE = _chaos_table;
+
+	for (int y = 0; y < _height; ++y) {
+		u8 *last = lastStart;
+
+		// Zero left
+		last[-1] = 0;
+
+		// For each pixel,
+		for (int x = 0; x < width; ++x) {
+			// If not masked out,
+			if (!_lz->visited(x, y) && !_mask->masked(x, y)) {
+				// Get filter for this pixel
+				const u16 filter = getPaletteFilter(x, y);
+				const u8 sf = (u8)filter;
+
+				// Apply spatial filter
+				const u8 pred = _pf_set.get(sf).safe(p, x, y, width) % PAL_SIZE;
+				u8 n = (u8)(p[0] - pred) % PAL_SIZE;
+
+				u8 chaos = CHAOS_TABLE[CHAOS_SCORE[last[-1]] + CHAOS_SCORE[last[0]]];
+				_y_encoder[chaos].add(n);
+
+				last[0] = n;
+			} else {
+				last[0] = 0;
+			}
+
+			// Next pixel
+			++last;
+			++p;
+		}
+	}
+
+	// Finalize
+	for (int jj = 0; jj < _chaos_levels; ++jj) {
+		_y_encoder[jj].finalize();
+	}
+}
+
+
+
+
+
+
+
+
+int ImageCMWriter::initFromRGBA(const u8 *rgba, int width, int height, ImageMaskWriter &mask, ImageLZWriter &lz, ImagePaletteWriter &pal, const GCIFKnobs *knobs) {
 	int err;
+
+	_knobs = knobs;
+	_rgba = rgba;
+	_mask = &mask;
+	_lz = &lz;
+	_pal = &pal;
 
 	if ((err = init(width, height))) {
 		return err;
@@ -987,34 +1397,40 @@ int ImageCMWriter::initFromRGBA(const u8 *rgba, int width, int height, ImageMask
 		return GCIF_WE_BAD_PARAMS;
 	}
 
-	_knobs = knobs;
-	_rgba = rgba;
-	_mask = &mask;
-	_lz = &lz;
+	if (_pal->enabled()) {
+		maskPalFilters();
 
-#ifdef TEST_COLOR_FILTERS
-	testColorFilters();
-	return -1;
-#endif
+		designPalFilters();
+		decidePalFilters();
 
-	maskFilters();
+		if (!applyPalFilters()) {
+			return GCIF_WE_BUG;
+		}
 
-	designFilters();
+		chaosPalStats();
+	} else {
+		maskFilters();
 
-	decideFilters();
+		designFilters();
+		decideFilters();
 
-	if (_knobs->cm_scanlineFilters) {
-		scanlineLZ();
+		if (_knobs->cm_scanlineFilters) {
+			scanlineLZ();
+		}
+
+		if (!applyFilters()) {
+			return GCIF_WE_BUG;
+		}
+
+		chaosStats();
 	}
-
-	if (!applyFilters()) {
-		return GCIF_WE_BUG;
-	}
-
-	chaosStats();
 
 	return GCIF_WE_OK;
 }
+
+
+
+
 
 bool ImageCMWriter::writeFilters(ImageWriter &writer) {
 	const int rep_count = static_cast<int>( _filter_replacements.size() );
@@ -1091,7 +1507,7 @@ bool ImageCMWriter::writeChaos(ImageWriter &writer) {
 		last[3 - 4] = 0;
 
 		// If it is time to clear the seen filters,
-		if ((y & FILTER_ZONE_SIZE_MASK) == 0) {
+		if ((y & FILTER_ZONE_SIZE_MASK_H) == 0) {
 			CAT_CLR(_seen_filter, _filter_stride);
 		}
 
@@ -1102,14 +1518,14 @@ bool ImageCMWriter::writeChaos(ImageWriter &writer) {
 			// If not masked out,
 			if (!_lz->visited(x, y) && !_mask->masked(x, y)) {
 				// Get filter for this pixel
-				u16 filter = getFilter(x, y);
+				u16 filter = getSpatialFilter(x, y);
 				CAT_DEBUG_ENFORCE(filter != UNUSED_FILTER);
 				u8 cf = (u8)filter;
 				u8 sf = (u8)(filter >> 8);
 
 				// If it is time to write out the filter information,
-				if (!_seen_filter[x >> FILTER_ZONE_SIZE_SHIFT]) {
-					_seen_filter[x >> FILTER_ZONE_SIZE_SHIFT] = true;
+				if (!_seen_filter[x >> FILTER_ZONE_SIZE_SHIFT_W]) {
+					_seen_filter[x >> FILTER_ZONE_SIZE_SHIFT_W] = true;
 
 					int cf_bits = _cf_encoder.writeSymbol(cf, writer);
 					DESYNC_FILTER(x, y);
@@ -1192,12 +1608,154 @@ bool ImageCMWriter::writeChaos(ImageWriter &writer) {
 	return true;
 }
 
+
+
+
+
+bool ImageCMWriter::writePalFilters(ImageWriter &writer) {
+	const int rep_count = static_cast<int>( _filter_replacements.size() );
+
+	CAT_DEBUG_ENFORCE(SF_COUNT < 32);
+	CAT_DEBUG_ENFORCE(PaletteFilterSet::TAPPED_COUNT < 128);
+
+	writer.writeBits(rep_count, 5);
+	int bits = 5;
+
+	for (int ii = 0; ii < rep_count; ++ii) {
+		u32 filter = _filter_replacements[ii];
+
+		u16 def = (u16)(filter >> 16);
+		u16 cust = (u16)filter;
+
+		writer.writeBits(def, 5);
+		writer.writeBits(cust, 7);
+		bits += 12;
+	}
+
+	// Write out filter huffman tables
+	int sf_table_bits = _sf_encoder.writeTable(writer);
+
+#ifdef CAT_COLLECT_STATS
+	Stats.filter_table_bits[0] = sf_table_bits + bits;
+	Stats.filter_table_bits[1] = 0;
+#endif // CAT_COLLECT_STATS
+
+	return true;
+}
+
+bool ImageCMWriter::writePalChaos(ImageWriter &writer) {
+#ifdef CAT_COLLECT_STATS
+	int overhead_bits = 0;
+	int bitcount = 0;
+	int filter_table_bits = 0;
+#endif
+
+	CAT_DEBUG_ENFORCE(_chaos_levels <= 8);
+
+	writer.writeBits(_chaos_levels - 1, 3);
+
+	int bits = 3;
+
+	for (int jj = 0; jj < _chaos_levels; ++jj) {
+		bits += _y_encoder[jj].writeTables(writer);
+	}
+#ifdef CAT_COLLECT_STATS
+	overhead_bits += bits;
+#endif
+
+	const int width = _width;
+	const int PAL_SIZE = _pal->getPaletteSize();
+
+	// For each scanline,
+	const u8 *p = _pal->get(0, 0);
+	u8 *lastStart = _chaos + 1;
+	CAT_CLR(_chaos, _chaos_size);
+
+	const u8 *CHAOS_TABLE = _chaos_table;
+
+	for (int y = 0; y < _height; ++y) {
+		u8 *last = lastStart;
+
+		// Zero left
+		last[-1] = 0;
+
+		// If it is time to clear the seen filters,
+		if ((y & PALETTE_ZONE_SIZE_MASK_H) == 0) {
+			CAT_CLR(_seen_filter, _filter_stride);
+		}
+
+		// For each pixel,
+		for (int x = 0; x < width; ++x) {
+			DESYNC(x, y);
+
+			// If not masked out,
+			if (!_lz->visited(x, y) && !_mask->masked(x, y)) {
+				// Get filter for this pixel
+				u16 filter = getPaletteFilter(x, y);
+				CAT_DEBUG_ENFORCE(filter != UNUSED_FILTER);
+				u8 sf = (u8)filter;
+
+				// If it is time to write out the filter information,
+				if (!_seen_filter[x >> PALETTE_ZONE_SIZE_SHIFT_W]) {
+					_seen_filter[x >> PALETTE_ZONE_SIZE_SHIFT_W] = true;
+
+					int sf_bits = _sf_encoder.writeSymbol(sf, writer);
+					DESYNC_FILTER(x, y);
+
+#ifdef CAT_COLLECT_STATS
+					filter_table_bits += sf_bits;
+#endif
+				}
+
+				// Apply spatial filter
+				const u8 pred = _pf_set.get(sf).safe(p, x, y, width) % PAL_SIZE;
+				u8 n = (u8)(p[0] - pred) % PAL_SIZE;
+
+				u8 chaos = CHAOS_TABLE[CHAOS_SCORE[last[-1]] + CHAOS_SCORE[last[0]]];
+
+				int bits = _y_encoder[chaos].write(n, writer);
+				DESYNC(x, y);
+#ifdef CAT_COLLECT_STATS
+				bitcount += bits;
+#endif
+
+				last[0] = n;
+			} else {
+				last[0] = 0;
+			}
+
+			// Next pixel
+			++last;
+			++p;
+		}
+	}
+
+#ifdef CAT_COLLECT_STATS
+	Stats.rgb_bits[0] = bitcount;
+	for (int ii = 1; ii < COLOR_PLANES; ++ii) {
+		Stats.rgb_bits[ii] = 0;
+	}
+	Stats.chaos_overhead_bits = overhead_bits;
+	Stats.filter_compressed_bits[0] = filter_table_bits;
+	Stats.filter_compressed_bits[1] = 0;
+#endif
+
+	return true;
+}
+
+
+
+
 void ImageCMWriter::write(ImageWriter &writer) {
 	CAT_INANE("CM") << "Writing encoded pixel data...";
 
-	writeFilters(writer);
-
-	writeChaos(writer);
+	if (_pal->enabled()) {
+		writePalFilters(writer);
+		writePalChaos(writer);
+	} else {
+		writeFilters(writer);
+		writeChaos(writer);
+	}
 
 #ifdef CAT_COLLECT_STATS
 	int total = 0;
@@ -1220,6 +1778,10 @@ void ImageCMWriter::write(ImageWriter &writer) {
 #endif
 }
 
+
+
+
+
 #ifdef CAT_COLLECT_STATS
 
 bool ImageCMWriter::dumpStats() {
@@ -1239,6 +1801,7 @@ bool ImageCMWriter::dumpStats() {
 	CAT_INANE("stats") << "(CM Compress) Chaos compression ratio : " << Stats.chaos_compression_ratio << ":1";
 	CAT_INANE("stats") << "(CM Compress) Overall size : " << Stats.total_bits << " bits (" << Stats.total_bits/8 << " bytes)";
 	CAT_INANE("stats") << "(CM Compress) Overall compression ratio : " << Stats.overall_compression_ratio << ":1";
+	CAT_INANE("stats") << "(CM Compress) Image dimensions were : " << _width << " x " << _height << " pixels";
 
 	return true;
 }

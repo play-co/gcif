@@ -122,6 +122,10 @@ public:
 		clear();
 	}
 
+	CAT_INLINE bool enabled() {
+		return _enabled;
+	}
+
 	CAT_INLINE u32 getColor() {
 		return _color;
 	}
@@ -180,6 +184,14 @@ public:
 	CAT_INLINE ImageMaskWriter() {
 	}
 	CAT_INLINE virtual ~ImageMaskWriter() {
+	}
+
+	CAT_INLINE bool enabled() {
+		return _color.enabled();
+	}
+
+	CAT_INLINE u32 getColor() {
+		return _color.getColor();
 	}
 
 	int initFromRGBA(const u8 *rgba, int width, int height, const GCIFKnobs *knobs);

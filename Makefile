@@ -21,7 +21,7 @@ gcif_objects += lz4hc.o HuffmanEncoder.o
 gcif_objects += SystemInfo.o ImageWriter.o
 gcif_objects += ImageMaskWriter.o
 gcif_objects += ImageCMWriter.o FilterScorer.o
-gcif_objects += ImageLZWriter.o
+gcif_objects += ImageLZWriter.o ImagePaletteWriter.o
 gcif_objects += GCIFWriter.o EntropyEstimator.o WaitableFlag.o
 gcif_objects += $(decode_objects)
 #gcif_objects += ImageLPReader.o ImageLPWriter.o
@@ -50,6 +50,7 @@ SRCS += encoder/ImageCMWriter.cpp
 SRCS += encoder/FilterScorer.cpp
 SRCS += encoder/ImageLZWriter.cpp
 SRCS += encoder/GCIFWriter.cpp
+SRCS += encoder/ImagePaletteWriter.cpp
 SRCS += encoder/EntropyEstimator.cpp encoder/WaitableFlag.cpp
 SRCS += $(DECODE_SRCS)
 #SRCS += ImageLPReader.cpp ImageLPWriter.cpp
@@ -152,6 +153,9 @@ Filters.o : decoder/Filters.cpp
 
 ImageLZWriter.o : encoder/ImageLZWriter.cpp
 	$(CCPP) $(CPFLAGS) -c encoder/ImageLZWriter.cpp
+
+ImagePaletteWriter.o : encoder/ImagePaletteWriter.cpp
+	$(CCPP) $(CPFLAGS) -c encoder/ImagePaletteWriter.cpp
 
 ImageLZReader.o : decoder/ImageLZReader.cpp
 	$(CCPP) $(CPFLAGS) -c decoder/ImageLZReader.cpp

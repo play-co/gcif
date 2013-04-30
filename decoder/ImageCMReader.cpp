@@ -75,7 +75,7 @@ int ImageCMReader::init(GCIFImage *image) {
 	image->rgba = _rgba;
 
 	// Just need to remember the last row of filters
-	const int filter_count = (_width + FILTER_ZONE_SIZE_MASK) >> FILTER_ZONE_SIZE_SHIFT;
+	const int filter_count = (_width + FILTER_ZONE_SIZE_MASK_W) >> FILTER_ZONE_SIZE_SHIFT_W;
 	_filters_bytes = filter_count * sizeof(FilterSelection);
 
 	if (!_filters || _filters_bytes > _filters_alloc) {
@@ -246,7 +246,7 @@ int ImageCMReader::readPixels(ImageReader &reader) {
 				last[3] = 0;
 			} else {
 				// Read SF and CF for this zone
-				FilterSelection *filter = &_filters[x >> FILTER_ZONE_SIZE_SHIFT];
+				FilterSelection *filter = &_filters[x >> FILTER_ZONE_SIZE_SHIFT_W];
 				if (!filter->ready()) {
 					filter->cf = YUV2RGB_FILTERS[_cf.next(reader)];
 					DESYNC_FILTER(x, y);
@@ -314,7 +314,7 @@ int ImageCMReader::readPixels(ImageReader &reader) {
 		}
 
 		// If it is time to clear the filters data,
-		if ((y & FILTER_ZONE_SIZE_MASK) == 0) {
+		if ((y & FILTER_ZONE_SIZE_MASK_W) == 0) {
 			CAT_CLR(_filters, _filters_bytes);
 		}
 
@@ -357,7 +357,7 @@ int ImageCMReader::readPixels(ImageReader &reader) {
 				last[3] = 0;
 			} else {
 				// Read SF and CF for this zone
-				FilterSelection *filter = &_filters[x >> FILTER_ZONE_SIZE_SHIFT];
+				FilterSelection *filter = &_filters[x >> FILTER_ZONE_SIZE_SHIFT_W];
 				if (!filter->ready()) {
 					filter->cf = YUV2RGB_FILTERS[_cf.next(reader)];
 					DESYNC_FILTER(x, y);
@@ -445,7 +445,7 @@ int ImageCMReader::readPixels(ImageReader &reader) {
 				last[3] = 0;
 			} else {
 				// Read SF and CF for this zone
-				FilterSelection *filter = &_filters[x >> FILTER_ZONE_SIZE_SHIFT];
+				FilterSelection *filter = &_filters[x >> FILTER_ZONE_SIZE_SHIFT_W];
 				if (!filter->ready()) {
 					filter->cf = YUV2RGB_FILTERS[_cf.next(reader)];
 					DESYNC_FILTER(x, y);
@@ -533,7 +533,7 @@ int ImageCMReader::readPixels(ImageReader &reader) {
 				last[3] = 0;
 			} else {
 				// Read SF and CF for this zone
-				FilterSelection *filter = &_filters[x >> FILTER_ZONE_SIZE_SHIFT];
+				FilterSelection *filter = &_filters[x >> FILTER_ZONE_SIZE_SHIFT_W];
 				if (!filter->ready()) {
 					filter->cf = YUV2RGB_FILTERS[_cf.next(reader)];
 					DESYNC_FILTER(x, y);
