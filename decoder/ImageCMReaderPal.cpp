@@ -26,7 +26,7 @@
 	POSSIBILITY OF SUCH DAMAGE.
 */
 
-#include "ImageCMReader.hpp"
+#include "ImageCMReaderPal.hpp"
 #include "Enforcer.hpp"
 using namespace cat;
 
@@ -50,9 +50,9 @@ static cat::Clock *m_clock = 0;
 #endif
 
 
-//// ImageCMReader
+//// ImageCMReaderPal
 
-void ImageCMReader::clear() {
+void ImageCMReaderPal::clear() {
 	if (_chaos) {
 		delete []_chaos;
 		_chaos = 0;
@@ -64,7 +64,7 @@ void ImageCMReader::clear() {
 	// Do not free RGBA data here
 }
 
-int ImageCMReader::init(GCIFImage *image) {
+int ImageCMReaderPal::init(GCIFImage *image) {
 	_width = image->width;
 	_height = image->height;
 
@@ -75,7 +75,7 @@ int ImageCMReader::init(GCIFImage *image) {
 	image->rgba = _rgba;
 
 	// Just need to remember the last row of filters
-	const int filter_count = (_width + FILTER_ZONE_SIZE_MASK_W) >> FILTER_ZONE_SIZE_SHIFT_W;
+	const int filter_count = (_width + PALETTE_ZONE_SIZE_MASK_W) >> PALETTE_ZONE_SIZE_SHIFT_W;
 	_filters_bytes = filter_count * sizeof(FilterSelection);
 
 	if (!_filters || _filters_bytes > _filters_alloc) {
@@ -87,7 +87,7 @@ int ImageCMReader::init(GCIFImage *image) {
 	}
 
 	// And last row of chaos data
-	_chaos_size = (_width + 1) * COLOR_PLANES;
+	_chaos_size = _width + 1;
 
 	if (!_chaos || _chaos_alloc < _chaos_size) {
 		if (_chaos) {
@@ -100,7 +100,7 @@ int ImageCMReader::init(GCIFImage *image) {
 	return GCIF_RE_OK;
 }
 
-int ImageCMReader::readFilterTables(ImageReader &reader) {
+int ImageCMReaderPal::readFilterTables(ImageReader &reader) {
 	// Read in count of custom spatial filters
 	int rep_count = reader.readBits(5);
 	if (rep_count > SF_COUNT) {
@@ -108,7 +108,7 @@ int ImageCMReader::readFilterTables(ImageReader &reader) {
 		return GCIF_RE_CM_CODES;
 	}
 
-	_sf_set.init();
+	_pf_set.init();
 
 	// Read in the preset index for each custom filter
 	for (int ii = 0; ii < rep_count; ++ii) {
@@ -125,13 +125,7 @@ int ImageCMReader::readFilterTables(ImageReader &reader) {
 			return GCIF_RE_CM_CODES;
 		}
 
-		_sf_set.replace(def, cust);
-	}
-
-	// Initialize huffman decoder
-	if (reader.eof() || !_cf.init(CF_COUNT, reader, 8)) {
-		CAT_DEBUG_EXCEPTION();
-		return GCIF_RE_CM_CODES;
+		_pf_set.replace(def, cust);
 	}
 
 	// Initialize huffman decoder
@@ -143,7 +137,7 @@ int ImageCMReader::readFilterTables(ImageReader &reader) {
 	return GCIF_RE_OK;
 }
 
-int ImageCMReader::readChaosTables(ImageReader &reader) {
+int ImageCMReaderPal::readChaosTables(ImageReader &reader) {
 	_chaos_levels = reader.readBits(3) + 1;
 
 	switch (_chaos_levels) {
@@ -161,19 +155,7 @@ int ImageCMReader::readChaosTables(ImageReader &reader) {
 	// For each chaos level,
 	for (int jj = 0; jj < _chaos_levels; ++jj) {
 		// Read the decoder tables
-		if (!_y_decoder[jj].init(reader)) {
-			CAT_DEBUG_EXCEPTION();
-			return GCIF_RE_CM_CODES;
-		}
-		if (!_u_decoder[jj].init(reader)) {
-			CAT_DEBUG_EXCEPTION();
-			return GCIF_RE_CM_CODES;
-		}
-		if (!_v_decoder[jj].init(reader)) {
-			CAT_DEBUG_EXCEPTION();
-			return GCIF_RE_CM_CODES;
-		}
-		if (!_a_decoder[jj].init(reader)) {
+		if (!_decoder[jj].init(reader)) {
 			CAT_DEBUG_EXCEPTION();
 			return GCIF_RE_CM_CODES;
 		}
@@ -182,7 +164,7 @@ int ImageCMReader::readChaosTables(ImageReader &reader) {
 	return GCIF_RE_OK;
 }
 
-int ImageCMReader::readPixels(ImageReader &reader) {
+int ImageCMReaderPal::readPixels(ImageReader &reader) {
 	const int width = _width;
 
 	// Get initial triggers
@@ -590,7 +572,7 @@ int ImageCMReader::readPixels(ImageReader &reader) {
 	return GCIF_RE_OK;
 }
 
-int ImageCMReader::read(ImageReader &reader, ImageMaskReader &maskReader, ImageLZReader &lzReader, GCIFImage *image) {
+int ImageCMReaderPal::read(ImageReader &reader, ImageMaskReader &maskReader, ImageLZReader &lzReader, ImagePaletteReader &palReader, GCIFImage *image) {
 #ifdef CAT_COLLECT_STATS
 	m_clock = Clock::ref();
 
@@ -601,6 +583,7 @@ int ImageCMReader::read(ImageReader &reader, ImageMaskReader &maskReader, ImageL
 
 	_mask = &maskReader;
 	_lz = &lzReader;
+	_pal = &palReader;
 
 	// Initialize
 	if ((err = init(image))) {
@@ -652,7 +635,7 @@ int ImageCMReader::read(ImageReader &reader, ImageMaskReader &maskReader, ImageL
 
 #ifdef CAT_COLLECT_STATS
 
-bool ImageCMReader::dumpStats() {
+bool ImageCMReaderPal::dumpStats() {
 	CAT_INANE("stats") << "(CM Decode)     Initialization : " << Stats.initUsec << " usec (" << Stats.initUsec * 100.f / Stats.overallUsec << " %total)";
 	CAT_INANE("stats") << "(CM Decode) Read Filter Tables : " << Stats.readFilterTablesUsec << " usec (" << Stats.readFilterTablesUsec * 100.f / Stats.overallUsec << " %total)";
 	CAT_INANE("stats") << "(CM Decode)  Read Chaos Tables : " << Stats.readChaosTablesUsec << " usec (" << Stats.readChaosTablesUsec * 100.f / Stats.overallUsec << " %total)";

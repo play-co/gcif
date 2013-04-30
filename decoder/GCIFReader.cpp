@@ -30,7 +30,9 @@
 #include "ImageReader.hpp"
 #include "ImageMaskReader.hpp"
 #include "ImageLZReader.hpp"
+#include "ImagePaletteReader.hpp"
 #include "ImageCMReader.hpp"
+#include "ImageCMReaderPal.hpp"
 #include "EndianNeutral.hpp"
 using namespace cat;
 
@@ -56,12 +58,28 @@ static int gcif_read(ImageReader &reader, GCIFImage *image) {
 	}
 	imageLZReader.dumpStats();
 
-	// Context Modeling Decompression
-	ImageCMReader imageCMReader;
-	if ((err = imageCMReader.read(reader, maskReader, imageLZReader, image))) {
+	// Global Palette
+	ImagePaletteReader imagePaletteReader;
+	if ((err = imagePaletteReader.read(reader))) {
 		return err;
 	}
-	imageCMReader.dumpStats();
+	imagePaletteReader.dumpStats();
+
+	if (imagePaletteReader.enabled()) {
+		// Context Modeling Decompression (Palette Mode)
+		ImageCMReaderPal imageCMReaderPal;
+		if ((err = imageCMReaderPal.read(reader, maskReader, imageLZReader, imagePaletteReader, image))) {
+			return err;
+		}
+		imageCMReaderPal.dumpStats();
+	} else {
+		// Context Modeling Decompression
+		ImageCMReader imageCMReader;
+		if ((err = imageCMReader.read(reader, maskReader, imageLZReader, image))) {
+			return err;
+		}
+		imageCMReader.dumpStats();
+	}
 
 	// Verify hash
 	if (!reader.finalizeCheckHash()) {
@@ -179,6 +197,9 @@ extern "C" const char *gcif_read_errstr(int err) {
 			return "Corrupted:GCIF_RE_LZ_CODES";
 		case GCIF_RE_LZ_BAD:		// Bad data in LZ section
 			return "Corrupted:GCIF_RE_LZ_BAD";
+
+		case GCIF_RE_BAD_PAL:		// Bad data in Palette section
+			return "Corrupted:GCIF_RE_PAL_BAD";
 
 		case GCIF_RE_CM_CODES:	// CM codelen read failed
 			return "Corrupted:GCIF_RE_CM_CODES";

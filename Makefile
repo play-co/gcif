@@ -15,6 +15,7 @@ CPFLAGS = $(CFLAGS)
 decode_objects = EndianNeutral.o Enforcer.o Filters.o GCIFReader.o HotRodHash.o
 decode_objects += HuffmanDecoder.o ImageCMReader.o ImageLZReader.o
 decode_objects += ImageMaskReader.o ImageReader.o MappedFile.o lz4.o
+decode_objects += ImagePaletteReader.o ImageCMReaderPal.o
 
 gcif_objects = gcif.o lodepng.o Log.o Mutex.o Clock.o Thread.o
 gcif_objects += lz4hc.o HuffmanEncoder.o
@@ -35,6 +36,8 @@ DECODE_SRCS += decoder/HotRodHash.cpp
 DECODE_SRCS += decoder/HuffmanDecoder.cpp
 DECODE_SRCS += decoder/ImageCMReader.cpp
 DECODE_SRCS += decoder/ImageLZReader.cpp
+DECODE_SRCS += decoder/ImagePaletteReader.cpp
+DECODE_SRCS += decoder/ImageCMReaderPal.cpp
 DECODE_SRCS += decoder/ImageMaskReader.cpp
 DECODE_SRCS += decoder/ImageReader.cpp
 DECODE_SRCS += decoder/MappedFile.cpp
@@ -154,14 +157,20 @@ Filters.o : decoder/Filters.cpp
 ImageLZWriter.o : encoder/ImageLZWriter.cpp
 	$(CCPP) $(CPFLAGS) -c encoder/ImageLZWriter.cpp
 
-ImagePaletteWriter.o : encoder/ImagePaletteWriter.cpp
-	$(CCPP) $(CPFLAGS) -c encoder/ImagePaletteWriter.cpp
-
 ImageLZReader.o : decoder/ImageLZReader.cpp
 	$(CCPP) $(CPFLAGS) -c decoder/ImageLZReader.cpp
 
+ImagePaletteWriter.o : encoder/ImagePaletteWriter.cpp
+	$(CCPP) $(CPFLAGS) -c encoder/ImagePaletteWriter.cpp
+
+ImagePaletteReader.o : encoder/ImagePaletteReader.cpp
+	$(CCPP) $(CPFLAGS) -c encoder/ImagePaletteReader.cpp
+
 ImageCMReader.o : decoder/ImageCMReader.cpp
 	$(CCPP) $(CPFLAGS) -c decoder/ImageCMReader.cpp
+
+ImageCMReaderPal.o : decoder/ImageCMReaderPal.cpp
+	$(CCPP) $(CPFLAGS) -c decoder/ImageCMReaderPal.cpp
 
 GCIFReader.o : decoder/GCIFReader.cpp
 	$(CCPP) $(CPFLAGS) -c decoder/GCIFReader.cpp

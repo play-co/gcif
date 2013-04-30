@@ -472,25 +472,7 @@ Immediately:
 
 Slated for inclusion in version 1.1 of the file format:
 
-+ Try global filter and direct Huffman/LZ encoding of the input data for very
-small images.
-
-+ Try scanline filtering and direct Huffman/LZ encoding of the input data for
-very small images, like PNG.
-
-+ Try filter zone rectangles: 8x2, 16x1, etc
-
-+ Support for images as large as 65536x65536 with custom memory allocator and
-a container format that breaks the image into smaller chunks that are each GCIF
-compressed.
-
 + Use strong file hash in new verification mode for command-line tool.
-
-+ Support a full palette mode for small or GIF-quantized images.
--- First determine the palette.
--- Sort the palette so that the image data attains maximum smoothness.
--- Apply all of the normal spatial filtering without color filters.
--- Encode it as one channel instead of RGBA.
 
 + Support scanline spatial and color filters.
 -- Define one filter pair for an entire row.
@@ -508,4 +490,8 @@ compressed.
 -- Incorporate it into the GCIF codebase to make it a one-stop shop for games.
 
 + Java version of the encoder.
+
++ Support for images as large as 65536x65536 with custom memory allocator and
+a container format that breaks the image into smaller chunks that are each GCIF
+compressed.
 

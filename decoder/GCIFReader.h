@@ -50,6 +50,8 @@ enum GCIFReaderErrors {
 	GCIF_RE_LZ_CODES,	// LZ codelen read failed
 	GCIF_RE_LZ_BAD,		// Bad data in LZ section
 
+	GCIF_RE_BAD_PAL,	// Bad data in Palette section
+
 	GCIF_RE_CM_CODES,	// CM codelen read failed
 
 	GCIF_RE_BAD_HASH,	// Image hash does not match
