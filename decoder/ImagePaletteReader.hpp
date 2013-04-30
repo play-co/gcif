@@ -47,8 +47,9 @@ public:
 	static const int ENCODER_ZRLE_SYMS = 16;
 
 protected:
-	u32 _palette[256];
+	u32 _palette[PALETTE_MAX];
 	int _palette_size;
+	u8 _mask_palette;	// Masked palette index
 
 	int readPalette(ImageReader &reader);
 
@@ -75,7 +76,11 @@ public:
 		return _palette_size;
 	}
 
-	CAT_INLINE u32 getColor(u8 palette) {
+	CAT_INLINE u8 getMaskPalette() {
+		return _mask_palette;
+	}
+
+	CAT_INLINE u32 getColor(int palette) {
 		CAT_DEBUG_ENFORCE(palette < _palette_size);
 
 		return _palette[palette];

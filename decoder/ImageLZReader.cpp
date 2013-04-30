@@ -233,11 +233,12 @@ int ImageLZReader::triggerX(u8 *p) {
 	// Just triggered a line from zi
 	u16 ii = _zone_next_x;
 	Zone *zi = &_zones[ii];
+	const int lz_left = zi->w;
 
 	// Copy scanline one at a time in case the pointers are aliased
 	u32 *dst = reinterpret_cast<u32 *>( p );
 	const u32 *src = dst + zi->sox + zi->soy * _width;
-	for (int jj = 0, jjend = zi->w; jj < jjend; ++jj) {
+	for (int jj = 0; jj < lz_left; ++jj) {
 		*dst = *src;
 		++src;
 		++dst;
@@ -281,18 +282,19 @@ int ImageLZReader::triggerX(u8 *p) {
 		_zone_trigger_x = _zones[_zone_next_x].dx;
 	}
 
-	return zi->w;
+	return lz_left;
 }
 
 int ImageLZReader::triggerXPal(u8 *p, u32 *rgba) {
 	// Just triggered a line from zi
 	u16 ii = _zone_next_x;
 	Zone *zi = &_zones[ii];
+	const int lz_left = zi->w;
 
 	// Copy scanline one at a time in case the pointers are aliased
 	int offset = zi->sox + zi->soy * _width;
 	const u32 *rgba_src = rgba + offset;
-	for (int jj = 0, jjend = zi->w; jj < jjend; ++jj) {
+	for (int jj = 0; jj < lz_left; ++jj) {
 		*rgba = *rgba_src;
 		++rgba_src;
 		++rgba;
@@ -300,7 +302,7 @@ int ImageLZReader::triggerXPal(u8 *p, u32 *rgba) {
 
 	// Copy scanline one at a time in case the pointers are aliased
 	const u8 *p_src = p + offset;
-	for (int jj = 0, jjend = zi->w; jj < jjend; ++jj) {
+	for (int jj = 0; jj < lz_left; ++jj) {
 		*p = *p_src;
 		++p_src;
 		++p;
@@ -344,7 +346,7 @@ int ImageLZReader::triggerXPal(u8 *p, u32 *rgba) {
 		_zone_trigger_x = _zones[_zone_next_x].dx;
 	}
 
-	return zi->w;
+	return lz_left;
 }
 
 void ImageLZReader::triggerY() {

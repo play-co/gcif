@@ -182,6 +182,7 @@ int ImageCMReaderPal::readPixels(ImageReader &reader) {
 	const int width = _width;
 	const u16 PAL_SIZE = static_cast<u16>( _pal->getPaletteSize() );
 	const u32 MASK_COLOR = _mask->getColor();
+	static u8 MASK_PALETTE = _pal->getMaskPalette();
 
 	// Get initial triggers
 	u16 trigger_x_lz = _lz->getTriggerX();
@@ -238,7 +239,8 @@ int ImageCMReaderPal::readPixels(ImageReader &reader) {
 			if (lz_skip > 0) {
 				--lz_skip;
 			} else if ((s32)mask < 0) {
-				*rgba = MASK_COLOR; 
+				*rgba = MASK_COLOR;
+				*p = MASK_PALETTE;
 			} else {
 				// Read filter for this zone
 				FilterSelection *filter = &_filters[x >> PALETTE_ZONE_SIZE_SHIFT_W];
@@ -255,7 +257,7 @@ int ImageCMReaderPal::readPixels(ImageReader &reader) {
 				DESYNC(x, y);
 
 				// Reverse spatial filter
-				const u8 pred = filter->sf.safe(p, x, y, width);
+				const u32 pred = filter->sf.safe(p, x, y, width);
 				u8 index = (code + pred) % PAL_SIZE;
 
 				// Reverse palette to RGBA
@@ -287,7 +289,7 @@ int ImageCMReaderPal::readPixels(ImageReader &reader) {
 		}
 
 		// If it is time to clear the filters data,
-		if ((y & FILTER_ZONE_SIZE_MASK_W) == 0) {
+		if ((y & PALETTE_ZONE_SIZE_MASK_H) == 0) {
 			CAT_CLR(_filters, _filters_bytes);
 		}
 
@@ -332,6 +334,7 @@ int ImageCMReaderPal::readPixels(ImageReader &reader) {
 				--lz_skip;
 			} else if ((s32)mask < 0) {
 				*rgba = MASK_COLOR; 
+				*p = MASK_PALETTE;
 			} else {
 				// Read filter for this zone
 				FilterSelection *filter = &_filters[x >> PALETTE_ZONE_SIZE_SHIFT_W];
@@ -348,7 +351,7 @@ int ImageCMReaderPal::readPixels(ImageReader &reader) {
 				DESYNC(x, y);
 
 				// Reverse spatial filter
-				const u8 pred = filter->sf.safe(p, x, y, width);
+				const u32 pred = filter->sf.safe(p, x, y, width);
 				u8 index = (code + pred) % PAL_SIZE;
 
 				// Reverse palette to RGBA
@@ -394,6 +397,7 @@ int ImageCMReaderPal::readPixels(ImageReader &reader) {
 				--lz_skip;
 			} else if ((s32)mask < 0) {
 				*rgba = MASK_COLOR; 
+				*p = MASK_PALETTE;
 			} else {
 				// Read filter for this zone
 				FilterSelection *filter = &_filters[x >> PALETTE_ZONE_SIZE_SHIFT_W];
@@ -410,7 +414,7 @@ int ImageCMReaderPal::readPixels(ImageReader &reader) {
 				DESYNC(x, y);
 
 				// Reverse spatial filter
-				const u8 pred = filter->sf.safe(p, x, y, width);
+				const u32 pred = filter->sf.safe(p, x, y, width);
 				u8 index = (code + pred) % PAL_SIZE;
 
 				// Reverse palette to RGBA
@@ -456,6 +460,7 @@ int ImageCMReaderPal::readPixels(ImageReader &reader) {
 				--lz_skip;
 			} else if ((s32)mask < 0) {
 				*rgba = MASK_COLOR; 
+				*p = MASK_PALETTE;
 			} else {
 				// Read filter for this zone
 				FilterSelection *filter = &_filters[x >> PALETTE_ZONE_SIZE_SHIFT_W];
@@ -472,7 +477,7 @@ int ImageCMReaderPal::readPixels(ImageReader &reader) {
 				DESYNC(x, y);
 
 				// Reverse spatial filter
-				const u8 pred = filter->sf.safe(p, x, y, width);
+				const u32 pred = filter->sf.safe(p, x, y, width);
 				u8 index = (code + pred) % PAL_SIZE;
 
 				// Reverse palette to RGBA

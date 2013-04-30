@@ -53,6 +53,9 @@ int ImagePaletteReader::readPalette(ImageReader &reader) {
 	// Read palette size
 	_palette_size = reader.readBits(8) + 1;
 
+	// Read mask palette index
+	_mask_palette = reader.readBits(8);
+
 	// If using compressed palette,
 	if (reader.readBit()) {
 		// Read color filter
