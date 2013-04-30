@@ -12,42 +12,71 @@ CPFLAGS = $(CFLAGS)
 
 # List of object files
 
+decode_objects = EndianNeutral.o Enforcer.o Filters.o GCIFReader.o HotRodHash.o
+decode_objects += HuffmanDecoder.o ImageCMReader.o ImageLZReader.o
+decode_objects += ImageMaskReader.o ImageReader.o MappedFile.o lz4.o
+
 gcif_objects = gcif.o lodepng.o Log.o Mutex.o Clock.o Thread.o
-gcif_objects += EndianNeutral.o lz4.o lz4hc.o HuffmanDecoder.o HuffmanEncoder.o
-gcif_objects += MappedFile.o SystemInfo.o HotRodHash.o ImageWriter.o
-gcif_objects += ImageReader.o ImageMaskWriter.o ImageMaskReader.o
-gcif_objects += ImageCMWriter.o FilterScorer.o Filters.o Enforcer.o
-gcif_objects += ImageLZWriter.o ImageLZReader.o ImageCMReader.o
-gcif_objects += GCIFReader.o GCIFWriter.o EntropyEstimator.o WaitableFlag.o
+gcif_objects += lz4hc.o HuffmanEncoder.o
+gcif_objects += SystemInfo.o ImageWriter.o
+gcif_objects += ImageMaskWriter.o
+gcif_objects += ImageCMWriter.o FilterScorer.o
+gcif_objects += ImageLZWriter.o
+gcif_objects += GCIFWriter.o EntropyEstimator.o WaitableFlag.o
+gcif_objects += $(decode_objects)
 #gcif_objects += ImageLPReader.o ImageLPWriter.o
 
 
 # List of source files
 
+DECODE_SRCS = decoder/EndianNeutral.cpp decoder/Enforcer.cpp
+DECODE_SRCS += decoder/Filters.cpp decoder/GCIFReader.cpp
+DECODE_SRCS += decoder/HotRodHash.cpp
+DECODE_SRCS += decoder/HuffmanDecoder.cpp
+DECODE_SRCS += decoder/ImageCMReader.cpp
+DECODE_SRCS += decoder/ImageLZReader.cpp
+DECODE_SRCS += decoder/ImageMaskReader.cpp
+DECODE_SRCS += decoder/ImageReader.cpp
+DECODE_SRCS += decoder/MappedFile.cpp
+DECODE_SRCS += decoder/lz4.c
+
 SRCS = ./gcif.cpp encoder/lodepng.cpp encoder/Log.cpp encoder/Mutex.cpp
-SRCS += encoder/Clock.cpp encoder/Thread.cpp decoder/EndianNeutral.cpp
-SRCS += decoder/lz4.c encoder/lz4hc.c decoder/HuffmanDecoder.cpp
-SRCS += encoder/HuffmanEncoder.cpp decoder/MappedFile.cpp
-SRCS += encoder/SystemInfo.cpp decoder/HotRodHash.cpp encoder/ImageWriter.cpp
-SRCS += decoder/ImageReader.cpp encoder/ImageMaskWriter.cpp
-SRCS += decoder/ImageMaskReader.cpp encoder/ImageCMWriter.cpp
-SRCS += encoder/FilterScorer.cpp decoder/Filters.cpp decoder/Enforcer.cpp
-SRCS += encoder/ImageLZWriter.cpp decoder/ImageLZReader.cpp
-SRCS += decoder/ImageCMReader.cpp decoder/GCIFReader.cpp encoder/GCIFWriter.cpp
+SRCS += encoder/Clock.cpp encoder/Thread.cpp
+SRCS += encoder/lz4hc.c
+SRCS += encoder/HuffmanEncoder.cpp
+SRCS += encoder/SystemInfo.cpp encoder/ImageWriter.cpp
+SRCS += encoder/ImageMaskWriter.cpp
+SRCS += encoder/ImageCMWriter.cpp
+SRCS += encoder/FilterScorer.cpp
+SRCS += encoder/ImageLZWriter.cpp
+SRCS += encoder/GCIFWriter.cpp
 SRCS += encoder/EntropyEstimator.cpp encoder/WaitableFlag.cpp
+SRCS += $(DECODE_SRCS)
 #SRCS += ImageLPReader.cpp ImageLPWriter.cpp
 
 
 # Release target (default)
 
-release : CFLAGS += $(OPTFLAGS)
+release : CFLAGS += $(OPTFLAGS) -DCAT_COMPILE_MMAP
 release : gcif
 
 
 # Debug target
 
-debug : CFLAGS += -g -O0 -DDEBUG
+debug : CFLAGS += -g -O0 -DDEBUG -DCAT_COMPILE_MMAP
 debug : gcif
+
+
+# decomp executable
+
+release-decomp : CFLAGS += $(OPTFLAGS) -DCAT_COMPILE_MMAP
+release-decomp : decomp
+
+
+# decompe executable
+
+decomp : $(decode_objects) decomp.o
+	$(CCPP) -o decomp $(decode_objects) decomp.o
 
 
 # gcif executable
@@ -150,6 +179,9 @@ Enforcer.o : decoder/Enforcer.cpp
 
 #ImageLPReader.o : ImageLPReader.cpp
 #	$(CCPP) $(CPFLAGS) -c ImageLPReader.cpp
+
+decomp.o : decomp.cpp
+	$(CCPP) $(CPFLAGS) -c decomp.cpp
 
 
 # Depend target

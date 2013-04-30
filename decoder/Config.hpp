@@ -33,7 +33,7 @@ namespace cat {
 
 
 // Enable memory-mapped file IO, allows API that has a file name as input
-#define CAT_COMPILE_MMAP
+//#define CAT_COMPILE_MMAP
 
 // Enable statistics collection (disable when building decoder only)
 //#define CAT_COLLECT_STATS
