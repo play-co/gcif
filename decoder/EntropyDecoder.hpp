@@ -64,12 +64,20 @@ public:
 	}
 
 	bool init(ImageReader &reader) {
-		if (!_bz.init(BZ_SYMS, reader, HUFF_LUT_BITS)) {
-			return false;
-		}
+		// If using AZ symbols,
+		if (reader.readBit()) {
+			if (!_az.init(AZ_SYMS, reader, HUFF_LUT_BITS)) {
+				return false;
+			}
 
-		if (!_az.init(AZ_SYMS, reader, HUFF_LUT_BITS)) {
-			return false;
+			if (!_bz.init(BZ_SYMS, reader, HUFF_LUT_BITS)) {
+				return false;
+			}
+		} else {
+			// Cool: Does not slow down decoder to conditionally turn off zRLE!
+			if (!_bz.init(NUM_SYMS, reader, HUFF_LUT_BITS)) {
+				return false;
+			}
 		}
 
 		_afterZero = false;

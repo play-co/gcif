@@ -216,6 +216,33 @@ public:
 	 *
 	 * Used for representing runs of zeroes in the entropy encoder
 	 */
+	static CAT_INLINE int simulate255255(u32 run) {
+		int bits = 0;
+
+		// If multiple FF bytes will be emitted,
+		if (run >= 255 + 255) {
+			// Step it up to 16-bit words
+			run -= 255 + 255;
+			bits += 8 + 8;
+			while (run >= 65535) {
+				bits += 16;
+				run -= 65535;
+			}
+			bits += 16;
+		} else {
+			// Write out FF bytes
+			if (run >= 255) {
+				bits += 8;
+				run -= 255;
+			}
+
+			// Write out last byte
+			bits += 8;
+		}
+
+		return bits;
+	}
+
 	CAT_INLINE int write255255(u32 run) {
 		int bits = 0;
 

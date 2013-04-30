@@ -69,9 +69,32 @@ protected:
 	HuffmanEncoder<BZ_SYMS> _bz;
 	HuffmanEncoder<AZ_SYMS> _az;
 
+	std::vector<u8> _basic_syms;
+	FreqHistogram<NUM_SYMS> _basic_hist;
+	HuffmanEncoder<NUM_SYMS> _basic;
+	bool _using_basic;
+
 	int _zeroRun;
 	std::vector<int> _runList;
 	int _runListReadIndex;
+
+	int simulateZeroRun(int run) {
+		if (run <= 0) {
+			return 0;
+		}
+
+		int bits;
+
+		if (run < ZRLE_SYMS) {
+			bits = _bz.simulateWrite(NUM_SYMS + run - 1);
+		} else {
+			bits = _bz.simulateWrite(BZ_TAIL_SYM);
+
+			ImageWriter::simulate255255(run - ZRLE_SYMS);
+		}
+
+		return bits;
+	}
 
 	int writeZeroRun(int run, ImageWriter &writer) {
 		if (run <= 0) {
@@ -101,6 +124,11 @@ public:
 
 	void add(u16 symbol) {
 		CAT_DEBUG_ENFORCE(symbol < NUM_SYMS);
+
+		if (NUM_SYMS <= 256) {
+			_basic_hist.add(symbol);
+			_basic_syms.push_back(symbol);
+		}
 
 		if (symbol == 0) {
 			++_zeroRun;
@@ -145,13 +173,71 @@ public:
 		_az.init(_az_hist);
 
 		reset();
+
+		_using_basic = false;
+
+		// Evaluate basic encoder
+		if (NUM_SYMS <= 256) {
+			_basic.init(_basic_hist);
+
+			int basic_cost = 0;
+			for (int ii = 0, iiend = (int)_basic_syms.size(); ii < iiend; ++ii) {
+				u8 symbol = (u8)_basic_syms[ii];
+
+				basic_cost += _basic.simulateWrite(symbol);
+			}
+
+			int az_cost = 64; // Bias for overhead cost
+			int run = 0;
+			int readIndex = 0;
+			for (int ii = 0, iiend = (int)_basic_syms.size(); ii < iiend; ++ii) {
+				u8 symbol = (u8)_basic_syms[ii];
+
+				// If zero,
+				if (symbol == 0) {
+					// If starting a zero run,
+					if (run == 0) {
+						CAT_DEBUG_ENFORCE(readIndex < (int)_runList.size());
+
+						// Write stored zero run
+						int runLength = _runList[readIndex++];
+
+						az_cost += simulateZeroRun(runLength);
+					}
+
+					++run;
+				} else {
+					// If just out of a zero run,
+					if (run > 0) {
+						run = 0;
+						az_cost += _az.simulateWrite(symbol);
+					} else {
+						az_cost += _bz.simulateWrite(symbol);
+					}
+				}
+			}
+
+			if (basic_cost < az_cost) {
+				_using_basic = true;
+			}
+		}
 	}
 
 	int writeTables(ImageWriter &writer) {
-		int bitcount = _bz.writeTable(writer);
-		bitcount += _az.writeTable(writer);
+		int bits = 0;
 
-		return bitcount;
+		if (!_using_basic) {
+			writer.writeBit(1);
+
+			bits += _az.writeTable(writer);
+			bits += _bz.writeTable(writer);
+		} else {
+			writer.writeBit(0);
+
+			bits += _basic.writeTable(writer);
+		}
+
+		return bits;
 	}
 
 	void reset() {
@@ -163,6 +249,10 @@ public:
 
 	int write(u16 symbol, ImageWriter &writer) {
 		CAT_DEBUG_ENFORCE(symbol < NUM_SYMS);
+
+		if (_using_basic) {
+			return _basic.writeSymbol(symbol, writer);
+		}
 
 		int bits = 0;
 
