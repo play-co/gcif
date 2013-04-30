@@ -70,7 +70,7 @@ typedef struct _GCIFImage {
 #ifdef CAT_COMPILE_MMAP
 
 /*
-	gcif_read_file
+	gcif_read_file()
 
 	Read from the given file path using blocking memory-mapped file I/O.
 
@@ -90,18 +90,13 @@ int gcif_read_file(const char *input_file_path_in, GCIFImage *image_out);
 
 
 /*
-	gcif_read_memory
+	gcif_read_memory()
 
 	Read the image from the given memory buffer.
 
 	See: gcif_read_file() above for more important usage information.
 */
 int gcif_read_memory(const void *file_data_in, long file_size_bytes_in, GCIFImage *image_out);
-
-/*
- * Returns GCIF_RE_OK if the data is for a GCIF file.
- */
-int gcif_sig_cmp(const void *file_data_in, long file_size_bytes_in);
 
 /*
 	gcif_free_image
@@ -111,6 +106,25 @@ int gcif_sig_cmp(const void *file_data_in, long file_size_bytes_in);
 	This is safe to call when the read function fails.
 */
 void gcif_free_image(const void *rgba);
+
+/*
+ * gcif_get_size()
+ *
+ * Width and height will be set to the size of the decompressed image.  This is
+ * a fast utility function.
+ *
+ * Returns GCIF_RE_OK if the data is for a GCIF file else a nonzero error code.
+ */
+int gcif_get_size(const void *file_data_in, long file_size_bytes_in, int *width, int *height);
+
+/*
+ * gcif_sig_cmp()
+ *
+ * Checks if the given data corresponds to a GCIF file.
+ *
+ * Returns GCIF_RE_OK if the data is for a GCIF file else a nonzero error code.
+ */
+int gcif_sig_cmp(const void *file_data_in, long file_size_bytes_in);
 
 
 #ifdef __cplusplus

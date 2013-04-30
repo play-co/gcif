@@ -92,6 +92,27 @@ extern "C" int gcif_read_file(const char *input_file_path_in, GCIFImage *image_o
 
 #endif // CAT_COMPILE_MMAP
 
+extern "C" int gcif_get_size(const void *file_data_in, long file_size_bytes_in, int *width, int *height) {
+	// Validate length
+	if (file_size_bytes_in / sizeof(u32) < ImageReader::HEAD_WORDS) {
+		return GCIF_RE_BAD_HEAD;
+	}
+
+	// Validate signature
+	const u32 *head_word = reinterpret_cast<const u32 *>( file_data_in );
+	u32 sig = getLE(head_word[0]);
+	if (sig != ImageReader::HEAD_MAGIC) {
+		return GCIF_RE_BAD_HEAD;
+	}
+
+	// Read width, height
+	u32 word1 = getLE(head_word[1]);
+	*width = word1 >> 16;
+	*height = (u16)word1;
+
+	return GCIF_RE_OK;
+}
+
 extern "C" int gcif_sig_cmp(const void *file_data_in, long file_size_bytes_in) {
 	// Validate length
 	if (file_size_bytes_in / sizeof(u32) < ImageReader::HEAD_WORDS) {
@@ -99,7 +120,8 @@ extern "C" int gcif_sig_cmp(const void *file_data_in, long file_size_bytes_in) {
 	}
 
 	// Validate signature
-	u32 sig = getLE(*reinterpret_cast<const u32 *>( file_data_in ));
+	const u32 *head_word = reinterpret_cast<const u32 *>( file_data_in );
+	u32 sig = getLE(head_word[0]);
 	if (sig != ImageReader::HEAD_MAGIC) {
 		return GCIF_RE_BAD_HEAD;
 	}
