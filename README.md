@@ -35,7 +35,7 @@ From one of our more challenging game sprite-sheets chosen at random:
 -rw-r--r--  1 cat  staff   912K Apr 28 18:51 noalpha.webp (lossless)
 -rw-r--r--  1 cat  staff   883K Apr 29 17:01 noalpha.m6.webp (lossless)
 -rw-r--r--  1 cat  staff   877K Apr  2 14:05 noalpha.bcif (lossless)
--rw-r--r--  1 cat  staff   803K Apr 28 18:47 noalpha.gci (lossless) <- GCIF
+-rw-r--r--  1 cat  staff   802K Apr 28 18:47 noalpha.gci (lossless) <- GCIF
 -rw-r--r--@ 1 cat  staff   682K Apr 28 18:46 noalpha.jpg (lossy)
 -rw-r--r--@ 1 cat  staff   441K Apr 28 18:46 noalpha.gif (lossy)
 ~~~
@@ -190,7 +190,7 @@ since we found that the code could be significantly improved in decompression
 speed, and we also disagreed with some of the finer points of the algorithm.
 
 
-### Step 0. Dominant Color Pixel Encoding
+### Step 1. Dominant Color Pixel Encoding (Optional)
 
 The dominant color is first detected.  It is usually black or full-transparent.
 
@@ -219,7 +219,7 @@ Static Huffman entropy encoding is then performed for further compression.
 Pixels that are in the bitmask are skipped over during encoding/decoding.
 
 
-### Step 1. 2D LZ
+### Step 2. 2D LZ (Optional)
 
 A custom 2D LZ77 algorithm is run to find repeated rectangular regions in the
 image.  A rolling hash is used to do initial lookups on 3x3 regions, which is
@@ -233,7 +233,19 @@ encoding and written to the file.  The resulting overhead is close to 5.5 bytes
 per zone, with each zone covering at least 64 bytes of original image data.
 
 
-### Step 2. Filtering
+### Step 3. Palette (Optional)
+
+If 256 or fewer colors comprise the image, then it is attempted to be sent as a
+paletted image, since this guarantees a compression ratio of at least 4:1.
+
+The palette is sorted based on the luminance of each palette color, with the
+hope that the image is somewhat smooth in brightness.  Spatial filtering is
+done but color filtering is not (naturally); see the next section for more
+information about filtering.  The filter zone size is increased to 16x16 for
+paletted images.
+
+
+### Step 4. Filtering
 
 Spatial and color filters are applied to the input data in 4x4 pixel blocks as
 in BCIF.  The pair of filters that best estimate each block are chosen, as
@@ -319,7 +331,7 @@ will expect to read in the filter selection exactly when the first pixel in a
 zone is encountered.
 
 
-### Step 3. Order-1 Chaos Modeling and Encoding
+### Step 5. Order-1 Chaos Modeling and Encoding
 
 For each color plane, the BCIF "chaos" metric is used to sort each remaining
 filtered pixel into one of 8 bins.  The chaos metric is a rough approximation
@@ -362,6 +374,34 @@ compression algorithm for the Huffman tables themselves.  So, the tables are
 filtered and compressed using the same entropy encoding used on the image data.
 This table compression is exceptionally good.  It compresses about 8KB of table
 data down into about 3KB using several tricks including truncation.
+
+
+## Note: Order-1 Entropy Encoding with dual-Huffman zRLE
+
+Throughout the codec, a generic post-filter entropy encoder is used in several
+places.  The entropy encoder has two modes:
+
+(1) Basic Huffman encoder
+
+The basic Huffman encoder mode is what you may expect.  Statistics up to 256
+symbols are collected, and then symbols are encoded bitwise.  This mode is
+chosen if the encoder decides it produces shorter output.  This feature saves
+about 1 KB on average and can only improve decoder speed.
+
+(2) zRLE dual-Huffman encoder.
+
+The zero-run-length-encoded dual-Huffman encoder has two Huffman encoders that
+encode parts of the sequence.  One encoder is used for symbols leading up to
+runs of zeroes, and the other encoder is used for symbols just after a zero run
+finishes.  This is similar to how BCIF does entropy encoding, and is one of
+its unspoken but surprisingly essential advantages over other image codecs.
+
+The before-zero encoder typically has 128 extra symbols above 256 to represent
+different run lengths of zeroes.  If runs are longer than 127, additional bytes
+are emitted to represent the length of the zero run.  The after-zero encoder
+has up to 256 normal symbols, since it cannot encode zeroes.  This acts as a
+simple order-1 statistical model around zeroes and improves compression as a
+result.
 
 
 Example usage
