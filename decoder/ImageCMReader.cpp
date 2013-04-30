@@ -184,6 +184,7 @@ int ImageCMReader::readChaosTables(ImageReader &reader) {
 
 int ImageCMReader::readPixels(ImageReader &reader) {
 	const int width = _width;
+	const u32 MASK_COLOR = _mask->getColor();
 
 	// Get initial triggers
 	u16 trigger_x_lz = _lz->getTriggerX();
@@ -216,7 +217,7 @@ int ImageCMReader::readPixels(ImageReader &reader) {
 
 		// Restart for scanline
 		u8 *last = lastStart;
-		int lz_skip = 0, lz_lines_left = 0;
+		int lz_skip = 0;
 
 		// For each pixel,
 		for (int x = 0; x < width; ++x) {
@@ -224,7 +225,7 @@ int ImageCMReader::readPixels(ImageReader &reader) {
 
 			// If LZ triggered,
 			if (x == trigger_x_lz) {
-				lz_skip = _lz->triggerX(p, lz_lines_left);
+				lz_skip = _lz->triggerX(p);
 				trigger_x_lz = _lz->getTriggerX();
 			}
 
@@ -236,16 +237,10 @@ int ImageCMReader::readPixels(ImageReader &reader) {
 
 			if (lz_skip > 0) {
 				--lz_skip;
-				last[0] = 0;
-				last[1] = 0;
-				last[2] = 0;
-				last[3] = 0;
+				*reinterpret_cast<u32 *>( last ) = 0;
 			} else if ((s32)mask < 0) {
-				*reinterpret_cast<u32 *>( p ) = _mask->getColor();
-				last[0] = 0;
-				last[1] = 0;
-				last[2] = 0;
-				last[3] = 0;
+				*reinterpret_cast<u32 *>( p ) = MASK_COLOR;
+				*reinterpret_cast<u32 *>( last ) = 0;
 			} else {
 				// Read SF and CF for this zone
 				FilterSelection *filter = &_filters[x >> FILTER_ZONE_SIZE_SHIFT_W];
@@ -327,7 +322,7 @@ int ImageCMReader::readPixels(ImageReader &reader) {
 
 		// Restart for scanline
 		u8 *last = lastStart;
-		int lz_skip = 0, lz_lines_left = 0;
+		int lz_skip = 0;
 
 		// Unroll x = 0 pixel
 		{
@@ -336,7 +331,7 @@ int ImageCMReader::readPixels(ImageReader &reader) {
 
 			// If LZ triggered,
 			if (x == trigger_x_lz) {
-				lz_skip = _lz->triggerX(p, lz_lines_left);
+				lz_skip = _lz->triggerX(p);
 				trigger_x_lz = _lz->getTriggerX();
 			}
 
@@ -347,16 +342,10 @@ int ImageCMReader::readPixels(ImageReader &reader) {
 			// If pixel was copied with LZ subsystem,
 			if (lz_skip > 0) {
 				--lz_skip;
-				last[0] = 0;
-				last[1] = 0;
-				last[2] = 0;
-				last[3] = 0;
+				*reinterpret_cast<u32 *>( last ) = 0;
 			} else if ((s32)mask < 0) {
-				*reinterpret_cast<u32 *>( p ) = _mask->getColor();
-				last[0] = 0;
-				last[1] = 0;
-				last[2] = 0;
-				last[3] = 0;
+				*reinterpret_cast<u32 *>( p ) = MASK_COLOR;
+				*reinterpret_cast<u32 *>( last ) = 0;
 			} else {
 				// Read SF and CF for this zone
 				FilterSelection *filter = &_filters[x >> FILTER_ZONE_SIZE_SHIFT_W];
@@ -422,7 +411,7 @@ int ImageCMReader::readPixels(ImageReader &reader) {
 
 			// If LZ triggered,
 			if (x == trigger_x_lz) {
-				lz_skip = _lz->triggerX(p, lz_lines_left);
+				lz_skip = _lz->triggerX(p);
 				trigger_x_lz = _lz->getTriggerX();
 			}
 
@@ -435,16 +424,10 @@ int ImageCMReader::readPixels(ImageReader &reader) {
 			// If pixel was copied with LZ subsystem,
 			if (lz_skip > 0) {
 				--lz_skip;
-				last[0] = 0;
-				last[1] = 0;
-				last[2] = 0;
-				last[3] = 0;
+				*reinterpret_cast<u32 *>( last ) = 0;
 			} else if ((s32)mask < 0) {
-				*reinterpret_cast<u32 *>( p ) = _mask->getColor();
-				last[0] = 0;
-				last[1] = 0;
-				last[2] = 0;
-				last[3] = 0;
+				*reinterpret_cast<u32 *>( p ) = MASK_COLOR;
+				*reinterpret_cast<u32 *>( last ) = 0;
 			} else {
 				// Read SF and CF for this zone
 				FilterSelection *filter = &_filters[x >> FILTER_ZONE_SIZE_SHIFT_W];
@@ -511,7 +494,7 @@ int ImageCMReader::readPixels(ImageReader &reader) {
 
 			// If LZ triggered,
 			if (x == trigger_x_lz) {
-				lz_skip = _lz->triggerX(p, lz_lines_left);
+				lz_skip = _lz->triggerX(p);
 				trigger_x_lz = _lz->getTriggerX();
 			}
 
@@ -523,16 +506,10 @@ int ImageCMReader::readPixels(ImageReader &reader) {
 			// If pixel was copied with LZ subsystem,
 			if (lz_skip > 0) {
 				--lz_skip;
-				last[0] = 0;
-				last[1] = 0;
-				last[2] = 0;
-				last[3] = 0;
+				*reinterpret_cast<u32 *>( last ) = 0;
 			} else if ((s32)mask < 0) {
-				*reinterpret_cast<u32 *>( p ) = _mask->getColor();
-				last[0] = 0;
-				last[1] = 0;
-				last[2] = 0;
-				last[3] = 0;
+				*reinterpret_cast<u32 *>( p ) = MASK_COLOR;
+				*reinterpret_cast<u32 *>( last ) = 0;
 			} else {
 				// Read SF and CF for this zone
 				FilterSelection *filter = &_filters[x >> FILTER_ZONE_SIZE_SHIFT_W];

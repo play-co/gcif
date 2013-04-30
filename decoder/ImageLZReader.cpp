@@ -229,23 +229,82 @@ int ImageLZReader::readZones(ImageReader &reader) {
 	return GCIF_RE_OK;
 }
 
-int ImageLZReader::triggerX(u8 *p, int &lz_lines_left) {
+int ImageLZReader::triggerX(u8 *p) {
 	// Just triggered a line from zi
 	u16 ii = _zone_next_x;
 	Zone *zi = &_zones[ii];
 
 	// Copy scanline one at a time in case the pointers are aliased
-	const u8 *src = p + (zi->sox + zi->soy * _width)*4;
+	u32 *dst = reinterpret_cast<u32 *>( p );
+	const u32 *src = dst + zi->sox + zi->soy * _width;
 	for (int jj = 0, jjend = zi->w; jj < jjend; ++jj) {
-		p[0] = src[0];
-		p[1] = src[1];
-		p[2] = src[2];
-		p[3] = src[3];
-		p += 4;
-		src += 4;
+		*dst = *src;
+		++src;
+		++dst;
 	}
 
-	lz_lines_left = zi->h;
+	// Iterate ahead to next in work list
+	_zone_next_x = zi->next;
+
+	// If this is zi's last scanline,
+	if (--zi->h <= 0) {
+		// Unlink from list
+
+		// If nothing behind it,
+		if (zi->prev == ZONE_NULL) {
+			// Link next as head
+			_zone_work_head = zi->next;
+		} else {
+			// Link previous through to next
+			_zones[zi->prev].next = zi->next;
+		}
+
+		// If there is a zone ahead of it,
+		if (zi->next != ZONE_NULL) {
+			// Link it back through to previous
+			_zones[zi->next].prev = zi->prev;
+		}
+	}
+
+	// If work list is exhausted,
+	if (_zone_next_x == ZONE_NULL) {
+		// Loop back to front of remaining list
+		_zone_next_x = _zone_work_head;
+	}
+
+	// If list just emptied,
+	if (_zone_next_x == ZONE_NULL) {
+		// Disable triggers
+		_zone_trigger_x = ZONE_NULL;
+	} else {
+		// Set it to the next trigger dx
+		_zone_trigger_x = _zones[_zone_next_x].dx;
+	}
+
+	return zi->w;
+}
+
+int ImageLZReader::triggerXPal(u8 *p, u32 *rgba) {
+	// Just triggered a line from zi
+	u16 ii = _zone_next_x;
+	Zone *zi = &_zones[ii];
+
+	// Copy scanline one at a time in case the pointers are aliased
+	int offset = zi->sox + zi->soy * _width;
+	const u32 *rgba_src = rgba + offset;
+	for (int jj = 0, jjend = zi->w; jj < jjend; ++jj) {
+		*rgba = *rgba_src;
+		++rgba_src;
+		++rgba;
+	}
+
+	// Copy scanline one at a time in case the pointers are aliased
+	const u8 *p_src = p + offset;
+	for (int jj = 0, jjend = zi->w; jj < jjend; ++jj) {
+		*p = *p_src;
+		++p_src;
+		++p;
+	}
 
 	// Iterate ahead to next in work list
 	_zone_next_x = zi->next;

@@ -55,6 +55,7 @@ class ImageCMReaderPal {
 public:
 	static const int CHAOS_LEVELS_MAX = 8;
 	static const int ZRLE_SYMS = 128;
+	static const int RECENT_ROWS = 16; // Number of image rows to allocate
 
 protected:
 	// RGBA output data
@@ -72,14 +73,14 @@ protected:
 
 	// Recent palette memory
 	u8 *_recent;
+	int _recent_alloc;
 
 	// Recent scanline filters
 	struct FilterSelection {
-		YUV2RGBFilterFunction cf;
 		PaletteFilterSet::Functions sf;
 
 		CAT_INLINE bool ready() {
-			return cf != 0;
+			return sf.safe != 0;
 		}
 	} *_filters;
 	int _filters_bytes;
@@ -93,8 +94,8 @@ protected:
 	// Chosen palette filter set
 	PaletteFilterSet _pf_set;
 
-	// Filter decoders
-	HuffmanDecoder _sf;
+	// Palette filter decoder
+	HuffmanDecoder _pf;
 
 	// Palette index decoder
 	EntropyDecoder<256, ZRLE_SYMS> _decoder[CHAOS_LEVELS_MAX];

@@ -800,7 +800,7 @@ void ImageCMWriter::decidePalFilters() {
 							}
 
 							const u8 *p = _pal->get(px, py);
-							const u8 pred = _pf_set.get(bestSF).safe(p, px, py, width) % PAL_SIZE;
+							const u8 pred = _pf_set.get(bestSF).safe(p, px, py, width);
 							codes[count++] = (u8)(p[0] - pred) % PAL_SIZE;
 						}
 					}
@@ -828,7 +828,7 @@ void ImageCMWriter::decidePalFilters() {
 						const u8 *p = _pal->get(px, py);
 
 						for (int ii = 0; ii < SF_COUNT; ++ii) {
-							const u8 pred = _pf_set.get(bestSF).safe(p, px, py, width) % PAL_SIZE;
+							const u8 pred = _pf_set.get(bestSF).safe(p, px, py, width);
 							int error = p[0];
 							error -= pred;
 							if (error < 0) {
@@ -865,7 +865,7 @@ void ImageCMWriter::decidePalFilters() {
 								}
 
 								const u8 *p = _pal->get(px, py);
-								const u8 pred = _pf_set.get(bestSF).safe(p, px, py, width) % PAL_SIZE;
+								const u8 pred = _pf_set.get(bestSF).safe(p, px, py, width);
 								codes[count++] = (u8)(p[0] - pred) % PAL_SIZE;
 							}
 						}
@@ -905,7 +905,7 @@ void ImageCMWriter::decidePalFilters() {
 								}
 
 								const u8 *p = _pal->get(px, py);
-								const u8 pred = _pf_set.get(sf).safe(p, px, py, width) % PAL_SIZE;
+								const u8 pred = _pf_set.get(sf).safe(p, px, py, width);
 								codes[count++] = (u8)(p[0] - pred) % PAL_SIZE;
 							}
 						}
@@ -1350,7 +1350,7 @@ void ImageCMWriter::chaosPalStats() {
 				const u8 sf = (u8)filter;
 
 				// Apply spatial filter
-				const u8 pred = _pf_set.get(sf).safe(p, x, y, width) % PAL_SIZE;
+				const u8 pred = _pf_set.get(sf).safe(p, x, y, width);
 				u8 n = (u8)(p[0] - pred) % PAL_SIZE;
 
 				u8 chaos = CHAOS_TABLE[CHAOS_SCORE[last[-1]] + CHAOS_SCORE[last[0]]];
@@ -1708,7 +1708,7 @@ bool ImageCMWriter::writePalChaos(ImageWriter &writer) {
 				}
 
 				// Apply spatial filter
-				const u8 pred = _pf_set.get(sf).safe(p, x, y, width) % PAL_SIZE;
+				const u8 pred = _pf_set.get(sf).safe(p, x, y, width);
 				u8 n = (u8)(p[0] - pred) % PAL_SIZE;
 
 				u8 chaos = CHAOS_TABLE[CHAOS_SCORE[last[-1]] + CHAOS_SCORE[last[0]]];

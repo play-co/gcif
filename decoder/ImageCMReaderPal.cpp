@@ -61,6 +61,10 @@ void ImageCMReaderPal::clear() {
 		delete []_filters;
 		_filters = 0;
 	}
+	if (_recent) {
+		delete []_recent;
+		_recent = 0;
+	}
 	// Do not free RGBA data here
 }
 
@@ -84,6 +88,16 @@ int ImageCMReaderPal::init(GCIFImage *image) {
 		}
 		_filters = new FilterSelection[filter_count];
 		_filters_alloc = _filters_bytes;
+	}
+
+	// Allocate recent bytes
+	const int recent_bytes = _width * RECENT_ROWS;
+	if (!_recent || recent_bytes > _filters_alloc) {
+		if (_recent) {
+			delete []_recent;
+		}
+		_recent = new u8[recent_bytes];
+		_recent_alloc = recent_bytes;
 	}
 
 	// And last row of chaos data
@@ -129,7 +143,7 @@ int ImageCMReaderPal::readFilterTables(ImageReader &reader) {
 	}
 
 	// Initialize huffman decoder
-	if (reader.eof() || !_sf.init(SF_COUNT, reader, 8)) {
+	if (reader.eof() || !_pf.init(SF_COUNT, reader, 8)) {
 		CAT_DEBUG_EXCEPTION();
 		return GCIF_RE_CM_CODES;
 	}
@@ -166,17 +180,20 @@ int ImageCMReaderPal::readChaosTables(ImageReader &reader) {
 
 int ImageCMReaderPal::readPixels(ImageReader &reader) {
 	const int width = _width;
+	const u16 PAL_SIZE = static_cast<u16>( _pal->getPaletteSize() );
+	const u32 MASK_COLOR = _mask->getColor();
 
 	// Get initial triggers
 	u16 trigger_x_lz = _lz->getTriggerX();
 
 	// Start from upper-left of image
-	u8 *p = _rgba;
-	u8 *lastStart = _chaos + COLOR_PLANES;
+	u32 *rgba = reinterpret_cast<u32 *>( _rgba );
+	u8 *p = _recent;
+
+	u8 *lastStart = _chaos + 1;
 	CAT_CLR(_chaos, _chaos_size);
 
 	const u8 *CHAOS_TABLE = _chaos_table;
-	u8 FPT[3];
 
 	// Unroll y = 0 scanline
 	{
@@ -198,7 +215,7 @@ int ImageCMReaderPal::readPixels(ImageReader &reader) {
 
 		// Restart for scanline
 		u8 *last = lastStart;
-		int lz_skip = 0, lz_lines_left = 0;
+		int lz_skip = 0;
 
 		// For each pixel,
 		for (int x = 0; x < width; ++x) {
@@ -206,7 +223,7 @@ int ImageCMReaderPal::readPixels(ImageReader &reader) {
 
 			// If LZ triggered,
 			if (x == trigger_x_lz) {
-				lz_skip = _lz->triggerX(p, lz_lines_left);
+				lz_skip = _lz->triggerXPal(p, rgba);
 				trigger_x_lz = _lz->getTriggerX();
 			}
 
@@ -216,78 +233,50 @@ int ImageCMReaderPal::readPixels(ImageReader &reader) {
 				mask_left = 31;
 			}
 
+			u8 code = 0;
+
 			if (lz_skip > 0) {
 				--lz_skip;
-				last[0] = 0;
-				last[1] = 0;
-				last[2] = 0;
-				last[3] = 0;
 			} else if ((s32)mask < 0) {
-				*reinterpret_cast<u32 *>( p ) = _mask->getColor();
-				last[0] = 0;
-				last[1] = 0;
-				last[2] = 0;
-				last[3] = 0;
+				*rgba = MASK_COLOR; 
 			} else {
 				// Read SF and CF for this zone
-				FilterSelection *filter = &_filters[x >> FILTER_ZONE_SIZE_SHIFT_W];
+				FilterSelection *filter = &_filters[x >> PALETTE_ZONE_SIZE_SHIFT_W];
 				if (!filter->ready()) {
-					filter->cf = YUV2RGB_FILTERS[_cf.next(reader)];
-					DESYNC_FILTER(x, y);
-					filter->sf = _sf_set.get(_sf.next(reader));
+					filter->sf = _pf_set.get(_pf.next(reader));
 					DESYNC_FILTER(x, y);
 				}
 
-				// Calculate YUV chaos
-				const u32 chaos_y = CHAOS_TABLE[last[-4]];
-				const u32 chaos_u = CHAOS_TABLE[last[-3]];
-				const u32 chaos_v = CHAOS_TABLE[last[-2]];
+				// Calculate chaos
+				const u32 chaos = CHAOS_TABLE[last[-1]];
 
-				// Read YUV filtered pixel
-				u8 YUV[3];
-				YUV[0] = (u8)_y_decoder[chaos_y].next(reader);
+				// Read filtered pixel
+				code = (u8)_decoder[chaos].next(reader);
 				DESYNC(x, y);
-				YUV[1] = (u8)_u_decoder[chaos_u].next(reader);
-				DESYNC(x, y);
-				YUV[2] = (u8)_v_decoder[chaos_v].next(reader);
-				DESYNC(x, y);
-
-				// Calculate alpha chaos
-				const u32 chaos_a = CHAOS_TABLE[last[-1]];
-
-				// Reverse color filter
-				filter->cf(YUV, p);
 
 				// Reverse spatial filter
-				const u8 *pred = FPT;
-				filter->sf.safe(p, &pred, x, y, width);
-				p[0] += pred[0];
-				p[1] += pred[1];
-				p[2] += pred[2];
+				const u8 pred = filter->sf.safe(p, x, y, width);
+				u8 index = (code + pred) % PAL_SIZE;
 
-				// Read alpha pixel
-				u8 A = (u8)_a_decoder[chaos_a].next(reader);
-				DESYNC(x, y);
-				if (x > 0) {
-					p[3] = p[-1] - A;
-				} else {
-					p[3] = 255 - A;
-				}
+				// Reverse palette to RGBA
+				*rgba = _pal->getColor(index);
+				*p = code;
 
 				// Convert last to score
-				last[0] = CHAOS_SCORE[YUV[0]];
-				last[1] = CHAOS_SCORE[YUV[1]];
-				last[2] = CHAOS_SCORE[YUV[2]];
-				last[3] = CHAOS_SCORE[A];
+				*last = CHAOS_SCORE[code];
 			}
 
+			// Record chaos
+			*last = code;
+
 			// Next pixel
-			last += COLOR_PLANES;
+			++rgba;
+			++p;
 			mask <<= 1;
-			p += 4;
 		}
 	}
 
+	int recent_index = 1;
 
 	// For each scanline,
 	for (int y = 1; y < _height; ++y) {
@@ -309,7 +298,18 @@ int ImageCMReaderPal::readPixels(ImageReader &reader) {
 
 		// Restart for scanline
 		u8 *last = lastStart;
-		int lz_skip = 0, lz_lines_left = 0;
+		int lz_skip = 0;
+
+		// If ran out of buffer for rows,
+		if (recent_index >= RECENT_ROWS) {
+			// Copy last two lines to top
+			const int copy_bytes = _width * 2;
+			memcpy(_recent, p - copy_bytes, copy_bytes);
+
+			// Move image data pointer after copied bytes
+			p = _recent + copy_bytes;
+			recent_index = 2;
+		}
 
 		// Unroll x = 0 pixel
 		{
@@ -318,7 +318,7 @@ int ImageCMReaderPal::readPixels(ImageReader &reader) {
 
 			// If LZ triggered,
 			if (x == trigger_x_lz) {
-				lz_skip = _lz->triggerX(p, lz_lines_left);
+				lz_skip = _lz->triggerXPal(p, rgba);
 				trigger_x_lz = _lz->getTriggerX();
 			}
 
@@ -326,19 +326,56 @@ int ImageCMReaderPal::readPixels(ImageReader &reader) {
 			mask = *mask_next++;
 			mask_left = 31;
 
+			u8 code = 0;
+
+			if (lz_skip > 0) {
+				--lz_skip;
+			} else if ((s32)mask < 0) {
+				*rgba = MASK_COLOR; 
+			} else {
+				// Read SF and CF for this zone
+				FilterSelection *filter = &_filters[x >> PALETTE_ZONE_SIZE_SHIFT_W];
+				if (!filter->ready()) {
+					filter->sf = _pf_set.get(_pf.next(reader));
+					DESYNC_FILTER(x, y);
+				}
+
+				// Calculate chaos
+				const u32 chaos = CHAOS_TABLE[last[0]];
+
+				// Read filtered pixel
+				code = (u8)_decoder[chaos].next(reader);
+				DESYNC(x, y);
+
+				// Reverse spatial filter
+				const u8 pred = filter->sf.safe(p, x, y, width);
+				u8 index = (code + pred) % PAL_SIZE;
+
+				// Reverse palette to RGBA
+				*rgba = _pal->getColor(index);
+				*p = code;
+
+				// Convert last to score
+				*last = CHAOS_SCORE[code];
+			}
+
+			// Record chaos
+			*last = code;
+
+			// Next pixel
+			++rgba;
+			++p;
+			mask <<= 1;
+
+
+
 			// If pixel was copied with LZ subsystem,
 			if (lz_skip > 0) {
 				--lz_skip;
 				last[0] = 0;
-				last[1] = 0;
-				last[2] = 0;
-				last[3] = 0;
 			} else if ((s32)mask < 0) {
 				*reinterpret_cast<u32 *>( p ) = _mask->getColor();
 				last[0] = 0;
-				last[1] = 0;
-				last[2] = 0;
-				last[3] = 0;
 			} else {
 				// Read SF and CF for this zone
 				FilterSelection *filter = &_filters[x >> FILTER_ZONE_SIZE_SHIFT_W];
@@ -389,9 +426,10 @@ int ImageCMReaderPal::readPixels(ImageReader &reader) {
 			}
 
 			// Next pixel
-			last += COLOR_PLANES;
+			++rgba;
+			++p;
 			mask <<= 1;
-			p += 4;
+			++last
 		}
 
 
@@ -404,7 +442,7 @@ int ImageCMReaderPal::readPixels(ImageReader &reader) {
 
 			// If LZ triggered,
 			if (x == trigger_x_lz) {
-				lz_skip = _lz->triggerX(p, lz_lines_left);
+				lz_skip = _lz->triggerXPal(p, lz_src);
 				trigger_x_lz = _lz->getTriggerX();
 			}
 
@@ -477,9 +515,10 @@ int ImageCMReaderPal::readPixels(ImageReader &reader) {
 			}
 
 			// Next pixel
-			p += 4;
+			++rgba;
+			++p;
 			mask <<= 1;
-			last += COLOR_PLANES;
+			++last
 		}
 
 		
@@ -493,7 +532,7 @@ int ImageCMReaderPal::readPixels(ImageReader &reader) {
 
 			// If LZ triggered,
 			if (x == trigger_x_lz) {
-				lz_skip = _lz->triggerX(p, lz_lines_left);
+				lz_skip = _lz->triggerXPal(p, lz_src);
 				trigger_x_lz = _lz->getTriggerX();
 			}
 
@@ -565,9 +604,12 @@ int ImageCMReaderPal::readPixels(ImageReader &reader) {
 			}
 
 			// Next pixel
-			p += 4;
-		}
-	}
+			++rgba;
+			++p;
+		} // next x
+
+		++recent_index;
+	} // next y
 
 	return GCIF_RE_OK;
 }
