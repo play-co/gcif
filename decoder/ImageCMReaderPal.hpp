@@ -71,9 +71,9 @@ protected:
 	int _chaos_levels;
 	const u8 *_chaos_table;
 
-	// Recent palette memory
-	u8 *_recent;
-	int _recent_alloc;
+	// Palette memory
+	u8 *_pdata;
+	int _pdata_alloc;
 
 	// Recent scanline filters
 	struct FilterSelection {
@@ -120,7 +120,7 @@ public:
 		_rgba = 0;
 		_chaos = 0;
 		_filters = 0;
-		_recent = 0;
+		_pdata = 0;
 	}
 	virtual CAT_INLINE ~ImageCMReaderPal() {
 		clear();

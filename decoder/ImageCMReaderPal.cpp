@@ -61,9 +61,9 @@ void ImageCMReaderPal::clear() {
 		delete []_filters;
 		_filters = 0;
 	}
-	if (_recent) {
-		delete []_recent;
-		_recent = 0;
+	if (_pdata) {
+		delete []_pdata;
+		_pdata = 0;
 	}
 	// Do not free RGBA data here
 }
@@ -90,14 +90,14 @@ int ImageCMReaderPal::init(GCIFImage *image) {
 		_filters_alloc = _filters_bytes;
 	}
 
-	// Allocate recent bytes
-	const int recent_bytes = _width * RECENT_ROWS;
-	if (!_recent || recent_bytes > _filters_alloc) {
-		if (_recent) {
-			delete []_recent;
+	// Allocate pdata bytes
+	const int pdata_bytes = _width * _height;
+	if (!_pdata || pdata_bytes > _pdata_alloc) {
+		if (_pdata) {
+			delete []_pdata;
 		}
-		_recent = new u8[recent_bytes];
-		_recent_alloc = recent_bytes;
+		_pdata = new u8[pdata_bytes];
+		_pdata_alloc = pdata_bytes;
 	}
 
 	// And last row of chaos data
@@ -189,7 +189,7 @@ int ImageCMReaderPal::readPixels(ImageReader &reader) {
 
 	// Start from upper-left of image
 	u32 *rgba = reinterpret_cast<u32 *>( _rgba );
-	u8 *p = _recent;
+	u8 *p = _pdata;
 
 	u8 *lastStart = _chaos + 1;
 	CAT_CLR(_chaos, _chaos_size);
@@ -278,8 +278,6 @@ int ImageCMReaderPal::readPixels(ImageReader &reader) {
 		}
 	}
 
-	int recent_index = 1;
-
 	// For each scanline,
 	for (int y = 1; y < _height; ++y) {
 		// If LZ triggered,
@@ -301,17 +299,6 @@ int ImageCMReaderPal::readPixels(ImageReader &reader) {
 		// Restart for scanline
 		u8 *last = lastStart;
 		int lz_skip = 0;
-
-		// If ran out of buffer for rows,
-		if (recent_index >= RECENT_ROWS) {
-			// Copy last two lines to top
-			const int copy_bytes = _width * 2;
-			memcpy(_recent, p - copy_bytes, copy_bytes);
-
-			// Move image data pointer after copied bytes
-			p = _recent + copy_bytes;
-			recent_index = 2;
-		}
 
 		// Unroll x = 0 pixel
 		{
@@ -495,8 +482,6 @@ int ImageCMReaderPal::readPixels(ImageReader &reader) {
 			// Record chaos
 			*last = code;
 		} // next x
-
-		++recent_index;
 	} // next y
 
 	return GCIF_RE_OK;
