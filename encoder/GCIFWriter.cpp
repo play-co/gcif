@@ -196,7 +196,10 @@ extern "C" int gcif_write_ex(const void *rgba, int width, int height, const char
 	imageCMWriter.dumpStats();
 
 	// Finalize file
-	if ((err = writer.finalizeAndWrite(output_file_path))) {
+	writer.finalize();
+
+	// Write it out
+	if ((err = writer.write(output_file_path))) {
 		return err;
 	}
 
@@ -214,7 +217,8 @@ extern "C" int gcif_write(const void *rgba, int width, int height, const char *o
 		compression_level = COMPRESS_LEVELS - 1;
 	}
 
-	// Run with selected knobs
 	const GCIFKnobs *knobs = &DEFAULT_KNOBS[compression_level];
+
+	// Run with selected knobs
 	return gcif_write_ex(rgba, width, height, output_file_path, knobs);
 }

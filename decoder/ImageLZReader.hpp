@@ -95,7 +95,7 @@ protected:
 
 	void clear();
 
-	int init(const ImageHeader *header);
+	int init(const ImageReader::Header *header);
 	int readHuffmanTable(ImageReader &reader);
 	int readZones(ImageReader &reader);
 

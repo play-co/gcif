@@ -142,10 +142,6 @@ Stefano Brocchi
 + Image codec design inspiration
 + BCIF: http://www.dsi.unifi.it/DRIIA/RaccoltaTesi/Brocchi.pdf
 
-Austin Appleby
-+ Fast validation hash
-+ MurmurHash3: https://code.google.com/p/smhasher/wiki/MurmurHash3
-
 Yann Collet
 + Fast LZ codec
 + LZ4HC: https://code.google.com/p/lz4/
@@ -161,6 +157,10 @@ Rich Geldreich
 Thomas Wang
 + Integer hash function
 + Closest URL: http://burtleburtle.net/bob/hash/integer.html
+
+Google
++ Inspiration for a few compression and format improvements
++ WebP: https://developers.google.com/speed/webp/docs/webp_lossless_bitstream_specification
 
 
 Specification

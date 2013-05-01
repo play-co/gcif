@@ -128,7 +128,7 @@ int ImageMaskReader::decodeLZ(ImageReader &reader) {
 	return GCIF_RE_OK;
 }
 
-int ImageMaskReader::init(const ImageHeader *header) {
+int ImageMaskReader::init(const ImageReader::Header *header) {
 	const int maskWidth = header->width;
 	const int maskHeight = header->height;
 
@@ -157,7 +157,7 @@ int ImageMaskReader::read(ImageReader &reader) {
 
 	int err;
 
-	if ((err = init(reader.getImageHeader()))) {
+	if ((err = init(reader.getHeader()))) {
 		return err;
 	}
 

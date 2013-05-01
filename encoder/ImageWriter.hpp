@@ -30,7 +30,6 @@
 #define IMAGE_WRITER_HPP
 
 #include "../decoder/Platform.hpp"
-#include "../decoder/HotRodHash.hpp"
 #include "../decoder/ImageReader.hpp"
 #include "../decoder/EndianNeutral.hpp"
 #include "Log.hpp"
@@ -70,9 +69,6 @@ class WriteVector {
 
 	int _size;		// Total number of words
 
-	HotRodHash _fastHash;
-	FileValidationHash _goodHash;
-
 	void clear();
 	void grow();
 
@@ -86,7 +82,7 @@ public:
 		clear();
 	}
 
-	void init(u32 hashSeed);
+	void init();
 
 	CAT_INLINE void push(u32 x) {
 		// Grow ropes
@@ -94,18 +90,9 @@ public:
 			grow();
 		}
 
-		// Hash data for later validation
-		_fastHash.hashWord(x);
-		_goodHash.hashWord(x);
-
 		// Make data endian-neutral and write it out
 		_work[_used++] = getLE(x);
 		++_size;
-	}
-
-	CAT_INLINE void finalizeHash(u32 &fastHash, u32 &goodHash) {
-		fastHash = _fastHash.final(_size);
-		goodHash = _goodHash.final(_size);
 	}
 
 	CAT_INLINE int getWordCount() {
@@ -119,7 +106,15 @@ public:
 //// ImageWriter
 
 class ImageWriter {
-	ImageHeader _header;
+public:
+	static const u32 HEAD_MAGIC = ImageReader::HEAD_MAGIC;
+	static const u32 MAX_WIDTH_BITS = ImageReader::MAX_WIDTH_BITS;
+	static const u32 MAX_WIDTH = ImageReader::MAX_WIDTH;
+	static const u32 MAX_HEIGHT_BITS = ImageReader::MAX_HEIGHT_BITS;
+	static const u32 MAX_HEIGHT = ImageReader::MAX_HEIGHT;
+
+protected:
+	ImageReader::Header _header;
 
 	WriteVector _words;
 	u64 _work;
@@ -131,7 +126,7 @@ public:
 	CAT_INLINE virtual ~ImageWriter() {
 	}
 
-	CAT_INLINE ImageHeader *getImageHeader() {
+	CAT_INLINE ImageReader::Header *getHeader() {
 		return &_header;
 	}
 
@@ -337,8 +332,11 @@ public:
 		}
 	}
 
-	// Finalize the last word and write to file
-	int finalizeAndWrite(const char *path);
+	// Finalize the last word and report length of file in bytes
+	u32 finalize();
+
+	// Write finalized data to file
+	int write(const char *path);
 };
 
 

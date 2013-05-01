@@ -12,7 +12,7 @@ CPFLAGS = $(CFLAGS)
 
 # List of object files
 
-decode_objects = EndianNeutral.o Enforcer.o Filters.o GCIFReader.o HotRodHash.o
+decode_objects = EndianNeutral.o Enforcer.o Filters.o GCIFReader.o
 decode_objects += HuffmanDecoder.o ImageCMReader.o ImageLZReader.o
 decode_objects += ImageMaskReader.o ImageReader.o MappedFile.o lz4.o
 decode_objects += ImagePaletteReader.o ImageCMReaderPal.o
@@ -32,7 +32,6 @@ gcif_objects += $(decode_objects)
 
 DECODE_SRCS = decoder/EndianNeutral.cpp decoder/Enforcer.cpp
 DECODE_SRCS += decoder/Filters.cpp decoder/GCIFReader.cpp
-DECODE_SRCS += decoder/HotRodHash.cpp
 DECODE_SRCS += decoder/HuffmanDecoder.cpp
 DECODE_SRCS += decoder/ImageCMReader.cpp
 DECODE_SRCS += decoder/ImageLZReader.cpp
@@ -129,9 +128,6 @@ HuffmanDecoder.o : decoder/HuffmanDecoder.cpp
 
 HuffmanEncoder.o : encoder/HuffmanEncoder.cpp
 	$(CCPP) $(CPFLAGS) -c encoder/HuffmanEncoder.cpp
-
-HotRodHash.o : decoder/HotRodHash.cpp
-	$(CCPP) $(CPFLAGS) -c decoder/HotRodHash.cpp
 
 ImageReader.o : decoder/ImageReader.cpp
 	$(CCPP) $(CPFLAGS) -c decoder/ImageReader.cpp

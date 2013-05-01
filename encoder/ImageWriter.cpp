@@ -71,11 +71,8 @@ void WriteVector::grow() {
 	_used = 0;
 }
 
-void WriteVector::init(u32 hashSeed) {
+void WriteVector::init() {
 	clear();
-
-	_fastHash.init(hashSeed);
-	_goodHash.init(hashSeed);
 
 	u32 *newWork = new u32[HEAD_SIZE + PTR_WORDS];
 	_head = _work = newWork;
@@ -117,24 +114,24 @@ void WriteVector::write(u32 *target) {
 
 int ImageWriter::init(int width, int height) {
 	// Validate
-
-	if (width < 0 || height < 0) {
-		return GCIF_WE_BAD_DIMS;
-	}
-
-	if (width > 65535 || height > 65535) {
+	if (width < 0 || height < 0 ||
+		width > MAX_WIDTH || height > MAX_HEIGHT) {
 		return GCIF_WE_BAD_DIMS;
 	}
 
 	// Initialize
-
-	_words.init(ImageReader::DATA_SEED);
-
 	_header.width = static_cast<u16>( width );
 	_header.height = static_cast<u16>( height );
 
 	_work = 0;
 	_bits = 0;
+
+	_words.init();
+
+	// Write header
+	writeWord(HEAD_MAGIC);
+	writeBits(width, MAX_WIDTH_BITS);
+	writeBits(height, MAX_HEIGHT_BITS);
 
 	return GCIF_WE_OK;
 }
@@ -159,9 +156,7 @@ void ImageWriter::writeBits(u32 code, int len) {
 	_bits = bits;
 }
 
-int ImageWriter::finalizeAndWrite(const char *path) {
-	MappedFile file;
-
+u32 ImageWriter::finalize() {
 	// Finalize the bit data
 
 	CAT_DEBUG_ENFORCE(_bits <= 32);
@@ -171,13 +166,16 @@ int ImageWriter::finalizeAndWrite(const char *path) {
 		_words.push((u32)(_work >> 32));
 	}
 
-	u32 fastHash, goodHash;
-	_words.finalizeHash(fastHash, goodHash);
+	return _words.getWordCount();
+}
+
+int ImageWriter::write(const char *path) {
+	MappedFile file;
 
 	// Calculate file size
 
-	int wordCount = _words.getWordCount();
-	int totalBytes = (ImageReader::HEAD_WORDS + wordCount) * sizeof(u32);
+	const int wordCount = _words.getWordCount();
+	const int totalBytes = wordCount * sizeof(u32);
 
 	// Map the file
 
@@ -198,33 +196,6 @@ int ImageWriter::finalizeAndWrite(const char *path) {
 	}
 
 	u32 *fileWords = reinterpret_cast<u32*>( fileData );
-
-	// Write header
-
-	FileValidationHash hh;
-	hh.init(ImageReader::HEAD_SEED);
-
-	fileWords[0] = getLE(ImageReader::HEAD_MAGIC);
-	hh.hashWord(ImageReader::HEAD_MAGIC);
-
-	u32 header1 = (_header.width << 16) | _header.height;
-	fileWords[1] = getLE(header1);
-	hh.hashWord(header1);
-
-	fileWords[2] = getLE(fastHash);
-	hh.hashWord(fastHash);
-
-	fileWords[3] = getLE(goodHash);
-	hh.hashWord(goodHash);
-
-	u32 headHash = hh.final(ImageReader::HEAD_WORDS);
-	fileWords[4] = getLE(headHash);
-
-	fileWords += ImageReader::HEAD_WORDS;
-
-	_header.headHash = headHash;
-	_header.fastHash = fastHash;
-	_header.goodHash = goodHash;
 
 	// Copy file data
 

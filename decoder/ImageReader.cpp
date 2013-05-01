@@ -48,7 +48,6 @@ u32 ImageReader::refill() {
 		--_wordsLeft;
 
 		u32 nextWord = getLE(*_words++);
-		_hash.hashWord(nextWord);
 
 		bits |= (u64)nextWord << (32 - bitsLeft);
 		bitsLeft += 32;
@@ -91,62 +90,37 @@ int ImageReader::init(const char *path) {
 #endif // CAT_COMPILE_MMAP
 
 int ImageReader::init(const void *buffer, long fileSize) {
+	const int MIN_FILE_WORDS = 2; // Enough for header
+
 	clear();
 
 	const u32 *words = reinterpret_cast<const u32 *>( buffer );
 	const u32 fileWords = fileSize / sizeof(u32);
 
-	// Validate header
-
-	FileValidationHash hh;
-	hh.init(HEAD_SEED);
-
-	if CAT_UNLIKELY(fileWords < HEAD_WORDS) {
+	// Validate file length
+	if CAT_UNLIKELY(fileWords < MIN_FILE_WORDS) {
 		return GCIF_RE_BAD_HEAD;
 	}
 
-	u32 word0 = getLE(words[0]);
-	hh.hashWord(word0);
-
-	if CAT_UNLIKELY(HEAD_MAGIC != word0) {
-		return GCIF_RE_BAD_HEAD;
-	}
-
-	u32 word1 = getLE(words[1]);
-	hh.hashWord(word1);
-
-	u32 fastHash = getLE(words[2]);
-	hh.hashWord(fastHash);
-
-	u32 goodHash = getLE(words[3]);
-	hh.hashWord(goodHash);
-
-	u32 headHash = getLE(words[4]);
-	if CAT_UNLIKELY(headHash != hh.final(HEAD_WORDS)) {
-		CAT_DEBUG_EXCEPTION();
-		return GCIF_RE_BAD_HEAD;
-	}
-
-	// Read header
-
-	_header.width = word1 >> 16;
-	_header.height = (u16)word1;
-	_header.headHash = headHash;
-	_header.fastHash = fastHash;
-	_header.goodHash = goodHash;
-
-	// Get ready to read words
-
-	_hash.init(DATA_SEED);
-
-	_words = words + HEAD_WORDS;
-	_wordsLeft = fileWords - HEAD_WORDS;
+	// Setup bit reader
+	_words = words;
+	_wordsLeft = fileWords;
 	_wordCount = _wordsLeft;
 
 	_eof = false;
 
 	_bits = 0;
 	_bitsLeft = 0;
+
+	// Validate magic
+	u32 magic = readWord();
+	if CAT_UNLIKELY(magic != HEAD_MAGIC) {
+		return GCIF_RE_BAD_HEAD;
+	}
+
+	// Any input data here is OK
+	_header.width = readBits(MAX_WIDTH_BITS);
+	_header.height = readBits(MAX_HEIGHT_BITS);
 
 	return GCIF_RE_OK;
 }

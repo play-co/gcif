@@ -65,7 +65,7 @@ class ImageMaskReader {
 	int decodeLZ(ImageReader &reader);
 	void clear();
 
-	int init(const ImageHeader *header);
+	int init(const ImageReader::Header *header);
 
 #ifdef CAT_COLLECT_STATS
 public:

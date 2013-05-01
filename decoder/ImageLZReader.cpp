@@ -49,7 +49,7 @@ void ImageLZReader::clear() {
 	}
 }
 
-int ImageLZReader::init(const ImageHeader *header) {
+int ImageLZReader::init(const ImageReader::Header *header) {
 	_width = header->width;
 	_height = header->height;
 
@@ -449,7 +449,7 @@ int ImageLZReader::read(ImageReader &reader) {
 
 	int err;
 
-	if ((err = init(reader.getImageHeader()))) {
+	if ((err = init(reader.getHeader()))) {
 		return err;
 	}
 
