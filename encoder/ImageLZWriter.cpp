@@ -150,7 +150,10 @@ bool ImageLZWriter::expandMatch(u16 &sx, u16 &sy, u16 &dx, u16 &dy, u16 &w, u16 
 	const int height = _height;
 
 	// Try expanding to the right
+	int trailing_alpha_only = 0;
 	while (w + 1 <= MAXW && sx + w < width && dx + w < width) {
+		bool alpha_only = true;
+
 		for (int jj = 0; jj < h; ++jj) {
 			if (visited(dx + w, dy + jj)) {
 				goto try_down;
@@ -159,20 +162,35 @@ bool ImageLZWriter::expandMatch(u16 &sx, u16 &sy, u16 &dx, u16 &dy, u16 &w, u16 
 			u32 *sp = (u32*)&rgba[((sx + w) + (sy + jj) * width)*4];
 			u32 *dp = (u32*)&rgba[((dx + w) + (dy + jj) * width)*4];
 
-			// If RGB components match,
-			//if (((getLE(*sp) ^ getLE(*dp)) << 8) != 0) {
 			if (getLE(*sp) ^ getLE(*dp)) {
 				goto try_down;
 			}
+
+			if (*sp >> 24) {
+				alpha_only = false;
+			}
+		}
+
+		if (alpha_only) {
+			trailing_alpha_only++;
+		} else {
+			trailing_alpha_only = 0;
 		}
 
 		// Widen width
 		++w;
 	}
 
-	// Try expanding down
 try_down:
+	if (trailing_alpha_only > 0) {
+		w -= trailing_alpha_only;
+	}
+
+	// Try expanding down
+	trailing_alpha_only = 0;
 	while (h + 1 <= MAXH && sy + h < height && dy + h < height) {
+		bool alpha_only = true;
+
 		for (int jj = 0; jj < w; ++jj) {
 			if (visited(dx + jj, dy + h)) {
 				goto try_left;
@@ -181,20 +199,35 @@ try_down:
 			u32 *sp = (u32*)&rgba[((sx + jj) + (sy + h) * width)*4];
 			u32 *dp = (u32*)&rgba[((dx + jj) + (dy + h) * width)*4];
 
-			// If RGB components match,
-			//if (((getLE(*sp) ^ getLE(*dp)) << 8) != 0) {
 			if (getLE(*sp) ^ getLE(*dp)) {
 				goto try_left;
 			}
+
+			if (*sp >> 24) {
+				alpha_only = false;
+			}
+		}
+
+		if (alpha_only) {
+			trailing_alpha_only++;
+		} else {
+			trailing_alpha_only = 0;
 		}
 
 		// Heighten height
 		++h;
 	}
 
-	// Try expanding left
 try_left:
+	if (trailing_alpha_only > 0) {
+		h -= trailing_alpha_only;
+	}
+
+	// Try expanding left
+	trailing_alpha_only = 0;
 	while (w + 1 <= MAXW && sx >= 1 && dx >= 1) {
+		bool alpha_only = true;
+
 		for (int jj = 0; jj < h; ++jj) {
 			if (visited(dx - 1, dy + jj)) {
 				goto try_up;
@@ -203,11 +236,19 @@ try_left:
 			u32 *sp = (u32*)&rgba[((sx - 1) + (sy + jj) * width)*4];
 			u32 *dp = (u32*)&rgba[((dx - 1) + (dy + jj) * width)*4];
 
-			// If RGB components match,
-			//if (((getLE(*sp) ^ getLE(*dp)) << 8) != 0) {
 			if (getLE(*sp) ^ getLE(*dp)) {
 				goto try_up;
 			}
+
+			if (*sp >> 24) {
+				alpha_only = false;
+			}
+		}
+
+		if (alpha_only) {
+			trailing_alpha_only++;
+		} else {
+			trailing_alpha_only = 0;
 		}
 
 		// Widen width
@@ -216,28 +257,52 @@ try_left:
 		++w;	
 	}
 
-	// Try expanding up
 try_up:
+	if (trailing_alpha_only > 0) {
+		w -= trailing_alpha_only;
+		dx += trailing_alpha_only;
+		sx += trailing_alpha_only;
+	}
+
+	// Try expanding up
+	trailing_alpha_only = 0;
 	while (h + 1 <= MAXH && sy >= 1 && dy >= 1) {
+		bool alpha_only = true;
+
 		for (int jj = 0; jj < w; ++jj) {
 			if (visited(dx + jj, dy - 1)) {
-				return true;
+				goto done;
 			}
 
 			u32 *sp = (u32*)&rgba[((sx + jj) + (sy - 1) * width)*4];
 			u32 *dp = (u32*)&rgba[((dx + jj) + (dy - 1) * width)*4];
 
-			// If RGB components match,
-			//if (((getLE(*sp) ^ getLE(*dp)) << 8) != 0) {
 			if (getLE(*sp) ^ getLE(*dp)) {
-				return true;
+				goto done;
 			}
+
+			if (*sp >> 24) {
+				alpha_only = false;
+			}
+		}
+
+		if (alpha_only) {
+			trailing_alpha_only++;
+		} else {
+			trailing_alpha_only = 0;
 		}
 
 		// Widen width
 		sy--;
 		dy--;
 		++h;	
+	}
+
+done:
+	if (trailing_alpha_only > 0) {
+		h -= trailing_alpha_only;
+		dy += trailing_alpha_only;
+		sy += trailing_alpha_only;
 	}
 
 	return true;

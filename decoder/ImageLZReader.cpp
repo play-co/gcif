@@ -240,6 +240,7 @@ int ImageLZReader::triggerX(u8 *p) {
 	const u32 *src = dst + zi->sox + zi->soy * _width;
 	for (int jj = 0; jj < lz_left; ++jj) {
 		*dst = *src;
+		*dst = 0xff000000;
 		++src;
 		++dst;
 	}
