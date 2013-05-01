@@ -262,7 +262,7 @@ int ImageCMReaderPal::readPixels(ImageReader &reader) {
 
 				// Reverse palette to RGBA
 				*rgba = _pal->getColor(index);
-				*p = code;
+				*p = index;
 
 				// Convert to score
 				code = CHAOS_SCORE[code];
@@ -343,7 +343,7 @@ int ImageCMReaderPal::readPixels(ImageReader &reader) {
 
 				// Reverse palette to RGBA
 				*rgba = _pal->getColor(index);
-				*p = code;
+				*p = index;
 
 				// Convert to score
 				code = CHAOS_SCORE[code];
@@ -406,7 +406,7 @@ int ImageCMReaderPal::readPixels(ImageReader &reader) {
 
 				// Reverse palette to RGBA
 				*rgba = _pal->getColor(index);
-				*p = code;
+				*p = index;
 
 				// Convert to score
 				code = CHAOS_SCORE[code];
@@ -469,7 +469,7 @@ int ImageCMReaderPal::readPixels(ImageReader &reader) {
 
 				// Reverse palette to RGBA
 				*rgba = _pal->getColor(index);
-				*p = code;
+				*p = index;
 
 				// Convert to score
 				code = CHAOS_SCORE[code];
