@@ -800,8 +800,8 @@ void ImageCMWriter::decidePalFilters() {
 							}
 
 							const u8 *p = _pal->get(px, py);
-							const u8 pred = _pf_set.get(bestSF).safe(p, px, py, width);
-							codes[count++] = (u8)(p[0] + PAL_SIZE*256 - pred) % PAL_SIZE;
+							const u8 pred = _pf_set.get(bestSF).safe(p, px, py, width) % PAL_SIZE;
+							codes[count++] = (u8)((u32)(p[0] + PAL_SIZE - pred) % PAL_SIZE);
 						}
 					}
 
@@ -865,8 +865,8 @@ void ImageCMWriter::decidePalFilters() {
 								}
 
 								const u8 *p = _pal->get(px, py);
-								const u8 pred = _pf_set.get(bestSF).safe(p, px, py, width);
-								codes[count++] = (u8)(p[0] + PAL_SIZE*256 - pred) % PAL_SIZE;
+								const u8 pred = _pf_set.get(bestSF).safe(p, px, py, width) % PAL_SIZE;
+								codes[count++] = (u8)((u32)(p[0] + PAL_SIZE - pred) % PAL_SIZE);
 							}
 						}
 
@@ -905,8 +905,8 @@ void ImageCMWriter::decidePalFilters() {
 								}
 
 								const u8 *p = _pal->get(px, py);
-								const u8 pred = _pf_set.get(sf).safe(p, px, py, width);
-								codes[count++] = (u8)(p[0] + PAL_SIZE*256 - pred) % PAL_SIZE;
+								const u8 pred = _pf_set.get(sf).safe(p, px, py, width) % PAL_SIZE;
+								codes[count++] = (u8)((u32)(p[0] + PAL_SIZE - pred) % PAL_SIZE);
 							}
 						}
 
@@ -1350,8 +1350,8 @@ void ImageCMWriter::chaosPalStats() {
 				const u8 sf = (u8)filter;
 
 				// Apply spatial filter
-				const u8 pred = _pf_set.get(sf).safe(p, x, y, width);
-				u8 n = (u8)(p[0] + PAL_SIZE*256 - pred) % PAL_SIZE;
+				const u8 pred = _pf_set.get(sf).safe(p, x, y, width) % PAL_SIZE;
+				u8 n = (u8)((u32)(p[0] + PAL_SIZE - pred) % PAL_SIZE);
 
 				u8 chaos = CHAOS_TABLE[CHAOS_SCORE[last[-1]] + CHAOS_SCORE[last[0]]];
 				_y_encoder[chaos].add(n);
@@ -1708,8 +1708,8 @@ bool ImageCMWriter::writePalChaos(ImageWriter &writer) {
 				}
 
 				// Apply spatial filter
-				const u8 pred = _pf_set.get(sf).safe(p, x, y, width);
-				u8 n = (u8)(p[0] + PAL_SIZE*256 - pred) % PAL_SIZE;
+				const u8 pred = _pf_set.get(sf).safe(p, x, y, width) % PAL_SIZE;
+				u8 n = (u8)((u32)(p[0] + PAL_SIZE - pred) % PAL_SIZE);
 
 				u8 chaos = CHAOS_TABLE[CHAOS_SCORE[last[-1]] + CHAOS_SCORE[last[0]]];
 
