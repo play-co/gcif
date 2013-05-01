@@ -51,7 +51,7 @@
  * Notable improvements:
  * + Much better compression ratios
  * + Maintainable codebase for future improvements
- * + 2D LZ Exact Match and Dominant Color Mask integration
+ * + 2D LZ Exact Matc, Dominant Color Mask, and Global Palette integration
  * + Uses 4x4 zones instead of 8x8
  * + More/better non-linear spatial and more color filters supported
  * + Linear spatial filters tuned to image where improvement is found
