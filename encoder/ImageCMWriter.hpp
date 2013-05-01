@@ -138,6 +138,8 @@ protected:
 	ImageLZWriter *_lz;
 	ImagePaletteWriter *_pal;
 
+	u32 *_slz;
+
 	// List of custom linear filter replacements
 	std::vector<u32> _filter_replacements;
 
@@ -146,7 +148,7 @@ protected:
 	HuffmanEncoder<SF_COUNT> _sf_encoder;
 
 	// Color channel encoders
-	EntropyEncoder<256, ZRLE_SYMS_Y> _y_encoder[CHAOS_LEVELS_MAX];
+	EntropyEncoder<256 + 24, ZRLE_SYMS_Y> _y_encoder[CHAOS_LEVELS_MAX];
 	EntropyEncoder<256, ZRLE_SYMS_U> _u_encoder[CHAOS_LEVELS_MAX];
 	EntropyEncoder<256, ZRLE_SYMS_V> _v_encoder[CHAOS_LEVELS_MAX];
 	EntropyEncoder<256, ZRLE_SYMS_A> _a_encoder[CHAOS_LEVELS_MAX];
@@ -155,6 +157,8 @@ protected:
 
 	int init(int width, int height);
 
+	void scanlineLZ();
+
 	void maskFilters();
 	void maskPalFilters();
 
@@ -162,8 +166,6 @@ protected:
 	void decideFilters();
 	void designPalFilters();
 	void decidePalFilters();
-
-	void scanlineLZ(); // In progress
 
 	bool applyFilters();
 	bool applyPalFilters();

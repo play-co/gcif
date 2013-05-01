@@ -951,9 +951,60 @@ void ImageCMWriter::decidePalFilters() {
 
 
 void ImageCMWriter::scanlineLZ() {
+	const int total = _width * _height;
+
+	_slz = new u32[total];
+	CAT_CLR(_slz, sizeof(u32) * total);
+
+	const u32 *rgba = reinterpret_cast<const u32 *>( _rgba );
+	int seen = 0;
+	int left = total - 1;
+	for (int y = 0; y < _height; ++y) {
+		for (int x = 0; x < _width; ++x) {
+			if (!_lz->visited(x, y) && !_mask->masked(x, y) && !_slz[x + y * _width]) {
+				// Check backwards for matches
+				u32 c = *rgba;
+
+				const u32 *line = rgba - 1;
+				for (int lx = x - 1; lx >= 0; --lx) {
+					if (!_lz->visited(lx, y) && !_mask->masked(lx, y) && c == *line) {
+						int match = 1;
+						const u32 *dst = rgba + 1;
+						const u32 *src = line + 1;
+						for (int nx = x + 1; nx < _width; ++nx) {
+							if (*dst == *src) {
+								++match;
+							} else {
+								break;
+							}
+						}
+
+
+						int offset = 0;
+						while (match > 0) {
+							_slz[x + offset + y * _width] = ((lx + offset) << 16) | match;
+							--match;
+						}
+					}
+					--line;
+				}
+			}
+
+			++rgba;
+			--left;
+			++seen;
+		}
+	}
 
 	//CAT_INANE("CM") << "Comparing performance with ScanlineLZ...";
-
+/*
+if (prefix_code < 4) {
+  return prefix_code + 1;
+}
+int extra_bits = (prefix_code - 2) >> 1;
+int offset = (2 + (prefix_code & 1)) << extra_bits;
+return offset + ReadBits(extra_bits) + 1;
+*/
 	/*
 	 * For each filter zone set of scanlines there are two options:
 	 * + Use chosen zone filters as normal (good for natural images)
@@ -1261,14 +1312,22 @@ void ImageCMWriter::chaosStats() {
 					yuv[3] = 255 - p[3];
 				}
 
-				u8 chaos = CHAOS_TABLE[CHAOS_SCORE[last[0 - 4]] + CHAOS_SCORE[last[0]]];
-				_y_encoder[chaos].add(yuv[0]);
-				chaos = CHAOS_TABLE[CHAOS_SCORE[last[1 - 4]] + CHAOS_SCORE[last[1]]];
-				_u_encoder[chaos].add(yuv[1]);
-				chaos = CHAOS_TABLE[CHAOS_SCORE[last[2 - 4]] + CHAOS_SCORE[last[2]]];
-				_v_encoder[chaos].add(yuv[2]);
-				chaos = CHAOS_TABLE[CHAOS_SCORE[last[3 - 4]] + CHAOS_SCORE[last[3]]];
-				_a_encoder[chaos].add(yuv[3]);
+				int nonzeroes = CHAOS_TABLE[yuv[0]] >= 4;
+				nonzeroes += CHAOS_TABLE[yuv[1]] >= 4;
+				nonzeroes += CHAOS_TABLE[yuv[2]] >= 4;
+				nonzeroes += CHAOS_TABLE[yuv[3]] >= 4;
+
+				if (nonzeroes >= 2 && _slz[x + y * _width]) {
+				} else {
+					u8 chaos = CHAOS_TABLE[CHAOS_SCORE[last[0 - 4]] + CHAOS_SCORE[last[0]]];
+					_y_encoder[chaos].add(yuv[0]);
+					chaos = CHAOS_TABLE[CHAOS_SCORE[last[1 - 4]] + CHAOS_SCORE[last[1]]];
+					_u_encoder[chaos].add(yuv[1]);
+					chaos = CHAOS_TABLE[CHAOS_SCORE[last[2 - 4]] + CHAOS_SCORE[last[2]]];
+					_v_encoder[chaos].add(yuv[2]);
+					chaos = CHAOS_TABLE[CHAOS_SCORE[last[3 - 4]] + CHAOS_SCORE[last[3]]];
+					_a_encoder[chaos].add(yuv[3]);
+				}
 
 				for (int c = 0; c < COLOR_PLANES; ++c) {
 					last[c] = yuv[c];
@@ -1353,6 +1412,12 @@ void ImageCMWriter::chaosPalStats() {
 				const u8 pred = _pf_set.get(sf).safe(p, x, y, width) % PAL_SIZE;
 				u8 n = (u8)((u32)(p[0] + PAL_SIZE - pred) % PAL_SIZE);
 
+				int nonzeroes = n != 0;
+
+				if (nonzeroes >= 1) {
+					CAT_WARN("PAL") << _slz[x + y * _width];
+				}
+
 				u8 chaos = CHAOS_TABLE[CHAOS_SCORE[last[-1]] + CHAOS_SCORE[last[0]]];
 				_y_encoder[chaos].add(n);
 
@@ -1397,6 +1462,8 @@ int ImageCMWriter::initFromRGBA(const u8 *rgba, int width, int height, ImageMask
 		return GCIF_WE_BAD_PARAMS;
 	}
 
+	scanlineLZ();
+
 	if (_pal->enabled()) {
 		maskPalFilters();
 
@@ -1413,10 +1480,6 @@ int ImageCMWriter::initFromRGBA(const u8 *rgba, int width, int height, ImageMask
 
 		designFilters();
 		decideFilters();
-
-		if (_knobs->cm_scanlineFilters) {
-			scanlineLZ();
-		}
 
 		if (!applyFilters()) {
 			return GCIF_WE_BUG;
@@ -1555,31 +1618,40 @@ bool ImageCMWriter::writeChaos(ImageWriter &writer) {
 					YUVA[3] = 255 - p[3];
 				}
 
-				u8 chaos = CHAOS_TABLE[CHAOS_SCORE[last[0 - 4]] + CHAOS_SCORE[last[0]]];
+				int nonzeroes = CHAOS_TABLE[YUVA[0]] >= 4;
+				nonzeroes += CHAOS_TABLE[YUVA[1]] >= 4;
+				nonzeroes += CHAOS_TABLE[YUVA[2]] >= 4;
+				nonzeroes += CHAOS_TABLE[YUVA[3]] >= 4;
 
-				int bits = _y_encoder[chaos].write(YUVA[0], writer);
-				DESYNC(x, y);
+				if (nonzeroes >= 2 && _slz[x + y * _width]) {
+					bitcount[0] += 8;
+				} else {
+					u8 chaos = CHAOS_TABLE[CHAOS_SCORE[last[0 - 4]] + CHAOS_SCORE[last[0]]];
+
+					int bits = _y_encoder[chaos].write(YUVA[0], writer);
+					DESYNC(x, y);
 #ifdef CAT_COLLECT_STATS
-				bitcount[0] += bits;
+					bitcount[0] += bits;
 #endif
-				chaos = CHAOS_TABLE[CHAOS_SCORE[last[1 - 4]] + CHAOS_SCORE[last[1]]];
-				bits = _u_encoder[chaos].write(YUVA[1], writer);
-				DESYNC(x, y);
+					chaos = CHAOS_TABLE[CHAOS_SCORE[last[1 - 4]] + CHAOS_SCORE[last[1]]];
+					bits = _u_encoder[chaos].write(YUVA[1], writer);
+					DESYNC(x, y);
 #ifdef CAT_COLLECT_STATS
-				bitcount[1] += bits;
+					bitcount[1] += bits;
 #endif
-				chaos = CHAOS_TABLE[CHAOS_SCORE[last[2 - 4]] + CHAOS_SCORE[last[2]]];
-				bits = _v_encoder[chaos].write(YUVA[2], writer);
-				DESYNC(x, y);
+					chaos = CHAOS_TABLE[CHAOS_SCORE[last[2 - 4]] + CHAOS_SCORE[last[2]]];
+					bits = _v_encoder[chaos].write(YUVA[2], writer);
+					DESYNC(x, y);
 #ifdef CAT_COLLECT_STATS
-				bitcount[2] += bits;
+					bitcount[2] += bits;
 #endif
-				chaos = CHAOS_TABLE[CHAOS_SCORE[last[3 - 4]] + CHAOS_SCORE[last[3]]];
-				bits = _a_encoder[chaos].write(YUVA[3], writer);
-				DESYNC(x, y);
+					chaos = CHAOS_TABLE[CHAOS_SCORE[last[3 - 4]] + CHAOS_SCORE[last[3]]];
+					bits = _a_encoder[chaos].write(YUVA[3], writer);
+					DESYNC(x, y);
 #ifdef CAT_COLLECT_STATS
-				bitcount[3] += bits;
+					bitcount[3] += bits;
 #endif
+				}
 
 				for (int c = 0; c < COLOR_PLANES; ++c) {
 					last[c] = YUVA[c];

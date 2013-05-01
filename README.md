@@ -132,6 +132,9 @@ GCIF is 70% the size of PNGCRUSH.
 GCIF is 98% the size of WebP.
 ~~~
 
+At the moment, WebP performs better on smaller images, and GCIF performs better
+on larger images.
+
 
 Credit Where It's Due
 =====================
