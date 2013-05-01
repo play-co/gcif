@@ -64,7 +64,7 @@ static const GCIFKnobs DEFAULT_KNOBS[COMPRESS_LEVELS] = {
 		60,			// mask_huffThresh
 
 		15,			// lz_huffThresh
-		12,			// lz_minScore
+		16,			// lz_minScore
 		4,			// lz_nonzeroCoeff
 		18,			// lz_tableBits
 
@@ -85,7 +85,7 @@ static const GCIFKnobs DEFAULT_KNOBS[COMPRESS_LEVELS] = {
 		60,			// mask_huffThresh
 
 		15,			// lz_huffThresh
-		12,			// lz_minScore
+		16,			// lz_minScore
 		4,			// lz_nonzeroCoeff
 		18,			// lz_tableBits
 
@@ -106,7 +106,7 @@ static const GCIFKnobs DEFAULT_KNOBS[COMPRESS_LEVELS] = {
 		60,			// mask_huffThresh
 
 		15,			// lz_huffThresh
-		12,			// lz_minScore
+		16,			// lz_minScore
 		4,			// lz_nonzeroCoeff
 		18,			// lz_tableBits
 
@@ -127,9 +127,9 @@ static const GCIFKnobs DEFAULT_KNOBS[COMPRESS_LEVELS] = {
 		60,			// mask_huffThresh
 
 		15,			// lz_huffThresh
-		12,			// lz_minScore
+		16,			// lz_minScore
 		4,			// lz_nonzeroCoeff
-		18,			// lz_tableBits
+		19,			// lz_tableBits
 
 		false,		// cm_sortFilters
 		true,		// cm_designFilters
