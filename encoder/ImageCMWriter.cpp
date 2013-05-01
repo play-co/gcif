@@ -1216,6 +1216,8 @@ void ImageCMWriter::chaosStats() {
 		_chaos_table = CHAOS_TABLE_1;
 	}
 
+	CAT_OBJCLR(_pal_lut);
+
 	const int width = _width;
 
 	// For each scanline,
@@ -1261,14 +1263,27 @@ void ImageCMWriter::chaosStats() {
 					yuv[3] = 255 - p[3];
 				}
 
-				u8 chaos = CHAOS_TABLE[CHAOS_SCORE[last[0 - 4]] + CHAOS_SCORE[last[0]]];
-				_y_encoder[chaos].add(yuv[0]);
-				chaos = CHAOS_TABLE[CHAOS_SCORE[last[1 - 4]] + CHAOS_SCORE[last[1]]];
-				_u_encoder[chaos].add(yuv[1]);
-				chaos = CHAOS_TABLE[CHAOS_SCORE[last[2 - 4]] + CHAOS_SCORE[last[2]]];
-				_v_encoder[chaos].add(yuv[2]);
-				chaos = CHAOS_TABLE[CHAOS_SCORE[last[3 - 4]] + CHAOS_SCORE[last[3]]];
-				_a_encoder[chaos].add(yuv[3]);
+				u32 color = *(const u32*)p;
+				u32 hash = (0x1e35a7bd * color) >> (32 - PAL_LUT_BITS);
+
+				if (PAL_LUT_BITS > 0 && yuv[0] != 0 && _pal_lut[hash] == color) {
+					u8 chaos = CHAOS_TABLE[CHAOS_SCORE[last[0 - 4]] + CHAOS_SCORE[last[0]]];
+					_y_encoder[chaos].add(256 + hash);
+
+				} else {
+					if (PAL_LUT_BITS > 0) {
+						_pal_lut[hash] = color;
+					}
+
+					u8 chaos = CHAOS_TABLE[CHAOS_SCORE[last[0 - 4]] + CHAOS_SCORE[last[0]]];
+					_y_encoder[chaos].add(yuv[0]);
+					chaos = CHAOS_TABLE[CHAOS_SCORE[last[1 - 4]] + CHAOS_SCORE[last[1]]];
+					_u_encoder[chaos].add(yuv[1]);
+					chaos = CHAOS_TABLE[CHAOS_SCORE[last[2 - 4]] + CHAOS_SCORE[last[2]]];
+					_v_encoder[chaos].add(yuv[2]);
+					chaos = CHAOS_TABLE[CHAOS_SCORE[last[3 - 4]] + CHAOS_SCORE[last[3]]];
+					_a_encoder[chaos].add(yuv[3]);
+				}
 
 				for (int c = 0; c < COLOR_PLANES; ++c) {
 					last[c] = yuv[c];
@@ -1409,6 +1424,31 @@ int ImageCMWriter::initFromRGBA(const u8 *rgba, int width, int height, ImageMask
 
 		chaosPalStats();
 	} else {
+		if (PAL_LUT_BITS > 0) {
+			// TODO
+			CAT_OBJCLR(_pal_lut);
+
+			const u32 *rgba = (const u32*)_rgba;
+			for (int y = 0; y < _height; ++y) {
+				for (int x = 0; x < _width; ++x) {
+					u8 pv = 0;
+
+					if (!_lz->visited(x, y) && !_mask->masked(x, y)) {
+						u32 color = *rgba;
+						u32 hash = (0x1e35a7bd * color) >> (32 - PAL_LUT_BITS);
+
+						if (_pal_lut[hash] == color) {
+							pv = hash;
+						} else {
+							_pal_lut[hash] = color;
+						}
+					}
+
+					++rgba;
+				}
+			}
+		}
+
 		maskFilters();
 
 		designFilters();
@@ -1470,6 +1510,8 @@ bool ImageCMWriter::writeChaos(ImageWriter &writer) {
 	int bitcount[COLOR_PLANES] = {0};
 	int filter_table_bits[2] = {0};
 #endif
+
+	CAT_OBJCLR(_pal_lut);
 
 	CAT_DEBUG_ENFORCE(_chaos_levels <= 8);
 
@@ -1557,29 +1599,45 @@ bool ImageCMWriter::writeChaos(ImageWriter &writer) {
 
 				u8 chaos = CHAOS_TABLE[CHAOS_SCORE[last[0 - 4]] + CHAOS_SCORE[last[0]]];
 
-				int bits = _y_encoder[chaos].write(YUVA[0], writer);
-				DESYNC(x, y);
+				u32 color = *(const u32*)p;
+				u32 hash = (0x1e35a7bd * color) >> (32 - PAL_LUT_BITS);
+
+				if (PAL_LUT_BITS > 0 && YUVA[0] != 0 && _pal_lut[hash] == color) {
+					int bits = _y_encoder[chaos].write(256 + hash, writer);
+					DESYNC(x, y);
 #ifdef CAT_COLLECT_STATS
-				bitcount[0] += bits;
+					bitcount[0] += bits;
 #endif
-				chaos = CHAOS_TABLE[CHAOS_SCORE[last[1 - 4]] + CHAOS_SCORE[last[1]]];
-				bits = _u_encoder[chaos].write(YUVA[1], writer);
-				DESYNC(x, y);
+
+				} else {
+					if (PAL_LUT_BITS > 0) {
+						_pal_lut[hash] = color;
+					}
+
+					int bits = _y_encoder[chaos].write(YUVA[0], writer);
+					DESYNC(x, y);
 #ifdef CAT_COLLECT_STATS
-				bitcount[1] += bits;
+					bitcount[0] += bits;
 #endif
-				chaos = CHAOS_TABLE[CHAOS_SCORE[last[2 - 4]] + CHAOS_SCORE[last[2]]];
-				bits = _v_encoder[chaos].write(YUVA[2], writer);
-				DESYNC(x, y);
+					chaos = CHAOS_TABLE[CHAOS_SCORE[last[1 - 4]] + CHAOS_SCORE[last[1]]];
+					bits = _u_encoder[chaos].write(YUVA[1], writer);
+					DESYNC(x, y);
 #ifdef CAT_COLLECT_STATS
-				bitcount[2] += bits;
+					bitcount[1] += bits;
 #endif
-				chaos = CHAOS_TABLE[CHAOS_SCORE[last[3 - 4]] + CHAOS_SCORE[last[3]]];
-				bits = _a_encoder[chaos].write(YUVA[3], writer);
-				DESYNC(x, y);
+					chaos = CHAOS_TABLE[CHAOS_SCORE[last[2 - 4]] + CHAOS_SCORE[last[2]]];
+					bits = _v_encoder[chaos].write(YUVA[2], writer);
+					DESYNC(x, y);
 #ifdef CAT_COLLECT_STATS
-				bitcount[3] += bits;
+					bitcount[2] += bits;
 #endif
+					chaos = CHAOS_TABLE[CHAOS_SCORE[last[3 - 4]] + CHAOS_SCORE[last[3]]];
+					bits = _a_encoder[chaos].write(YUVA[3], writer);
+					DESYNC(x, y);
+#ifdef CAT_COLLECT_STATS
+					bitcount[3] += bits;
+#endif
+				}
 
 				for (int c = 0; c < COLOR_PLANES; ++c) {
 					last[c] = YUVA[c];

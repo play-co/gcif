@@ -77,6 +77,10 @@ protected:
 	static const int ZRLE_SYMS_U = ImageCMReader::ZRLE_SYMS_U;
 	static const int ZRLE_SYMS_V = ImageCMReader::ZRLE_SYMS_V;
 	static const int ZRLE_SYMS_A = ImageCMReader::ZRLE_SYMS_A;
+	static const int PAL_LUT_BITS = 2;
+	static const int PAL_LUT_SIZE = 1 << PAL_LUT_BITS;
+
+	u32 _pal_lut[PAL_LUT_SIZE];
 
 	// Chosen spatial filter set
 	SpatialFilterSet _sf_set;
@@ -146,7 +150,7 @@ protected:
 	HuffmanEncoder<SF_COUNT> _sf_encoder;
 
 	// Color channel encoders
-	EntropyEncoder<256, ZRLE_SYMS_Y> _y_encoder[CHAOS_LEVELS_MAX];
+	EntropyEncoder<256 + PAL_LUT_SIZE, ZRLE_SYMS_Y> _y_encoder[CHAOS_LEVELS_MAX];
 	EntropyEncoder<256, ZRLE_SYMS_U> _u_encoder[CHAOS_LEVELS_MAX];
 	EntropyEncoder<256, ZRLE_SYMS_V> _v_encoder[CHAOS_LEVELS_MAX];
 	EntropyEncoder<256, ZRLE_SYMS_A> _a_encoder[CHAOS_LEVELS_MAX];
