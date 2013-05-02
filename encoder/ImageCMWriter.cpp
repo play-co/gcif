@@ -146,12 +146,12 @@ int ImageCMWriter::init(int width, int height) {
 
 
 
-void ImageCMWriter::designFilters() {
+void ImageCMWriter::designSpatialFilters() {
 	_sf_set.init();
 
 	// If disabled,
 	if (!_knobs->cm_designFilters) {
-		CAT_INANE("CM") << "Skipping filter design";
+		CAT_INANE("CM") << "Skipping spatial filter design";
 		return;
 	}
 
@@ -170,7 +170,7 @@ void ImageCMWriter::designFilters() {
 	int bestHist[SF_COUNT + TAPPED_COUNT] = {0};
 	u8 FPT[3];
 
-	CAT_INANE("CM") << "Designing filters...";
+	CAT_INANE("CM") << "Designing spatial filters...";
 
 	for (int y = 0; y < _height; y += FILTER_ZONE_SIZE_H) {
 		for (int x = 0; x < width; x += FILTER_ZONE_SIZE_W) {
@@ -302,7 +302,7 @@ void ImageCMWriter::designFilters() {
 		const int c = SpatialFilterSet::FILTER_TAPS[highest_index][2];
 		const int d = SpatialFilterSet::FILTER_TAPS[highest_index][3];
 
-		CAT_INANE("CM") << "Replacing default filter " << lowest_index << " with tapped filter " << highest_index << " that is " << ratio << "x more preferable : PRED = (" << a << "A + " << b << "B + " << c << "C + " << d << "D) / 2";
+		CAT_INANE("CM") << "Replacing spatial filter " << lowest_index << " with tapped # " << highest_index << " that is " << ratio << "x more preferable = (" << a << "A + " << b << "B + " << c << "C + " << d << "D)/2";
 
 		_filter_replacements.push_back((lowest_index << 16) | highest_index);
 
@@ -311,6 +311,96 @@ void ImageCMWriter::designFilters() {
 		// Install grave markers
 		bestHist[lowest_index] = 0x7fffffffUL;
 		bestHist[highest_index + SF_COUNT] = 0;
+	}
+}
+
+void ImageCMWriter::designColorFilters() {
+	//_cf_set.init();
+/*
+	// If disabled,
+	if (!_knobs->cm_designColorFilters) {
+		CAT_INANE("CM") << "Skipping spatial filter design";
+		return;
+	}
+*/
+	const int width = _width;
+	u8 FPT[3];
+
+	FilterScorer spatial_scores;
+	spatial_scores.init(SF_COUNT);
+
+	CAT_INANE("CM") << "Designing color filters...";
+
+	for (int y = 0; y < _height; y += FILTER_ZONE_SIZE_H) {
+		for (int x = 0; x < width; x += FILTER_ZONE_SIZE_W) {
+			// If this zone is skipped,
+			if (getSpatialFilter(x, y) == UNUSED_FILTER) {
+				continue;
+			}
+
+			spatial_scores.reset();
+
+			// For each pixel in the zone,
+			for (int yy = 0; yy < FILTER_ZONE_SIZE_H; ++yy) {
+				for (int xx = 0; xx < FILTER_ZONE_SIZE_W; ++xx) {
+					int px = x + xx, py = y + yy;
+					if (px >= _width || py >= _height) {
+						continue;
+					}
+					if (_mask->masked(px, py)) {
+						continue;
+					}
+					if (_lz->visited(px, py)) {
+						continue;
+					}
+
+					const u8 *p = _rgba + (px + py * width) * 4;
+
+					for (int ii = 0; ii < SF_COUNT; ++ii) {
+						const u8 *pred = FPT;
+						_sf_set.get(ii).safe(p, &pred, px, py, width);
+						u8 temp[3];
+						for (int jj = 0; jj < 3; ++jj) {
+							temp[jj] = p[jj] - pred[jj];
+						}
+
+						int error = CHAOS_SCORE[temp[0]];
+						error += CHAOS_SCORE[temp[1]];
+						error += CHAOS_SCORE[temp[2]];
+
+						spatial_scores.add(ii, error);
+					}
+				}
+			}
+
+			FilterScorer::Score *lowest = spatial_scores.getLowest();
+			SpatialFilterSet::Functions best_sf = _sf_set.get(lowest->index);
+
+			// For each pixel in the zone,
+			for (int yy = 0; yy < FILTER_ZONE_SIZE_H; ++yy) {
+				for (int xx = 0; xx < FILTER_ZONE_SIZE_W; ++xx) {
+					int px = x + xx, py = y + yy;
+					if (px >= _width || py >= _height) {
+						continue;
+					}
+					if (_mask->masked(px, py)) {
+						continue;
+					}
+					if (_lz->visited(px, py)) {
+						continue;
+					}
+
+					const u8 *p = _rgba + (px + py * width) * 4;
+
+					const u8 *pred = FPT;
+					best_sf.safe(p, &pred, px, py, width);
+					u8 temp[3];
+					for (int jj = 0; jj < 3; ++jj) {
+						temp[jj] = p[jj] - pred[jj];
+					}
+				}
+			}
+		}
 	}
 }
 

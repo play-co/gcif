@@ -158,7 +158,9 @@ protected:
 	void maskFilters();
 	void maskPalFilters();
 
-	void designFilters();
+	void designSpatialFilters();
+	void designColorFilters();
+
 	void decideFilters();
 	void designPalFilters();
 	void decidePalFilters();
