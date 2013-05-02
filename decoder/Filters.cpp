@@ -1673,6 +1673,16 @@ void CFF_R2Y_GB_RB(const u8 rgb[3], u8 yuv[3]) {
 	END_R2Y;
 }
 
+void CFF_R2Y_NONE(const u8 rgb[3], u8 yuv[3]) {
+	START_R2Y;
+
+	Y = B;
+	U = G;
+	V = R;
+
+	END_R2Y;
+}
+
 #undef START_R2Y
 #undef END_R2Y
 
@@ -1693,7 +1703,8 @@ RGB2YUVFilterFunction cat::RGB2YUV_FILTERS[CF_COUNT] = {
 	CFF_R2Y_D14,
 	CFF_R2Y_D10,
 	CFF_R2Y_YCgCo_R,
-	CFF_R2Y_GB_RB
+	CFF_R2Y_GB_RB,
+	CFF_R2Y_NONE
 };
 
 
@@ -1876,6 +1887,16 @@ void CFF_Y2R_GB_RB(const u8 yuv[3], u8 rgb[3]) {
 	END_Y2R;
 }
 
+void CFF_Y2R_NONE(const u8 yuv[3], u8 rgb[3]) {
+	START_Y2R;
+
+	B = Y;
+	G = U;
+	R = V;
+
+	END_Y2R;
+}
+
 #undef START_Y2R
 #undef END_Y2R
 
@@ -1896,7 +1917,8 @@ YUV2RGBFilterFunction cat::YUV2RGB_FILTERS[CF_COUNT] = {
 	CFF_Y2R_D14,
 	CFF_Y2R_D10,
 	CFF_Y2R_YCgCo_R,
-	CFF_Y2R_GB_RB
+	CFF_Y2R_GB_RB,
+	CFF_Y2R_NONE
 };
 
 

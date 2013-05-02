@@ -93,11 +93,6 @@ enum SpatialFilters {
 	SF_AD,			// (A + D)/2
 
 	SF_COUNT,
-
-	// Disabled filters:
-	SF_A_BC,		// A + (B - C)/2
-	SF_B_AC,		// B + (A - C)/2
-	SF_PL,			// Use ABC to determine if increasing or decreasing
 };
 
 typedef void (*SpatialFilterFunction)(const u8 *p, const u8 **pred, int x, int y, int width);
@@ -239,6 +234,7 @@ enum ColorFilters {
 	CF_D10,		// from the Strutz paper
 	CF_YCgCo_R,	// Malvar's YCgCo-R
 	CF_GB_RB,	// from BCIF
+	CF_NONE,	// No modification
 	CF_COUNT,
 
 	// Disabled filters:
