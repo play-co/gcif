@@ -314,6 +314,20 @@ void ImageCMWriter::designSpatialFilters() {
 	}
 }
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 void ImageCMWriter::designColorFilters() {
 	//_cf_set.init();
 /*
@@ -329,7 +343,12 @@ void ImageCMWriter::designColorFilters() {
 	FilterScorer spatial_scores;
 	spatial_scores.init(SF_COUNT);
 
+	FilterScorer cf_scores;
+	cf_scores.init(CF_COUNT);
+
 	CAT_INANE("CM") << "Designing color filters...";
+
+	int bestHist[CF_COUNT + 256] = {0};
 
 	for (int y = 0; y < _height; y += FILTER_ZONE_SIZE_H) {
 		for (int x = 0; x < width; x += FILTER_ZONE_SIZE_W) {
@@ -376,6 +395,8 @@ void ImageCMWriter::designColorFilters() {
 			FilterScorer::Score *lowest = spatial_scores.getLowest();
 			SpatialFilterSet::Functions best_sf = _sf_set.get(lowest->index);
 
+			cf_scores.reset();
+
 			// For each pixel in the zone,
 			for (int yy = 0; yy < FILTER_ZONE_SIZE_H; ++yy) {
 				for (int xx = 0; xx < FILTER_ZONE_SIZE_W; ++xx) {
@@ -398,11 +419,58 @@ void ImageCMWriter::designColorFilters() {
 					for (int jj = 0; jj < 3; ++jj) {
 						temp[jj] = p[jj] - pred[jj];
 					}
+
+					for (int ii = 0; ii < CF_COUNT; ++ii) {
+						const u8 *pred = FPT;
+						_sf_set.get(ii).safe(p, &pred, px, py, width);
+						u8 temp[3];
+						for (int jj = 0; jj < 3; ++jj) {
+							temp[jj] = p[jj] - pred[jj];
+						}
+
+						u8 yuv[3];
+						RGB2YUV_FILTERS[ii](temp, yuv);
+
+						int error = CHAOS_SCORE[yuv[0]];
+						error += CHAOS_SCORE[yuv[1]];
+						error += CHAOS_SCORE[yuv[2]];
+
+						cf_scores.add(ii, error);
+					}
 				}
 			}
+
+			FilterScorer::Score *top = cf_scores.getLowest();
+			bestHist[top[0].index] += 4;
+
+			top = cf_scores.getTop(4, false);
+			bestHist[top[0].index] += 1;
+			bestHist[top[1].index] += 1;
+			bestHist[top[2].index] += 1;
+			bestHist[top[3].index] += 1;
 		}
 	}
+
+	// Replace filters
+	for (int jj = 0; jj < CF_COUNT; ++jj) {
+		CAT_WARN("TEST") << jj << " : " << bestHist[jj];
+	}
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 void ImageCMWriter::decideFilters() {
 	EntropyEstimator ee[3];
@@ -1501,7 +1569,8 @@ int ImageCMWriter::initFromRGBA(const u8 *rgba, int width, int height, ImageMask
 	} else {
 		maskFilters();
 
-		designFilters();
+		designSpatialFilters();
+		designColorFilters();
 		decideFilters();
 
 		if (_knobs->cm_scanlineFilters) {
