@@ -168,7 +168,7 @@ void ImageCMWriter::designFilters() {
 	scores.init(SF_COUNT + TAPPED_COUNT);
 
 	int bestHist[SF_COUNT + TAPPED_COUNT] = {0};
-	u8 FPT[3];
+	u8 FPT[4];
 
 	CAT_INANE("CM") << "Designing filters...";
 
@@ -197,12 +197,12 @@ void ImageCMWriter::designFilters() {
 
 					const u8 *p = _rgba + (px + py * width) * 4;
 
-					int A[3] = {0};
-					int B[3] = {0};
-					int C[3] = {0};
-					int D[3] = {0};
+					int A[4] = {0};
+					int B[4] = {0};
+					int C[4] = {0};
+					int D[4] = {0};
 
-					for (int cc = 0; cc < 3; ++cc) {
+					for (int cc = 0; cc < 4; ++cc) {
 						if (px > 0) {
 							A[cc] = p[(-1) * 4 + cc];
 						}
@@ -223,7 +223,7 @@ void ImageCMWriter::designFilters() {
 
 						int sum = 0;
 
-						for (int cc = 0; cc < 3; ++cc) {
+						for (int cc = 0; cc < 4; ++cc) {
 							int err = p[cc] - (int)pred[cc];
 							if (err < 0) err = -err;
 							sum += err;
@@ -238,7 +238,7 @@ void ImageCMWriter::designFilters() {
 						const int d = SpatialFilterSet::FILTER_TAPS[ii][3];
 
 						int sum = 0;
-						for (int cc = 0; cc < 3; ++cc) {
+						for (int cc = 0; cc < 4; ++cc) {
 							const int pred = (u8)((a * A[cc] + b * B[cc] + c * C[cc] + d * D[cc]) / 2);
 							int err = p[cc] - pred;
 							if (err < 0) err = -err;
@@ -315,10 +315,11 @@ void ImageCMWriter::designFilters() {
 }
 
 void ImageCMWriter::decideFilters() {
-	EntropyEstimator ee[3];
+	EntropyEstimator ee[4];
 	ee[0].init();
 	ee[1].init();
 	ee[2].init();
+	ee[3].init();
 
 	FilterScorer scores;
 	scores.init(SF_COUNT * CF_COUNT);
@@ -333,7 +334,7 @@ void ImageCMWriter::decideFilters() {
 
 	int passes = 0;
 	int revisitCount = _knobs->cm_revisitCount;
-	u8 FPT[3];
+	u8 FPT[4];
 
 	for (;;) {
 		for (int y = 0; y < _height; y += FILTER_ZONE_SIZE_H) {
@@ -358,7 +359,7 @@ void ImageCMWriter::decideFilters() {
 					bestSF = (u8)(filter >> 8);
 					bestCF = (u8)filter;
 
-					u8 codes[3][FILTER_ZONE_SIZE_W*FILTER_ZONE_SIZE_H];
+					u8 codes[4][FILTER_ZONE_SIZE_W*FILTER_ZONE_SIZE_H];
 					int count = 0;
 
 					// For each pixel in the zone,
@@ -379,8 +380,8 @@ void ImageCMWriter::decideFilters() {
 
 							const u8 *pred = FPT;
 							_sf_set.get(bestSF).safe(p, &pred, px, py, width);
-							u8 temp[3];
-							for (int jj = 0; jj < 3; ++jj) {
+							u8 temp[4];
+							for (int jj = 0; jj < 4; ++jj) {
 								temp[jj] = p[jj] - pred[jj];
 							}
 
@@ -390,6 +391,7 @@ void ImageCMWriter::decideFilters() {
 							codes[0][count] = yuv[0];
 							codes[1][count] = yuv[1];
 							codes[2][count] = yuv[2];
+							codes[3][count] = temp[3];
 							++count;
 						}
 					}
@@ -398,6 +400,7 @@ void ImageCMWriter::decideFilters() {
 					ee[0].subtract(codes[0], count);
 					ee[1].subtract(codes[1], count);
 					ee[2].subtract(codes[2], count);
+					ee[3].subtract(codes[3], count);
 				}
 
 				scores.reset();
@@ -421,8 +424,8 @@ void ImageCMWriter::decideFilters() {
 						for (int ii = 0; ii < SF_COUNT; ++ii) {
 							const u8 *pred = FPT;
 							_sf_set.get(ii).safe(p, &pred, px, py, width);
-							u8 temp[3];
-							for (int jj = 0; jj < 3; ++jj) {
+							u8 temp[4];
+							for (int jj = 0; jj < 4; ++jj) {
 								temp[jj] = p[jj] - pred[jj];
 							}
 
@@ -430,7 +433,7 @@ void ImageCMWriter::decideFilters() {
 								u8 yuv[3];
 								RGB2YUV_FILTERS[jj](temp, yuv);
 
-								int error = scoreYUV(yuv);
+								int error = scoreYUV(yuv) + CHAOS_SCORE[temp[3]];
 
 								scores.add(ii + SF_COUNT*jj, error);
 							}
@@ -446,7 +449,7 @@ void ImageCMWriter::decideFilters() {
 					bestCF = lowest->index / SF_COUNT;
 
 					if (!_knobs->cm_disableEntropy) {
-						u8 codes[3][FILTER_ZONE_SIZE_W*FILTER_ZONE_SIZE_H];
+						u8 codes[4][FILTER_ZONE_SIZE_W*FILTER_ZONE_SIZE_H];
 						int count = 0;
 
 						// Record this choice
@@ -466,8 +469,8 @@ void ImageCMWriter::decideFilters() {
 								const u8 *p = _rgba + (px + py * width) * 4;
 								const u8 *pred = FPT;
 								_sf_set.get(bestSF).safe(p, &pred, px, py, width);
-								u8 temp[3];
-								for (int jj = 0; jj < 3; ++jj) {
+								u8 temp[4];
+								for (int jj = 0; jj < 4; ++jj) {
 									temp[jj] = p[jj] - pred[jj];
 								}
 
@@ -477,6 +480,7 @@ void ImageCMWriter::decideFilters() {
 								codes[0][count] = yuv[0];
 								codes[1][count] = yuv[1];
 								codes[2][count] = yuv[2];
+								codes[3][count] = temp[3];
 								++count;
 							}
 						}
@@ -484,6 +488,7 @@ void ImageCMWriter::decideFilters() {
 						ee[0].add(codes[0], count);
 						ee[1].add(codes[1], count);
 						ee[2].add(codes[2], count);
+						ee[3].add(codes[3], count);
 					}
 				} else {
 					int TOP_COUNT = _knobs->cm_filterSelectFuzz;
@@ -494,7 +499,7 @@ void ImageCMWriter::decideFilters() {
 					FilterScorer::Score *top = scores.getTop(TOP_COUNT, _knobs->cm_sortFilters);
 
 					u32 best_entropy = 0x7fffffff; // lower = better
-					u8 best_codes[3][FILTER_ZONE_SIZE_W * FILTER_ZONE_SIZE_H];
+					u8 best_codes[4][FILTER_ZONE_SIZE_W * FILTER_ZONE_SIZE_H];
 					int best_count;
 
 					for (int ii = 0; ii < TOP_COUNT; ++ii) {
@@ -502,7 +507,7 @@ void ImageCMWriter::decideFilters() {
 						u8 sf = index % SF_COUNT;
 						u8 cf = index / SF_COUNT;
 
-						u8 codes[3][FILTER_ZONE_SIZE_W*FILTER_ZONE_SIZE_H];
+						u8 codes[4][FILTER_ZONE_SIZE_W*FILTER_ZONE_SIZE_H];
 						int count = 0;
 
 						for (int yy = 0; yy < FILTER_ZONE_SIZE_H; ++yy) {
@@ -521,8 +526,8 @@ void ImageCMWriter::decideFilters() {
 								const u8 *p = _rgba + (px + py * width) * 4;
 								const u8 *pred = FPT;
 								_sf_set.get(sf).safe(p, &pred, px, py, width);
-								u8 temp[3];
-								for (int jj = 0; jj < 3; ++jj) {
+								u8 temp[4];
+								for (int jj = 0; jj < 4; ++jj) {
 									temp[jj] = p[jj] - pred[jj];
 								}
 
@@ -532,13 +537,15 @@ void ImageCMWriter::decideFilters() {
 								codes[0][count] = yuv[0];
 								codes[1][count] = yuv[1];
 								codes[2][count] = yuv[2];
+								codes[3][count] = temp[3];
 								++count;
 							}
 						}
 
 						u32 entropy = ee[0].entropy(codes[0], count)
 							+ ee[1].entropy(codes[1], count)
-							+ ee[2].entropy(codes[2], count);
+							+ ee[2].entropy(codes[2], count)
+							+ ee[3].entropy(codes[3], count);
 
 						if (best_entropy > entropy) {
 							best_entropy = entropy;
@@ -553,6 +560,7 @@ void ImageCMWriter::decideFilters() {
 					ee[0].add(best_codes[0], best_count);
 					ee[1].add(best_codes[1], best_count);
 					ee[2].add(best_codes[2], best_count);
+					ee[3].add(best_codes[3], best_count);
 				}
 
 				// Set filter for this zone
@@ -1224,7 +1232,7 @@ void ImageCMWriter::chaosStats() {
 	CAT_CLR(_chaos, _chaos_size);
 
 	const u8 *CHAOS_TABLE = _chaos_table;
-	u8 FPT[3];
+	u8 FPT[4];
 
 	for (int y = 0; y < _height; ++y) {
 		u8 *last = lastStart;
@@ -1247,19 +1255,14 @@ void ImageCMWriter::chaosStats() {
 				// Apply spatial filter
 				const u8 *pred = FPT;
 				_sf_set.get(sf).safe(p, &pred, x, y, width);
-				u8 temp[3];
-				for (int jj = 0; jj < 3; ++jj) {
+				u8 temp[4];
+				for (int jj = 0; jj < 4; ++jj) {
 					temp[jj] = p[jj] - pred[jj];
 				}
 
 				// Apply color filter
 				u8 yuv[COLOR_PLANES];
 				RGB2YUV_FILTERS[cf](temp, yuv);
-				if (x > 0) {
-					yuv[3] = p[-1] - p[3];
-				} else {
-					yuv[3] = 255 - p[3];
-				}
 
 				u8 chaos = CHAOS_TABLE[CHAOS_SCORE[last[0 - 4]] + CHAOS_SCORE[last[0]]];
 				_y_encoder[chaos].add(yuv[0]);
@@ -1268,11 +1271,12 @@ void ImageCMWriter::chaosStats() {
 				chaos = CHAOS_TABLE[CHAOS_SCORE[last[2 - 4]] + CHAOS_SCORE[last[2]]];
 				_v_encoder[chaos].add(yuv[2]);
 				chaos = CHAOS_TABLE[CHAOS_SCORE[last[3 - 4]] + CHAOS_SCORE[last[3]]];
-				_a_encoder[chaos].add(yuv[3]);
+				_a_encoder[chaos].add(temp[3]);
 
-				for (int c = 0; c < COLOR_PLANES; ++c) {
+				for (int c = 0; c < 3; ++c) {
 					last[c] = yuv[c];
 				}
+				last[3] = temp[3];
 			} else {
 				for (int c = 0; c < COLOR_PLANES; ++c) {
 					last[c] = 0;
@@ -1495,7 +1499,7 @@ bool ImageCMWriter::writeChaos(ImageWriter &writer) {
 	CAT_CLR(_chaos, _chaos_size);
 
 	const u8 *CHAOS_TABLE = _chaos_table;
-	u8 FPT[3];
+	u8 FPT[4];
 
 	for (int y = 0; y < _height; ++y) {
 		u8 *last = lastStart;
@@ -1541,19 +1545,14 @@ bool ImageCMWriter::writeChaos(ImageWriter &writer) {
 				// Apply spatial filter
 				const u8 *pred = FPT;
 				_sf_set.get(sf).safe(p, &pred, x, y, width);
-				u8 temp[3];
-				for (int jj = 0; jj < 3; ++jj) {
+				u8 temp[4];
+				for (int jj = 0; jj < 4; ++jj) {
 					temp[jj] = p[jj] - pred[jj];
 				}
 
 				// Apply color filter
 				u8 YUVA[COLOR_PLANES];
 				RGB2YUV_FILTERS[cf](temp, YUVA);
-				if (x > 0) {
-					YUVA[3] = p[-1] - p[3];
-				} else {
-					YUVA[3] = 255 - p[3];
-				}
 
 				u8 chaos = CHAOS_TABLE[CHAOS_SCORE[last[0 - 4]] + CHAOS_SCORE[last[0]]];
 
@@ -1575,15 +1574,16 @@ bool ImageCMWriter::writeChaos(ImageWriter &writer) {
 				bitcount[2] += bits;
 #endif
 				chaos = CHAOS_TABLE[CHAOS_SCORE[last[3 - 4]] + CHAOS_SCORE[last[3]]];
-				bits = _a_encoder[chaos].write(YUVA[3], writer);
+				bits = _a_encoder[chaos].write(temp[3], writer);
 				DESYNC(x, y);
 #ifdef CAT_COLLECT_STATS
 				bitcount[3] += bits;
 #endif
 
-				for (int c = 0; c < COLOR_PLANES; ++c) {
+				for (int c = 0; c < 3; ++c) {
 					last[c] = YUVA[c];
 				}
+				last[3] = temp[3];
 			} else {
 				for (int c = 0; c < COLOR_PLANES; ++c) {
 					last[c] = 0;

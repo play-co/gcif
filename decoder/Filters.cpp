@@ -34,7 +34,7 @@ using namespace cat;
 //// Spatial Filters
 
 // Default zero
-static const u8 FPZ[3] = {0};
+static const u8 FPZ[4] = {0, 0, 0, 255};
 
 static void SFF_Z(const u8 *p, const u8 **pred, int x, int y, int width) {
 	*pred = FPZ;
@@ -125,6 +125,7 @@ static void SFF_AB(const u8 *p, const u8 **pred, int x, int y, int width) {
 			FPT[0] = (a[0] + (u16)b[0]) >> 1;
 			FPT[1] = (a[1] + (u16)b[1]) >> 1;
 			FPT[2] = (a[2] + (u16)b[2]) >> 1;
+			FPT[3] = (a[3] + (u16)b[3]) >> 1;
 		} else {
 			*pred = a;
 		}
@@ -145,6 +146,7 @@ static void SFFU_AB(const u8 *p, const u8 **pred, int x, int y, int width) {
 	FPT[0] = (a[0] + (u16)b[0]) >> 1;
 	FPT[1] = (a[1] + (u16)b[1]) >> 1;
 	FPT[2] = (a[2] + (u16)b[2]) >> 1;
+	FPT[3] = (a[3] + (u16)b[3]) >> 1;
 }
 
 static void SFF_BD(const u8 *p, const u8 **pred, int x, int y, int width) {
@@ -159,6 +161,7 @@ static void SFF_BD(const u8 *p, const u8 **pred, int x, int y, int width) {
 		FPT[0] = (b[0] + (u16)src[0]) >> 1;
 		FPT[1] = (b[1] + (u16)src[1]) >> 1;
 		FPT[2] = (b[2] + (u16)src[2]) >> 1;
+		FPT[3] = (b[3] + (u16)src[3]) >> 1;
 	} else if (x > 0) {
 		*pred = p - 4; // A
 	} else {
@@ -176,6 +179,7 @@ static void SFFU_BD(const u8 *p, const u8 **pred, int x, int y, int width) {
 	FPT[0] = (b[0] + (u16)src[0]) >> 1;
 	FPT[1] = (b[1] + (u16)src[1]) >> 1;
 	FPT[2] = (b[2] + (u16)src[2]) >> 1;
+	FPT[3] = (b[3] + (u16)src[3]) >> 1;
 }
 
 static CAT_INLINE u8 abcClamp(int a, int b, int c) {
@@ -201,6 +205,7 @@ static void SFF_ABC_CLAMP(const u8 *p, const u8 **pred, int x, int y, int width)
 			FPT[0] = abcClamp(a[0], b[0], c[0]);
 			FPT[1] = abcClamp(a[1], b[1], c[1]);
 			FPT[2] = abcClamp(a[2], b[2], c[2]);
+			FPT[3] = abcClamp(a[3], b[3], c[3]);
 		} else {
 			*pred = a;
 		}
@@ -222,6 +227,7 @@ static void SFFU_ABC_CLAMP(const u8 *p, const u8 **pred, int x, int y, int width
 	FPT[0] = abcClamp(a[0], b[0], c[0]);
 	FPT[1] = abcClamp(a[1], b[1], c[1]);
 	FPT[2] = abcClamp(a[2], b[2], c[2]);
+	FPT[3] = abcClamp(a[3], b[3], c[3]);
 }
 
 static CAT_INLINE u8 paeth(int a, int b, int c) {
@@ -252,6 +258,7 @@ static void SFF_PAETH(const u8 *p, const u8 **pred, int x, int y, int width) {
 			FPT[0] = paeth(a[0], b[0], c[0]);
 			FPT[1] = paeth(a[1], b[1], c[1]);
 			FPT[2] = paeth(a[2], b[2], c[2]);
+			FPT[3] = paeth(a[3], b[3], c[3]);
 		} else {
 			*pred = a;
 		}
@@ -273,6 +280,7 @@ static void SFFU_PAETH(const u8 *p, const u8 **pred, int x, int y, int width) {
 	FPT[0] = paeth(a[0], b[0], c[0]);
 	FPT[1] = paeth(a[1], b[1], c[1]);
 	FPT[2] = paeth(a[2], b[2], c[2]);
+	FPT[3] = paeth(a[3], b[3], c[3]);
 }
 
 static CAT_INLINE u8 abc_paeth(int a, int b, int c) {
@@ -307,6 +315,7 @@ static void SFF_ABC_PAETH(const u8 *p, const u8 **pred, int x, int y, int width)
 			FPT[0] = abc_paeth(a[0], b[0], c[0]);
 			FPT[1] = abc_paeth(a[1], b[1], c[1]);
 			FPT[2] = abc_paeth(a[2], b[2], c[2]);
+			FPT[3] = abc_paeth(a[3], b[3], c[3]);
 		} else {
 			*pred = a;
 		}
@@ -328,6 +337,7 @@ static void SFFU_ABC_PAETH(const u8 *p, const u8 **pred, int x, int y, int width
 	FPT[0] = abc_paeth(a[0], b[0], c[0]);
 	FPT[1] = abc_paeth(a[1], b[1], c[1]);
 	FPT[2] = abc_paeth(a[2], b[2], c[2]);
+	FPT[3] = abc_paeth(a[3], b[3], c[3]);
 }
 
 static CAT_INLINE u8 predLevel(int a, int b, int c) {
@@ -364,6 +374,7 @@ static void SFF_PLO(const u8 *p, const u8 **pred, int x, int y, int width) {
 			FPT[0] = predLevel(a[0], src[0], b[0]);
 			FPT[1] = predLevel(a[1], src[1], b[1]);
 			FPT[2] = predLevel(a[2], src[2], b[2]);
+			FPT[3] = predLevel(a[3], src[3], b[3]);
 		} else {
 			*pred = a;
 		}
@@ -385,6 +396,7 @@ static void SFFU_PLO(const u8 *p, const u8 **pred, int x, int y, int width) {
 	FPT[0] = predLevel(a[0], src[0], b[0]);
 	FPT[1] = predLevel(a[1], src[1], b[1]);
 	FPT[2] = predLevel(a[2], src[2], b[2]);
+	FPT[3] = predLevel(a[3], src[3], b[3]);
 }
 
 static void SFF_ABCD(const u8 *p, const u8 **pred, int x, int y, int width) {
@@ -404,6 +416,7 @@ static void SFF_ABCD(const u8 *p, const u8 **pred, int x, int y, int width) {
 			FPT[0] = (a[0] + (int)b[0] + c[0] + (int)src[0] + 1) >> 2;
 			FPT[1] = (a[1] + (int)b[1] + c[1] + (int)src[1] + 1) >> 2;
 			FPT[2] = (a[2] + (int)b[2] + c[2] + (int)src[2] + 1) >> 2;
+			FPT[3] = (a[3] + (int)b[3] + c[3] + (int)src[3] + 1) >> 2;
 		} else {
 			*pred = a;
 		}
@@ -418,6 +431,7 @@ static void SFF_ABCD(const u8 *p, const u8 **pred, int x, int y, int width) {
 		FPT[0] = (b[0] + (u16)d[0]) >> 1;
 		FPT[1] = (b[1] + (u16)d[1]) >> 1;
 		FPT[2] = (b[2] + (u16)d[2]) >> 1;
+		FPT[3] = (b[3] + (u16)d[3]) >> 1;
 	} else {
 		*pred = FPZ;
 	}
@@ -435,6 +449,7 @@ static void SFFU_ABCD(const u8 *p, const u8 **pred, int x, int y, int width) {
 	FPT[0] = (a[0] + (int)b[0] + c[0] + (int)src[0] + 1) >> 2;
 	FPT[1] = (a[1] + (int)b[1] + c[1] + (int)src[1] + 1) >> 2;
 	FPT[2] = (a[2] + (int)b[2] + c[2] + (int)src[2] + 1) >> 2;
+	FPT[3] = (a[3] + (int)b[3] + c[3] + (int)src[3] + 1) >> 2;
 }
 
 static CAT_INLINE u8 leftSel(int f, int c, int a) {
@@ -455,6 +470,7 @@ static void SFF_PICK_LEFT(const u8 *p, const u8 **pred, int x, int y, int width)
 		FPT[0] = leftSel(f[0], c[0], a[0]);
 		FPT[1] = leftSel(f[1], c[1], a[1]);
 		FPT[2] = leftSel(f[2], c[2], a[2]);
+		FPT[3] = leftSel(f[3], c[3], a[3]);
 	} else {
 		if (x > 0) {
 			*pred = p - 4; // A
@@ -478,6 +494,7 @@ static void SFFU_PICK_LEFT(const u8 *p, const u8 **pred, int x, int y, int width
 		FPT[0] = leftSel(f[0], c[0], a[0]);
 		FPT[1] = leftSel(f[1], c[1], a[1]);
 		FPT[2] = leftSel(f[2], c[2], a[2]);
+		FPT[3] = leftSel(f[3], c[3], a[3]);
 	} else {
 		*pred = p - 4; // A
 	}
@@ -492,6 +509,7 @@ static void SFF_PRED_UR(const u8 *p, const u8 **pred, int x, int y, int width) {
 		FPT[0] = d[0] * 2 - e[0];
 		FPT[1] = d[1] * 2 - e[1];
 		FPT[2] = d[2] * 2 - e[2];
+		FPT[3] = d[3] * 2 - e[3];
 	} else {
 		if (x > 0) {
 			*pred = p - 4; // A
@@ -542,6 +560,7 @@ static void SFF_CLAMP_GRAD(const u8 *p, const u8 **pred, int x, int y, int width
 			FPT[0] = clampGrad(b[0], a[0], c[0]);
 			FPT[1] = clampGrad(b[1], a[1], c[1]);
 			FPT[2] = clampGrad(b[2], a[2], c[2]);
+			FPT[3] = clampGrad(b[3], a[3], c[3]);
 		} else {
 			*pred = b;
 		}
@@ -563,6 +582,7 @@ static void SFFU_CLAMP_GRAD(const u8 *p, const u8 **pred, int x, int y, int widt
 	FPT[0] = clampGrad(b[0], a[0], c[0]);
 	FPT[1] = clampGrad(b[1], a[1], c[1]);
 	FPT[2] = clampGrad(b[2], a[2], c[2]);
+	FPT[3] = clampGrad(b[3], a[3], c[3]);
 }
 
 static u8 skewGrad(int b, int a, int c) {
@@ -588,6 +608,7 @@ static void SFF_SKEW_GRAD(const u8 *p, const u8 **pred, int x, int y, int width)
 			FPT[0] = skewGrad(b[0], a[0], c[0]);
 			FPT[1] = skewGrad(b[1], a[1], c[1]);
 			FPT[2] = skewGrad(b[2], a[2], c[2]);
+			FPT[3] = skewGrad(b[3], a[3], c[3]);
 		} else {
 			*pred = b;
 		}
@@ -609,6 +630,7 @@ static void SFFU_SKEW_GRAD(const u8 *p, const u8 **pred, int x, int y, int width
 	FPT[0] = skewGrad(b[0], a[0], c[0]);
 	FPT[1] = skewGrad(b[1], a[1], c[1]);
 	FPT[2] = skewGrad(b[2], a[2], c[2]);
+	FPT[3] = skewGrad(b[3], a[3], c[3]);
 }
 
 static void SFF_AD(const u8 *p, const u8 **pred, int x, int y, int width) {
@@ -625,6 +647,7 @@ static void SFF_AD(const u8 *p, const u8 **pred, int x, int y, int width) {
 			FPT[0] = (a[0] + (u16)src[0]) >> 1;
 			FPT[1] = (a[1] + (u16)src[1]) >> 1;
 			FPT[2] = (a[2] + (u16)src[2]) >> 1;
+			FPT[3] = (a[3] + (u16)src[3]) >> 1;
 		} else {
 			*pred = src; // B
 		}
@@ -645,6 +668,7 @@ static void SFFU_AD(const u8 *p, const u8 **pred, int x, int y, int width) {
 	FPT[0] = (a[0] + (u16)src[0]) >> 1;
 	FPT[1] = (a[1] + (u16)src[1]) >> 1;
 	FPT[2] = (a[2] + (u16)src[2]) >> 1;
+	FPT[3] = (a[3] + (u16)src[3]) >> 1;
 }
 
 
