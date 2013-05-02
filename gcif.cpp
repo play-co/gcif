@@ -136,7 +136,7 @@ static int benchfile(BenchStats &stats, string filename) {
 
 	for (u32 ii = 0; ii < width * height * 4; ++ii) {
 		if (outimage.rgba[ii] != image[ii]) {
-			CAT_WARN("main") << "Output image does not match input image for " << filename;
+			CAT_WARN("main") << "Output image does not match input image for " << filename << " at " << ii;
 			break;
 		}
 	}

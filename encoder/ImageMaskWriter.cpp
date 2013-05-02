@@ -154,6 +154,7 @@ int Masker::initFromRGBA(const u8 *rgba, u32 color, u32 color_mask, int width, i
 		}
 
 		if (seen > 0) {
+			bits <<= 32 - seen;
 			*writer++ = bits;
 		}
 	}
