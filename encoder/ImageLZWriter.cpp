@@ -119,7 +119,7 @@ bool ImageLZWriter::checkMatch(u16 x, u16 y, u16 mx, u16 my) {
 	for (int ii = 0; ii < ZONEW; ++ii) {
 		for (int jj = 0; jj < ZONEH; ++jj) {
 			if (visited(x + ii, y + jj)) {
-				continue;
+				return false;
 			}
 
 			u32 *p = (u32*)&rgba[((x + ii) + (y + jj) * width)*4];
