@@ -348,7 +348,13 @@ void ImageCMWriter::designColorFilters() {
 
 	CAT_INANE("CM") << "Designing color filters...";
 
-	int bestHist[CF_COUNT + 256] = {0};
+	int bestHist[CF_COUNT] = {0};
+
+	EntropyEstimator ee, ee2;
+	ee.init();
+	ee2.init();
+
+	const int STEP = 1;
 
 	for (int y = 0; y < _height; y += FILTER_ZONE_SIZE_H) {
 		for (int x = 0; x < width; x += FILTER_ZONE_SIZE_W) {
@@ -397,6 +403,10 @@ void ImageCMWriter::designColorFilters() {
 
 			cf_scores.reset();
 
+			u8 symbols[65][FILTER_ZONE_SIZE_H * FILTER_ZONE_SIZE_W];
+			u8 symbols2[65*65][FILTER_ZONE_SIZE_H * FILTER_ZONE_SIZE_W];
+			int count = 0;
+
 			// For each pixel in the zone,
 			for (int yy = 0; yy < FILTER_ZONE_SIZE_H; ++yy) {
 				for (int xx = 0; xx < FILTER_ZONE_SIZE_W; ++xx) {
@@ -437,8 +447,59 @@ void ImageCMWriter::designColorFilters() {
 
 						cf_scores.add(ii, error);
 					}
+
+					int index = 0;
+					for (int sym = 0; sym <= 64; sym += STEP) {
+						int coeff = sym - 32;
+						symbols[index][count] = (u8)(temp[0] - (temp[1] * coeff >> 5));
+						++index;
+					}
+					index = 0;
+					for (int sym = 0; sym <= 64; sym += STEP) {
+						int bg = sym - 32;
+						for (int sym2 = 0; sym2 <= 64; sym2 += STEP) {
+							int br = sym2 - 32;
+							symbols2[index][count] = (u8)(temp[2] - (temp[1] * bg >> 5) - (temp[0] * br >> 5));
+							++index;
+						}
+					}
+					++count;
 				}
 			}
+
+			u32 best_rg = 0;
+			{
+				u32 lowest_entropy = ee.entropy(symbols[0], count);
+				int index = 1;
+				for (int sym = STEP; sym <= 64; sym += STEP) {
+					u32 entropy = ee.entropy(symbols[index], count);
+					if (entropy < lowest_entropy) {
+						lowest_entropy = entropy;
+						best_rg = sym;
+					}
+					index++;
+				}
+			}
+			u32 best_bg = 0;
+			u32 best_br = 0;
+			{
+				u32 lowest_entropy = ee2.entropy(symbols2[0], count);
+				int index = 1;
+				for (int sym = STEP; sym <= 64; sym += STEP) {
+					int bg = sym - 32;
+					for (int sym2 = 0; sym2 <= 64; sym2 += STEP) {
+						int br = sym2 - 32;
+						u32 entropy = ee2.entropy(symbols2[index], count);
+						if (entropy < lowest_entropy) {
+							lowest_entropy = entropy;
+							best_bg = sym2;
+							best_br = sym;
+						}
+						++index;
+					}
+				}
+			}
+			CAT_WARN("TEST") << best_rg << ", " << best_bg << ", " << best_br;
 
 			FilterScorer::Score *top = cf_scores.getLowest();
 			bestHist[top[0].index] += 4;
