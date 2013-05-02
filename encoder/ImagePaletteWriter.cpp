@@ -86,13 +86,6 @@ bool compareColors(u32 a, u32 b) {
 	swapLE(a);
 	swapLE(b);
 
-	u8 a_a = (u8)(a >> 24);
-	u8 b_a = (u8)(b >> 24);
-
-	if (a_a < b_a) {
-		return true;
-	}
-
 	u8 a_r = (u8)a;
 	u8 a_g = (u8)(a >> 8);
 	u8 a_b = (u8)(a >> 16);
@@ -106,6 +99,13 @@ bool compareColors(u32 a, u32 b) {
 	float y_b = (0.2126*b_r) + (0.7152*b_g) + (0.0722*b_b);
 
 	if (y_a < y_b) {
+		return true;
+	}
+
+	u8 a_a = (u8)(a >> 24);
+	u8 b_a = (u8)(b >> 24);
+
+	if (a_a < b_a) {
 		return true;
 	}
 

@@ -119,14 +119,12 @@ bool ImageLZWriter::checkMatch(u16 x, u16 y, u16 mx, u16 my) {
 	for (int ii = 0; ii < ZONEW; ++ii) {
 		for (int jj = 0; jj < ZONEH; ++jj) {
 			if (visited(x + ii, y + jj)) {
-				return false;
+				continue;
 			}
 
 			u32 *p = (u32*)&rgba[((x + ii) + (y + jj) * width)*4];
 			u32 *mp = (u32*)&rgba[((mx + ii) + (my + jj) * width)*4];
 
-			// If RGB components match,
-			//if (((getLE(*p) ^ getLE(*mp)) << 8) != 0) {
 			if (getLE(*p) ^ getLE(*mp)) {
 				return false;
 			}
