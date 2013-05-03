@@ -36,6 +36,35 @@ void EntropyEstimator::init() {
 	CAT_OBJCLR(_hist);
 }
 
+static u32 calculateCodelen(u32 inst, u32 total) {
+	// Calculate fixed-point likelihood
+	u32 fpLikelihood = ((u64)inst << 24) / total;
+
+	if (fpLikelihood <= 0) {
+		// Very unlikely: Give it the worst score we can
+		return 24;
+	} else if (fpLikelihood >= 0x800000) {
+		// Very likely: Give it the best score we can above 0
+		return 1;
+	} else if (fpLikelihood >= 0x8000) {
+		// Find MSB index using assembly code instruction intrinsic
+		int msb = BSR32(fpLikelihood);
+
+		// This is quantized log2(likelihood)
+		return 23 - msb;
+	} else {
+		// Adapted from the Stanford Bit Twiddling Hacks collection
+		u32 shift, r, x = fpLikelihood;
+		r = (x > 0xFF) << 3; x >>= r;
+		shift = (x > 0xF) << 2; x >>= shift; r |= shift;
+		shift = (x > 0x3) << 1; x >>= shift; r |= shift;
+		r |= (x >> 1);
+
+		// This is quantized log2(likelihood)
+		return 24 - r;
+	}
+}
+
 u32 EntropyEstimator::entropy(const u8 *symbols, int count) {
 	// Generate histogram for symbols
 	u8 hist[NUM_SYMS] = {0};
@@ -59,32 +88,8 @@ u32 EntropyEstimator::entropy(const u8 *symbols, int count) {
 				// Get number of instances of this symbol out of total
 				u32 inst = _hist[symbol] + hist[symbol];
 
-				// Calculate fixed-point likelihood
-				u32 fpLikelihood = ((u64)inst << 24) / total;
-
-				if (fpLikelihood <= 0) {
-					// Very unlikely: Give it the worst score we can
-					codelens[symbol] = 24;
-				} else if (fpLikelihood >= 0x800000) {
-					// Very likely: Give it the best score we can above 0
-					codelens[symbol] = 1;
-				} else if (fpLikelihood >= 0x8000) {
-					// Find MSB index using assembly code instruction intrinsic
-					int msb = BSR32(fpLikelihood);
-
-					// This is quantized log2(likelihood)
-					codelens[symbol] = 23 - msb;
-				} else {
-					// Adapted from the Stanford Bit Twiddling Hacks collection
-					u32 shift, r, x = fpLikelihood;
-					r = (x > 0xFF) << 3; x >>= r;
-					shift = (x > 0xF) << 2; x >>= shift; r |= shift;
-					shift = (x > 0x3) << 1; x >>= shift; r |= shift;
-					r |= (x >> 1);
-
-					// This is quantized log2(likelihood)
-					codelens[symbol] = 24 - r;
-				}
+				// Calculate codelen
+				codelens[symbol] = calculateCodelen(inst, total);
 			}
 
 			// Accumulate bits for symbol
@@ -119,5 +124,34 @@ void EntropyEstimator::subtract(const u8 *symbols, int count) {
 		// Subtract it from the global histogram
 		_hist[symbol]--;
 	}
+}
+
+u32 EntropyEstimator::entropyRepeat(const u8 symbol, int count) {
+	if (symbol == 0) {
+		return 0;
+	} else {
+		// Get number of instances of this symbol out of total
+		u32 inst = _hist[symbol] + count;
+		const u32 total = _hist_total + count;
+
+		// Calculate codelen
+		return calculateCodelen(inst, total);
+	}
+}
+
+void EntropyEstimator::addRepeat(const u8 symbol, int count) {
+	// Update histogram total count
+	_hist_total += count;
+
+	// Add it to the global histogram
+	_hist[symbol] += count;
+}
+
+void EntropyEstimator::subtractRepeat(const u8 symbol, int count) {
+	// Update histogram total count
+	_hist_total -= count;
+
+	// Subtract it from the global histogram
+	_hist[symbol] -= count;
 }
 

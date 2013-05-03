@@ -137,8 +137,6 @@ void Recursive2DWriter::designFilters() {
 	for (int f = 0; f < MF_FIXED; ++f) {
 		_filters[f] = MONO_FILTERS[f];
 		_filter_indices[f] = f;
-
-		ee.add
 	}
 
 	// Adding one bit adds cost to each tile

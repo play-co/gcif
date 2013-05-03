@@ -76,6 +76,11 @@ public:
 
 	// Subtract symbols from running histogram
 	void subtract(const u8 *symbols, int count);
+
+	// These versions will add the same symbol multiple times
+	u32 entropyRepeat(const u8 symbol, int count);
+	void addRepeat(const u8 symbol, int count);
+	void subtractRepeat(const u8 symbol, int count);
 };
 
 
