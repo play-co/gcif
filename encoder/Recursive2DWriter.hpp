@@ -26,8 +26,8 @@
 	POSSIBILITY OF SUCH DAMAGE.
 */
 
-#ifndef MATRYOSHKA_WRITER_HPP
-#define MATRYOSHKA_WRITER_HPP
+#ifndef RECURSIVE_2D_WRITER_HPP
+#define RECURSIVE_2D_WRITER_HPP
 
 #include "../decoder/Platform.hpp"
 #include "ImageWriter.hpp"
@@ -36,6 +36,7 @@
 #include "../decoder/Filters.hpp"
 #include "EntropyEncoder.hpp"
 #include "GCIFWriter.h"
+#include "Delegates.hpp"
 
 #include <vector>
 
@@ -126,57 +127,93 @@ namespace cat {
 //// Recursive2DWriter
 
 class Recursive2DWriter {
-	static const int MAX_SYMS = 256;
+public:
+	static const int AWARD_COUNT = 4;	// Number of filters to award
+	static const int MAX_FILTERS = 32;	// Maximum number of filters to use
 
-	const GCIFKnobs *_knobs;
+	// bool IsMasked(u16 x, u16 y)
+	typedef Delegate2<bool, u16, u16> MaskDelegate;
+
+	// Parameters provided to process()
+	struct Parameters {
+		const GCIFKnobs *knobs;			// Global knobs
+		const u8 *data;					// Input data
+		u16 num_syms;					// Number of symbols in data [0..num_syms-1]
+		u16 size_x, size_y;				// Data dimensions
+		u16 tile_bits_x, tile_bits_y;	// Number of bits in size
+		u16 max_filters;				// Maximum number of filters to use
+		MaskDelegate mask;				// Function to call to determine if an element is masked out
+		u32 AWARDS[AWARD_COUNT];		// Awards to give for top N filters
+	};
+
+protected:
+	static const int MAX_SYMS = 256;
+	static const int ZRLE_SYMS = 16;
+	static const int MAX_CHAOS_LEVELS = 16;
+
+	static const u8 MASK_TILE = 255;
+	static const u8 TODO_TILE = 0;
+
+	// Parameters
+	const Parameters *_params;
+	u16 _tile_bits_x, _tile_bits_y;		// Number of bits in size
+	MaskDelegate _mask;					// Function to call to determine if an element is masked out
+
+	// Generated filter tiles
+	u8 *_tiles;							// Filter tiles
+	u32 _tiles_count;					// Number of tiles
+	u16 _tile_size_x, _tile_size_y;		// Number of tiles in each dimension
+
+	// Filter choices
+	int _filter_indices[MAX_FILTERS];		// First MF_FIXED are always the same
+	MonoFilterFunc _filters[MAX_FILTERS];	// Chosen filters
 
 	// TODO: Have entropy encoder select symbol count in initialization function
-	EntropyEncoder<MAX_SYMS, 
+	EntropyEncoder<MAX_SYMS, ZRLE_SYMS> _encoder[MAX_CHAOS_LEVELS];
 
-	const u8 *_rgba;
-	int _width, _height;
+	void cleanup();
 
-	Masker _color;
+	// Set tiles to MASK_TILE or TODO_TILE based on the provided mask (optimization)
+	void maskTiles();
 
-	u32 dominantColor();
+	// Choose which filters to use on entire data
+	void designFilters();
 
-#ifdef CAT_COLLECT_STATS
+	// Choose which filters to use which tiles
+	void designTiles();
+
+	// Simple predictive row filter for tiles
+	void filterTiles();
+
+	// Compress the tile data if possible
+	void recurseCompress();
+
+	// Determine number of chaos levels to use when encoding the data
+	void designChaos();
+
 public:
-	struct _Stats {
-		int compressedDataBits;
-		double overallUsec;
-	} Stats;
-#endif // CAT_COLLECT_STATS
-
-public:
-	CAT_INLINE ImageMaskWriter() {
+	CAT_INLINE Recursive2DWriter() {
+		_tiles = 0;
 	}
-	CAT_INLINE virtual ~ImageMaskWriter() {
+	CAT_INLINE virtual ~Recursive2DWriter() {
+		cleanup();
 	}
 
-	CAT_INLINE bool enabled() {
-		return _color.enabled();
-	}
+	// Process the data
+	bool process(const Parameters *params);
 
-	CAT_INLINE u32 getColor() {
-		return _color.getColor();
-	}
+	// Determine number of bits it costs for this representation
+	u32 simulate();
 
-	int initFromRGBA(const u8 *rgba, int width, int height, const GCIFKnobs *knobs);
+	// Write parameter tables for decoder
+	void writeTables(ImageWriter &writer);
 
-	void write(ImageWriter &writer);
-
-	CAT_INLINE bool masked(int x, int y) {
-		return _color.masked(x, y);
-	}
-
-	CAT_INLINE bool dumpStats() {
-		return _color.dumpStats();
-	}
+	// Write a symbol
+	void write(u16 x, u16 y, ImageWriter &writer);
 };
 
 
 } // namespace cat
 
-#endif // MATRYOSHKA_HPP
+#endif // RECURSIVE_2D_WRITER_HPP
 

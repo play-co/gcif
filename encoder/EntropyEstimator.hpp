@@ -39,7 +39,7 @@ namespace cat {
  *
  * Since the GCIF image codec uses entropy encoding as its final step, it is a
  * good idea to make decisions that result in the lowest entropy possible to
- * yield smaller files.  Estimating entropy is interesting.
+ * yield smaller files.
  *
  * Since file size is proportional to entropy, a good estimation of entropy is
  * the number of bits required to represent a given set of data.  This can be
