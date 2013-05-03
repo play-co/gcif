@@ -122,8 +122,8 @@ namespace cat {
 
 class MonoWriter {
 public:
-	static const int AWARD_COUNT = 4;	// Number of filters to award
-	static const int MAX_FILTERS = 32;	// Maximum number of filters to use
+	static const int MAX_AWARDS = 8;	// Maximum filters to award
+	static const int MAX_FILTERS = 32;	// Maximum filters to use
 
 	// bool IsMasked(u16 x, u16 y)
 	typedef Delegate2<bool, u16, u16> MaskDelegate;
@@ -140,7 +140,8 @@ public:
 		float sympal_thresh;			// Normalized coverage to add a symbol palette filter (1.0 = entire image)
 		float filter_thresh;			// Normalized coverage to stop adding filters (1.0 = entire image)
 		MaskDelegate mask;				// Function to call to determine if an element is masked out
-		u32 AWARDS[AWARD_COUNT];		// Awards to give for top N filters
+		u32 AWARDS[MAX_AWARDS];			// Awards to give for top N filters
+		int award_count;				// Number of awards to give out
 	};
 
 	// 2-bit row filters
@@ -165,6 +166,8 @@ protected:
 	static const u8 MASK_TILE = 255;
 	static const u8 TODO_TILE = 0;
 
+	static const u8 UNUSED_SYMPAL = 255;
+
 	// Parameters
 	Parameters _params;
 	MaskDelegate _mask;					// Function to call to determine if an element is masked out
@@ -179,11 +182,13 @@ protected:
 	// Filter choices
 	int _filter_indices[MAX_FILTERS];		// First MF_FIXED are always the same
 	MonoFilterFunc _filters[MAX_FILTERS];	// Chosen filters
-	int _filter_count;						// Number of filters chosen
+	int _normal_filter_count;				// Number of normal filters
+	int _filter_count;						// Totla filters chosen
 
 	// Palette filters
 	u8 _sympal[MAX_PALETTE];				// Palette filter values
-	int _sympal_filters;					// Number of palette filters
+	u8 _sympal_filter_map[MAX_PALETTE];		// Filter index for this palette entry
+	int _sympal_filter_count;				// Number of palette filters
 
 	// Filter encoder
 	MonoWriter *_filter_encoder;
@@ -203,6 +208,9 @@ protected:
 
 	// Choose which filters to use on entire data
 	void designFilters();
+
+	// Tiles where sympal can be used are obvious choices so do those up front
+	void designPaletteTiles();
 
 	// Choose which filters to use which tiles
 	void designTiles();

@@ -159,6 +159,10 @@ void MonoWriter::designPaletteFilters() {
 		}
 	}
 
+	// Initialize filter map
+	for (int ii = 0; ii < _sympal_filters; ++ii) {
+		_sympal_filter_map[ii] = UNUSED_SYMPAL;
+	}
 }
 
 void MonoWriter::designFilters() {
@@ -171,8 +175,8 @@ void MonoWriter::designFilters() {
 	const u8 *topleft = _params.data;
 
 	FilterScorer scores, awards;
-	scores.init(MF_COUNT);
-	awards.init(MF_COUNT);
+	scores.init(MF_COUNT + _sympal_filters);
+	awards.init(MF_COUNT + _sympal_filters);
 	awards.reset();
 
 	// For each tile,
@@ -223,13 +227,26 @@ void MonoWriter::designFilters() {
 			}
 
 			// If data is uniform,
+			int offset = 0;
 			if (uniform) {
+				// Find the matching filter
+				for (int f = 0; f < _sympal_filters; ++f) {
+					if (_sympal[f] == uniform_value) {
+						// Award it top points
+						awards.add(MF_COUNT + f, _params.AWARDS[0]);
+						offset = 1;
+
+						// Mark it as a palette filter tile so we can find it faster later if this palette filter gets chosen
+						*p = MF_COUNT + f;
+						break;
+					}
+				}
 			}
 
 			// Sort top few filters for awards
-			FilterScorer::Score *top = scores.getTop(AWARD_COUNT, true);
-			for (int ii = 0; ii < AWARD_COUNT; ++ii) {
-				awards.add(top[ii].index, _params.AWARDS[ii]);
+			FilterScorer::Score *top = scores.getTop(_params.award_count, true);
+			for (int ii = offset; ii < _params.award_count; ++ii) {
+				awards.add(top[ii - offset].index, _params.AWARDS[ii]);
 			}
 		}
 	}
@@ -252,12 +269,19 @@ void MonoWriter::designFilters() {
 		count = MF_COUNT;
 	}
 
-	int coverage = 0;
+	// Calculate min coverage threshold
 	int filter_thresh = _params.filter_thresh * _tiles_count;
+	int coverage = 0;
+
+	// Prepare to reduce the sympal set size
+	int sympal_f = 0;
 
 	// Choose remaining filters until coverage is acceptable
-	int f = MF_FIXED;
+	int normal_f = MF_FIXED; // Next normal filter index
+	int filters_set = MF_FIXED; // Total filters
 	FilterScorer::Score *top = awards.getTop(count, true);
+
+	// For each of the sorted filter scores,
 	for (int ii = 0; ii < count; ++ii) {
 		int index = top[ii].index;
 		int score = top[ii].score;
@@ -265,27 +289,85 @@ void MonoWriter::designFilters() {
 		// Calculate approximate bytes covered
 		int covered = score / _params.AWARDS[0];
 
+		// NOTE: Interesting interaction with fixed filters that are not chosen
 		coverage += covered;
 
+		// If coverage is satisifed,
 		if (coverage >= filter_thresh) {
+			// We're done here
 			break;
 		}
 
 		// If filter is not fixed,
 		if (index >= MF_FIXED) {
-			_filters[f] = MONO_FILTERS[index];
-			_filter_indices[f] = index;
-			++f;
+			// If filter is a sympal,
+			if (index >= MF_COUNT) {
+				// Map it from sympal filter index to new filter index
+				int sympal_filter = index - MF_COUNT;
+				_sympal_filter_map[sympal_filter] = sympal_f;
+				++sympal_f;
+			} else {
+				_filters[normal_f] = MONO_FILTERS[index];
+				_filter_indices[normal_f] = index;
+				++normal_f;
+			}
 
-			if (f >= MAX_FILTERS) {
+			++filters_set;
+			if (filters_set >= MAX_FILTERS) {
 				break;
 			}
 		}
 	}
 
-	_filter_count = f;
+	// Record counts
+	_normal_filter_count = normal_f;
+	_sympal_filter_count = sympal_f;
+	_filter_count = filters_set;
 
-	CAT_INANE("2D") << "Chose " << _filter_count << " filters";
+	CAT_DEBUG_ENFORCE(_filter_count == _normal_filter_count + _sympal_filter_count);
+
+	CAT_INANE("2D") << "Chose " << _filter_count << " filters : " << _sympal_filter_count << " of which are palettes";
+}
+
+void MonoWriter::designPaletteTiles() {
+	if (_sympal_filter_count < 0) {
+		CAT_INANE("2D") << "No palette filters selected";
+		return;
+	}
+
+	CAT_INANE("2D") << "Designing palette tiles for " << _tiles_x << "x" << _tiles_y << "...";
+
+	const u16 tile_size_x = _tile_size_x, tile_size_y = _tile_size_y;
+	const u16 size_x = _params.size_x, size_y = _params.size_y;
+	u8 *p = _tiles;
+	const u8 *topleft = _params.data;
+
+	// For each tile,
+	for (u16 y = 0; y < size_y; y += tile_size_y) {
+		for (u16 x = 0; x < size_x; x += tile_size_x, ++p, topleft += tile_size_x) {
+			const u8 value = *p;
+
+			// If tile is masked,
+			if (value == MASK_TILE) {
+				continue;
+			}
+
+			// If this tile was initially paletted,
+			if (value >= MF_COUNT) {
+				// Look up the new filter value
+				u8 filter = _sympal_filter_map[value - MF_COUNT];
+
+				// If it was used,
+				if (filter != UNUSED_SYMPAL) {
+					// Prefer it over any other filter type
+					*p = MF_COUNT + filter;
+				} else {
+					// Unlock it for use
+					*p = TODO_TILE;
+				}
+			}
+		}
+	}
 }
 
 void MonoWriter::designTiles() {
@@ -312,8 +394,8 @@ void MonoWriter::designTiles() {
 		for (u16 y = 0; y < size_y; y += tile_size_y, ++ty) {
 			int tx = 0;
 			for (u16 x = 0; x < size_x; x += tile_size_x, ++p, topleft += tile_size_x, ++tx) {
-				// If tile is masked,
-				if (*p == MASK_TILE) {
+				// If tile is masked or sympal,
+				if (*p >= MF_COUNT) {
 					continue;
 				}
 
@@ -327,30 +409,34 @@ void MonoWriter::designTiles() {
 					}
 
 					int code_count = 0;
+					const int old_filter = *p;
 
-					// For each pixel in the tile,
-					const u8 *scanline = topleft;
-					u16 py = y, cy = tile_size_y;
-					while (cy-- > 0 && py < size_y) {
-						const u8 *data = scanline;
-						u16 px = x, cx = tile_size_x;
-						while (cx-- > 0 && px < size_x) {
-							// If pixel is not masked,
-							if (!_params.mask(px, py)) {
-								const u8 value = *data;
+					// If old filter is not a sympal,
+					if (_filter_indices[old_filter] < MF_COUNT) {
+						// For each pixel in the tile,
+						const u8 *scanline = topleft;
+						u16 py = y, cy = tile_size_y;
+						while (cy-- > 0 && py < size_y) {
+							const u8 *data = scanline;
+							u16 px = x, cx = tile_size_x;
+							while (cx-- > 0 && px < size_x) {
+								// If pixel is not masked,
+								if (!_params.mask(px, py)) {
+									const u8 value = *data;
 
-								u8 prediction = _filters[f](data, x, y, size_x) % num_syms;
-								u8 residual = (value + num_syms - prediction) % num_syms;
+									u8 prediction = _filters[old_filter](data, x, y, size_x) % num_syms;
+									u8 residual = (value + num_syms - prediction) % num_syms;
 
-								codes[code_count++] = residual;
+									codes[code_count++] = residual;
+								}
+								++data;
 							}
-							++data;
+							++py;
+							scanline += size_x;
 						}
-						++py;
-						scanline += size_x;
-					}
 
-					ee.subtract(codes, code_count);
+						ee.subtract(codes, code_count);
+					}
 				}
 
 				int code_count = 0;
@@ -415,6 +501,10 @@ void MonoWriter::designTiles() {
 				for (int f = 0; f < _filter_count; ++f) {
 					int entropy = ee.entropy(src, code_count);
 
+					// Nudge scoring based on neighbors
+					if (entropy == 0) {
+						entropy -= NEIGHBOR_REWARD;
+					}
 					if (f == a) {
 						entropy -= NEIGHBOR_REWARD;
 					}
@@ -427,8 +517,6 @@ void MonoWriter::designTiles() {
 					if (f == d) {
 						entropy -= NEIGHBOR_REWARD;
 					}
-
-					// Evaluate scores here based on neighbor values
 
 					if (lowest_entropy > entropy) {
 						lowest_entropy = entropy;
@@ -602,11 +690,13 @@ u32 MonoWriter::process(const Parameters &params) {
 		// Allocate tile memory
 		_tiles_count = _tiles_x * _tiles_y;
 		_tiles = new u8[_tiles_count];
-
 		_tile_row_filters = new u8[_tiles_y];
 
+		// Process
 		maskTiles();
+		designPaletteFilters();
 		designFilters();
+		designPaletteTiles();
 		designTiles();
 		designRowFilters();
 		recurseCompress();
