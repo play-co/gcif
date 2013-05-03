@@ -52,13 +52,7 @@
 
    What I realized while working more on adding better alpha channel filtering is that it would make a lot of sense to do it recursively.  And that made me step back.  This could be an encoding that recursively produces subresolution monochrome images that are then recompressed!  Any of the modeling that can be done for one of these monochrome data streams may be applicable to any of the others!
 
-   Exciting!
-
-   I've already got a pretty flexible entropy encoder that can do zero-run-length-encoding (zRLE) and order-1 modeling for after-zero symbols, but will also turn these features off if a basic Huffman coder makes more sense.  And the Huffman tables are compressed effectively regardless of the input.  So I can use this same entropy encoder for just about everything now, and it enables me to decide between filter choices just purely using entropy comparison.
-
-   class MonochromeFilter
-
-   The new MonochromeFilter class is going to combine all of the tricks I've picked up:
+   The algorithm:
 
    (0) Select a power-of-two ZxZ zone size, starting with twice the size of the parent zone.
 
@@ -140,33 +134,61 @@ public:
 		const u8 *data;					// Input data
 		u16 num_syms;					// Number of symbols in data [0..num_syms-1]
 		u16 size_x, size_y;				// Data dimensions
-		u16 tile_bits_x, tile_bits_y;	// Number of bits in size
 		u16 max_filters;				// Maximum number of filters to use
+		u16 min_bits;					// Minimum tile size bits to try
+		u16 max_bits;					// Maximum tile size bits to try
+		float sympal_thresh;			// Normalized coverage to add a symbol palette filter (1.0 = entire image)
+		float filter_thresh;			// Normalized coverage to stop adding filters (1.0 = entire image)
 		MaskDelegate mask;				// Function to call to determine if an element is masked out
 		u32 AWARDS[AWARD_COUNT];		// Awards to give for top N filters
 	};
+
+	// 2-bit row filters
+	enum RowFilters {
+		RF_NOOP,
+		RF_A,	// Left
+		RF_B,	// Up
+		RF_C,	// Up-Left
+
+		RF_COUNT
+	}
 
 protected:
 	static const int MAX_SYMS = 256;
 	static const int ZRLE_SYMS = 16;
 	static const int MAX_CHAOS_LEVELS = 16;
+	static const int MAX_PASSES = 4;
+	static const int MAX_ROW_PASSES = 4;
+	static const int RECURSE_THRESH_COUNT = 128;
+	static const int MAX_PALETTE = 16;
 
 	static const u8 MASK_TILE = 255;
 	static const u8 TODO_TILE = 0;
 
 	// Parameters
-	const Parameters *_params;
-	u16 _tile_bits_x, _tile_bits_y;		// Number of bits in size
+	Parameters _params;
 	MaskDelegate _mask;					// Function to call to determine if an element is masked out
 
 	// Generated filter tiles
 	u8 *_tiles;							// Filter tiles
 	u32 _tiles_count;					// Number of tiles
-	u16 _tile_size_x, _tile_size_y;		// Number of tiles in each dimension
+	int _tiles_x, _tiles_y;				// Tiles in x,y
+	u16 _tile_bits_x, _tile_bits_y;		// Number of bits in size
+	u16 _tile_size_x, _tile_size_y;		// Size of tile
 
 	// Filter choices
 	int _filter_indices[MAX_FILTERS];		// First MF_FIXED are always the same
 	MonoFilterFunc _filters[MAX_FILTERS];	// Chosen filters
+	int _filter_count;						// Number of filters chosen
+
+	// Palette filters
+	u8 _sympal[MAX_PALETTE];				// Palette filter values
+	int _sympal_filters;					// Number of palette filters
+
+	// Filter encoder
+	MonoWriter *_filter_encoder;
+	u8 *_tile_row_filters;					// One for each tile row
+	u32 _row_filter_entropy;				// Calculated entropy from using row filters
 
 	// TODO: Have entropy encoder select symbol count in initialization function
 	EntropyEncoder<MAX_SYMS, ZRLE_SYMS> _encoder[MAX_CHAOS_LEVELS];
@@ -176,6 +198,9 @@ protected:
 	// Set tiles to MASK_TILE or TODO_TILE based on the provided mask (optimization)
 	void maskTiles();
 
+	// Choose a number of palette filters to try in addition to the usual ones
+	void designPaletteFilters();
+
 	// Choose which filters to use on entire data
 	void designFilters();
 
@@ -183,7 +208,7 @@ protected:
 	void designTiles();
 
 	// Simple predictive row filter for tiles
-	void filterTiles();
+	void designRowFilters();
 
 	// Compress the tile data if possible
 	void recurseCompress();
@@ -194,16 +219,21 @@ protected:
 public:
 	CAT_INLINE MonoWriter() {
 		_tiles = 0;
+		_filter_encoder = 0;
+		_tile_row_filters = 0;
 	}
 	CAT_INLINE virtual ~MonoWriter() {
 		cleanup();
 	}
 
-	// Process the data
-	bool process(const Parameters *params);
+	CAT_INLINE u8 *getTile(u16 x, u16 y) {
+		x >>= _params->tile_bits_x;
+		y >>= _params->tile_bits_y;
+		return _tiles + x + y * _tiles_count_x;
+	}
 
-	// Determine number of bits it costs for this representation
-	u32 simulate();
+	// Process the data
+	u32 process(const Parameters &params);
 
 	// Write parameter tables for decoder
 	void writeTables(ImageWriter &writer);
