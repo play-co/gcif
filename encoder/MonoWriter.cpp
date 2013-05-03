@@ -26,22 +26,22 @@
 	POSSIBILITY OF SUCH DAMAGE.
 */
 
-#include "Recursive2DWriter.hpp"
+#include "MonoWriter.hpp"
 #include "../decoder/Enforcer.hpp"
 #include "FilterScorer.hpp"
 using namespace cat;
 
 
-//// Recursive2DWriter
+//// MonoWriter
 
-void Recursive2DWriter::cleanup() {
+void MonoWriter::cleanup() {
 	if (_tiles) {
 		delete []_tiles;
 		_tiles = 0;
 	}
 }
 
-void Recursive2DWriter::maskTiles() {
+void MonoWriter::maskTiles() {
 	const u16 tile_size_x = _tile_size_x, tile_size_y = _tile_size_y;
 	const u16 size_x = _params->size_x, size_y = _params->size_y;
 	u8 *p = _tiles;
@@ -72,7 +72,7 @@ next_tile:;
 	}
 }
 
-void Recursive2DWriter::designFilters() {
+void MonoWriter::designFilters() {
 	CAT_INANE("2D") << "Designing filters...";
 
 	const u16 tile_size_x = _tile_size_x, tile_size_y = _tile_size_y;
@@ -172,23 +172,23 @@ void Recursive2DWriter::designFilters() {
 	}
 }
 
-void Recursive2DWriter::designTiles() {
+void MonoWriter::designTiles() {
 	CAT_INANE("2D") << "Designing tiles...";
 }
 
-void Recursive2DWriter::filterTiles() {
+void MonoWriter::filterTiles() {
 }
 
-void Recursive2DWriter::recurseCompress() {
+void MonoWriter::recurseCompress() {
 	CAT_INANE("2D") << "Recursing...";
 	CAT_INANE("2D") << "...Out";
 }
 
-void Recursive2DWriter::designChaos() {
+void MonoWriter::designChaos() {
 	CAT_INANE("2D") << "Designing chaos...";
 }
 
-bool Recursive2DWriter::process(const Parameters *params) {
+bool MonoWriter::process(const Parameters *params) {
 	cleanup();
 
 	_params = params;
@@ -215,12 +215,12 @@ bool Recursive2DWriter::process(const Parameters *params) {
 	designChaos();
 }
 
-u32 Recursive2DWriter::simulate() {
+u32 MonoWriter::simulate() {
 }
 
-void Recursive2DWriter::writeTables(ImageWriter &writer) {
+void MonoWriter::writeTables(ImageWriter &writer) {
 }
 
-void Recursive2DWriter::write(u16 x, u16 y, ImageWriter &writer) {
+void MonoWriter::write(u16 x, u16 y, ImageWriter &writer) {
 }
 

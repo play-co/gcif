@@ -26,8 +26,8 @@
 	POSSIBILITY OF SUCH DAMAGE.
 */
 
-#ifndef RECURSIVE_2D_WRITER_HPP
-#define RECURSIVE_2D_WRITER_HPP
+#ifndef MONO_WRITER_HPP
+#define MONO_WRITER_HPP
 
 #include "../decoder/Platform.hpp"
 #include "ImageWriter.hpp"
@@ -41,7 +41,7 @@
 #include <vector>
 
 /*
- * Recursive 2D Data Compression
+ * Monochrome Compression
  *
    Through working on compressing 2D RGBA data I've noticed a few parts of the data are effectively monochrome data:
    (1) Which color filter to use for each SF/CF filter zone.
@@ -124,9 +124,9 @@
 namespace cat {
 
 
-//// Recursive2DWriter
+//// MonoWriter 
 
-class Recursive2DWriter {
+class MonoWriter {
 public:
 	static const int AWARD_COUNT = 4;	// Number of filters to award
 	static const int MAX_FILTERS = 32;	// Maximum number of filters to use
@@ -192,10 +192,10 @@ protected:
 	void designChaos();
 
 public:
-	CAT_INLINE Recursive2DWriter() {
+	CAT_INLINE MonoWriter() {
 		_tiles = 0;
 	}
-	CAT_INLINE virtual ~Recursive2DWriter() {
+	CAT_INLINE virtual ~MonoWriter() {
 		cleanup();
 	}
 
@@ -215,5 +215,5 @@ public:
 
 } // namespace cat
 
-#endif // RECURSIVE_2D_WRITER_HPP
+#endif // MONO_WRITER_HPP
 
