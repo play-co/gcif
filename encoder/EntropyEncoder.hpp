@@ -49,6 +49,9 @@
  *
  * The two Huffman tables are written using the compressed representation in
  * HuffmanEncoder.
+ *
+ * Alternatively, if normal Huffman encoding is more effective, it is used,
+ * making this class much more generic.
  */
 
 namespace cat {
