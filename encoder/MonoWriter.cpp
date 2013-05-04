@@ -34,6 +34,17 @@
 using namespace cat;
 
 
+#ifdef CAT_DESYNCH_CHECKS
+#define DESYNC_TABLE() writer.writeBits(1234567);
+#define DESYNC(x, y) writer.writeBits(x ^ 12345, 16); writer.writeBits(y ^ 54321, 16);
+#define DESYNC_FILTER(x, y) writer.writeBits(x ^ 31337, 16); writer.writeBits(y ^ 31415, 16);
+#else
+#define DESYNC_TABLE()
+#define DESYNC(x, y)
+#define DESYNC_FILTER(x, y)
+#endif
+
+
 //// MonoWriter
 
 void MonoWriter::cleanup() {
@@ -633,6 +644,8 @@ void MonoWriter::designRowFilters() {
 						a = p[-1];
 						if (ty > 0) {
 							c = p[-tiles_x-1];
+						} else {
+							c = a;
 						}
 					}
 					if (ty > 0) {
@@ -736,8 +749,9 @@ void MonoWriter::recurseCompress() {
 void MonoWriter::designChaos() {
 	CAT_INANE("2D") << "Designing chaos...";
 
-	const int chaos_size = 1 + _params.size_x;
-	_chaos = new u8[chaos_size];
+	// Initialize chaos memory
+	_chaos_size = 1 + _params.size_x;
+	_chaos = new u8[_chaos_size];
 
 	EntropyEstimator ee[MAX_CHAOS_LEVELS];
 
@@ -754,7 +768,7 @@ void MonoWriter::designChaos() {
 		const u8 *CHAOS = CHAOS_MAPS[chaos_levels - 1];
 
 		// Reset chaos workspace for first row
-		CAT_CLR(_chaos, chaos_size);
+		CAT_CLR(_chaos, _chaos_size);
 
 		// For each row,
 		const u8 *residuals = _residuals;
@@ -856,12 +870,10 @@ u32 MonoWriter::process(const Parameters &params) {
 }
 
 void MonoWriter::initializeEncoders() {
-	const int chaos_size = 1 + _params.size_x;
-
 	const u8 *CHAOS = CHAOS_MAPS[_chaos_levels - 1];
 
 	// Reset chaos workspace for first row
-	CAT_CLR(_chaos, chaos_size);
+	CAT_CLR(_chaos, _chaos_size);
 
 	// For each row,
 	const u8 *residuals = _residuals;
@@ -904,6 +916,59 @@ void MonoWriter::initializeEncoders() {
 	for (int ii = 0, iiend = _chaos_levels; ii < iiend; ++ii) {
 		_encoder[ii].finalize();
 	}
+
+	// If using row encoders for filters,
+	if (_filter_encoder) {
+		// For each filter row,
+		const u8 *tile = _tiles;
+		for (int ty = 0; ty < _tiles_y; ++ty) {
+			int tile_row_filter = _tile_row_filters[ty];
+
+			// For each column,
+			for (int tx = 0; tx < _tiles_x; ++tx) {
+				u8 f = *tile++, residual = 0;
+
+				if (f != MASK_TILE) {
+					// Filter the row filters
+					switch (tile_row_filter) {
+					default:
+						CAT_DEBUG_EXCEPTION();
+					case RF_NOOP:
+						residual = f;
+						break;
+					case RF_A:
+						if (tx <= 0) {
+							residual = f;
+						} else {
+							residual = f - tile[-1];
+						}
+						break;
+					case RF_B:
+						if (ty <= 0) {
+							residual = f;
+						} else {
+							residual = f - tile[-_tiles_x];
+						}
+						break;
+					case RF_C:
+						if (tx <= 0) {
+							residual = f;
+						} else if (ty <= 0) {
+							residual = f - tile[-1];
+						} else {
+							residual = f - tile[-_tiles_x - 1];
+						}
+						break;
+					}
+
+					_row_filter_encoder.add(residual);
+				}
+			}
+		}
+
+		// Finalize the row filter encoder
+		_row_filter_encoder.finalize();
+	}
 }
 
 void MonoWriter::writeTables(ImageWriter &writer) {
@@ -918,8 +983,11 @@ void MonoWriter::writeTables(ImageWriter &writer) {
 			u32 bits_value = _tile_bits_x - _params.max_bits;
 			u32 bits_bc = BSR32(range) + 1;
 			writer.writeBits(bits_value, bits_bc);
+			Stats.basic_overhead_bits += bits_bc;
 		}
 	}
+
+	DESYNC_TABLE();
 
 	// Normal filters
 	{
@@ -929,8 +997,11 @@ void MonoWriter::writeTables(ImageWriter &writer) {
 		writer.writeBits(_normal_filter_count - 1, 5);
 		for (int f = 0; f < _normal_filter_count; ++f) {
 			writer.writeBits(_filter_indices[f], 7);
+			Stats.basic_overhead_bits += 7;
 		}
 	}
+
+	DESYNC_TABLE();
 
 	// Sympal filters
 	{
@@ -939,31 +1010,41 @@ void MonoWriter::writeTables(ImageWriter &writer) {
 		writer.writeBits(_sympal_filter_count - 1, 4);
 		for (int f = 0; f < _sympal_filter_count; ++f) {
 			writer.writeBits(_sympal[f], 8);
+			Stats.basic_overhead_bits += 8;
 		}
 	}
+
+	DESYNC_TABLE();
 
 	// Write chaos levels
 	{
 		CAT_DEBUG_ENFORCE(MAX_CHAOS_LEVELS <= 16);
 
 		writer.writeBits(_chaos_levels - 1, 4);
+		Stats.basic_overhead_bits += 4;
 	}
+
+	DESYNC_TABLE();
 
 	// Write encoder tables
 	{
 		for (int ii = 0, iiend = _chaos_levels; ii < iiend; ++ii) {
-			_encoder[ii].writeTables(writer);
+			Stats.encoder_overhead_bits += _encoder[ii].writeTables(writer);
 		}
 	}
 
+	DESYNC_TABLE();
+
 	// Bit : row filters or recurse write tables
 	{
+		Stats.basic_overhead_bits++;
+
 		// If we decided to recurse,
 		if (_filter_encoder) {
 			writer.writeBit(1);
 
 			// Recurse write tables
-			_filter_encoder->writeTables(writer);
+			Stats.filter_overhead_bits += _filter_encoder->writeTables(writer);
 		} else {
 			writer.writeBit(0);
 
@@ -971,45 +1052,133 @@ void MonoWriter::writeTables(ImageWriter &writer) {
 		}
 	}
 
+	DESYNC_TABLE();
+
 	initializeWriter();
 }
 
 void MonoWriter::initializeWriter() {
+	// Initialize stats
+	Stats.basic_overhead_bits = 0;
+	Stats.encoder_overhead_bits = 0;
+	Stats.filter_overhead_bits = 0;
+	Stats.data_bits = 0;
+
 	// Initialize writer
-	_written_bits = 0;
 	_tile_seen = new u8[_tiles_x];
 
-	// TODO: Chaos reset
+	// Reset chaos memory for first row
+	CAT_CLR(_chaos, _chaos_size);
 }
 
-void MonoWriter::writeRowHeader(u16 y, ImageWriter &writer) {
+int MonoWriter::writeRowHeader(u16 y, ImageWriter &writer) {
+	CAT_DEBUG_ENFORCE(y < _params.size_y);
+
 	// Calculate tile y-coordinate
 	u16 ty = y >> _tile_bits_y;
 
 	// Reset seen bitmask
 	CAT_CLR(_tile_seen, _tiles_x * sizeof(*_tile_seen));
 
+	// Clear left
+	_chaos[0] = 0;
+
 	// If filter encoder is used instead of row filters,
 	if (_filter_encoder) {
 		// Recurse start row (they all start at 0)
-		_filter_encoder->writeRowHeader(ty, writer);
+		Stats.filter_overhead_bits += _filter_encoder->writeRowHeader(ty, writer);
 	} else {
 		CAT_DEBUG_ENFORCE(RF_COUNT <= 4);
 
 		// Write out chosen row filter
 		writer.writeBits(_tile_row_filters[ty], 2);
+		Stats.filter_overhead_bits += 2;
 	}
+
+	DESYNC_FILTER(0, y);
 }
 
-void MonoWriter::writeFilter(u16 x, u16 y, ImageWriter &writer) {
+int MonoWriter::write(u16 x, u16 y, ImageWriter &writer) {
+	CAT_DEBUG_ENFORCE(x < _params.size_x && y < _params.size_y);
+
 	// Calculate tile coordinates
 	u16 tx = x >> _tile_bits_y, ty = y >> _tile_bits_y;
 
-	// TODO: MASK
-	// TODO: check child filter mask check thing
-	// TODO: chaos
-	// TODO: update seen filter
-	// TODO: desynch stuff
-	// TODO: write bits counter
+	// If tile not seen yet,
+	if (!_tile_seen[tx]) {
+		_tile_seen[tx] = true;
+
+		// Get tile
+		u8 *tile = _tiles + tx + ty * _tiles_x;
+		u8 f = tile[0];
+		_write_filter = f;
+
+		// If tile is not masked,
+		if (f != MASK_TILE) {
+			// If recursive filter encoded,
+			if (_filter_encoder) {
+				// Pass filter write down the tree
+				Stats.filter_overhead_bits += _filter_encoder->writeFilter(tx, ty, writer);
+			} else {
+				// Calculate row filter residual for filter data (filter of filters at tree leaf)
+				u8 residual;
+				switch (_tile_row_filter) {
+				default:
+					CAT_DEBUG_EXCEPTION();
+				case RF_NOOP:
+					residual = f;
+					break;
+				case RF_A:
+					if (tx <= 0) {
+						residual = f;
+					} else {
+						residual = f - tile[-1];
+					}
+					break;
+				case RF_B:
+					if (ty <= 0) {
+						residual = f;
+					} else {
+						residual = f - tile[-_tiles_x];
+					}
+					break;
+				case RF_C:
+					if (tx <= 0) {
+						residual = f;
+					} else if (ty <= 0) {
+						residual = f - tile[-1];
+					} else {
+						residual = f - tile[-_tiles_x - 1];
+					}
+					break;
+				}
+
+				Stats.filter_overhead_bits += _row_filter_encoder.write(residual, writer);
+			}
+		}
+
+		DESYNC_FILTER(x, y);
+	}
+
+	// If filter is masked,
+	if (_write_filter == MASK_TILE || _params.mask(x, y)) {
+		_chaos[x + 1] = 0;
+	} else {
+		// Look up residual sym
+		u8 residual_sym = _residuals[x + y * _params.size_x];
+
+		const u8 *CHAOS = CHAOS_MAPS[_chaos_levels - 1];
+
+		// Calculate local chaos
+		int chaos = CHAOS[RESIDUAL_SCORE[_chaos[x]] + RESIDUAL_SCORE[_chaos[x + 1]]];
+
+		// Add to histogram for this chaos bin
+		_encoder[chaos].add(residual_sym);
+
+		// Remember the residual from next chaos calculation
+		_chaos[x + 1] = residual_sym;
+	}
+
+	DESYNC(x, y);
 }
 

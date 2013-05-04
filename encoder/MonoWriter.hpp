@@ -87,6 +87,13 @@ public:
 		RF_COUNT
 	}
 
+	struct _Stats {
+		int basic_overhead_bits;
+		int encoder_overhead_bits;
+		int filter_overhead_bits;
+		int data_bits;
+	} Stats;
+
 protected:
 	static const int MAX_SYMS = 256;
 	static const int ZRLE_SYMS = 16;
@@ -132,13 +139,17 @@ protected:
 	u32 _row_filter_entropy;				// Calculated entropy from using row filters
 	u8 *_tile_seen;							// Seen this tile yet during writing?
 
+	// Filter encoder for row mode
+	EntropyEncoder<MAX_FILTERS, ZRLE_SYMS> _row_filter_encoder;
+
 	// Chaos levels
 	int _chaos_levels;						// Number of chaos levels
 	u8 *_chaos;								// Chaos temporary scanline workspace
+	int _chaos_size;						// Number of bytes for chaos memory
 	u32 _chaos_entropy;						// Entropy after chaos applied
 
-	// Write statistics
-	u32 _written_bits;						// Number of bits written
+	// Write state
+	u8 _write_filter;						// Current filter
 
 	// TODO: Have entropy encoder select symbol count in initialization function
 	EntropyEncoder<MAX_SYMS, ZRLE_SYMS> _encoder[MAX_CHAOS_LEVELS];
@@ -148,7 +159,7 @@ protected:
 	CAT_INLINE u8 *getTile(u16 x, u16 y) {
 		x >>= _params->tile_bits_x;
 		y >>= _params->tile_bits_y;
-		return _tiles + x + y * _tiles_count_x;
+		return _tiles + x + y * _tiles_x;
 	}
 
 	// Mask function for child instance
@@ -199,14 +210,6 @@ public:
 		cleanup();
 	}
 
-	// Used by next layer up to determine when to call writeFilter()
-	CAT_INLINE u16 getTileMaskX() {
-		return _tile_size_x - 1;
-	}
-	CAT_INLINE u16 getTileMaskY() {
-		return _tile_size_y - 1;
-	}
-
 	// Process the data
 	u32 process(const Parameters &params);
 
@@ -214,10 +217,10 @@ public:
 	void writeTables(ImageWriter &writer);
 
 	// Writer header for a row that is just starting
-	void writeRowHeader(u16 y, ImageWriter &writer);
+	int writeRowHeader(u16 y, ImageWriter &writer); // Returns bits used
 
 	// Write a symbol
-	void writeFilter(u16 x, u16 y, ImageWriter &writer);
+	int write(u16 x, u16 y, ImageWriter &writer); // Returns bits used
 };
 
 
