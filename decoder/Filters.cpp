@@ -2539,6 +2539,16 @@ static u8 MFFU_CLAMP_GRAD(const u8 *p, u8 clamp_max, int x, int y, int width) {
 
 //// Skewed Gradient Filter
 
+static CAT_INLINE u8 skewGradMono(int b, int a, int c, int clamp_max) {
+	int pred = (3 * (b + a) - (c << 1)) >> 2;
+	if (pred >= clamp_max) {
+		return clamp_max;
+	} else if (pred <= 0) {
+		return 0;
+	}
+	return pred;
+}
+
 static u8 MFF_SKEW_GRAD(const u8 *p, u8 clamp_max, int x, int y, int width) {
 	if (y > 0) {
 		if (x > 0) {
@@ -2546,7 +2556,7 @@ static u8 MFF_SKEW_GRAD(const u8 *p, u8 clamp_max, int x, int y, int width) {
 			const u8 *b = p - width; // B
 			const u8 *c = b - 1; // C
 
-			return skewGrad(b[0], a[0], c[0]);
+			return skewGradMono(b[0], a[0], c[0], clamp_max);
 		} else {
 			return p[-width]; // B
 		}
@@ -2564,11 +2574,22 @@ static u8 MFFU_SKEW_GRAD(const u8 *p, u8 clamp_max, int x, int y, int width) {
 	const u8 *b = p - width; // B
 	const u8 *c = b - 1; // C
 
-	return skewGrad(b[0], a[0], c[0]);
+	return skewGradMono(b[0], a[0], c[0], clamp_max);
 }
 
 
 //// ABC Clamp Filter
+
+static CAT_INLINE u8 abcClampMono(int a, int b, int c, int clamp_max) {
+	int sum = a + b - c;
+	if (sum < 0) {
+		return 0;
+	} else if (sum > clamp_max) {
+		return clamp_max;
+	}
+
+	return sum;
+}
 
 static u8 MFF_ABC_CLAMP(const u8 *p, u8 clamp_max, int x, int y, int width) {
 	if (x > 0) {
@@ -2578,7 +2599,7 @@ static u8 MFF_ABC_CLAMP(const u8 *p, u8 clamp_max, int x, int y, int width) {
 			const u8 *b = p - width; // B
 			const u8 *c = b - 1; // C
 
-			return abcClamp(a[0], b[0], c[0]);
+			return abcClampMono(a[0], b[0], c[0], clamp_max);
 		} else {
 			return a[0];
 		}
@@ -2596,7 +2617,7 @@ static u8 MFFU_ABC_CLAMP(const u8 *p, u8 clamp_max, int x, int y, int width) {
 	const u8 *b = p - width; // B
 	const u8 *c = b - 1; // C
 
-	return abcClamp(a[0], b[0], c[0]);
+	return abcClamp(a[0], b[0], c[0], clamp_max);
 }
 
 
