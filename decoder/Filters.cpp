@@ -114,70 +114,6 @@ static void SFFU_A(const u8 *p, const u8 **pred, int x, int y, int width) {
 	*pred = p - 4; // A
 }
 
-static void SFF_AB(const u8 *p, const u8 **pred, int x, int y, int width) {
-	if (x > 0) {
-		const u8 *a = p - 4; // A
-
-		if (y > 0) {
-			const u8 *b = p - width*4; // B
-
-			u8 *FPT = (u8*)*pred;
-			FPT[0] = (a[0] + (u16)b[0]) >> 1;
-			FPT[1] = (a[1] + (u16)b[1]) >> 1;
-			FPT[2] = (a[2] + (u16)b[2]) >> 1;
-		} else {
-			*pred = a;
-		}
-	} else if (y > 0) {
-		*pred = p - width*4; // B
-	} else {
-		*pred = FPZ;
-	}
-}
-
-static void SFFU_AB(const u8 *p, const u8 **pred, int x, int y, int width) {
-	CAT_DEBUG_ENFORCE(x > 0 && y > 0);
-
-	const u8 *a = p - 4; // A
-	const u8 *b = p - width*4; // B
-
-	u8 *FPT = (u8*)*pred;
-	FPT[0] = (a[0] + (u16)b[0]) >> 1;
-	FPT[1] = (a[1] + (u16)b[1]) >> 1;
-	FPT[2] = (a[2] + (u16)b[2]) >> 1;
-}
-
-static void SFF_BD(const u8 *p, const u8 **pred, int x, int y, int width) {
-	if (y > 0) {
-		const u8 *b = p - width*4; // B
-		const u8 *src = b; // B
-		if (x < width-1) {
-			src += 4; // D
-		}
-
-		u8 *FPT = (u8*)*pred;
-		FPT[0] = (b[0] + (u16)src[0]) >> 1;
-		FPT[1] = (b[1] + (u16)src[1]) >> 1;
-		FPT[2] = (b[2] + (u16)src[2]) >> 1;
-	} else if (x > 0) {
-		*pred = p - 4; // A
-	} else {
-		*pred = FPZ;
-	}
-}
-
-static void SFFU_BD(const u8 *p, const u8 **pred, int x, int y, int width) {
-	CAT_DEBUG_ENFORCE(y > 0 && x < width-1);
-
-	const u8 *b = p - width*4; // B
-	const u8 *src = b + 4; // D
-
-	u8 *FPT = (u8*)*pred;
-	FPT[0] = (b[0] + (u16)src[0]) >> 1;
-	FPT[1] = (b[1] + (u16)src[1]) >> 1;
-	FPT[2] = (b[2] + (u16)src[2]) >> 1;
-}
-
 static CAT_INLINE u8 abcClamp(int a, int b, int c) {
 	int sum = a + b - c;
 	if (sum < 0) {
@@ -387,56 +323,6 @@ static void SFFU_PLO(const u8 *p, const u8 **pred, int x, int y, int width) {
 	FPT[2] = predLevel(a[2], src[2], b[2]);
 }
 
-static void SFF_ABCD(const u8 *p, const u8 **pred, int x, int y, int width) {
-	if (x > 0) {
-		const u8 *a = p - 4; // A
-
-		if (y > 0) {
-			const u8 *b = p - width*4; // B
-			const u8 *c = b - 4; // C
-
-			const u8 *src = b; // B
-			if (x < width-1) {
-				src += 4; // D
-			}
-
-			u8 *FPT = (u8*)*pred;
-			FPT[0] = (a[0] + (int)b[0] + c[0] + (int)src[0] + 1) >> 2;
-			FPT[1] = (a[1] + (int)b[1] + c[1] + (int)src[1] + 1) >> 2;
-			FPT[2] = (a[2] + (int)b[2] + c[2] + (int)src[2] + 1) >> 2;
-		} else {
-			*pred = a;
-		}
-	} else if (y > 0) {
-		const u8 *b = p - width*4; // B
-		const u8 *d = b; // D
-		if CAT_LIKELY(x < width-1) {
-			b += 4;
-		}
-
-		u8 *FPT = (u8*)*pred;
-		FPT[0] = (b[0] + (u16)d[0]) >> 1;
-		FPT[1] = (b[1] + (u16)d[1]) >> 1;
-		FPT[2] = (b[2] + (u16)d[2]) >> 1;
-	} else {
-		*pred = FPZ;
-	}
-}
-
-static void SFFU_ABCD(const u8 *p, const u8 **pred, int x, int y, int width) {
-	CAT_DEBUG_ENFORCE(x > 0 && y > 0 && x < width-1);
-
-	const u8 *a = p - 4; // A
-	const u8 *b = p - width*4; // B
-	const u8 *c = b - 4; // C
-	const u8 *src = b + 4; // D
-
-	u8 *FPT = (u8*)*pred;
-	FPT[0] = (a[0] + (int)b[0] + c[0] + (int)src[0] + 1) >> 2;
-	FPT[1] = (a[1] + (int)b[1] + c[1] + (int)src[1] + 1) >> 2;
-	FPT[2] = (a[2] + (int)b[2] + c[2] + (int)src[2] + 1) >> 2;
-}
-
 static CAT_INLINE u8 leftSel(int f, int c, int a) {
 	if (AbsVal(f - c) < AbsVal(f - a)) {
 		return c;
@@ -611,46 +497,25 @@ static void SFFU_SKEW_GRAD(const u8 *p, const u8 **pred, int x, int y, int width
 	FPT[2] = skewGrad(b[2], a[2], c[2]);
 }
 
-static void SFF_AD(const u8 *p, const u8 **pred, int x, int y, int width) {
-	if (y > 0) {
-		const u8 *src = p - width*4; // B
 
-		if (x > 0) {
-			const u8 *a = p - 4; // A
-			if (x < width-1) {
-				src += 4; // D
-			}
+//// Tapped Filters
 
-			u8 *FPT = (u8*)*pred;
-			FPT[0] = (a[0] + (u16)src[0]) >> 1;
-			FPT[1] = (a[1] + (u16)src[1]) >> 1;
-			FPT[2] = (a[2] + (u16)src[2]) >> 1;
-		} else {
-			*pred = src; // B
-		}
-	} else if (x > 0) {
-		*pred = p - 4; // A
-	} else {
-		*pred = FPZ;
-	}
-}
+/*
+ * Extended tapped linear filters
+ *
+ * The taps correspond to coefficients in the expression:
+ *
+ * Prediction = (t0*A + t1*B + t2*C + t3*D) / 2
+ *
+ * And the taps are selected from: {-4, -3, -2, -1, 0, 1, 2, 3, 4}.
+ *
+ * We ran simulations with a number of test images and chose the linear filters
+ * of this form that were consistently better than the default spatial filters.
+ *
+ * Some other linear filters that use / 3 and / 4 are also in tables below.
+ */
 
-static void SFFU_AD(const u8 *p, const u8 **pred, int x, int y, int width) {
-	CAT_DEBUG_ENFORCE(x > 0 && y > 0 && x < width-1);
-
-	const u8 *a = p - 4; // A
-	const u8 *src = p - width*4 + 4; // D
-
-	u8 *FPT = (u8*)*pred;
-	FPT[0] = (a[0] + (u16)src[0]) >> 1;
-	FPT[1] = (a[1] + (u16)src[1]) >> 1;
-	FPT[2] = (a[2] + (u16)src[2]) >> 1;
-}
-
-
-//// Custom tapped filter subsystem
-
-const int SpatialFilterSet::FILTER_TAPS[TAPPED_COUNT][4] = {
+static const int DIV2_FILTER_TAPS[DIV2_TAPPED_COUNT][4] = {
 	{ 3, 3, 0, -4 }, // PRED394 = (3A + 3B + 0C + -4D) / 2  [score = 9]
 	{ 2, 4, 0, -4 }, // PRED402 = (2A + 4B + 0C + -4D) / 2  [score = 7]
 	{ 1, 2, 3, -4 }, // PRED626 = (1A + 2B + 3C + -4D) / 2  [score = 102]

@@ -42,14 +42,6 @@ static const int FILTER_ZONE_SIZE_SHIFT_H = 2; // Block size pow2
 static const int FILTER_ZONE_SIZE_H = 1 << FILTER_ZONE_SIZE_SHIFT_H; // 4x4
 static const int FILTER_ZONE_SIZE_MASK_H = FILTER_ZONE_SIZE_H - 1;
 
-// Zone size for Palette-mode filters
-static const int PALETTE_ZONE_SIZE_SHIFT_W = 4; // Block size pow2
-static const int PALETTE_ZONE_SIZE_W = 1 << PALETTE_ZONE_SIZE_SHIFT_W; // 16x16
-static const int PALETTE_ZONE_SIZE_MASK_W = PALETTE_ZONE_SIZE_W - 1;
-static const int PALETTE_ZONE_SIZE_SHIFT_H = 4; // Block size pow2
-static const int PALETTE_ZONE_SIZE_H = 1 << PALETTE_ZONE_SIZE_SHIFT_H; // 16x16
-static const int PALETTE_ZONE_SIZE_MASK_H = PALETTE_ZONE_SIZE_H - 1;
-
 
 //// Spatial Filters
 
@@ -71,138 +63,103 @@ static const int PALETTE_ZONE_SIZE_MASK_H = PALETTE_ZONE_SIZE_H - 1;
  * so only those are evaluated and sent.
  */
 
-enum SpatialFilters {
-	// In the order they are applied in the case of a tie:
-	// WARNING: Changing the order of these requires changes to SPATIAL_FILTERS
-	SF_Z,			// 0
-	SF_D,			// D
-	SF_C,			// C
-	SF_B,			// B
+// These filters are always selected
+enum FixedSpatialFilters {
 	SF_A,			// A
-	SF_AB,			// (A + B)/2
-	SF_BD,			// (B + D)/2
-	SF_CLAMP_GRAD,	// CBloom: 12: ClampedGradPredictor
-	SF_SKEW_GRAD,	// CBloom: 5: Gradient skewed towards average
-	SF_PICK_LEFT,	// New: Pick A or C based on which is closer to F
-	SF_PRED_UR,		// New: Predict gradient continues from E to D to current
-	SF_ABC_CLAMP,	// A + B - C clamped to [0, 255]
-	SF_PAETH,		// Paeth filter
-	SF_ABC_PAETH,	// If A <= C <= B, A + B - C, else Paeth filter
-	SF_PLO,			// Offset PL
-	SF_ABCD,		// (A + B + C + D + 1)/4
-	SF_AD,			// (A + D)/2
-
-	SF_COUNT,
+	SF_Z,			// 0
+	SF_B,			// B
+	SF_FIXED,		// Number of fixed filters
 };
 
-typedef void (*SpatialFilterFunction)(const u8 *p, const u8 **pred, int x, int y, int width);
-typedef u8 (*PaletteFilterFunction)(const u8 *p, int x, int y, int width);
+enum ComplexSpatialFilters {
+	// Simple filters
+	SF_C = MF_FIXED,	// C
+	SF_D,				// D
 
+	// Dual average filters (round down)
+	SF_AVG_AB,			// (A + B) / 2
+	SF_AVG_AC,			// (A + C) / 2
+	SF_AVG_AD,			// (A + D) / 2
+	SF_AVG_BC,			// (B + C) / 2
+	SF_AVG_BD,			// (B + D) / 2
+	SF_AVG_CD,			// (C + D) / 2
+
+	// Dual average filters (round up)
+	SF_AVG_AB1,			// (A + B + 1) / 2
+	SF_AVG_AC1,			// (A + C + 1) / 2
+	SF_AVG_AD1,			// (A + D + 1) / 2
+	SF_AVG_BC1,			// (B + C + 1) / 2
+	SF_AVG_BD1,			// (B + D + 1) / 2
+	SF_AVG_CD1,			// (C + D + 1) / 2
+
+	// Triple average filters (round down)
+	SF_AVG_ABC,			// (A + B + C) / 3
+	SF_AVG_ACD,			// (A + C + D) / 3
+	SF_AVG_ABD,			// (A + B + D) / 3
+	SF_AVG_BCD,			// (B + C + D) / 3
+
+	// Triple average filters (round up)
+	SF_AVG_ABC1,		// (A + B + C + 1) / 3
+	SF_AVG_ACD1,		// (A + C + D + 1) / 3
+	SF_AVG_ABD1,		// (A + B + D + 1) / 3
+	SF_AVG_BCD1,		// (B + C + D + 1) / 3
+
+	// Quad average filters (round down)
+	SF_AVG_ABCD,		// (A + B + C + D) / 4
+
+	// Quad average filters (round up)
+	SF_AVG_ABCD,		// (A + B + C + D + 2) / 4
+
+	// ABCD Complex filters
+	SF_CLAMP_GRAD,	// ClampedGradPredictor (CBloom #12)
+	SF_SKEW_GRAD,	// Gradient skewed towards average (CBloom #5)
+	SF_ABC_CLAMP,	// A + B - C clamped to [0, 255] (BCIF)
+	SF_PAETH,		// Paeth (PNG)
+	SF_ABC_PAETH,	// If A <= C <= B, A + B - C, else Paeth filter (BCIF)
+	SF_PLO,			// Offset PL (BCIF)
+	SF_SELECT,		// Select (WebP)
+
+	// EF Complex filters
+	SF_PICK_LEFT,	// Pick A or C based on which is closer to F (New)
+	SF_PRED_UR,		// Predict gradient continues from E to D to current (New)
+
+	SF_BASIC_COUNT
+};
+
+static const int DIV2_TAPPED_COUNT = 80;
+static const int SF_COUNT = SF_BASIC_COUNT + DIV2_TAPPED_COUNT;
 
 /*
- * Spatial Filter Set
+ * RGBA filter (Assumes data pointer is 4 bytes wide)
  *
- * This class wraps the spatial filter arrays so that multiple threads can be
- * decoding images simultaneously, each with its own filter set.
+ * p: Pointer to current RGBA pixel
+ * pred: Pointer to temporary RGB data buffer
+ * x, y: Pixel location
+ * stride: Pixels in width of p buffer
+ *
+ * Returns filter prediction in pred.
  */
-class SpatialFilterSet {
-public:
-	struct Functions {
-		SpatialFilterFunction safe;
-
-		// The unsafe version assumes x>0, y>0 and x<width-1 for speed
-		SpatialFilterFunction unsafe;
-	};
-
-protected:
-	Functions _filters[SF_COUNT];
-
-public:
-	/*
-	 * Extended tapped linear filters
-	 *
-	 * The taps correspond to coefficients in the expression:
-	 *
-	 * Prediction = (t0*A + t1*B + t2*C + t3*D) / 2
-	 *
-	 * And the taps are selected from: {-4, -3, -2, -1, 0, 1, 2, 3, 4}.
-	 *
-	 * We ran simulations with a number of test images and chose the linear filters
-	 * of this form that were consistently better than the default spatial filters.
-	 * The selected linear filters are in the FILTER_TAPS[TAPPED_COUNT] array.
-	 */
-	static const int TAPPED_COUNT = 80;
-	static const int FILTER_TAPS[TAPPED_COUNT][4];
-
-public:
-	CAT_INLINE SpatialFilterSet() {
-	}
-	CAT_INLINE virtual ~SpatialFilterSet() {
-	}
-
-	// Set filters back to defaults
-	void init();
-
-	// Choose a linear tapped filter from the FILTER_TAPS set over default
-	void replace(int defaultIndex, int tappedIndex);
-
-	CAT_INLINE Functions get(int index) {
-		return _filters[index];
-	}
-};
-
+typedef void (*RGBAFilterFunc)(const u8 *p, const u8 **pred, int x, int y, int stride);
 
 /*
- * Palette Filter Set
+ * Monochrome filter (Assumes data pointer is bytewise)
  *
- * This class wraps the spatial filter arrays so that multiple threads can be
- * decoding images simultaneously, each with its own filter set.
+ * p: Pointer to current monochrome pixel
+ * x, y: Pixel location
+ * stride: Pixels in width of p buffer
+ *
+ * Returns filter prediction.
  */
-class PaletteFilterSet {
-public:
-	struct Functions {
-		PaletteFilterFunction safe;
+typedef u8 (*MonoFilterFunc)(const u8 *p, int x, int y, int stride);
 
-		// The unsafe version assumes x>0, y>0 and x<width-1 for speed
-		PaletteFilterFunction unsafe;
-	};
 
-protected:
-	Functions _filters[SF_COUNT];
+// Spatial Filters
+extern RGBAFilterFunc SAFE_RGBA_FILTERS[SF_COUNT];
+extern MonoFilterFunc SAFE_MONO_FILTERS[SF_COUNT];
 
-public:
-	/*
-	 * Extended tapped linear filters
-	 *
-	 * The taps correspond to coefficients in the expression:
-	 *
-	 * Prediction = (t0*A + t1*B + t2*C + t3*D) / 2
-	 *
-	 * And the taps are selected from: {-4, -3, -2, -1, 0, 1, 2, 3, 4}.
-	 *
-	 * We ran simulations with a number of test images and chose the linear filters
-	 * of this form that were consistently better than the default spatial filters.
-	 * The selected linear filters are in the FILTER_TAPS[TAPPED_COUNT] array.
-	 */
-	static const int TAPPED_COUNT = 80;
-	static const int FILTER_TAPS[TAPPED_COUNT][4];
-
-public:
-	CAT_INLINE PaletteFilterSet() {
-	}
-	CAT_INLINE virtual ~PaletteFilterSet() {
-	}
-
-	// Set filters back to defaults
-	void init();
-
-	// Choose a linear tapped filter from the FILTER_TAPS set over default
-	void replace(int defaultIndex, int tappedIndex);
-
-	CAT_INLINE Functions get(int index) {
-		return _filters[index];
-	}
-};
+// Assume that x>0, y>0, x<width-1
+extern RGBAFilterFunc UNSAFE_RGBA_FILTERS[SF_COUNT];
+extern MonoFilterFunc UNSAFE_MONO_FILTERS[SF_COUNT];
 
 
 //// Color Filters
@@ -213,7 +170,7 @@ public:
  * http://www.eurasip.org/Proceedings/Eusipco/Eusipco2012/Conference/papers/1569551007.pdf
  *
  * YUV899 kills compression performance too much so we are using aliased but
- * reversible YUV888 transforms based on the ones from the paper where possible
+ * reversible YUV888 transforms based on the ones from the paper where possible.
  */
 
 enum ColorFilters {
@@ -236,8 +193,6 @@ enum ColorFilters {
 	CF_GB_RB,	// from BCIF
 	CF_NONE,	// No modification
 	CF_COUNT,
-
-	// Disabled filters:
 };
 
 typedef void (*RGB2YUVFilterFunction)(const u8 rgb_in[3], u8 yuv_out[3]);
@@ -248,12 +203,30 @@ extern YUV2RGBFilterFunction YUV2RGB_FILTERS[];
 
 const char *GetColorFilterString(int cf);
 
+//// Residual Scores
+
+// Lookup table version of inline function GetResidualScore() below.
+extern const u8 RESIDUAL_SCORE[256];
+
+CAT_INLINE u8 GetResidualScore(u8 score) {
+	// If score is "positive",
+	if (score <= 128) {
+		// Note: 128 = worst score, 0 = best
+		return score;
+	} else {
+		// Wrap around: ABS(255) = ABS(-1) = 1, etc
+		return 256 - score;
+	}
+}
+
 
 //// Chaos
 
-extern const u8 CHAOS_TABLE_1[512];
-extern const u8 CHAOS_TABLE_8[512];
-extern const u8 CHAOS_SCORE[256];
+// Number of chaos levels supported by table
+static const int MAX_CHAOS_LEVELS = 16;
+
+// Table
+extern const u8 CHAOS_TABLES[MAX_CHAOS_LEVELS][512];
 
 
 } // namespace cat
