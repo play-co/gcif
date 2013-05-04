@@ -26,11 +26,9 @@
 	POSSIBILITY OF SUCH DAMAGE.
 */
 
-#include "MonoWriter.hpp"
-#include "../decoder/Enforcer.hpp"
-#include "FilterScorer.hpp"
-#include "EntropyEstimator.hpp"
-#include "../decoder/BitMath.hpp"
+#include "MonoReader.hpp"
+#include "Enforcer.hpp"
+#include "BitMath.hpp"
 using namespace cat;
 
 

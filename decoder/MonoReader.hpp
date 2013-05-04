@@ -29,9 +29,9 @@
 #ifndef MONO_READER_HPP
 #define MONO_READER_HPP
 
-#include "../decoder/Platform.hpp"
+#include "Platform.hpp"
 #include "ImageReader.hpp"
-#include "../decoder/Filters.hpp"
+#include "Filters.hpp"
 #include "EntropyDecoder.hpp"
 #include "GCIFReader.h"
 

@@ -85,7 +85,7 @@ public:
 		RF_C,	// Up-Left
 
 		RF_COUNT
-	}
+	};
 
 	struct _Stats {
 		int basic_overhead_bits;
@@ -157,8 +157,8 @@ protected:
 	void cleanup();
 
 	CAT_INLINE u8 *getTile(u16 x, u16 y) {
-		x >>= _params->tile_bits_x;
-		y >>= _params->tile_bits_y;
+		x >>= _tile_bits_x;
+		y >>= _tile_bits_y;
 		return _tiles + x + y * _tiles_x;
 	}
 

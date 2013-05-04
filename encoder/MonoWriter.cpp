@@ -108,8 +108,6 @@ next_tile:;
 void MonoWriter::designPaletteFilters() {
 	CAT_INANE("2D") << "Designing palette filters for " << _tiles_x << "x" << _tiles_y << "...";
 
-	_sympal_filters = 0;
-
 	const u16 tile_size_x = _tile_size_x, tile_size_y = _tile_size_y;
 	const u16 size_x = _params.size_x, size_y = _params.size_y;
 	u8 *p = _tiles;
@@ -157,13 +155,14 @@ void MonoWriter::designPaletteFilters() {
 
 			// If uniform data,
 			if (uniform) {
-				hist[data_value]++;
+				hist[uniform_value]++;
 			}
 		}
 	}
 
 	// Determine threshold
-	u32 sympal_thresh = _params.sympal_thresh * _tiles_count;	
+	u32 sympal_thresh = _params.sympal_thresh * _tiles_count;
+	int sympal_count = 0;
 
 	// For each histogram bin,
 	for (int sym = 0, num_syms = _params.num_syms; sym < num_syms; ++sym) {
@@ -172,21 +171,23 @@ void MonoWriter::designPaletteFilters() {
 		// If filter is worth adding,
 		if (coverage > sympal_thresh) {
 			// Add it
-			_sympal[_sympal_filters++] = (u8)sym;
+			_sympal[sympal_count++] = (u8)sym;
 
 			CAT_INANE("2D") << " - Added symbol palette filter for symbol " << (int)sym;
 
 			// If we ran out of room,
-			if (_sympal_filters >= MAX_PALETTE) {
+			if (sympal_count >= MAX_PALETTE) {
 				break;
 			}
 		}
 	}
 
 	// Initialize filter map
-	for (int ii = 0; ii < _sympal_filters; ++ii) {
+	for (int ii = 0; ii < sympal_count; ++ii) {
 		_sympal_filter_map[ii] = UNUSED_SYMPAL;
 	}
+
+	_sympal_filter_count = sympal_count;
 }
 
 void MonoWriter::designFilters() {
@@ -199,8 +200,8 @@ void MonoWriter::designFilters() {
 	const u8 *topleft = _params.data;
 
 	FilterScorer scores, awards;
-	scores.init(MF_COUNT + _sympal_filters);
-	awards.init(MF_COUNT + _sympal_filters);
+	scores.init(SF_COUNT + _sympal_filter_count);
+	awards.init(SF_COUNT + _sympal_filter_count);
 	awards.reset();
 
 	// For each tile,
@@ -235,9 +236,9 @@ void MonoWriter::designFilters() {
 							uniform = false;
 						}
 
-						for (int f = 0; f < MF_COUNT; ++f) {
+						for (int f = 0; f < SF_COUNT; ++f) {
 							// TODO: Specialize for num_syms power-of-two
-							u8 prediction = MONO_FILTERS[f](data, x, y, size_x) % num_syms;
+							u8 prediction = MONO_FILTERS[f].safe(data, num_syms, x, y, size_x) % num_syms;
 							u8 residual = value - prediction;
 							u8 score = RESIDUAL_SCORE[residual]; // lower = better
 
@@ -254,14 +255,14 @@ void MonoWriter::designFilters() {
 			int offset = 0;
 			if (uniform) {
 				// Find the matching filter
-				for (int f = 0; f < _sympal_filters; ++f) {
+				for (int f = 0; f < _sympal_filter_count; ++f) {
 					if (_sympal[f] == uniform_value) {
 						// Award it top points
-						awards.add(MF_COUNT + f, _params.AWARDS[0]);
+						awards.add(SF_COUNT + f, _params.AWARDS[0]);
 						offset = 1;
 
 						// Mark it as a palette filter tile so we can find it faster later if this palette filter gets chosen
-						*p = MF_COUNT + f;
+						*p = SF_COUNT + f;
 						break;
 					}
 				}
@@ -278,8 +279,8 @@ void MonoWriter::designFilters() {
 	EntropyEstimator ee;
 	ee.init();
 
-	// Copy the first MF_FIXED filters
-	for (int f = 0; f < MF_FIXED; ++f) {
+	// Copy the first SF_FIXED filters
+	for (int f = 0; f < SF_FIXED; ++f) {
 		_filters[f] = MONO_FILTERS[f];
 		_filter_indices[f] = f;
 	}
@@ -288,9 +289,9 @@ void MonoWriter::designFilters() {
 	int bit_cost = _tiles_count;
 
 	// Decide how many filters to sort by score
-	int count = _params.max_filters + MF_FIXED;
-	if (count > MF_COUNT) {
-		count = MF_COUNT;
+	int count = _params.max_filters + SF_FIXED;
+	if (count > SF_COUNT) {
+		count = SF_COUNT;
 	}
 
 	// Calculate min coverage threshold
@@ -301,8 +302,8 @@ void MonoWriter::designFilters() {
 	int sympal_f = 0;
 
 	// Choose remaining filters until coverage is acceptable
-	int normal_f = MF_FIXED; // Next normal filter index
-	int filters_set = MF_FIXED; // Total filters
+	int normal_f = SF_FIXED; // Next normal filter index
+	int filters_set = SF_FIXED; // Total filters
 	FilterScorer::Score *top = awards.getTop(count, true);
 
 	// For each of the sorted filter scores,
@@ -323,11 +324,11 @@ void MonoWriter::designFilters() {
 		}
 
 		// If filter is not fixed,
-		if (index >= MF_FIXED) {
+		if (index >= SF_FIXED) {
 			// If filter is a sympal,
-			if (index >= MF_COUNT) {
+			if (index >= SF_COUNT) {
 				// Map it from sympal filter index to new filter index
-				int sympal_filter = index - MF_COUNT;
+				int sympal_filter = index - SF_COUNT;
 				_sympal_filter_map[sympal_filter] = sympal_f;
 				++sympal_f;
 			} else {
@@ -377,9 +378,9 @@ void MonoWriter::designPaletteTiles() {
 			}
 
 			// If this tile was initially paletted,
-			if (value >= MF_COUNT) {
+			if (value >= SF_COUNT) {
 				// Look up the new filter value
-				u8 filter = _sympal_filter_map[value - MF_COUNT];
+				u8 filter = _sympal_filter_map[value - SF_COUNT];
 
 				// If it was used,
 				if (filter != UNUSED_SYMPAL) {
@@ -436,7 +437,7 @@ void MonoWriter::designTiles() {
 					const int old_filter = *p;
 
 					// If old filter is not a sympal,
-					if (_filter_indices[old_filter] < MF_COUNT) {
+					if (_filter_indices[old_filter] < SF_COUNT) {
 						// For each element in the tile,
 						const u8 *row = topleft;
 						u16 py = y, cy = tile_size_y;
@@ -448,7 +449,7 @@ void MonoWriter::designTiles() {
 								if (!_params.mask(px, py)) {
 									const u8 value = *data;
 
-									u8 prediction = _filters[old_filter](data, x, y, size_x) % num_syms;
+									u8 prediction = _filters[old_filter](data, num_syms, x, y, size_x) % num_syms;
 									u8 residual = (value + num_syms - prediction) % num_syms;
 
 									codes[code_count++] = residual;
@@ -479,7 +480,7 @@ void MonoWriter::designTiles() {
 							u8 *dest = codes + code_count;
 							for (int f = 0; f < _filter_count; ++f) {
 								// TODO: Specialize for num_syms power-of-two
-								u8 prediction = _filters[f](data, x, y, size_x) % num_syms;
+								u8 prediction = _filters[f](data, num_syms, x, y, size_x) % num_syms;
 								u8 residual = (value + num_syms - prediction) % num_syms;
 
 								*dest = residual;
@@ -594,7 +595,7 @@ void MonoWriter::computeResiduals() {
 					if (!_params.mask(px, py)) {
 						const u8 value = *data;
 
-						u8 prediction = _filters[old_filter](data, x, y, size_x) % num_syms;
+						u8 prediction = _filters[old_filter](data, num_syms, x, y, size_x) % num_syms;
 						u8 residual = (value + num_syms - prediction) % num_syms;
 
 						// Convert data pointer to residual pointer
@@ -992,7 +993,7 @@ void MonoWriter::writeTables(ImageWriter &writer) {
 	// Normal filters
 	{
 		CAT_DEBUG_ENFORCE(MAX_FILTERS <= 32);
-		CAT_DEBUG_ENFORCE(MF_COUNT + MAX_PALETTE <= 128);
+		CAT_DEBUG_ENFORCE(SF_COUNT + MAX_PALETTE <= 128);
 
 		writer.writeBits(_normal_filter_count - 1, 5);
 		for (int f = 0; f < _normal_filter_count; ++f) {
