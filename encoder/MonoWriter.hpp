@@ -135,6 +135,7 @@ protected:
 	// Chaos levels
 	int _chaos_levels;						// Number of chaos levels
 	u8 *_chaos;								// Chaos temporary scanline workspace
+	u32 _chaos_entropy;						// Entropy after chaos applied
 
 	// TODO: Have entropy encoder select symbol count in initialization function
 	EntropyEncoder<MAX_SYMS, ZRLE_SYMS> _encoder[MAX_CHAOS_LEVELS];

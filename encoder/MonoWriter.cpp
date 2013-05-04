@@ -736,6 +736,9 @@ void MonoWriter::designChaos() {
 
 	EntropyEstimator ee[MAX_CHAOS_LEVELS];
 
+	u32 best_entropy = 0x7fffffff;
+	int best_chaos_levels = 1;
+
 	// For each chaos level,
 	for (int chaos_levels = 1; chaos_levels < MAX_CHAOS_LEVELS; ++chaos_levels) {
 		// Reset entropy estimator
@@ -757,21 +760,50 @@ void MonoWriter::designChaos() {
 
 			// For each column,
 			for (int x = 0; x < _params.size_x; ++x) {
+				// If it is a palsym tile,
+				const u8 f = getTile(x, y);
+
 				// If masked,
-				if (_params.mask(x, y)) {
+				if (f == MASK_TILE || _params.mask(x, y)) {
+					// Skip masked elements
+					last[x] = 0;
+				} else if (f >= _normal_filter_count) {
+					// Symbolic palette used here, no entropy penalty
 					last[x] = 0;
 				} else {
+					// Calculate local chaos
 					int chaos = CHAOS[RESIDUAL_SCORE[last[-1]] + RESIDUAL_SCORE[last[0]]];
 
+					// Get residual symbol
 					u8 residual_sym = *residuals;
 
+					// Add to histogram for this chaos bin
 					ee[chaos].addSingle(residual_sym);
+
+					// Remember the residual from next chaos calculation
+					last[x] = residual_sym;
 				}
 
 				++residuals;
 			}
 		}
+
+		// For each chaos level,
+		u32 entropy = 0;
+		for (int ii = 0; ii < chaos_levels; ++ii) {
+			entropy += ee[ii].entropyOverall();
+		}
+
+		// If this is the best chaos levels so far,
+		if (best_entropy > entropy) {
+			best_entropy = entropy;
+			best_chaos_levels = chaos_levels;
+		}
 	}
+
+	// Record the best option found
+	_chaos_levels = best_chaos_levels;
+	_chaos_entropy = best_entropy;
 }
 
 u32 MonoWriter::process(const Parameters &params) {
