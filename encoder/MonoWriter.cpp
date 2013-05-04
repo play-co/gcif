@@ -30,6 +30,7 @@
 #include "../decoder/Enforcer.hpp"
 #include "FilterScorer.hpp"
 #include "EntropyEstimator.hpp"
+#include "../decoder/BitMath.hpp"
 using namespace cat;
 
 
@@ -55,6 +56,10 @@ void MonoWriter::cleanup() {
 	if (_residuals) {
 		delete []_residuals;
 		_residuals = 0;
+	}
+	if (_tile_seen) {
+		delete []_tile_seen;
+		_tile_seen = 0;
 	}
 }
 
@@ -746,7 +751,7 @@ void MonoWriter::designChaos() {
 			ee[ii].init();
 		}
 
-		const u8 *CHAOS = CHAOS_MAPS[chaos_levels];
+		const u8 *CHAOS = CHAOS_MAPS[chaos_levels - 1];
 
 		// Reset chaos workspace for first row
 		CAT_CLR(_chaos, chaos_size);
@@ -850,12 +855,161 @@ u32 MonoWriter::process(const Parameters &params) {
 	}
 }
 
-void MonoWriter::writeTables(ImageWriter &writer) {
-	// Tile size bits
-	// Filter count and choices after MF_FIXED
-	// Bit : row filters or recurse write tables
+void MonoWriter::initializeEncoders() {
+	const int chaos_size = 1 + _params.size_x;
+
+	const u8 *CHAOS = CHAOS_MAPS[_chaos_levels - 1];
+
+	// Reset chaos workspace for first row
+	CAT_CLR(_chaos, chaos_size);
+
+	// For each row,
+	const u8 *residuals = _residuals;
+	for (int y = 0; y < _params.size_y; ++y) {
+		// Initialize chaos row
+		u8 *last = _chaos + 1;
+		last[-1] = 0;
+
+		// For each column,
+		for (int x = 0; x < _params.size_x; ++x) {
+			// If it is a palsym tile,
+			const u8 f = getTile(x, y);
+
+			// If masked,
+			if (f == MASK_TILE || _params.mask(x, y)) {
+				// Skip masked elements
+				last[x] = 0;
+			} else if (f >= _normal_filter_count) {
+				// Symbolic palette used here, no entropy penalty
+				last[x] = 0;
+			} else {
+				// Calculate local chaos
+				int chaos = CHAOS[RESIDUAL_SCORE[last[-1]] + RESIDUAL_SCORE[last[0]]];
+
+				// Get residual symbol
+				u8 residual_sym = *residuals;
+
+				// Add to histogram for this chaos bin
+				_encoder[chaos].add(residual_sym);
+
+				// Remember the residual from next chaos calculation
+				last[x] = residual_sym;
+			}
+
+			++residuals;
+		}
+	}
+
+	// For each chaos level,
+	for (int ii = 0, iiend = _chaos_levels; ii < iiend; ++ii) {
+		_encoder[ii].finalize();
+	}
 }
 
-void MonoWriter::write(u16 x, u16 y, ImageWriter &writer) {
+void MonoWriter::writeTables(ImageWriter &writer) {
+	initializeEncoders();
+
+	// Write tile size
+	{
+		CAT_DEBUG_ENFORCE(_tile_bits_x == _tile_bits_y);	// Square regions only for now
+
+		u32 range = (_params.max_bits - _params.min_bits);
+		if (range > 0) {
+			u32 bits_value = _tile_bits_x - _params.max_bits;
+			u32 bits_bc = BSR32(range) + 1;
+			writer.writeBits(bits_value, bits_bc);
+		}
+	}
+
+	// Normal filters
+	{
+		CAT_DEBUG_ENFORCE(MAX_FILTERS <= 32);
+		CAT_DEBUG_ENFORCE(MF_COUNT + MAX_PALETTE <= 128);
+
+		writer.writeBits(_normal_filter_count - 1, 5);
+		for (int f = 0; f < _normal_filter_count; ++f) {
+			writer.writeBits(_filter_indices[f], 7);
+		}
+	}
+
+	// Sympal filters
+	{
+		CAT_DEBUG_ENFORCE(MAX_PALETTE <= 16);
+
+		writer.writeBits(_sympal_filter_count - 1, 4);
+		for (int f = 0; f < _sympal_filter_count; ++f) {
+			writer.writeBits(_sympal[f], 8);
+		}
+	}
+
+	// Write chaos levels
+	{
+		CAT_DEBUG_ENFORCE(MAX_CHAOS_LEVELS <= 16);
+
+		writer.writeBits(_chaos_levels - 1, 4);
+	}
+
+	// Write encoder tables
+	{
+		for (int ii = 0, iiend = _chaos_levels; ii < iiend; ++ii) {
+			_encoder[ii].writeTables(writer);
+		}
+	}
+
+	// Bit : row filters or recurse write tables
+	{
+		// If we decided to recurse,
+		if (_filter_encoder) {
+			writer.writeBit(1);
+
+			// Recurse write tables
+			_filter_encoder->writeTables(writer);
+		} else {
+			writer.writeBit(0);
+
+			// Will write row filters at this depth
+		}
+	}
+
+	initializeWriter();
+}
+
+void MonoWriter::initializeWriter() {
+	// Initialize writer
+	_written_bits = 0;
+	_tile_seen = new u8[_tiles_x];
+
+	// TODO: Chaos reset
+}
+
+void MonoWriter::writeRowHeader(u16 y, ImageWriter &writer) {
+	// Calculate tile y-coordinate
+	u16 ty = y >> _tile_bits_y;
+
+	// Reset seen bitmask
+	CAT_CLR(_tile_seen, _tiles_x * sizeof(*_tile_seen));
+
+	// If filter encoder is used instead of row filters,
+	if (_filter_encoder) {
+		// Recurse start row (they all start at 0)
+		_filter_encoder->writeRowHeader(ty, writer);
+	} else {
+		CAT_DEBUG_ENFORCE(RF_COUNT <= 4);
+
+		// Write out chosen row filter
+		writer.writeBits(_tile_row_filters[ty], 2);
+	}
+}
+
+void MonoWriter::writeFilter(u16 x, u16 y, ImageWriter &writer) {
+	// Calculate tile coordinates
+	u16 tx = x >> _tile_bits_y, ty = y >> _tile_bits_y;
+
+	// TODO: MASK
+	// TODO: check child filter mask check thing
+	// TODO: chaos
+	// TODO: update seen filter
+	// TODO: desynch stuff
+	// TODO: write bits counter
 }
 

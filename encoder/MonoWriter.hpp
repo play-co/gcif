@@ -103,7 +103,6 @@ protected:
 
 	// Parameters
 	Parameters _params;						// Input parameters
-	MaskDelegate _mask;						// Function to call to determine if an element is masked out
 
 	// Generated filter tiles
 	u8 *_tiles;								// Filter tiles
@@ -131,16 +130,26 @@ protected:
 	MonoWriter *_filter_encoder;			// Child instance
 	u8 *_tile_row_filters;					// One for each tile row
 	u32 _row_filter_entropy;				// Calculated entropy from using row filters
+	u8 *_tile_seen;							// Seen this tile yet during writing?
 
 	// Chaos levels
 	int _chaos_levels;						// Number of chaos levels
 	u8 *_chaos;								// Chaos temporary scanline workspace
 	u32 _chaos_entropy;						// Entropy after chaos applied
 
+	// Write statistics
+	u32 _written_bits;						// Number of bits written
+
 	// TODO: Have entropy encoder select symbol count in initialization function
 	EntropyEncoder<MAX_SYMS, ZRLE_SYMS> _encoder[MAX_CHAOS_LEVELS];
 
 	void cleanup();
+
+	CAT_INLINE u8 *getTile(u16 x, u16 y) {
+		x >>= _params->tile_bits_x;
+		y >>= _params->tile_bits_y;
+		return _tiles + x + y * _tiles_count_x;
+	}
 
 	// Mask function for child instance
 	bool IsMasked(u16 x, u16 y);
@@ -172,6 +181,12 @@ protected:
 	// Determine number of chaos levels to use when encoding the data
 	void designChaos();
 
+	// Load up the encoders with symbol statistics
+	void initializeEncoders();
+
+	// Initialize the write engine
+	void initializeWriter();
+
 public:
 	CAT_INLINE MonoWriter() {
 		_tiles = 0;
@@ -184,10 +199,12 @@ public:
 		cleanup();
 	}
 
-	CAT_INLINE u8 *getTile(u16 x, u16 y) {
-		x >>= _params->tile_bits_x;
-		y >>= _params->tile_bits_y;
-		return _tiles + x + y * _tiles_count_x;
+	// Used by next layer up to determine when to call writeFilter()
+	CAT_INLINE u16 getTileMaskX() {
+		return _tile_size_x - 1;
+	}
+	CAT_INLINE u16 getTileMaskY() {
+		return _tile_size_y - 1;
 	}
 
 	// Process the data
@@ -196,8 +213,11 @@ public:
 	// Write parameter tables for decoder
 	void writeTables(ImageWriter &writer);
 
+	// Writer header for a row that is just starting
+	void writeRowHeader(u16 y, ImageWriter &writer);
+
 	// Write a symbol
-	void write(u16 x, u16 y, ImageWriter &writer);
+	void writeFilter(u16 x, u16 y, ImageWriter &writer);
 };
 
 
