@@ -56,15 +56,15 @@ namespace cat {
 
 // These filters are always selected
 enum FixedSpatialFilters {
-	SF_A,			// A
-	SF_Z,			// 0
-	SF_B,			// B
-	SF_FIXED,		// Number of fixed filters
+	SF_A,				// A
+	SF_Z,				// 0
+	SF_B,				// B
+	SF_FIXED,			// Number of fixed filters
 };
 
 enum SpatialFilters {
 	// Simple filters
-	SF_C = MF_FIXED,	// C
+	SF_C = SF_FIXED,	// C
 	SF_D,				// D
 
 	// Dual average filters (round down)

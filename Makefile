@@ -16,11 +16,12 @@ decode_objects = EndianNeutral.o Enforcer.o Filters.o GCIFReader.o
 decode_objects += HuffmanDecoder.o ImageCMReader.o ImageLZReader.o
 decode_objects += ImageMaskReader.o ImageReader.o MappedFile.o lz4.o
 decode_objects += ImagePaletteReader.o ImageCMReaderPal.o
+decode_objects += MonoReader.o
 
 gcif_objects = gcif.o lodepng.o Log.o Mutex.o Clock.o Thread.o
 gcif_objects += lz4hc.o HuffmanEncoder.o
 gcif_objects += SystemInfo.o ImageWriter.o
-gcif_objects += ImageMaskWriter.o
+gcif_objects += ImageMaskWriter.o MonoWriter.o
 gcif_objects += ImageCMWriter.o FilterScorer.o
 gcif_objects += ImageLZWriter.o ImagePaletteWriter.o
 gcif_objects += GCIFWriter.o EntropyEstimator.o WaitableFlag.o
@@ -41,10 +42,11 @@ DECODE_SRCS += decoder/ImageMaskReader.cpp
 DECODE_SRCS += decoder/ImageReader.cpp
 DECODE_SRCS += decoder/MappedFile.cpp
 DECODE_SRCS += decoder/lz4.c
+DECODE_SRCS += decoder/MonoReader.cpp
 
 SRCS = ./gcif.cpp encoder/lodepng.cpp encoder/Log.cpp encoder/Mutex.cpp
 SRCS += encoder/Clock.cpp encoder/Thread.cpp
-SRCS += encoder/lz4hc.c
+SRCS += encoder/lz4hc.c encoder/MonoWriter.cpp
 SRCS += encoder/HuffmanEncoder.cpp
 SRCS += encoder/SystemInfo.cpp encoder/ImageWriter.cpp
 SRCS += encoder/ImageMaskWriter.cpp
@@ -54,6 +56,7 @@ SRCS += encoder/ImageLZWriter.cpp
 SRCS += encoder/GCIFWriter.cpp
 SRCS += encoder/ImagePaletteWriter.cpp
 SRCS += encoder/EntropyEstimator.cpp encoder/WaitableFlag.cpp
+SRCS += encoder/MonoWriter.cpp
 SRCS += $(DECODE_SRCS)
 #SRCS += ImageLPReader.cpp ImageLPWriter.cpp
 
@@ -182,6 +185,12 @@ WaitableFlag.o : encoder/WaitableFlag.cpp
 
 Enforcer.o : decoder/Enforcer.cpp
 	$(CCPP) $(CPFLAGS) -c decoder/Enforcer.cpp
+
+MonoReader.o : decoder/MonoReader.cpp
+	$(CCPP) $(CPFLAGS) -c decoder/MonoReader.cpp
+
+MonoWriter.o : encoder/MonoWriter.cpp
+	$(CCPP) $(CPFLAGS) -c encoder/MonoWriter.cpp
 
 #ImageLPWriter.o : ImageLPWriter.cpp
 #	$(CCPP) $(CPFLAGS) -c ImageLPWriter.cpp

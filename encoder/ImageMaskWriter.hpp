@@ -70,6 +70,8 @@ namespace cat {
  */
 
 class Masker {
+	static const int MIN_SIZE = 16;
+
 	const GCIFKnobs *_knobs;
 
 	bool _enabled;			// Is this mask layer enabled?

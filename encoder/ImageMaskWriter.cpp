@@ -104,7 +104,7 @@ int Masker::initFromRGBA(const u8 *rgba, u32 color, u32 color_mask, int width, i
 	_size = height * _stride;
 
 	// If image is too small,
-	if (width < FILTER_ZONE_SIZE_W && height < FILTER_ZONE_SIZE_H) {
+	if (width < MIN_SIZE && height < MIN_SIZE) {
 		// Do not use mask
 		_enabled = false;
 		return GCIF_WE_OK;
