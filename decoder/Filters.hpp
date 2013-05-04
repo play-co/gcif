@@ -126,11 +126,11 @@ static const int SF_COUNT = SF_BASIC_COUNT + DIV2_TAPPED_COUNT;
  * p: Pointer to current RGBA pixel
  * temp: Temp workspace if we need it (3 bytes)
  * x, y: Pixel location
- * stride: Pixels in width of p buffer
+ * width: Pixels in width of p buffer
  *
  * Returns filter prediction in pred.
  */
-typedef const u8 *(*RGBAFilterFunc)(const u8 *p, u8 *temp, int x, int y, int stride);
+typedef const u8 *(*RGBAFilterFunc)(const u8 *p, u8 *temp, int x, int y, int width);
 
 struct RGBAFilterFuncs {
 	// Safe for any input that is actually on the image
@@ -148,11 +148,11 @@ extern RGBAFilterFuncs RGBA_FILTERS[SF_COUNT];
  * p: Pointer to current monochrome pixel
  * clamp_max: Maximum value when function clamps
  * x, y: Pixel location
- * stride: Pixels in width of p buffer
+ * width: Pixels in width of p buffer
  *
  * Returns filter prediction.
  */
-typedef u8 (*MonoFilterFunc)(const u8 *p, u8 clamp_max, int x, int y, int stride);
+typedef u8 (*MonoFilterFunc)(const u8 *p, u8 clamp_max, int x, int y, int width);
 
 struct MonoFilterFuncs {
 	// Safe for any input that is actually on the image

@@ -217,6 +217,7 @@ static const u8 *SFFU_AVG_AD(const u8 *p, u8 *temp, int x, int y, int width) {
 	temp[0] = (a[0] + (u16)d[0]) >> 1;
 	temp[1] = (a[1] + (u16)d[1]) >> 1;
 	temp[2] = (a[2] + (u16)d[2]) >> 1;
+	return temp;
 }
 
 static const u8 *SFF_AVG_BC(const u8 *p, u8 *temp, int x, int y, int width) {
@@ -235,9 +236,9 @@ static const u8 *SFF_AVG_BC(const u8 *p, u8 *temp, int x, int y, int width) {
 		}
 	} else if (x > 0) {
 		return p - 4; // A
-	} else {
-		return FPZ;
 	}
+
+	return FPZ;
 }
 
 static const u8 *SFFU_AVG_BC(const u8 *p, u8 *temp, int x, int y, int width) {
@@ -1124,9 +1125,9 @@ static CAT_INLINE u8 abcClamp(int a, int b, int c) {
 		return 0;
 	} else if (sum > 255) {
 		return 255;
-	} else {
-		return sum;
 	}
+
+	return sum;
 }
 
 static const u8 *SFF_ABC_CLAMP(const u8 *p, u8 *temp, int x, int y, int width) {
@@ -1277,7 +1278,7 @@ static const u8 *SFFU_ABC_PAETH(const u8 *p, u8 *temp, int x, int y, int width) 
 }
 
 
-//// PL Filter
+//// Offset PL Filter
 
 static CAT_INLINE u8 predLevel(int a, int b, int c) {
 	if (c >= a && c >= b) {
@@ -1292,9 +1293,9 @@ static CAT_INLINE u8 predLevel(int a, int b, int c) {
 		} else {
 			return b;
 		}
-	} else {
-		return b + a - c;
 	}
+
+	return b + a - c;
 }
 
 static const u8 *SFF_PLO(const u8 *p, u8 *temp, int x, int y, int width) {
@@ -1470,8 +1471,6 @@ static const u8 *SFF_PRED_UR(const u8 *p, u8 *temp, int x, int y, int width) {
  *
  * We ran simulations with a number of test images and chose the linear filters
  * of this form that were consistently better than the default spatial filters.
- *
- * Some other linear filters that use / 3 and / 4 are also in tables below.
  */
 
 static const int DIV2_FILTER_TAPS[DIV2_TAPPED_COUNT][4] = {
@@ -1558,7 +1557,7 @@ static const int DIV2_FILTER_TAPS[DIV2_TAPPED_COUNT][4] = {
 };
 
 
-//// SpatialFilterSet
+//// Static function versions of tapped linear filters
 
 #define DEFINE_TAPS(TAP) \
 	static const u8 *SFF_TAPS_ ## TAP (const u8 *p, u8 *temp, int x, int y, int width) { \
@@ -1626,6 +1625,8 @@ DEFINE_TAPS(75);DEFINE_TAPS(76);DEFINE_TAPS(77);DEFINE_TAPS(78);DEFINE_TAPS(79)
 	{ SFF_TAPS_ ## TAP, SFFU_TAPS_ ## TAP }
 
 
+//// RGBA Filter Function Table
+
 const RGBAFilterFuncs cat::RGBA_FILTERS[SF_COUNT] = {
 	{ SFF_A, SFFU_A },
 	{ SFF_Z, SFFU_Z },
@@ -1678,41 +1679,53 @@ const RGBAFilterFuncs cat::RGBA_FILTERS[SF_COUNT] = {
 	LIST_TAPS(60), LIST_TAPS(61), LIST_TAPS(62), LIST_TAPS(63), LIST_TAPS(64),
 	LIST_TAPS(65), LIST_TAPS(66), LIST_TAPS(67), LIST_TAPS(68), LIST_TAPS(69),
 	LIST_TAPS(70), LIST_TAPS(71), LIST_TAPS(72), LIST_TAPS(73), LIST_TAPS(74),
-	LIST_TAPS(75), LIST_TAPS(76), LIST_TAPS(77), LIST_TAPS(78), LIST_TAPS(79),
+	LIST_TAPS(75), LIST_TAPS(76), LIST_TAPS(77), LIST_TAPS(78), LIST_TAPS(79)
 };
 
 #undef LIST_TAPS
 
 
-//// Monochrome Filters
+//// Simple Spatial Filters
 
-static u8 PSFF_Z(const u8 *p, int x, int y, int width) {
+static u8 MFF_A(const u8 *p, u8 clamp_max, int x, int y, int width) {
+	if (x > 0) {
+		return p[-1]; // A
+	} else if (y > 0) {
+		return p[-width]; // B
+	}
+
 	return 0;
 }
 
-#define PSFFU_Z PSFF_Z
+static u8 MFFU_A(const u8 *p, u8 clamp_max, int x, int y, int width) {
+	CAT_DEBUG_ENFORCE(x > 0);
 
-static u8 PSFF_D(const u8 *p, int x, int y, int width) {
+	return p[-1]; // A
+}
+
+static u8 MFF_Z(const u8 *p, u8 clamp_max, int x, int y, int width) {
+	return 0;
+}
+
+#define MFFU_Z MFF_Z
+
+static u8 MFF_B(const u8 *p, u8 clamp_max, int x, int y, int width) {
 	if (y > 0) {
-		const u8 *fp = p - width; // B
-		if (x < width-1) {
-			++fp; // D
-		}
-		return *fp;
+		return p[-width]; // B
 	} else if (x > 0) {
 		return p[-1]; // A
-	} else {
-		return 0;
 	}
+
+	return 0;
 }
 
-static u8 PSFFU_D(const u8 *p, int x, int y, int width) {
-	CAT_DEBUG_ENFORCE(y > 0 && x < width-1);
+static u8 MFFU_B(const u8 *p, u8 clamp_max, int x, int y, int width) {
+	CAT_DEBUG_ENFORCE(y > 0);
 
-	return p[-width + 1]; // D
+	return p[-width]; // B
 }
 
-static u8 PSFF_C(const u8 *p, int x, int y, int width) {
+static u8 MFF_C(const u8 *p, u8 clamp_max, int x, int y, int width) {
 	if (x > 0) {
 		if (y > 0) {
 			return p[-width - 1]; // C
@@ -1721,102 +1734,843 @@ static u8 PSFF_C(const u8 *p, int x, int y, int width) {
 		}
 	} else if (y > 0) {
 		return p[-width]; // B
-	} else {
-		return 0;
 	}
+
+	return 0;
 }
 
-static u8 PSFFU_C(const u8 *p, int x, int y, int width) {
+static u8 MFFU_C(const u8 *p, u8 clamp_max, int x, int y, int width) {
 	CAT_DEBUG_ENFORCE(x > 0 && y > 0);
 
 	return p[-width - 1]; // C
 }
 
-static u8 PSFF_B(const u8 *p, int x, int y, int width) {
+static u8 MFF_D(const u8 *p, u8 clamp_max, int x, int y, int width) {
 	if (y > 0) {
-		return p[-width]; // B
+		const u8 *fp = p - width; // B
+		if (x < width-1) {
+			++fp; // D
+		}
+		return *fp;
 	} else if (x > 0) {
 		return p[-1]; // A
-	} else {
-		return 0;
 	}
+
+	return 0;
 }
 
-static u8 PSFFU_B(const u8 *p, int x, int y, int width) {
-	CAT_DEBUG_ENFORCE(y > 0);
+static u8 MFFU_D(const u8 *p, u8 clamp_max, int x, int y, int width) {
+	CAT_DEBUG_ENFORCE(y > 0 && x < width-1);
 
-	return p[-width]; // B
+	return p[-width + 1]; // D
 }
 
-static u8 PSFF_A(const u8 *p, int x, int y, int width) {
-	if (x > 0) {
+
+//// Dual Average Filters (Round Down)
+
+static u8 MFF_AVG_AB(const u8 *p, u8 clamp_max, int x, int y, int width) {
+	if (y > 0) {
+		const u8 *b = p - width; // B
+
+		if (x > 0) {
+			const u8 *a = p - 1; // A
+
+			return (a[0] + (u16)b[0]) >> 1;
+		} else {
+			return b[0]; // B
+		}
+	} else if (x > 0) {
 		return p[-1]; // A
+	}
+
+	return 0;
+}
+
+static u8 MFFU_AVG_AB(const u8 *p, u8 clamp_max, int x, int y, int width) {
+	CAT_DEBUG_ENFORCE(x > 0 && y > 0 && x < width-1);
+
+	const u8 *a = p - 1; // A
+	const u8 *d = p - width + 1; // D
+
+	return (a[0] + (u16)d[0]) >> 1;
+}
+
+static u8 MFF_AVG_AC(const u8 *p, u8 clamp_max, int x, int y, int width) {
+	if (y > 0) {
+		const u8 *b = p - width; // B
+
+		if (x > 0) {
+			const u8 *a = p - 1; // A
+			const u8 *c = b - 1; // C
+
+			return (a[0] + (u16)c[0]) >> 1;
+		} else {
+			return b[0]; // B
+		}
+	} else if (x > 0) {
+		return p[-1]; // A
+	}
+
+	return 0;
+}
+
+static u8 MFFU_AVG_AC(const u8 *p, u8 clamp_max, int x, int y, int width) {
+	CAT_DEBUG_ENFORCE(x > 0 && y > 0 && x < width-1);
+
+	const u8 *a = p - 1; // A
+	const u8 *c = p - width - 1; // C
+
+	return (a[0] + (u16)c[0]) >> 1;
+}
+
+static u8 MFF_AVG_AD(const u8 *p, u8 clamp_max, int x, int y, int width) {
+	if (y > 0) {
+		const u8 *src = p - width; // B
+
+		if (x > 0) {
+			const u8 *a = p - 1; // A
+			if (x < width-1) {
+				src++; // D
+			}
+
+			return (a[0] + (u16)src[0]) >> 1;
+		} else {
+			return src[0]; // B
+		}
+	} else if (x > 0) {
+		return p[-1]; // A
+	}
+
+	return 0;
+}
+
+static u8 MFFU_AVG_AD(const u8 *p, u8 clamp_max, int x, int y, int width) {
+	CAT_DEBUG_ENFORCE(x > 0 && y > 0 && x < width-1);
+
+	const u8 *a = p - 1; // A
+	const u8 *d = p - width + 1; // D
+
+	return (a[0] + (u16)d[0]) >> 1;
+}
+
+static u8 MFF_AVG_BC(const u8 *p, u8 clamp_max, int x, int y, int width) {
+	if (y > 0) {
+		const u8 *b = p - width; // B
+
+		if (x > 0) {
+			const u8 *c = b - 1; // C
+
+			return (b[0] + (u16)c[0]) >> 1;
+		} else {
+			return b[0]; // B
+		}
+	} else if (x > 0) {
+		return p[-1]; // A
+	}
+
+	return FPZ;
+}
+
+static u8 MFFU_AVG_BC(const u8 *p, u8 clamp_max, int x, int y, int width) {
+	CAT_DEBUG_ENFORCE(x > 0 && y > 0 && x < width-1);
+
+	const u8 *b = p - width; // B
+	const u8 *c = b - 1; // C
+
+	return (b[0] + (u16)c[0]) >> 1;
+}
+
+static u8 MFF_AVG_BD(const u8 *p, u8 clamp_max, int x, int y, int width) {
+	if (y > 0) {
+		const u8 *b = p - width; // B
+
+		if (x > 0) {
+			const u8 *src = p - 1; // C
+			if (x < width-1) {
+				src += 2; // D
+			}
+
+			return (b[0] + (u16)src[0]) >> 1;
+		} else {
+			return b[0]; // B
+		}
+	} else if (x > 0) {
+		return p[-1]; // A
+	}
+
+	return 0;
+}
+
+static u8 MFFU_AVG_BD(const u8 *p, u8 clamp_max, int x, int y, int width) {
+	CAT_DEBUG_ENFORCE(x > 0 && y > 0 && x < width-1);
+
+	const u8 *b = p - width; // B
+	const u8 *d = b + 1; // D
+
+	return (b[0] + (u16)d[0]) >> 1;
+}
+
+static u8 MFF_AVG_CD(const u8 *p, u8 clamp_max, int x, int y, int width) {
+	if (y > 0) {
+		const u8 *src = p - width; // B
+
+		if (x > 0) {
+			const u8 *c = src - 1; // C
+			if (x < width-1) {
+				src += 2; // D
+			}
+
+			return (c[0] + (u16)src[0]) >> 1;
+		} else {
+			return src[0]; // B
+		}
+	} else if (x > 0) {
+		return p[-1]; // A
+	}
+
+	return 0;
+}
+
+static u8 MFFU_AVG_CD(const u8 *p, u8 clamp_max, int x, int y, int width) {
+	CAT_DEBUG_ENFORCE(x > 0 && y > 0 && x < width-1);
+
+	const u8 *c = p - width - 1; // C
+	const u8 *d = c + 2; // D
+
+	return (c[0] + (u16)d[0]) >> 1;
+}
+
+
+//// Dual Average Filters (Round Up)
+
+static u8 MFF_AVG_AB1(const u8 *p, u8 clamp_max, int x, int y, int width) {
+	if (y > 0) {
+		const u8 *b = p - width; // B
+
+		if (x > 0) {
+			const u8 *a = p - 1; // A
+
+			return (a[0] + (u16)b[0] + 1) >> 1;
+		} else {
+			return b[0]; // B
+		}
+	} else if (x > 0) {
+		return p[-1]; // A
+	}
+
+	return 0;
+}
+
+static u8 MFFU_AVG_AB1(const u8 *p, u8 clamp_max, int x, int y, int width) {
+	CAT_DEBUG_ENFORCE(x > 0 && y > 0 && x < width-1);
+
+	const u8 *a = p - 1; // A
+	const u8 *d = p - width + 1; // D
+
+	return (a[0] + (u16)d[0] + 1) >> 1;
+}
+
+static u8 MFF_AVG_AC1(const u8 *p, u8 clamp_max, int x, int y, int width) {
+	if (y > 0) {
+		const u8 *b = p - width; // B
+
+		if (x > 0) {
+			const u8 *a = p - 1; // A
+			const u8 *c = b - 1; // C
+
+			return (a[0] + (u16)c[0] + 1) >> 1;
+		} else {
+			return b[0]; // B
+		}
+	} else if (x > 0) {
+		return p[-1]; // A
+	}
+
+	return 0;
+}
+
+static u8 MFFU_AVG_AC1(const u8 *p, u8 clamp_max, int x, int y, int width) {
+	CAT_DEBUG_ENFORCE(x > 0 && y > 0 && x < width-1);
+
+	const u8 *a = p - 1; // A
+	const u8 *c = p - width - 1; // C
+
+	return (a[0] + (u16)c[0] + 1) >> 1;
+}
+
+static u8 MFF_AVG_AD1(const u8 *p, u8 clamp_max, int x, int y, int width) {
+	if (y > 0) {
+		const u8 *src = p - width; // B
+
+		if (x > 0) {
+			const u8 *a = p - 1; // A
+			if (x < width-1) {
+				src += 2; // D
+			}
+
+			return (a[0] + (u16)src[0] + 1) >> 1;
+		} else {
+			return src[0]; // B
+		}
+	} else if (x > 0) {
+		return p[-1]; // A
+	}
+
+	return 0;
+}
+
+static u8 MFFU_AVG_AD1(const u8 *p, u8 clamp_max, int x, int y, int width) {
+	CAT_DEBUG_ENFORCE(x > 0 && y > 0 && x < width-1);
+
+	const u8 *a = p - 1; // A
+	const u8 *d = p - width + 1; // D
+
+	return (a[0] + (u16)d[0] + 1) >> 1;
+}
+
+static u8 MFF_AVG_BC1(const u8 *p, u8 clamp_max, int x, int y, int width) {
+	if (y > 0) {
+		const u8 *b = p - width; // B
+
+		if (x > 0) {
+			const u8 *c = b - 1; // C
+
+			return (b[0] + (u16)c[0] + 1) >> 1;
+		} else {
+			return b[0]; // B
+		}
+	} else if (x > 0) {
+		return p[-1]; // A
+	}
+
+	return 0;
+}
+
+static u8 MFFU_AVG_BC1(const u8 *p, u8 clamp_max, int x, int y, int width) {
+	CAT_DEBUG_ENFORCE(x > 0 && y > 0 && x < width-1);
+
+	const u8 *b = p - width; // B
+	const u8 *c = b - 1; // C
+
+	return (b[0] + (u16)c[0] + 1) >> 1;
+}
+
+static u8 MFF_AVG_BD1(const u8 *p, u8 clamp_max, int x, int y, int width) {
+	if (y > 0) {
+		const u8 *b = p - width; // B
+
+		if (x > 0) {
+			const u8 *src = p - 1; // C
+			if (x < width-1) {
+				src += 2; // D
+			}
+
+			return (b[0] + (u16)src[0] + 1) >> 1;
+		} else {
+			return b[0]; // B
+		}
+	} else if (x > 0) {
+		return p[-1]; // A
+	}
+
+	return 0;
+}
+
+static u8 MFFU_AVG_BD1(const u8 *p, u8 clamp_max, int x, int y, int width) {
+	CAT_DEBUG_ENFORCE(x > 0 && y > 0 && x < width-1);
+
+	const u8 *b = p - width; // B
+	const u8 *d = b + 1; // D
+
+	return (b[0] + (u16)d[0] + 1) >> 1;
+}
+
+static u8 MFF_AVG_CD1(const u8 *p, u8 clamp_max, int x, int y, int width) {
+	if (y > 0) {
+		const u8 *src = p - width; // B
+
+		if (x > 0) {
+			const u8 *c = src - 1; // C
+			if (x < width-1) {
+				src += 2; // D
+			}
+
+			return (c[0] + (u16)src[0] + 1) >> 1;
+		} else {
+			return src[0]; // B
+		}
+	} else if (x > 0) {
+		return p - 1; // A
+	}
+
+	return 0;
+}
+
+static u8 MFFU_AVG_CD1(const u8 *p, u8 clamp_max, int x, int y, int width) {
+	CAT_DEBUG_ENFORCE(x > 0 && y > 0 && x < width-1);
+
+	const u8 *c = p - width - 1; // C
+	const u8 *d = c + 2; // D
+
+	return (c[0] + (u16)d[0] + 1) >> 1;
+}
+
+
+//// Triple Average Filters (Round Down)
+
+static u8 MFF_AVG_ABC(const u8 *p, u8 clamp_max, int x, int y, int width) {
+	if (x > 0) {
+		const u8 *a = p - 1; // A
+
+		if (y > 0) {
+			const u8 *b = p - width; // B
+			const u8 *c = b - 1; // C
+
+			return (a[0] + (u16)b[0] + c[0]) / 3;
+		} else {
+			return a[0];
+		}
 	} else if (y > 0) {
 		return p[-width]; // B
-	} else {
-		return 0;
 	}
+
+	return 0;
 }
 
-static u8 PSFFU_A(const u8 *p, int x, int y, int width) {
-	CAT_DEBUG_ENFORCE(x > 0);
+static u8 MFFU_AVG_ABC(const u8 *p, u8 clamp_max, int x, int y, int width) {
+	CAT_DEBUG_ENFORCE(x > 0 && y > 0 && x < width-1);
 
-	return p[-1]; // A
+	const u8 *a = p - 1; // A
+	const u8 *b = p - width; // B
+	const u8 *c = b - 1; // C
+
+	return (a[0] + (u16)b[0] + c[0]) / 3;
 }
 
-static u8 PSFF_AB(const u8 *p, int x, int y, int width) {
+static u8 MFF_AVG_ACD(const u8 *p, u8 clamp_max, int x, int y, int width) {
+	if (x > 0) {
+		const u8 *a = p - 1; // A
+
+		if (y > 0) {
+			const u8 *b = p - width; // B
+			const u8 *c = b - 1; // C
+
+			const u8 *src = b; // B
+			if (x < width-1) {
+				src++; // D
+			}
+
+			return (a[0] + (u16)c[0] + src[0]) / 3;
+		} else {
+			return a[0];
+		}
+	} else if (y > 0) {
+		const u8 *src = p - width*4; // B
+		if CAT_LIKELY(x < width-1) {
+			src++; // D
+		}
+
+		return src[0];
+	}
+
+	return 0;
+}
+
+static u8 MFFU_AVG_ACD(const u8 *p, u8 clamp_max, int x, int y, int width) {
+	CAT_DEBUG_ENFORCE(x > 0 && y > 0 && x < width-1);
+
+	const u8 *a = p - 1; // A
+	const u8 *b = p - width; // B
+	const u8 *c = b - 1; // C
+	const u8 *d = b + 1; // D
+
+	return (a[0] + (u16)c[0] + d[0]) / 3;
+}
+
+static u8 MFF_AVG_ABD(const u8 *p, u8 clamp_max, int x, int y, int width) {
 	if (x > 0) {
 		const u8 *a = p - 1; // A
 
 		if (y > 0) {
 			const u8 *b = p - width; // B
 
-			return (a[0] + (u16)b[0]) >> 1;
+			const u8 *src = b; // B
+			if (x < width-1) {
+				src++; // D
+			}
+
+			return (a[0] + (u16)b[0] + src[0]) / 3;
+		} else {
+			return a[0];
+		}
+	} else if (y > 0) {
+		const u8 *b = p - width; // B
+		const u8 *d = b; // D
+		if CAT_LIKELY(x < width-1) {
+			b++;
+		}
+
+		return (b[0] + (u16)d[0]) >> 1;
+	}
+
+	return 0;
+}
+
+static u8 MFFU_AVG_ABD(const u8 *p, u8 clamp_max, int x, int y, int width) {
+	CAT_DEBUG_ENFORCE(x > 0 && y > 0 && x < width-1);
+
+	const u8 *a = p - 1; // A
+	const u8 *b = p - width; // B
+	const u8 *d = b + 1; // D
+
+	return (a[0] + (u16)b[0] + d[0]) / 3;
+}
+
+static u8 MFF_AVG_BCD(const u8 *p, u8 clamp_max, int x, int y, int width) {
+	if (x > 0) {
+		const u8 *a = p - 1; // A
+
+		if (y > 0) {
+			const u8 *b = p - width; // B
+			const u8 *c = b - 1; // C
+
+			const u8 *src = b; // B
+			if (x < width-1) {
+				src++; // D
+			}
+
+			return (b[0] + (u16)c[0] + src[0]) / 3;
+		} else {
+			return a[0];
+		}
+	} else if (y > 0) {
+		const u8 *b = p - width; // B
+		const u8 *d = b; // B
+		if CAT_LIKELY(x < width-1) {
+			b++; // D
+		}
+
+		return (b[0] + (u16)d[0]) >> 1;
+	}
+
+	return 0;
+}
+
+static u8 MFFU_AVG_BCD(const u8 *p, u8 clamp_max, int x, int y, int width) {
+	CAT_DEBUG_ENFORCE(x > 0 && y > 0 && x < width-1);
+
+	const u8 *b = p - width; // B
+	const u8 *c = b - 1; // C
+	const u8 *d = b + 1; // D
+
+	return (b[0] + (u16)c[0] + d[0]) / 3;
+}
+
+
+//// Triple Average Filters (Round Up)
+
+static u8 MFF_AVG_ABC1(const u8 *p, u8 clamp_max, int x, int y, int width) {
+	if (x > 0) {
+		const u8 *a = p - 1; // A
+
+		if (y > 0) {
+			const u8 *b = p - width; // B
+			const u8 *c = b - 1; // C
+
+			return (a[0] + (u16)b[0] + c[0] + 2) / 3;
 		} else {
 			return a[0];
 		}
 	} else if (y > 0) {
 		return p[-width]; // B
-	} else {
-		return 0;
 	}
+
+	return 0;
 }
 
-static u8 PSFFU_AB(const u8 *p, int x, int y, int width) {
-	CAT_DEBUG_ENFORCE(x > 0 && y > 0);
+static u8 MFFU_AVG_ABC1(const u8 *p, u8 clamp_max, int x, int y, int width) {
+	CAT_DEBUG_ENFORCE(x > 0 && y > 0 && x < width-1);
 
 	const u8 *a = p - 1; // A
 	const u8 *b = p - width; // B
+	const u8 *c = b - 1; // C
 
-	return (a[0] + (u16)b[0]) >> 1;
+	return (a[0] + (u16)b[0] + c[0] + 2) / 3;
 }
 
-static u8 PSFF_BD(const u8 *p, int x, int y, int width) {
-	if (y > 0) {
-		const u8 *b = p - width; // B
-		const u8 *src = b; // B
-		if (x < width-1) {
-			++src; // D
+static u8 MFF_AVG_ACD1(const u8 *p, u8 clamp_max, int x, int y, int width) {
+	if (x > 0) {
+		const u8 *a = p - 1; // A
+
+		if (y > 0) {
+			const u8 *b = p - width; // B
+			const u8 *c = b - 1; // C
+
+			const u8 *src = b; // B
+			if (x < width-1) {
+				src++; // D
+			}
+
+			return (a[0] + (u16)c[0] + src[0] + 2) / 3;
+		} else {
+			return a[0];
+		}
+	} else if (y > 0) {
+		const u8 *src = p - width; // B
+		if CAT_LIKELY(x < width-1) {
+			src++; // D
 		}
 
-		return (b[0] + (u16)src[0]) >> 1;
-	} else if (x > 0) {
-		return p[-1]; // A
-	} else {
-		return 0;
+		return src[0];
 	}
+
+	return 0;
 }
 
-static u8 PSFFU_BD(const u8 *p, int x, int y, int width) {
-	CAT_DEBUG_ENFORCE(y > 0 && x < width-1);
+static u8 MFFU_AVG_ACD1(const u8 *p, u8 clamp_max, int x, int y, int width) {
+	CAT_DEBUG_ENFORCE(x > 0 && y > 0 && x < width-1);
+
+	const u8 *a = p - 1; // A
+	const u8 *b = p - width; // B
+	const u8 *c = b - 1; // C
+	const u8 *d = b + 1; // D
+
+	return (a[0] + (u16)c[0] + d[0] + 2) / 3;
+}
+
+static u8 MFF_AVG_ABD1(const u8 *p, u8 clamp_max, int x, int y, int width) {
+	if (x > 0) {
+		const u8 *a = p - 1; // A
+
+		if (y > 0) {
+			const u8 *b = p - width; // B
+
+			const u8 *src = b; // B
+			if (x < width-1) {
+				src++; // D
+			}
+
+			return (a[0] + (u16)b[0] + src[0] + 2) / 3;
+		} else {
+			return a[0];
+		}
+	} else if (y > 0) {
+		const u8 *b = p - width; // B
+		const u8 *d = b; // D
+		if CAT_LIKELY(x < width-1) {
+			b++;
+		}
+
+		return (b[0] + (u16)d[0] + 1) >> 1;
+	}
+
+	return 0;
+}
+
+static u8 MFFU_AVG_ABD1(const u8 *p, u8 clamp_max, int x, int y, int width) {
+	CAT_DEBUG_ENFORCE(x > 0 && y > 0 && x < width-1);
+
+	const u8 *a = p - 1; // A
+	const u8 *b = p - width; // B
+	const u8 *d = b + 1; // D
+
+	return (a[0] + (u16)b[0] + d[0] + 2) / 3;
+}
+
+static u8 MFF_AVG_BCD1(const u8 *p, u8 clamp_max, int x, int y, int width) {
+	if (x > 0) {
+		const u8 *a = p - 1; // A
+
+		if (y > 0) {
+			const u8 *b = p - width; // B
+			const u8 *c = b - 1; // C
+
+			const u8 *src = b; // B
+			if (x < width-1) {
+				src++; // D
+			}
+
+			return (b[0] + (u16)c[0] + src[0] + 2) / 3;
+		} else {
+			return a[0];
+		}
+	} else if (y > 0) {
+		const u8 *b = p - width; // B
+		const u8 *d = b; // D
+		if CAT_LIKELY(x < width-1) {
+			b++;
+		}
+
+		return (b[0] + (u16)d[0] + 1) >> 1;
+	}
+
+	return 0;
+}
+
+static u8 MFFU_AVG_BCD1(const u8 *p, u8 clamp_max, int x, int y, int width) {
+	CAT_DEBUG_ENFORCE(x > 0 && y > 0 && x < width-1);
 
 	const u8 *b = p - width; // B
-	const u8 *src = b + 1; // D
+	const u8 *c = b - 1; // C
+	const u8 *d = b + 1; // D
 
-	return (b[0] + (u16)src[0]) >> 1;
+	return (b[0] + (u16)c[0] + d[0] + 2) / 3;
 }
 
-static u8 PSFF_ABC_CLAMP(const u8 *p, int x, int y, int width) {
+
+//// Quad Average Filters (Round Down)
+
+static u8 MFF_AVG_ABCD(const u8 *p, u8 clamp_max, int x, int y, int width) {
+	if (x > 0) {
+		const u8 *a = p - 1; // A
+
+		if (y > 0) {
+			const u8 *b = p - width; // B
+			const u8 *c = b - 1; // C
+
+			const u8 *src = b; // B
+			if (x < width-1) {
+				src++; // D
+			}
+
+			return (a[0] + (int)b[0] + c[0] + (int)src[0]) >> 2;
+		} else {
+			return a[0];
+		}
+	} else if (y > 0) {
+		const u8 *b = p - width; // B
+		const u8 *d = b; // D
+		if CAT_LIKELY(x < width-1) {
+			b++;
+		}
+
+		return (b[0] + (u16)d[0]) >> 1;
+	}
+
+	return 0;
+}
+
+static u8 MFFU_AVG_ABCD(const u8 *p, u8 clamp_max, int x, int y, int width) {
+	CAT_DEBUG_ENFORCE(x > 0 && y > 0 && x < width-1);
+
+	const u8 *a = p - 1; // A
+	const u8 *b = p - width; // B
+	const u8 *c = b - 1; // C
+	const u8 *d = b + 1; // D
+
+	return (a[0] + (int)b[0] + c[0] + (int)d[0]) >> 2;
+}
+
+
+//// Quad Average Filters (Round Up)
+
+static u8 MFF_AVG_ABCD1(const u8 *p, u8 clamp_max, int x, int y, int width) {
+	if (x > 0) {
+		const u8 *a = p - 1; // A
+
+		if (y > 0) {
+			const u8 *b = p - width; // B
+			const u8 *c = b - 1; // C
+
+			const u8 *src = b; // B
+			if (x < width-1) {
+				src++; // D
+			}
+
+			return (a[0] + (int)b[0] + c[0] + (int)src[0] + 2) >> 2;
+		} else {
+			return a[0];
+		}
+	} else if (y > 0) {
+		const u8 *b = p - width; // B
+		const u8 *d = b; // D
+		if CAT_LIKELY(x < width-1) {
+			b++;
+		}
+
+		return (b[0] + (u16)d[0] + 1) >> 1;
+	}
+
+	return 0;
+}
+
+static u8 MFFU_AVG_ABCD1(const u8 *p, u8 clamp_max, int x, int y, int width) {
+	CAT_DEBUG_ENFORCE(x > 0 && y > 0 && x < width-1);
+
+	const u8 *a = p - 1; // A
+	const u8 *b = p - width; // B
+	const u8 *c = b - 1; // C
+	const u8 *d = b + 1; // D
+
+	return (a[0] + (int)b[0] + c[0] + (int)d[0] + 2) >> 2;
+}
+
+
+//// Clamp Gradient Filter
+
+static u8 MFF_CLAMP_GRAD(const u8 *p, u8 clamp_max, int x, int y, int width) {
+	if (y > 0) {
+		if (x > 0) {
+			const u8 *a = p - 1; // A
+			const u8 *b = p - width; // B
+			const u8 *c = b - 1; // C
+
+			return clampGrad(b[0], a[0], c[0]);
+		} else {
+			return p[-width]; // B
+		}
+	} else if (x > 0) {
+		return p[-1]; // A
+	}
+
+	return 0;
+}
+
+static u8 MFFU_CLAMP_GRAD(const u8 *p, u8 clamp_max, int x, int y, int width) {
+	CAT_DEBUG_ENFORCE(x > 0 && y > 0 && x < width-1);
+
+	const u8 *a = p - 1; // A
+	const u8 *b = p - width; // B
+	const u8 *c = b - 1; // C
+
+	return clampGrad(b[0], a[0], c[0]);
+}
+
+
+//// Skewed Gradient Filter
+
+static u8 MFF_SKEW_GRAD(const u8 *p, u8 clamp_max, int x, int y, int width) {
+	if (y > 0) {
+		if (x > 0) {
+			const u8 *a = p - 1; // A
+			const u8 *b = p - width; // B
+			const u8 *c = b - 1; // C
+
+			return skewGrad(b[0], a[0], c[0]);
+		} else {
+			return p[-width]; // B
+		}
+	} else if (x > 0) {
+		return p[-1]; // A
+	}
+
+	return 0;
+}
+
+static u8 MFFU_SKEW_GRAD(const u8 *p, u8 clamp_max, int x, int y, int width) {
+	CAT_DEBUG_ENFORCE(x > 0 && y > 0 && x < width-1);
+
+	const u8 *a = p - 1; // A
+	const u8 *b = p - width; // B
+	const u8 *c = b - 1; // C
+
+	return skewGrad(b[0], a[0], c[0]);
+}
+
+
+//// ABC Clamp Filter
+
+static u8 MFF_ABC_CLAMP(const u8 *p, u8 clamp_max, int x, int y, int width) {
 	if (x > 0) {
 		const u8 *a = p - 1; // A
 
@@ -1830,12 +2584,12 @@ static u8 PSFF_ABC_CLAMP(const u8 *p, int x, int y, int width) {
 		}
 	} else if (y > 0) {
 		return p[-width]; // B
-	} else {
-		return 0;
 	}
+
+	return 0;
 }
 
-static u8 PSFFU_ABC_CLAMP(const u8 *p, int x, int y, int width) {
+static u8 MFFU_ABC_CLAMP(const u8 *p, u8 clamp_max, int x, int y, int width) {
 	CAT_DEBUG_ENFORCE(x > 0 && y > 0);
 
 	const u8 *a = p - 1; // A
@@ -1845,7 +2599,10 @@ static u8 PSFFU_ABC_CLAMP(const u8 *p, int x, int y, int width) {
 	return abcClamp(a[0], b[0], c[0]);
 }
 
-static u8 PSFF_PAETH(const u8 *p, int x, int y, int width) {
+
+//// Paeth Filter
+
+static u8 MFF_PAETH(const u8 *p, u8 clamp_max, int x, int y, int width) {
 	if (x > 0) {
 		const u8 *a = p - 1; // A
 
@@ -1859,12 +2616,12 @@ static u8 PSFF_PAETH(const u8 *p, int x, int y, int width) {
 		}
 	} else if (y > 0) {
 		return p[-width]; // B
-	} else {
-		return 0;
 	}
+
+	return 0;
 }
 
-static u8 PSFFU_PAETH(const u8 *p, int x, int y, int width) {
+static u8 MFFU_PAETH(const u8 *p, u8 clamp_max, int x, int y, int width) {
 	CAT_DEBUG_ENFORCE(x > 0 && y > 0);
 
 	const u8 *a = p - 1; // A
@@ -1874,7 +2631,10 @@ static u8 PSFFU_PAETH(const u8 *p, int x, int y, int width) {
 	return paeth(a[0], b[0], c[0]);
 }
 
-static u8 PSFF_ABC_PAETH(const u8 *p, int x, int y, int width) {
+
+//// ABC Paeth Filter
+
+static u8 MFF_ABC_PAETH(const u8 *p, u8 clamp_max, int x, int y, int width) {
 	if (x > 0) {
 		const u8 *a = p - 1; // A
 
@@ -1888,12 +2648,12 @@ static u8 PSFF_ABC_PAETH(const u8 *p, int x, int y, int width) {
 		}
 	} else if (y > 0) {
 		return p[-width]; // B
-	} else {
-		return 0;
 	}
+
+	return 0;
 }
 
-static u8 PSFFU_ABC_PAETH(const u8 *p, int x, int y, int width) {
+static u8 MFFU_ABC_PAETH(const u8 *p, u8 clamp_max, int x, int y, int width) {
 	CAT_DEBUG_ENFORCE(x > 0 && y > 0);
 
 	const u8 *a = p - 1; // A
@@ -1904,7 +2664,9 @@ static u8 PSFFU_ABC_PAETH(const u8 *p, int x, int y, int width) {
 }
 
 
-static u8 PSFF_PLO(const u8 *p, int x, int y, int width) {
+//// Offet PL Filter
+
+static u8 MFF_PLO(const u8 *p, u8 clamp_max, int x, int y, int width) {
 	if (x > 0) {
 		const u8 *a = p - 1; // A
 
@@ -1922,12 +2684,12 @@ static u8 PSFF_PLO(const u8 *p, int x, int y, int width) {
 		}
 	} else if (y > 0) {
 		return p[-width]; // B
-	} else {
-		return 0;
 	}
+
+	return 0;
 }
 
-static u8 PSFFU_PLO(const u8 *p, int x, int y, int width) {
+static u8 MFFU_PLO(const u8 *p, u8 clamp_max, int x, int y, int width) {
 	CAT_DEBUG_ENFORCE(x > 0 && y > 0 && x < width-1);
 
 	const u8 *a = p - 1; // A
@@ -1937,7 +2699,10 @@ static u8 PSFFU_PLO(const u8 *p, int x, int y, int width) {
 	return predLevel(a[0], src[0], b[0]);
 }
 
-static u8 PSFF_ABCD(const u8 *p, int x, int y, int width) {
+
+//// Select Filter
+
+static u8 MFF_SELECT(const u8 *p, u8 clamp_max, int x, int y, int width) {
 	if (x > 0) {
 		const u8 *a = p - 1; // A
 
@@ -1945,58 +2710,47 @@ static u8 PSFF_ABCD(const u8 *p, int x, int y, int width) {
 			const u8 *b = p - width; // B
 			const u8 *c = b - 1; // C
 
-			const u8 *src = b; // B
-			if (x < width-1) {
-				++src; // D
-			}
-
-			return (a[0] + (int)b[0] + c[0] + (int)src[0] + 1) >> 2;
+			return predSelect(a[0], b[0], c[0]);
 		} else {
 			return a[0];
 		}
 	} else if (y > 0) {
-		const u8 *b = p - width; // B
-		const u8 *d = b;
-		if CAT_LIKELY(x < width-1) {
-			++d; // D
-		}
-
-		return (b[0] + (u16)d[0]) >> 1;
-	} else {
-		return 0;
+		return p[-width]; // B
 	}
+
+	return 0;
 }
 
-static u8 PSFFU_ABCD(const u8 *p, int x, int y, int width) {
+static u8 MFFU_SELECT(const u8 *p, u8 clamp_max, int x, int y, int width) {
 	CAT_DEBUG_ENFORCE(x > 0 && y > 0 && x < width-1);
 
 	const u8 *a = p - 1; // A
 	const u8 *b = p - width; // B
 	const u8 *c = b - 1; // C
-	const u8 *src = b + 1; // D
 
-	return (a[0] + (int)b[0] + c[0] + (int)src[0] + 1) >> 2;
+	return predSelect(a[0], b[0], c[0]);
 }
 
-static u8 PSFF_PICK_LEFT(const u8 *p, int x, int y, int width) {
+
+//// Pick Left Filter
+
+static u8 MFF_PICK_LEFT(const u8 *p, u8 clamp_max, int x, int y, int width) {
 	if (x > 1 && y > 0) {
 		const u8 *a = p - 1;
 		const u8 *c = a - width;
 		const u8 *f = c - 1;
 
 		return leftSel(f[0], c[0], a[0]);
-	} else {
-		if (x > 0) {
-			return p[-1]; // A
-		} else if (y > 0) {
-			return p[-width]; // B
-		} else {
-			return 0;
-		}
+	} else if (x > 0) {
+		return p[-1]; // A
+	} else if (y > 0) {
+		return p[-width]; // B
 	}
+
+	return 0;
 }
 
-static u8 PSFFU_PICK_LEFT(const u8 *p, int x, int y, int width) {
+static u8 MFFU_PICK_LEFT(const u8 *p, u8 clamp_max, int x, int y, int width) {
 	CAT_DEBUG_ENFORCE(x > 0 && y > 0 && x < width-1);
 
 	if (x > 1) {
@@ -2005,121 +2759,36 @@ static u8 PSFFU_PICK_LEFT(const u8 *p, int x, int y, int width) {
 		const u8 *f = c - 1;
 
 		return leftSel(f[0], c[0], a[0]);
-	} else {
-		return p[-1]; // A
 	}
+
+	return p[-1]; // A
 }
 
-static u8 PSFF_PRED_UR(const u8 *p, int x, int y, int width) {
+
+//// Predict Upper-Right Filter
+
+static u8 MFF_PRED_UR(const u8 *p, u8 clamp_max, int x, int y, int width) {
 	if (y > 1 && x < width - 2) {
 		const u8 *d = p + 1 - width;
 		const u8 *e = d + 1 - width;
 
 		return d[0] * 2 - e[0];
-	} else {
-		if (x > 0) {
-			return p[-1]; // A
-		} else if (y > 0) {
-			return p[-width]; // B
-		} else {
-			return 0;
-		}
-	}
-}
-
-#define PSFFU_PRED_UR PSFF_PRED_UR
-
-static u8 PSFF_CLAMP_GRAD(const u8 *p, int x, int y, int width) {
-	if (y > 0) {
-		if (x > 0) {
-			const u8 *a = p - 1; // A
-			const u8 *b = p - width; // B
-			const u8 *c = b - 1; // C
-
-			return clampGrad(b[0], a[0], c[0]);
-		} else {
-			return p[-width]; // B
-		}
 	} else if (x > 0) {
 		return p[-1]; // A
-	} else {
-		return 0;
+	} else if (y > 0) {
+		return p[-width]; // B
 	}
+
+	return 0;
 }
 
-static u8 PSFFU_CLAMP_GRAD(const u8 *p, int x, int y, int width) {
-	CAT_DEBUG_ENFORCE(x > 0 && y > 0 && x < width-1);
-
-	const u8 *a = p - 1; // A
-	const u8 *b = p - width; // B
-	const u8 *c = b - 1; // C
-
-	return clampGrad(b[0], a[0], c[0]);
-}
-
-static u8 PSFF_SKEW_GRAD(const u8 *p, int x, int y, int width) {
-	if (y > 0) {
-		if (x > 0) {
-			const u8 *a = p - 1; // A
-			const u8 *b = p - width; // B
-			const u8 *c = b - 1; // C
-
-			return skewGrad(b[0], a[0], c[0]);
-		} else {
-			return p[-width]; // B
-		}
-	} else if (x > 0) {
-		return p[-1]; // A
-	} else {
-		return 0;
-	}
-}
-
-static u8 PSFFU_SKEW_GRAD(const u8 *p, int x, int y, int width) {
-	CAT_DEBUG_ENFORCE(x > 0 && y > 0 && x < width-1);
-
-	const u8 *a = p - 1; // A
-	const u8 *b = p - width; // B
-	const u8 *c = b - 1; // C
-
-	return skewGrad(b[0], a[0], c[0]);
-}
-
-static u8 PSFF_AD(const u8 *p, int x, int y, int width) {
-	if (y > 0) {
-		if (x > 0) {
-			const u8 *a = p - 1; // A
-
-			const u8 *src = p - width; // B
-			if (x < width-1) {
-				++src; // D
-			}
-
-			return (a[0] + (u16)src[0]) >> 1;
-		} else {
-			return p[-width]; // B
-		}
-	} else if (x > 0) {
-		return p[-1]; // A
-	} else {
-		return 0;
-	}
-}
-
-static u8 PSFFU_AD(const u8 *p, int x, int y, int width) {
-	CAT_DEBUG_ENFORCE(x > 0 && y > 0 && x < width-1);
-
-	const u8 *a = p - 1; // A
-	const u8 *src = p - width + 1; // D
-
-	return (a[0] + (u16)src[0]) >> 1;
-}
+#define MFFU_PRED_UR MFF_PRED_UR
 
 
 //// PaletteFilterSet
 
 #define DEFINE_TAPS(TAP) \
-	static u8 PSFF_TAPS_ ## TAP (const u8 *p, int x, int y, int width) { \
+	static u8 MFF_TAPS_ ## TAP (const u8 *p, u8 clamp_max, int x, int y, int width) { \
 		if (x > 0) { \
 			const u8 *a = p - 1; /* A */ \
 			if (y > 0) { \
@@ -2139,11 +2808,10 @@ static u8 PSFFU_AD(const u8 *p, int x, int y, int width) {
 			} \
 		} else if (y > 0) { \
 			return p[-width]; /* B */ \
-		} else { \
-			return 0; \
 		} \
+		return 0; \
 	} \
-	static u8 PSFFU_TAPS_ ## TAP (const u8 *p, int x, int y, int width) { \
+	static u8 MFFU_TAPS_ ## TAP (const u8 *p, u8 clamp_max, int x, int y, int width) { \
 		CAT_DEBUG_ENFORCE(x > 0 && y > 0 && x < width-1); \
 		const u8 *a = p - 1; \
 		const u8 *b = p - width; \
@@ -2176,10 +2844,48 @@ DEFINE_TAPS(75);DEFINE_TAPS(76);DEFINE_TAPS(77);DEFINE_TAPS(78);DEFINE_TAPS(79)
 #undef DEFINE_TAPS
 
 #define LIST_TAPS(TAP) \
-	{ PSFF_TAPS_ ## TAP, PSFFU_TAPS_ ## TAP }
+	{ MFF_TAPS_ ## TAP, MFFU_TAPS_ ## TAP }
 
-static const PaletteFilterSet::Functions
-PAL_TAPPED_FILTER_FUNCTIONS[PaletteFilterSet::TAPPED_COUNT] = {
+
+//// Monochrome Filter Function Table
+
+const MonoFilterFuncs cat::MONO_FILTERS[SF_COUNT] = {
+	{ MFF_A, MFFU_A },
+	{ MFF_Z, MFFU_Z },
+	{ MFF_B, MFFU_B },
+	{ MFF_C, MFFU_C },
+	{ MFF_D, MFFU_D },
+	{ MFF_AVG_AB, MFFU_AVG_AB },
+	{ MFF_AVG_AC, MFFU_AVG_AC },
+	{ MFF_AVG_AD, MFFU_AVG_AD },
+	{ MFF_AVG_BC, MFFU_AVG_BC },
+	{ MFF_AVG_BD, MFFU_AVG_BD },
+	{ MFF_AVG_CD, MFFU_AVG_CD },
+	{ MFF_AVG_AB1, MFFU_AVG_AB1 },
+	{ MFF_AVG_AC1, MFFU_AVG_AC1 },
+	{ MFF_AVG_AD1, MFFU_AVG_AD1 },
+	{ MFF_AVG_BC1, MFFU_AVG_BC1 },
+	{ MFF_AVG_BD1, MFFU_AVG_BD1 },
+	{ MFF_AVG_CD1, MFFU_AVG_CD1 },
+	{ MFF_AVG_ABC, MFFU_AVG_ABC },
+	{ MFF_AVG_ACD, MFFU_AVG_ACD },
+	{ MFF_AVG_ABD, MFFU_AVG_ABD },
+	{ MFF_AVG_BCD, MFFU_AVG_BCD },
+	{ MFF_AVG_ABC1, MFFU_AVG_ABC1 },
+	{ MFF_AVG_ACD1, MFFU_AVG_ACD1 },
+	{ MFF_AVG_ABD1, MFFU_AVG_ABD1 },
+	{ MFF_AVG_BCD1, MFFU_AVG_BCD1 },
+	{ MFF_AVG_ABCD, MFFU_AVG_ABCD },
+	{ MFF_AVG_ABCD1, MFFU_AVG_ABCD1 },
+	{ MFF_CLAMP_GRAD, MFFU_CLAMP_GRAD },
+	{ MFF_SKEW_GRAD, MFFU_SKEW_GRAD },
+	{ MFF_ABC_CLAMP, MFFU_ABC_CLAMP },
+	{ MFF_PAETH, MFFU_PAETH },
+	{ MFF_ABC_PAETH, MFFU_ABC_PAETH },
+	{ MFF_PLO, MFFU_PLO },
+	{ MFF_SELECT, MFFU_SELECT },
+	{ MFF_PICK_LEFT, MFFU_PICK_LEFT },
+	{ MFF_PRED_UR, MFFU_PRED_UR },
 	LIST_TAPS( 0), LIST_TAPS( 1), LIST_TAPS( 2), LIST_TAPS( 3), LIST_TAPS( 4),
 	LIST_TAPS( 5), LIST_TAPS( 6), LIST_TAPS( 7), LIST_TAPS( 8), LIST_TAPS( 9),
 	LIST_TAPS(10), LIST_TAPS(11), LIST_TAPS(12), LIST_TAPS(13), LIST_TAPS(14),
@@ -2195,11 +2901,10 @@ PAL_TAPPED_FILTER_FUNCTIONS[PaletteFilterSet::TAPPED_COUNT] = {
 	LIST_TAPS(60), LIST_TAPS(61), LIST_TAPS(62), LIST_TAPS(63), LIST_TAPS(64),
 	LIST_TAPS(65), LIST_TAPS(66), LIST_TAPS(67), LIST_TAPS(68), LIST_TAPS(69),
 	LIST_TAPS(70), LIST_TAPS(71), LIST_TAPS(72), LIST_TAPS(73), LIST_TAPS(74),
-	LIST_TAPS(75), LIST_TAPS(76), LIST_TAPS(77), LIST_TAPS(78), LIST_TAPS(79),
+	LIST_TAPS(75), LIST_TAPS(76), LIST_TAPS(77), LIST_TAPS(78), LIST_TAPS(79)
 };
 
 #undef LIST_TAPS
-
 
 
 //// Color Filters
