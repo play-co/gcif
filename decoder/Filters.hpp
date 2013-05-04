@@ -34,15 +34,6 @@
 namespace cat {
 
 
-// Zone size for RGBA filters
-static const int FILTER_ZONE_SIZE_SHIFT_W = 2; // Block size pow2
-static const int FILTER_ZONE_SIZE_W = 1 << FILTER_ZONE_SIZE_SHIFT_W; // 4x4
-static const int FILTER_ZONE_SIZE_MASK_W = FILTER_ZONE_SIZE_W - 1;
-static const int FILTER_ZONE_SIZE_SHIFT_H = 2; // Block size pow2
-static const int FILTER_ZONE_SIZE_H = 1 << FILTER_ZONE_SIZE_SHIFT_H; // 4x4
-static const int FILTER_ZONE_SIZE_MASK_H = FILTER_ZONE_SIZE_H - 1;
-
-
 //// Spatial Filters
 
 /*
@@ -239,10 +230,10 @@ CAT_INLINE u8 ResidualScore(u8 score) {
 
 //// Chaos
 
-// Number of chaos levels supported by table
+// Number of chaos levels supported by LUTs
 static const int MAX_CHAOS_LEVELS = 16;
 
-// Table
+// Map ResidualScore Up/Left Sum -> Chaos Level for each of the chaos levels
 extern const u8 CHAOS_TABLES[MAX_CHAOS_LEVELS][512];
 
 
