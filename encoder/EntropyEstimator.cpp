@@ -126,7 +126,8 @@ void EntropyEstimator::subtract(const u8 *symbols, int count) {
 	}
 }
 
-u32 EntropyEstimator::entropyRepeat(const u8 symbol, int count) {
+
+u32 EntropyEstimator::entropySingle(const u8 symbol, int count) {
 	if (symbol == 0) {
 		return 0;
 	} else {
@@ -139,7 +140,7 @@ u32 EntropyEstimator::entropyRepeat(const u8 symbol, int count) {
 	}
 }
 
-void EntropyEstimator::addRepeat(const u8 symbol, int count) {
+void EntropyEstimator::addSingle(const u8 symbol, int count) {
 	// Update histogram total count
 	_hist_total += count;
 
@@ -147,11 +148,27 @@ void EntropyEstimator::addRepeat(const u8 symbol, int count) {
 	_hist[symbol] += count;
 }
 
-void EntropyEstimator::subtractRepeat(const u8 symbol, int count) {
+void EntropyEstimator::subtractSingle(const u8 symbol, int count) {
 	// Update histogram total count
 	_hist_total -= count;
 
 	// Subtract it from the global histogram
 	_hist[symbol] -= count;
+}
+
+
+u32 EntropyEstimator::entropyOverall() {
+	u32 entropy_sum = 0;
+	const u32 total = _hist_total;
+
+	for (u32 sym = 0; sym < NUM_SYMS; ++sym) {
+		u32 inst = _hist[sym];
+
+		if (inst > 0) {
+			entropy_sum += calculateCodelen(inst, total);
+		}
+	}
+
+	return entropy_sum;
 }
 

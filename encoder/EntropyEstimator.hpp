@@ -78,9 +78,12 @@ public:
 	void subtract(const u8 *symbols, int count);
 
 	// These versions will add the same symbol multiple times
-	u32 entropyRepeat(const u8 symbol, int count);
-	void addRepeat(const u8 symbol, int count);
-	void subtractRepeat(const u8 symbol, int count);
+	u32 entropySingle(const u8 symbol, int count = 1);
+	void addSingle(const u8 symbol, int count = 1);
+	void subtractSingle(const u8 symbol, int count = 1);
+
+	// Overall entropy
+	u32 entropyOverall();
 };
 
 

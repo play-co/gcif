@@ -48,6 +48,14 @@ void MonoWriter::cleanup() {
 		delete _filter_encoder;
 		_filter_encoder = 0;
 	}
+	if (_chaos) {
+		delete []_chaos;
+		_chaos = 0;
+	}
+	if (_residuals) {
+		delete []_residuals;
+		_residuals = 0;
+	}
 }
 
 void MonoWriter::maskTiles() {
@@ -59,7 +67,7 @@ void MonoWriter::maskTiles() {
 	for (u16 y = 0; y < size_y; y += tile_size_y) {
 		for (u16 x = 0; x < size_x; x += tile_size_x) {
 
-			// For each pixel in the tile,
+			// For each element in the tile,
 			u16 py = y, cy = tile_size_y;
 			while (cy-- > 0 && py < size_y) {
 				u16 px = x, cx = tile_size_x;
@@ -105,14 +113,14 @@ void MonoWriter::designPaletteFilters() {
 			bool seen = false;
 			u8 uniform_value = 0;
 
-			// For each pixel in the tile,
-			const u8 *scanline = topleft;
+			// For each element in the tile,
+			const u8 *row = topleft;
 			u16 py = y, cy = tile_size_y;
 			while (cy-- > 0 && py < size_y) {
-				const u8 *data = scanline;
+				const u8 *data = row;
 				u16 px = x, cx = tile_size_x;
 				while (cx-- > 0 && px < size_x) {
-					// If pixel is not masked,
+					// If element is not masked,
 					if (!_params.mask(px, py)) {
 						const u8 value = *data;
 
@@ -128,7 +136,7 @@ void MonoWriter::designPaletteFilters() {
 					++data;
 				}
 				++py;
-				scanline += size_x;
+				row += size_x;
 			}
 
 			// If uniform data,
@@ -193,14 +201,14 @@ void MonoWriter::designFilters() {
 			bool seen = false;
 			u8 uniform_value = 0;
 
-			// For each pixel in the tile,
-			const u8 *scanline = topleft;
+			// For each element in the tile,
+			const u8 *row = topleft;
 			u16 py = y, cy = tile_size_y;
 			while (cy-- > 0 && py < size_y) {
-				const u8 *data = scanline;
+				const u8 *data = row;
 				u16 px = x, cx = tile_size_x;
 				while (cx-- > 0 && px < size_x) {
-					// If pixel is not masked,
+					// If element is not masked,
 					if (!_params.mask(px, py)) {
 						const u8 value = *data;
 
@@ -223,7 +231,7 @@ void MonoWriter::designFilters() {
 					++data;
 				}
 				++py;
-				scanline += size_x;
+				row += size_x;
 			}
 
 			// If data is uniform,
@@ -360,7 +368,7 @@ void MonoWriter::designPaletteTiles() {
 				// If it was used,
 				if (filter != UNUSED_SYMPAL) {
 					// Prefer it over any other filter type
-					*p = MF_COUNT + filter;
+					*p = _normal_filter_count + filter;
 				} else {
 					// Unlock it for use
 					*p = TODO_TILE;
@@ -395,7 +403,7 @@ void MonoWriter::designTiles() {
 			int tx = 0;
 			for (u16 x = 0; x < size_x; x += tile_size_x, ++p, topleft += tile_size_x, ++tx) {
 				// If tile is masked or sympal,
-				if (*p >= MF_COUNT) {
+				if (*p >= _normal_filter_count) {
 					continue;
 				}
 
@@ -413,14 +421,14 @@ void MonoWriter::designTiles() {
 
 					// If old filter is not a sympal,
 					if (_filter_indices[old_filter] < MF_COUNT) {
-						// For each pixel in the tile,
-						const u8 *scanline = topleft;
+						// For each element in the tile,
+						const u8 *row = topleft;
 						u16 py = y, cy = tile_size_y;
 						while (cy-- > 0 && py < size_y) {
-							const u8 *data = scanline;
+							const u8 *data = row;
 							u16 px = x, cx = tile_size_x;
 							while (cx-- > 0 && px < size_x) {
-								// If pixel is not masked,
+								// If element is not masked,
 								if (!_params.mask(px, py)) {
 									const u8 value = *data;
 
@@ -432,7 +440,7 @@ void MonoWriter::designTiles() {
 								++data;
 							}
 							++py;
-							scanline += size_x;
+							row += size_x;
 						}
 
 						ee.subtract(codes, code_count);
@@ -441,14 +449,14 @@ void MonoWriter::designTiles() {
 
 				int code_count = 0;
 
-				// For each pixel in the tile,
-				const u8 *scanline = topleft;
+				// For each element in the tile,
+				const u8 *row = topleft;
 				u16 py = y, cy = tile_size_y;
 				while (cy-- > 0 && py < size_y) {
-					const u8 *data = scanline;
+					const u8 *data = row;
 					u16 px = x, cx = tile_size_x;
 					while (cx-- > 0 && px < size_x) {
-						// If pixel is not masked,
+						// If element is not masked,
 						if (!_params.mask(px, py)) {
 							const u8 value = *data;
 
@@ -467,7 +475,7 @@ void MonoWriter::designTiles() {
 						++data;
 					}
 					++py;
-					scanline += size_x;
+					row += size_x;
 				}
 
 				// Read neighbor tiles
@@ -534,6 +542,58 @@ void MonoWriter::designTiles() {
 	}
 
 	delete []codes;
+}
+
+void MonoWriter::computeResiduals() {
+	CAT_INANE("2D") << "Executing tiles to generate residual matrix...";
+
+	const u16 tile_size_x = _tile_size_x, tile_size_y = _tile_size_y;
+	const u16 size_x = _params.size_x, size_y = _params.size_y;
+	const u16 num_syms = _params.num_syms;
+	const u8 *p = _tiles;
+
+	const u32 code_stride = _tile_size_x * _tile_size_y;
+	u8 *codes = new u8[code_stride * _filter_count];
+
+	// For each tile,
+	const u8 *topleft = _params.data;
+	size_t residual_delta = (size_t)(_residuals - topleft);
+	for (u16 y = 0; y < size_y; y += tile_size_y) {
+		for (u16 x = 0; x < size_x; x += tile_size_x, ++p, topleft += tile_size_x) {
+			const u8 f = *p;
+
+			// If tile is masked or sympal,
+			if (*p >= _normal_filter_count) {
+				continue;
+			}
+
+			// For each element in the tile,
+			const u8 *row = topleft;
+			u16 py = y, cy = tile_size_y;
+			while (cy-- > 0 && py < size_y) {
+				const u8 *data = row;
+				u16 px = x, cx = tile_size_x;
+				while (cx-- > 0 && px < size_x) {
+					// If element is not masked,
+					if (!_params.mask(px, py)) {
+						const u8 value = *data;
+
+						u8 prediction = _filters[old_filter](data, x, y, size_x) % num_syms;
+						u8 residual = (value + num_syms - prediction) % num_syms;
+
+						// Convert data pointer to residual pointer
+						u8 *residual_data = (u8*)data + residual_delta;
+
+						// Write residual data
+						*residual_data = residual;
+					}
+					++data;
+				}
+				++py;
+				row += size_x;
+			}
+		}
+	}
 }
 
 void MonoWriter::designRowFilters() {
@@ -633,6 +693,10 @@ void MonoWriter::designRowFilters() {
 	delete []codes;
 }
 
+bool MonoWriter::IsMasked(u16 x, u16 y) {
+	return _tiles[x + y * _tiles_x] == MASK_TILE;
+}
+
 void MonoWriter::recurseCompress() {
 	if (_tiles_count < RECURSIVE_THRESH) {
 		CAT_INANE("2D") << "Stopping below recursive threshold for " << _tiles_x << "x" << _tiles_y << "...";
@@ -641,17 +705,34 @@ void MonoWriter::recurseCompress() {
 
 		_filter_encoder = new MonoWriter;
 
-		Parameters params;
-		params.knobs = _params.knobs;
+		Parameters params = _params;
 		params.data = _tiles;
 		params.num_syms = _filter_count;
 		params.size_x = _tiles_x;
 		params.size_y = _tiles_y;
+
+		// Hook up our mask function
+		params.mask.SetMember<MonoWriter, &MonoWriter::IsMasked>(this);
+
+		// Recurse!
+		u32 recurse_entropy = _filter_encoder->process(params);
+
+		// If it does not win over row filters,
+		if (recurse_entropy > _row_filter_entropy) {
+			CAT_INANE("2D") << "Recursive filter did not win over simple row filters";
+			delete _filter_encoder;
+			_filter_encoder = 0;
+		} else {
+			CAT_INANE("2D") << "Recursive filter won over simple row filters";
+		}
 	}
 }
 
 void MonoWriter::designChaos() {
 	CAT_INANE("2D") << "Designing chaos...";
+
+	const int chaos_size = 1 + _params.size_x;
+	_chaos = new u8[chaos_size];
 
 	EntropyEstimator ee[MAX_CHAOS_LEVELS];
 
@@ -660,6 +741,35 @@ void MonoWriter::designChaos() {
 		// Reset entropy estimator
 		for (int ii = 0; ii < chaos_levels; ++ii) {
 			ee[ii].init();
+		}
+
+		const u8 *CHAOS = CHAOS_MAPS[chaos_levels];
+
+		// Reset chaos workspace for first row
+		CAT_CLR(_chaos, chaos_size);
+
+		// For each row,
+		const u8 *residuals = _residuals;
+		for (int y = 0; y < _params.size_y; ++y) {
+			// Initialize chaos row
+			u8 *last = _chaos + 1;
+			last[-1] = 0;
+
+			// For each column,
+			for (int x = 0; x < _params.size_x; ++x) {
+				// If masked,
+				if (_params.mask(x, y)) {
+					last[x] = 0;
+				} else {
+					int chaos = CHAOS[RESIDUAL_SCORE[last[-1]] + RESIDUAL_SCORE[last[0]]];
+
+					u8 residual_sym = *residuals;
+
+					ee[chaos].addSingle(residual_sym);
+				}
+
+				++residuals;
+			}
 		}
 	}
 }
@@ -692,12 +802,16 @@ u32 MonoWriter::process(const Parameters &params) {
 		_tiles = new u8[_tiles_count];
 		_tile_row_filters = new u8[_tiles_y];
 
+		// Allocate residual memory
+		_residuals = new u8[_params.size_x * _params.size_y];
+
 		// Process
 		maskTiles();
 		designPaletteFilters();
 		designFilters();
 		designPaletteTiles();
 		designTiles();
+		computeResiduals();
 		designRowFilters();
 		recurseCompress();
 		designChaos();

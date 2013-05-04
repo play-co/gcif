@@ -43,76 +43,10 @@
 /*
  * Monochrome Compression
  *
-   Through working on compressing 2D RGBA data I've noticed a few parts of the data are effectively monochrome data:
-   (1) Which color filter to use for each SF/CF filter zone.
-   (2) Which spatial filter to use for each SF/CF filter zone.
-   (3) Palette mode encoding.
-   (4) The alpha channel encoding.
-   (5) Which alpha filter to use for each alpha filter zone. (new)
-
-   What I realized while working more on adding better alpha channel filtering is that it would make a lot of sense to do it recursively.  And that made me step back.  This could be an encoding that recursively produces subresolution monochrome images that are then recompressed!  Any of the modeling that can be done for one of these monochrome data streams may be applicable to any of the others!
-
-   The algorithm:
-
-   (0) Select a power-of-two ZxZ zone size, starting with twice the size of the parent zone.
-
-
-   (1) Mask Filters
-
-   Provide a delegate that we can call per x,y pixel to check if the data is masked or not, and note that a filter tile is part of masked data so it can be skipped over tile-wise for the rest of the decision process.
-
-
-   (2) Spatial Filters
-
-   There will be a whole bunch of spatial filters that are complex, as well as a large set of tapped linear filters to swap in where it makes sense.  The filters will be listed in order of complexity, with most complex filters are the bottom.
-
-   + "No modification". (degenerate linear tapped) [ALWAYS AVAILABLE]
-   + "Same as A, B, C, D". (degenerate linear tapped) [ALWAYS AVAILABLE]
-   + About 80 linear tapped filters that seem to do well.
-   + All of the ones involving if-statements from the current codebase, plus more.  (At the bottom of preference list).
-   + Whole zone is value "X". [Special encoding that requires a byte to be emitted]
-
-   All of the filters will be tried against the input in ZxZ zones, and the top 4 matches will be awarded + REWARD[0..3].  Scored by L1 norm for speed.
-
-   After this process, the filters that are scored above REWARD[0] * ZONE_COUNT * THRESHOLD_PERCENT are taken, up to MAX_FILTERS.  Some of the filters are always chosen regardless of how well they do and are just included in the measurement to avoid rewarding other filters unnecessarily.
-
-   Pixels are passed to the mask delegate to see if they are considered or not.
-
-
-   (3) Filter selection
-
-   Use entropy analysis to decide which filter to select for each tile, starting in the upper left, to lower right.  After working over the whole 2D data, loop back to the front for 4096 iterations to allow the entropy histogram to stabilize and tune tighter.
-
-
-   (4) Filter the filters
-
-   For each filter row, select a 2-bit code meaning:
-
-   00 "FF[n] = f[n]"
-   01 "FF[n] = f[n] - f[n - 1], or 0"
-   10 "FF[n] = f[n] - f[n - width], or 0"
-   11 "FF[n] = f[n] - f[n - width - 1], or 0"
-
-   Loop over the whole image twice, minimizing entropy of the FF[n] data.
-
-
-   (5) Recursively compress the FF[n] data.
-
-   Create a new instance of the MonochromeFilter to compress the resulting FF[n] data.
-
-
-   (6) Calculate the number of bits required to encode the data in this way
-
-   And loop back to step 0 to see if increasing Z helps.  Stop on the first one that makes it worse.
-
-
-   Decoding
-
-	Read and initialize the filters.
-
-	Decoding the original data proceeds per scan-line.
-
-	On lines that have (y & (Z-1) == 0), we check to see if FILTERS[x >> Z_BITS] is NULL.  If so, we expect the writer to have written out the filter selection.  We recursively call MonochromeFilter filter reading code, which will have its own FILTERS[] sub-array.  Until eventually it's just directly read in.
+ * Used to compress any monochrome data that is generated during compression.
+ *
+ * Produces a subresolution filter matrix that is used to filter and reduce
+ * entropy of the input matrix.  This matrix is recursively compressed.
  */
 
 namespace cat {
@@ -135,8 +69,7 @@ public:
 		u16 num_syms;					// Number of symbols in data [0..num_syms-1]
 		u16 size_x, size_y;				// Data dimensions
 		u16 max_filters;				// Maximum number of filters to use
-		u16 min_bits;					// Minimum tile size bits to try
-		u16 max_bits;					// Maximum tile size bits to try
+		u16 min_bits, max_bits;			// Tile size bit range to try
 		float sympal_thresh;			// Normalized coverage to add a symbol palette filter (1.0 = entire image)
 		float filter_thresh;			// Normalized coverage to stop adding filters (1.0 = entire image)
 		MaskDelegate mask;				// Function to call to determine if an element is masked out
@@ -169,15 +102,19 @@ protected:
 	static const u8 UNUSED_SYMPAL = 255;
 
 	// Parameters
-	Parameters _params;
-	MaskDelegate _mask;					// Function to call to determine if an element is masked out
+	Parameters _params;						// Input parameters
+	MaskDelegate _mask;						// Function to call to determine if an element is masked out
 
 	// Generated filter tiles
-	u8 *_tiles;							// Filter tiles
-	u32 _tiles_count;					// Number of tiles
-	int _tiles_x, _tiles_y;				// Tiles in x,y
-	u16 _tile_bits_x, _tile_bits_y;		// Number of bits in size
-	u16 _tile_size_x, _tile_size_y;		// Size of tile
+	u8 *_tiles;								// Filter tiles
+	u32 _tiles_count;						// Number of tiles
+	int _tiles_x, _tiles_y;					// Tiles in x,y
+	u16 _tile_bits_x, _tile_bits_y;			// Number of bits in size
+	u16 _tile_size_x, _tile_size_y;			// Size of tile
+
+	// Residuals
+	u8 *_residuals;							// Residual data after applying filters
+	u32 _residual_entropy;					// Calculated entropy of residuals
 
 	// Filter choices
 	int _filter_indices[MAX_FILTERS];		// First MF_FIXED are always the same
@@ -191,14 +128,21 @@ protected:
 	int _sympal_filter_count;				// Number of palette filters
 
 	// Filter encoder
-	MonoWriter *_filter_encoder;
+	MonoWriter *_filter_encoder;			// Child instance
 	u8 *_tile_row_filters;					// One for each tile row
 	u32 _row_filter_entropy;				// Calculated entropy from using row filters
+
+	// Chaos levels
+	int _chaos_levels;						// Number of chaos levels
+	u8 *_chaos;								// Chaos temporary scanline workspace
 
 	// TODO: Have entropy encoder select symbol count in initialization function
 	EntropyEncoder<MAX_SYMS, ZRLE_SYMS> _encoder[MAX_CHAOS_LEVELS];
 
 	void cleanup();
+
+	// Mask function for child instance
+	bool IsMasked(u16 x, u16 y);
 
 	// Set tiles to MASK_TILE or TODO_TILE based on the provided mask (optimization)
 	void maskTiles();
@@ -215,6 +159,9 @@ protected:
 	// Choose which filters to use which tiles
 	void designTiles();
 
+	// Run filters to generate residual data (optimization)
+	void computeResiduals();
+
 	// Simple predictive row filter for tiles
 	void designRowFilters();
 
@@ -229,6 +176,8 @@ public:
 		_tiles = 0;
 		_filter_encoder = 0;
 		_tile_row_filters = 0;
+		_chaos = 0;
+		_residuals = 0;
 	}
 	CAT_INLINE virtual ~MonoWriter() {
 		cleanup();
