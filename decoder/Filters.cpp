@@ -538,7 +538,7 @@ static const u8 *SFFU_AVG_CD1(const u8 *p, u8 *temp, int x, int y, int width) {
 
 //// Triple Average Filters (Round Down)
 
-static const u8 *SFF_ABC(const u8 *p, u8 *temp, int x, int y, int width) {
+static const u8 *SFF_AVG_ABC(const u8 *p, u8 *temp, int x, int y, int width) {
 	if (x > 0) {
 		const u8 *a = p - 4; // A
 
@@ -560,7 +560,7 @@ static const u8 *SFF_ABC(const u8 *p, u8 *temp, int x, int y, int width) {
 	return FPZ;
 }
 
-static const u8 *SFFU_ABC(const u8 *p, u8 *temp, int x, int y, int width) {
+static const u8 *SFFU_AVG_ABC(const u8 *p, u8 *temp, int x, int y, int width) {
 	CAT_DEBUG_ENFORCE(x > 0 && y > 0 && x < width-1);
 
 	const u8 *a = p - 4; // A
@@ -573,7 +573,7 @@ static const u8 *SFFU_ABC(const u8 *p, u8 *temp, int x, int y, int width) {
 	return temp;
 }
 
-static const u8 *SFF_ACD(const u8 *p, u8 *temp, int x, int y, int width) {
+static const u8 *SFF_AVG_ACD(const u8 *p, u8 *temp, int x, int y, int width) {
 	if (x > 0) {
 		const u8 *a = p - 4; // A
 
@@ -605,7 +605,7 @@ static const u8 *SFF_ACD(const u8 *p, u8 *temp, int x, int y, int width) {
 	return FPZ;
 }
 
-static const u8 *SFFU_ACD(const u8 *p, u8 *temp, int x, int y, int width) {
+static const u8 *SFFU_AVG_ACD(const u8 *p, u8 *temp, int x, int y, int width) {
 	CAT_DEBUG_ENFORCE(x > 0 && y > 0 && x < width-1);
 
 	const u8 *a = p - 4; // A
@@ -619,7 +619,7 @@ static const u8 *SFFU_ACD(const u8 *p, u8 *temp, int x, int y, int width) {
 	return temp;
 }
 
-static const u8 *SFF_ABD(const u8 *p, u8 *temp, int x, int y, int width) {
+static const u8 *SFF_AVG_ABD(const u8 *p, u8 *temp, int x, int y, int width) {
 	if (x > 0) {
 		const u8 *a = p - 4; // A
 
@@ -654,7 +654,7 @@ static const u8 *SFF_ABD(const u8 *p, u8 *temp, int x, int y, int width) {
 	return FPZ;
 }
 
-static const u8 *SFFU_ABD(const u8 *p, u8 *temp, int x, int y, int width) {
+static const u8 *SFFU_AVG_ABD(const u8 *p, u8 *temp, int x, int y, int width) {
 	CAT_DEBUG_ENFORCE(x > 0 && y > 0 && x < width-1);
 
 	const u8 *a = p - 4; // A
@@ -667,7 +667,7 @@ static const u8 *SFFU_ABD(const u8 *p, u8 *temp, int x, int y, int width) {
 	return temp;
 }
 
-static const u8 *SFF_BCD(const u8 *p, u8 *temp, int x, int y, int width) {
+static const u8 *SFF_AVG_BCD(const u8 *p, u8 *temp, int x, int y, int width) {
 	if (x > 0) {
 		const u8 *a = p - 4; // A
 
@@ -703,7 +703,7 @@ static const u8 *SFF_BCD(const u8 *p, u8 *temp, int x, int y, int width) {
 	return FPZ;
 }
 
-static const u8 *SFFU_BCD(const u8 *p, u8 *temp, int x, int y, int width) {
+static const u8 *SFFU_AVG_BCD(const u8 *p, u8 *temp, int x, int y, int width) {
 	CAT_DEBUG_ENFORCE(x > 0 && y > 0 && x < width-1);
 
 	const u8 *b = p - width*4; // B
@@ -719,7 +719,7 @@ static const u8 *SFFU_BCD(const u8 *p, u8 *temp, int x, int y, int width) {
 
 //// Triple Average Filters (Round Up)
 
-static const u8 *SFF_ABC1(const u8 *p, u8 *temp, int x, int y, int width) {
+static const u8 *SFF_AVG_ABC1(const u8 *p, u8 *temp, int x, int y, int width) {
 	if (x > 0) {
 		const u8 *a = p - 4; // A
 
@@ -741,7 +741,7 @@ static const u8 *SFF_ABC1(const u8 *p, u8 *temp, int x, int y, int width) {
 	return FPZ;
 }
 
-static const u8 *SFFU_ABC1(const u8 *p, u8 *temp, int x, int y, int width) {
+static const u8 *SFFU_AVG_ABC1(const u8 *p, u8 *temp, int x, int y, int width) {
 	CAT_DEBUG_ENFORCE(x > 0 && y > 0 && x < width-1);
 
 	const u8 *a = p - 4; // A
@@ -754,7 +754,7 @@ static const u8 *SFFU_ABC1(const u8 *p, u8 *temp, int x, int y, int width) {
 	return temp;
 }
 
-static const u8 *SFF_ACD1(const u8 *p, u8 *temp, int x, int y, int width) {
+static const u8 *SFF_AVG_ACD1(const u8 *p, u8 *temp, int x, int y, int width) {
 	if (x > 0) {
 		const u8 *a = p - 4; // A
 
@@ -786,7 +786,7 @@ static const u8 *SFF_ACD1(const u8 *p, u8 *temp, int x, int y, int width) {
 	return FPZ;
 }
 
-static const u8 *SFFU_ACD1(const u8 *p, u8 *temp, int x, int y, int width) {
+static const u8 *SFFU_AVG_ACD1(const u8 *p, u8 *temp, int x, int y, int width) {
 	CAT_DEBUG_ENFORCE(x > 0 && y > 0 && x < width-1);
 
 	const u8 *a = p - 4; // A
@@ -800,7 +800,7 @@ static const u8 *SFFU_ACD1(const u8 *p, u8 *temp, int x, int y, int width) {
 	return temp;
 }
 
-static const u8 *SFF_ABD1(const u8 *p, u8 *temp, int x, int y, int width) {
+static const u8 *SFF_AVG_ABD1(const u8 *p, u8 *temp, int x, int y, int width) {
 	if (x > 0) {
 		const u8 *a = p - 4; // A
 
@@ -835,7 +835,7 @@ static const u8 *SFF_ABD1(const u8 *p, u8 *temp, int x, int y, int width) {
 	return FPZ;
 }
 
-static const u8 *SFFU_ABD1(const u8 *p, u8 *temp, int x, int y, int width) {
+static const u8 *SFFU_AVG_ABD1(const u8 *p, u8 *temp, int x, int y, int width) {
 	CAT_DEBUG_ENFORCE(x > 0 && y > 0 && x < width-1);
 
 	const u8 *a = p - 4; // A
@@ -848,7 +848,7 @@ static const u8 *SFFU_ABD1(const u8 *p, u8 *temp, int x, int y, int width) {
 	return temp;
 }
 
-static const u8 *SFF_BCD1(const u8 *p, u8 *temp, int x, int y, int width) {
+static const u8 *SFF_AVG_BCD1(const u8 *p, u8 *temp, int x, int y, int width) {
 	if (x > 0) {
 		const u8 *a = p - 4; // A
 
@@ -884,7 +884,7 @@ static const u8 *SFF_BCD1(const u8 *p, u8 *temp, int x, int y, int width) {
 	return FPZ;
 }
 
-static const u8 *SFFU_BCD1(const u8 *p, u8 *temp, int x, int y, int width) {
+static const u8 *SFFU_AVG_BCD1(const u8 *p, u8 *temp, int x, int y, int width) {
 	CAT_DEBUG_ENFORCE(x > 0 && y > 0 && x < width-1);
 
 	const u8 *b = p - width*4; // B
@@ -900,7 +900,7 @@ static const u8 *SFFU_BCD1(const u8 *p, u8 *temp, int x, int y, int width) {
 
 //// Quad Average Filters (Round Down)
 
-static const u8 *SFF_ABCD(const u8 *p, u8 *temp, int x, int y, int width) {
+static const u8 *SFF_AVG_ABCD(const u8 *p, u8 *temp, int x, int y, int width) {
 	if (x > 0) {
 		const u8 *a = p - 4; // A
 
@@ -936,7 +936,7 @@ static const u8 *SFF_ABCD(const u8 *p, u8 *temp, int x, int y, int width) {
 	return FPZ;
 }
 
-static const u8 *SFFU_ABCD(const u8 *p, u8 *temp, int x, int y, int width) {
+static const u8 *SFFU_AVG_ABCD(const u8 *p, u8 *temp, int x, int y, int width) {
 	CAT_DEBUG_ENFORCE(x > 0 && y > 0 && x < width-1);
 
 	const u8 *a = p - 4; // A
@@ -953,7 +953,7 @@ static const u8 *SFFU_ABCD(const u8 *p, u8 *temp, int x, int y, int width) {
 
 //// Quad Average Filters (Round Up)
 
-static const u8 *SFF_ABCD1(const u8 *p, u8 *temp, int x, int y, int width) {
+static const u8 *SFF_AVG_ABCD1(const u8 *p, u8 *temp, int x, int y, int width) {
 	if (x > 0) {
 		const u8 *a = p - 4; // A
 
@@ -989,7 +989,7 @@ static const u8 *SFF_ABCD1(const u8 *p, u8 *temp, int x, int y, int width) {
 	return FPZ;
 }
 
-static const u8 *SFFU_ABCD1(const u8 *p, u8 *temp, int x, int y, int width) {
+static const u8 *SFFU_AVG_ABCD1(const u8 *p, u8 *temp, int x, int y, int width) {
 	CAT_DEBUG_ENFORCE(x > 0 && y > 0 && x < width-1);
 
 	const u8 *a = p - 4; // A
@@ -1004,7 +1004,119 @@ static const u8 *SFFU_ABCD1(const u8 *p, u8 *temp, int x, int y, int width) {
 }
 
 
-//// ClampedGradPredictor Filter
+//// Clamped Gradient Filter
+
+static CAT_INLINE u8 clampGrad(int b, int a, int c) {
+	int grad = (int)b + (int)a - (int)c;
+	int lo = b;
+	if (lo > a) {
+		lo = a;
+	}
+	if (lo > c) {
+		lo = c;
+	}
+	int hi = b;
+	if (hi < a) {
+		hi = a;
+	}
+	if (hi < c) {
+		hi = c;
+	}
+	if (grad <= lo) {
+		return lo;
+	}
+	if (grad >= hi) {
+		return hi;
+	}
+	return grad;
+}
+
+static const u8 *SFF_CLAMP_GRAD(const u8 *p, u8 *temp, int x, int y, int width) {
+	if (y > 0) {
+		const u8 *b = p - width*4; // B
+
+		if (x > 0) {
+			const u8 *a = p - 4; // A
+			const u8 *c = b - 4; // C
+
+			temp[0] = clampGrad(b[0], a[0], c[0]);
+			temp[1] = clampGrad(b[1], a[1], c[1]);
+			temp[2] = clampGrad(b[2], a[2], c[2]);
+			return temp;
+		} else {
+			return b;
+		}
+	} else if (x > 0) {
+		return p - 4; // A
+	}
+
+	return FPZ;
+}
+
+static const u8 *SFFU_CLAMP_GRAD(const u8 *p, u8 *temp, int x, int y, int width) {
+	CAT_DEBUG_ENFORCE(x > 0 && y > 0 && x < width-1);
+
+	const u8 *a = p - 4; // A
+	const u8 *b = p - width*4; // B
+	const u8 *c = b - 4; // C
+
+	temp[0] = clampGrad(b[0], a[0], c[0]);
+	temp[1] = clampGrad(b[1], a[1], c[1]);
+	temp[2] = clampGrad(b[2], a[2], c[2]);
+	return temp;
+}
+
+
+//// Skewed Gradient Filter
+
+static u8 skewGrad(int b, int a, int c) {
+	int pred = (3 * (b + a) - (c << 1)) >> 2;
+	if (pred >= 255) {
+		return 255;
+	}
+	if (pred <= 0) {
+		return 0;
+	}
+	return pred;
+}
+
+static const u8 *SFF_SKEW_GRAD(const u8 *p, u8 *temp, int x, int y, int width) {
+	if (y > 0) {
+		const u8 *b = p - width*4; // B
+
+		if (x > 0) {
+			const u8 *a = p - 4; // A
+			const u8 *c = b - 4; // C
+
+			temp[0] = skewGrad(b[0], a[0], c[0]);
+			temp[1] = skewGrad(b[1], a[1], c[1]);
+			temp[2] = skewGrad(b[2], a[2], c[2]);
+			return temp;
+		} else {
+			return b;
+		}
+	} else if (x > 0) {
+		return p - 4; // A
+	}
+
+	return FPZ;
+}
+
+static const u8 *SFFU_SKEW_GRAD(const u8 *p, u8 *temp, int x, int y, int width) {
+	CAT_DEBUG_ENFORCE(x > 0 && y > 0 && x < width-1);
+
+	const u8 *a = p - 4; // A
+	const u8 *b = p - width*4; // B
+	const u8 *c = b - 4; // C
+
+	temp[0] = skewGrad(b[0], a[0], c[0]);
+	temp[1] = skewGrad(b[1], a[1], c[1]);
+	temp[2] = skewGrad(b[2], a[2], c[2]);
+	return temp;
+}
+
+
+//// ABC Clamped Gradient Filter
 
 static CAT_INLINE u8 abcClamp(int a, int b, int c) {
 	int sum = a + b - c;
@@ -1163,6 +1275,7 @@ static const u8 *SFFU_ABC_PAETH(const u8 *p, u8 *temp, int x, int y, int width) 
 	temp[2] = abc_paeth(a[2], b[2], c[2]);
 	return temp;
 }
+
 
 //// PL Filter
 
@@ -1344,118 +1457,6 @@ static const u8 *SFF_PRED_UR(const u8 *p, u8 *temp, int x, int y, int width) {
 #define SFFU_PRED_UR SFF_PRED_UR
 
 
-//// Clamped Gradient Filter
-
-static CAT_INLINE u8 clampGrad(int b, int a, int c) {
-	int grad = (int)b + (int)a - (int)c;
-	int lo = b;
-	if (lo > a) {
-		lo = a;
-	}
-	if (lo > c) {
-		lo = c;
-	}
-	int hi = b;
-	if (hi < a) {
-		hi = a;
-	}
-	if (hi < c) {
-		hi = c;
-	}
-	if (grad <= lo) {
-		return lo;
-	}
-	if (grad >= hi) {
-		return hi;
-	}
-	return grad;
-}
-
-static const u8 *SFF_CLAMP_GRAD(const u8 *p, u8 *temp, int x, int y, int width) {
-	if (y > 0) {
-		const u8 *b = p - width*4; // B
-
-		if (x > 0) {
-			const u8 *a = p - 4; // A
-			const u8 *c = b - 4; // C
-
-			temp[0] = clampGrad(b[0], a[0], c[0]);
-			temp[1] = clampGrad(b[1], a[1], c[1]);
-			temp[2] = clampGrad(b[2], a[2], c[2]);
-			return temp;
-		} else {
-			return b;
-		}
-	} else if (x > 0) {
-		return p - 4; // A
-	}
-
-	return FPZ;
-}
-
-static const u8 *SFFU_CLAMP_GRAD(const u8 *p, u8 *temp, int x, int y, int width) {
-	CAT_DEBUG_ENFORCE(x > 0 && y > 0 && x < width-1);
-
-	const u8 *a = p - 4; // A
-	const u8 *b = p - width*4; // B
-	const u8 *c = b - 4; // C
-
-	temp[0] = clampGrad(b[0], a[0], c[0]);
-	temp[1] = clampGrad(b[1], a[1], c[1]);
-	temp[2] = clampGrad(b[2], a[2], c[2]);
-	return temp;
-}
-
-
-//// Skewed Gradient Filter
-
-static u8 skewGrad(int b, int a, int c) {
-	int pred = (3 * (b + a) - (c << 1)) >> 2;
-	if (pred >= 255) {
-		return 255;
-	}
-	if (pred <= 0) {
-		return 0;
-	}
-	return pred;
-}
-
-static const u8 *SFF_SKEW_GRAD(const u8 *p, u8 *temp, int x, int y, int width) {
-	if (y > 0) {
-		const u8 *b = p - width*4; // B
-
-		if (x > 0) {
-			const u8 *a = p - 4; // A
-			const u8 *c = b - 4; // C
-
-			temp[0] = skewGrad(b[0], a[0], c[0]);
-			temp[1] = skewGrad(b[1], a[1], c[1]);
-			temp[2] = skewGrad(b[2], a[2], c[2]);
-			return temp;
-		} else {
-			return b;
-		}
-	} else if (x > 0) {
-		return p - 4; // A
-	}
-
-	return FPZ;
-}
-
-static const u8 *SFFU_SKEW_GRAD(const u8 *p, u8 *temp, int x, int y, int width) {
-	CAT_DEBUG_ENFORCE(x > 0 && y > 0 && x < width-1);
-
-	const u8 *a = p - 4; // A
-	const u8 *b = p - width*4; // B
-	const u8 *c = b - 4; // C
-
-	temp[0] = skewGrad(b[0], a[0], c[0]);
-	temp[1] = skewGrad(b[1], a[1], c[1]);
-	temp[2] = skewGrad(b[2], a[2], c[2]);
-	return temp;
-}
-
-
 //// Tapped Filters
 
 /*
@@ -1624,8 +1625,44 @@ DEFINE_TAPS(75);DEFINE_TAPS(76);DEFINE_TAPS(77);DEFINE_TAPS(78);DEFINE_TAPS(79)
 #define LIST_TAPS(TAP) \
 	{ SFF_TAPS_ ## TAP, SFFU_TAPS_ ## TAP }
 
-static const SpatialFilterSet::Functions
-TAPPED_FILTER_FUNCTIONS[SpatialFilterSet::TAPPED_COUNT] = {
+
+const RGBAFilterFuncs cat::RGBA_FILTERS[SF_COUNT] = {
+	{ SFF_A, SFFU_A },
+	{ SFF_Z, SFFU_Z },
+	{ SFF_B, SFFU_B },
+	{ SFF_C, SFFU_C },
+	{ SFF_D, SFFU_D },
+	{ SFF_AVG_AB, SFFU_AVG_AB },
+	{ SFF_AVG_AC, SFFU_AVG_AC },
+	{ SFF_AVG_AD, SFFU_AVG_AD },
+	{ SFF_AVG_BC, SFFU_AVG_BC },
+	{ SFF_AVG_BD, SFFU_AVG_BD },
+	{ SFF_AVG_CD, SFFU_AVG_CD },
+	{ SFF_AVG_AB1, SFFU_AVG_AB1 },
+	{ SFF_AVG_AC1, SFFU_AVG_AC1 },
+	{ SFF_AVG_AD1, SFFU_AVG_AD1 },
+	{ SFF_AVG_BC1, SFFU_AVG_BC1 },
+	{ SFF_AVG_BD1, SFFU_AVG_BD1 },
+	{ SFF_AVG_CD1, SFFU_AVG_CD1 },
+	{ SFF_AVG_ABC, SFFU_AVG_ABC },
+	{ SFF_AVG_ACD, SFFU_AVG_ACD },
+	{ SFF_AVG_ABD, SFFU_AVG_ABD },
+	{ SFF_AVG_BCD, SFFU_AVG_BCD },
+	{ SFF_AVG_ABC1, SFFU_AVG_ABC1 },
+	{ SFF_AVG_ACD1, SFFU_AVG_ACD1 },
+	{ SFF_AVG_ABD1, SFFU_AVG_ABD1 },
+	{ SFF_AVG_BCD1, SFFU_AVG_BCD1 },
+	{ SFF_AVG_ABCD, SFFU_AVG_ABCD },
+	{ SFF_AVG_ABCD1, SFFU_AVG_ABCD1 },
+	{ SFF_CLAMP_GRAD, SFFU_CLAMP_GRAD },
+	{ SFF_SKEW_GRAD, SFFU_SKEW_GRAD },
+	{ SFF_ABC_CLAMP, SFFU_ABC_CLAMP },
+	{ SFF_PAETH, SFFU_PAETH },
+	{ SFF_ABC_PAETH, SFFU_ABC_PAETH },
+	{ SFF_PLO, SFFU_PLO },
+	{ SFF_SELECT, SFFU_SELECT },
+	{ SFF_PICK_LEFT, SFFU_PICK_LEFT },
+	{ SFF_PRED_UR, SFFU_PRED_UR },
 	LIST_TAPS( 0), LIST_TAPS( 1), LIST_TAPS( 2), LIST_TAPS( 3), LIST_TAPS( 4),
 	LIST_TAPS( 5), LIST_TAPS( 6), LIST_TAPS( 7), LIST_TAPS( 8), LIST_TAPS( 9),
 	LIST_TAPS(10), LIST_TAPS(11), LIST_TAPS(12), LIST_TAPS(13), LIST_TAPS(14),
@@ -1646,41 +1683,8 @@ TAPPED_FILTER_FUNCTIONS[SpatialFilterSet::TAPPED_COUNT] = {
 
 #undef LIST_TAPS
 
-static const SpatialFilterSet::Functions DEF_SPATIAL_FILTERS[SF_COUNT] = {
-	{ SFF_Z, SFFU_Z },
-	{ SFF_D, SFFU_D },
-	{ SFF_C, SFFU_C },
-	{ SFF_B, SFFU_B },
-	{ SFF_A, SFFU_A },
-	{ SFF_AB, SFFU_AB },
-	{ SFF_BD, SFFU_BD },
-	{ SFF_CLAMP_GRAD, SFFU_CLAMP_GRAD },
-	{ SFF_SKEW_GRAD, SFFU_SKEW_GRAD },
-	{ SFF_PICK_LEFT, SFFU_PICK_LEFT },
-	{ SFF_PRED_UR, SFFU_PRED_UR },
-	{ SFF_ABC_CLAMP, SFFU_ABC_CLAMP },
-	{ SFF_PAETH, SFFU_PAETH },
-	{ SFF_ABC_PAETH, SFFU_ABC_PAETH },
-	{ SFF_PLO, SFFU_PLO },
-	{ SFF_ABCD, SFFU_ABCD },
-	{ SFF_AD, SFFU_AD }
-};
 
-void SpatialFilterSet::init() {
-	CAT_DEBUG_ENFORCE(SF_COUNT == 17); // Need to update default arrays
-	CAT_DEBUG_ENFORCE(TAPPED_COUNT == 80); // Need to update the function defs
-
-	memcpy(_filters, DEF_SPATIAL_FILTERS, sizeof(_filters));
-}
-
-void SpatialFilterSet::replace(int defaultIndex, int tappedIndex) {
-	CAT_DEBUG_ENFORCE(defaultIndex < SF_COUNT && tappedIndex < TAPPED_COUNT);
-
-	_filters[defaultIndex] = TAPPED_FILTER_FUNCTIONS[tappedIndex];
-}
-
-
-//// Palette Filters
+//// Monochrome Filters
 
 static u8 PSFF_Z(const u8 *p, int x, int y, int width) {
 	return 0;
@@ -2114,89 +2118,6 @@ static u8 PSFFU_AD(const u8 *p, int x, int y, int width) {
 
 //// PaletteFilterSet
 
-const int PaletteFilterSet::FILTER_TAPS[TAPPED_COUNT][4] = {
-	{ 3, 3, 0, -4 }, // PRED394 = (3A + 3B + 0C + -4D) / 2  [score = 9]
-	{ 2, 4, 0, -4 }, // PRED402 = (2A + 4B + 0C + -4D) / 2  [score = 7]
-	{ 1, 2, 3, -4 }, // PRED626 = (1A + 2B + 3C + -4D) / 2  [score = 102]
-	{ 2, 4, -1, -3 }, // PRED1050 = (2A + 4B + -1C + -3D) / 2  [score = 5]
-	{ 3, 4, -3, -2 }, // PRED1618 = (3A + 4B + -3C + -2D) / 2  [score = 89]
-	{ 2, 4, -2, -2 }, // PRED1698 = (2A + 4B + -2C + -2D) / 2  [score = 7]
-	{ 4, 0, 0, -2 }, // PRED1826 = (4A + 0B + 0C + -2D) / 2  [score = 13]
-	{ 3, 1, 0, -2 }, // PRED1834 = (3A + 1B + 0C + -2D) / 2  [score = 7]
-	{ 2, 2, 0, -2 }, // PRED1842 = (2A + 2B + 0C + -2D) / 2  [score = 14]
-	{ 4, -1, 1, -2 }, // PRED1898 = (4A + -1B + 1C + -2D) / 2  [score = 9]
-	{ 3, 0, 1, -2 }, // PRED1906 = (3A + 0B + 1C + -2D) / 2  [score = 24]
-	{ 2, 0, 2, -2 }, // PRED1986 = (2A + 0B + 2C + -2D) / 2  [score = 29]
-	{ 0, 2, 2, -2 }, // PRED2002 = (0A + 2B + 2C + -2D) / 2  [score = 12]
-	{ -1, 1, 4, -2 }, // PRED2154 = (-1A + 1B + 4C + -2D) / 2  [score = 14]
-	{ -2, 2, 4, -2 }, // PRED2162 = (-2A + 2B + 4C + -2D) / 2  [score = 107]
-	{ 2, 3, -2, -1 }, // PRED2418 = (2A + 3B + -2C + -1D) / 2  [score = 206]
-	{ 2, 2, -1, -1 }, // PRED2490 = (2A + 2B + -1C + -1D) / 2  [score = 277]
-	{ 1, 3, -1, -1 }, // PRED2498 = (1A + 3B + -1C + -1D) / 2  [score = 117]
-	{ 3, 0, 0, -1 }, // PRED2554 = (3A + 0B + 0C + -1D) / 2  [score = 14]
-	{ 2, 1, 0, -1 }, // PRED2562 = (2A + 1B + 0C + -1D) / 2  [score = 15]
-	{ 1, 2, 0, -1 }, // PRED2570 = (1A + 2B + 0C + -1D) / 2  [score = 8]
-	{ 0, 3, 0, -1 }, // PRED2578 = (0A + 3B + 0C + -1D) / 2  [score = 105]
-	{ 4, -2, 1, -1 }, // PRED2618 = (4A + -2B + 1C + -1D) / 2  [score = 15]
-	{ 2, 0, 1, -1 }, // PRED2634 = (2A + 0B + 1C + -1D) / 2  [score = 24]
-	{ 1, 1, 1, -1 }, // PRED2642 = (1A + 1B + 1C + -1D) / 2  [score = 65]
-	{ 0, 2, 1, -1 }, // PRED2650 = (0A + 2B + 1C + -1D) / 2  [score = 17]
-	{ 2, -1, 2, -1 }, // PRED2706 = (2A + -1B + 2C + -1D) / 2  [score = 8]
-	{ 1, 0, 2, -1 }, // PRED2714 = (1A + 0B + 2C + -1D) / 2  [score = 66]
-	{ 0, 1, 2, -1 }, // PRED2722 = (0A + 1B + 2C + -1D) / 2  [score = 21]
-	{ -2, 2, 3, -1 }, // PRED2810 = (-2A + 2B + 3C + -1D) / 2  [score = 11]
-	{ 2, 3, -3, 0 }, // PRED3066 = (2A + 3B + -3C + 0D) / 2  [score = 8]
-	{ 2, 1, -1, 0 }, // PRED3210 = (2A + 1B + -1C + 0D) / 2  [score = 54]
-	{ 1, 2, -1, 0 }, // PRED3218 = (1A + 2B + -1C + 0D) / 2  [score = 30]
-	{ 3, -1, 0, 0 }, // PRED3274 = (3A + -1B + 0C + 0D) / 2  [score = 49]
-	{ 3, -2, 1, 0 }, // PRED3346 = (3A + -2B + 1C + 0D) / 2  [score = 9]
-	{ 2, -1, 1, 0 }, // PRED3354 = (2A + -1B + 1C + 0D) / 2  [score = 21]
-	{ 1, 0, 1, 0 }, // PRED3362 = (1A + 0B + 1C + 0D) / 2  [score = 211]
-	{ 0, 1, 1, 0 }, // PRED3370 = (0A + 1B + 1C + 0D) / 2  [score = 383]
-	{ -1, 2, 1, 0 }, // PRED3378 = (-1A + 2B + 1C + 0D) / 2  [score = 88]
-	{ 2, -2, 2, 0 }, // PRED3426 = (2A + -2B + 2C + 0D) / 2  [score = 24]
-	{ 1, -1, 2, 0 }, // PRED3434 = (1A + -1B + 2C + 0D) / 2  [score = 50]
-	{ -1, 1, 2, 0 }, // PRED3450 = (-1A + 1B + 2C + 0D) / 2  [score = 134]
-	{ -2, 2, 2, 0 }, // PRED3458 = (-2A + 2B + 2C + 0D) / 2  [score = 237]
-	{ -1, 0, 3, 0 }, // PRED3522 = (-1A + 0B + 3C + 0D) / 2  [score = 7]
-	{ 2, 1, -2, 1 }, // PRED3858 = (2A + 1B + -2C + 1D) / 2  [score = 8]
-	{ 2, 0, -1, 1 }, // PRED3930 = (2A + 0B + -1C + 1D) / 2  [score = 121]
-	{ 1, 1, -1, 1 }, // PRED3938 = (1A + 1B + -1C + 1D) / 2  [score = 24]
-	{ 0, 2, -1, 1 }, // PRED3946 = (0A + 2B + -1C + 1D) / 2  [score = 13]
-	{ 2, -1, 0, 1 }, // PRED4002 = (2A + -1B + 0C + 1D) / 2  [score = 74]
-	{ -1, 2, 0, 1 }, // PRED4026 = (-1A + 2B + 0C + 1D) / 2  [score = 99]
-	{ 2, -2, 1, 1 }, // PRED4074 = (2A + -2B + 1C + 1D) / 2  [score = 141]
-	{ 1, -1, 1, 1 }, // PRED4082 = (1A + -1B + 1C + 1D) / 2  [score = 35]
-	{ 0, 0, 1, 1 }, // PRED4090 = (0A + 0B + 1C + 1D) / 2  [score = 779]
-	{ -1, 1, 1, 1 }, // PRED4098 = (-1A + 1B + 1C + 1D) / 2  [score = 617]
-	{ -2, 2, 1, 1 }, // PRED4106 = (-2A + 2B + 1C + 1D) / 2  [score = 85]
-	{ 1, -2, 2, 1 }, // PRED4154 = (1A + -2B + 2C + 1D) / 2  [score = 152]
-	{ 2, -3, 2, 1 }, // PRED4146 = (2A + -3B + 2C + 1D) / 2  [score = 12]
-	{ 0, -1, 2, 1 }, // PRED4162 = (0A + -1B + 2C + 1D) / 2  [score = 7]
-	{ -1, 0, 2, 1 }, // PRED4170 = (-1A + 0B + 2C + 1D) / 2  [score = 40]
-	{ 1, -3, 3, 1 }, // PRED4226 = (1A + -3B + 3C + 1D) / 2  [score = 75]
-	{ 2, 0, -2, 2 }, // PRED4578 = (2A + 0B + -2C + 2D) / 2  [score = 17]
-	{ 0, 2, -2, 2 }, // PRED4594 = (0A + 2B + -2C + 2D) / 2  [score = 22]
-	{ 2, -1, -1, 2 }, // PRED4650 = (2A + -1B + -1C + 2D) / 2  [score = 175]
-	{ 1, 0, -1, 2 }, // PRED4658 = (1A + 0B + -1C + 2D) / 2  [score = 12]
-	{ 0, 1, -1, 2 }, // PRED4666 = (0A + 1B + -1C + 2D) / 2  [score = 24]
-	{ 2, -2, 0, 2 }, // PRED4722 = (2A + -2B + 0C + 2D) / 2  [score = 15]
-	{ 1, -1, 0, 2 }, // PRED4730 = (1A + -1B + 0C + 2D) / 2  [score = 18]
-	{ -1, 1, 0, 2 }, // PRED4746 = (-1A + 1B + 0C + 2D) / 2  [score = 240]
-	{ -2, 2, 0, 2 }, // PRED4754 = (-2A + 2B + 0C + 2D) / 2  [score = 379]
-	{ 2, -3, 1, 2 }, // PRED4794 = (2A + -3B + 1C + 2D) / 2  [score = 250]
-	{ 1, -2, 1, 2 }, // PRED4802 = (1A + -2B + 1C + 2D) / 2  [score = 13]
-	{ 0, -1, 1, 2 }, // PRED4810 = (0A + -1B + 1C + 2D) / 2  [score = 13]
-	{ -1, 0, 1, 2 }, // PRED4818 = (-1A + 0B + 1C + 2D) / 2  [score = 17]
-	{ 2, -4, 2, 2 }, // PRED4866 = (2A + -4B + 2C + 2D) / 2  [score = 7]
-	{ 0, -2, 2, 2 }, // PRED4882 = (0A + -2B + 2C + 2D) / 2  [score = 12]
-	{ -2, 0, 2, 2 }, // PRED4898 = (-2A + 0B + 2C + 2D) / 2  [score = 18]
-	{ 1, -4, 3, 2 }, // PRED4946 = (1A + -4B + 3C + 2D) / 2  [score = 12]
-	{ 2, -2, -1, 3 }, // PRED5370 = (2A + -2B + -1C + 3D) / 2  [score = 5]
-	{ 0, -1, 0, 3 }, // PRED5458 = (0A + -1B + 0C + 3D) / 2  [score = 8]
-	{ 2, -4, 0, 4 }, // PRED6162 = (2A + -4B + 0C + 4D) / 2  [score = 6]
-};
-
 #define DEFINE_TAPS(TAP) \
 	static u8 PSFF_TAPS_ ## TAP (const u8 *p, int x, int y, int width) { \
 		if (x > 0) { \
@@ -2278,39 +2199,6 @@ PAL_TAPPED_FILTER_FUNCTIONS[PaletteFilterSet::TAPPED_COUNT] = {
 };
 
 #undef LIST_TAPS
-static const PaletteFilterSet::Functions PAL_DEF_SPATIAL_FILTERS[SF_COUNT] = {
-	{ PSFF_Z, PSFFU_Z },
-	{ PSFF_D, PSFFU_D },
-	{ PSFF_C, PSFFU_C },
-	{ PSFF_B, PSFFU_B },
-	{ PSFF_A, PSFFU_A },
-	{ PSFF_AB, PSFFU_AB },
-	{ PSFF_BD, PSFFU_BD },
-	{ PSFF_CLAMP_GRAD, PSFFU_CLAMP_GRAD },
-	{ PSFF_SKEW_GRAD, PSFFU_SKEW_GRAD },
-	{ PSFF_PICK_LEFT, PSFFU_PICK_LEFT },
-	{ PSFF_PRED_UR, PSFFU_PRED_UR },
-	{ PSFF_ABC_CLAMP, PSFFU_ABC_CLAMP },
-	{ PSFF_PAETH, PSFFU_PAETH },
-	{ PSFF_ABC_PAETH, PSFFU_ABC_PAETH },
-	{ PSFF_PLO, PSFFU_PLO },
-	{ PSFF_ABCD, PSFFU_ABCD },
-	{ PSFF_AD, PSFFU_AD }
-};
-
-void PaletteFilterSet::init() {
-	CAT_DEBUG_ENFORCE(SF_COUNT == 17); // Need to update default arrays
-	CAT_DEBUG_ENFORCE(TAPPED_COUNT == 80); // Need to update the function defs
-
-	memcpy(_filters, PAL_DEF_SPATIAL_FILTERS, sizeof(_filters));
-}
-
-void PaletteFilterSet::replace(int defaultIndex, int tappedIndex) {
-	CAT_DEBUG_ENFORCE(defaultIndex < SF_COUNT && tappedIndex < TAPPED_COUNT);
-
-	_filters[defaultIndex] = PAL_TAPPED_FILTER_FUNCTIONS[tappedIndex];
-}
-
 
 
 

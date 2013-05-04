@@ -141,6 +141,16 @@ static const int SF_COUNT = SF_BASIC_COUNT + DIV2_TAPPED_COUNT;
  */
 typedef const u8 *(*RGBAFilterFunc)(const u8 *p, u8 *temp, int x, int y, int stride);
 
+struct RGBAFilterFuncs {
+	// Safe for any input that is actually on the image
+	RGBAFilterFunc safe;
+
+	// Assumes that x>0, y>0, x<width-1
+	RGBAFilterFunc unsafe;
+};
+
+extern RGBAFilterFuncs RGBA_FILTERS[SF_COUNT];
+
 /*
  * Monochrome filter (Assumes data pointer is bytewise)
  *
@@ -153,14 +163,15 @@ typedef const u8 *(*RGBAFilterFunc)(const u8 *p, u8 *temp, int x, int y, int str
  */
 typedef u8 (*MonoFilterFunc)(const u8 *p, u8 clamp_max, int x, int y, int stride);
 
+struct MonoFilterFuncs {
+	// Safe for any input that is actually on the image
+	MonoFilterFunc safe;
 
-// Spatial Filters
-extern RGBAFilterFunc SAFE_RGBA_FILTERS[SF_COUNT];
-extern MonoFilterFunc SAFE_MONO_FILTERS[SF_COUNT];
+	// Assumes that x>0, y>0, x<width-1
+	MonoFilterFunc unsafe;
+};
 
-// Assume that x>0, y>0, x<width-1
-extern RGBAFilterFunc UNSAFE_RGBA_FILTERS[SF_COUNT];
-extern MonoFilterFunc UNSAFE_MONO_FILTERS[SF_COUNT];
+extern MonoFilterFuncs MONO_FILTERS[SF_COUNT];
 
 
 //// Color Filters
@@ -204,12 +215,16 @@ extern YUV2RGBFilterFunction YUV2RGB_FILTERS[];
 
 const char *GetColorFilterString(int cf);
 
+
 //// Residual Scores
 
-// Lookup table version of inline function GetResidualScore() below.
+// Lookup table version of inline function ResidualScore() below.
 extern const u8 RESIDUAL_SCORE[256];
 
-CAT_INLINE u8 GetResidualScore(u8 score) {
+CAT_INLINE u8 ResidualScore(u8 score) {
+#ifdef CAT_ISA_X86
+	return RESIDUAL_SCORE[score];
+#else
 	// If score is "positive",
 	if (score <= 128) {
 		// Note: 128 = worst score, 0 = best
@@ -218,6 +233,7 @@ CAT_INLINE u8 GetResidualScore(u8 score) {
 		// Wrap around: ABS(255) = ABS(-1) = 1, etc
 		return 256 - score;
 	}
+#endif
 }
 
 
