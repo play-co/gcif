@@ -31,88 +31,980 @@
 using namespace cat;
 
 
-//// Spatial Filters
-
 // Default zero
 static const u8 FPZ[3] = {0};
 
-static void SFF_Z(const u8 *p, const u8 **pred, int x, int y, int width) {
-	*pred = FPZ;
+
+//// Simple Spatial Filters
+
+static const u8 *SFF_A(const u8 *p, u8 *temp, int x, int y, int width) {
+	if (x > 0) {
+		return p - 4; // A
+	} else if (y > 0) {
+		return p - width*4; // B
+	}
+
+	return FPZ;
+}
+
+static const u8 *SFFU_A(const u8 *p, u8 *temp, int x, int y, int width) {
+	CAT_DEBUG_ENFORCE(x > 0);
+
+	return p - 4; // A
+}
+
+static const u8 *SFF_Z(const u8 *p, u8 *temp, int x, int y, int width) {
+	return FPZ;
 }
 
 #define SFFU_Z SFF_Z
 
-static void SFF_D(const u8 *p, const u8 **pred, int x, int y, int width) {
+static const u8 *SFF_B(const u8 *p, u8 *temp, int x, int y, int width) {
+	if (y > 0) {
+		return p - width*4; // B
+	} else if (x > 0) {
+		return p - 4; // A
+	}
+
+	return FPZ;
+}
+
+static const u8 *SFFU_B(const u8 *p, u8 *temp, int x, int y, int width) {
+	CAT_DEBUG_ENFORCE(y > 0);
+
+	return p - width*4; // B
+}
+
+static const u8 *SFF_C(const u8 *p, u8 *temp, int x, int y, int width) {
+	if (x > 0) {
+		if (y > 0) {
+			return p - width*4 - 4; // C
+		} else {
+			return p - 4; // A
+		}
+	} else if (y > 0) {
+		return p - width*4; // B
+	}
+
+	return FPZ;
+}
+
+static const u8 *SFFU_C(const u8 *p, u8 *temp, int x, int y, int width) {
+	CAT_DEBUG_ENFORCE(x > 0 && y > 0);
+
+	return p - width*4 - 4; // C
+}
+
+static const u8 *SFF_D(const u8 *p, u8 *temp, int x, int y, int width) {
 	if (y > 0) {
 		const u8 *fp = p - width*4; // B
 		if (x < width-1) {
 			fp += 4; // D
 		}
-		*pred = fp;
+		return fp;
 	} else if (x > 0) {
-		*pred = p - 4; // A
-	} else {
-		*pred = FPZ;
+		return p - 4; // A
 	}
+
+	return FPZ;
 }
 
-static void SFFU_D(const u8 *p, const u8 **pred, int x, int y, int width) {
+static const u8 *SFFU_D(const u8 *p, u8 *temp, int x, int y, int width) {
 	CAT_DEBUG_ENFORCE(y > 0 && x < width-1);
 
-	*pred = p - width*4 + 4; // D
+	return p - width*4 + 4; // D
 }
 
-static void SFF_C(const u8 *p, const u8 **pred, int x, int y, int width) {
-	if (x > 0) {
-		if (y > 0) {
-			*pred = p - width*4 - 4; // C
+
+//// Dual Average Filters (Round Down)
+
+static const u8 *SFF_AVG_AB(const u8 *p, u8 *temp, int x, int y, int width) {
+	if (y > 0) {
+		const u8 *b = p - width*4; // B
+
+		if (x > 0) {
+			const u8 *a = p - 4; // A
+
+			temp[0] = (a[0] + (u16)b[0]) >> 1;
+			temp[1] = (a[1] + (u16)b[1]) >> 1;
+			temp[2] = (a[2] + (u16)b[2]) >> 1;
+			return temp;
 		} else {
-			*pred = p - 4; // A
+			return b; // B
+		}
+	} else if (x > 0) {
+		return p - 4; // A
+	}
+
+	return FPZ;
+}
+
+static const u8 *SFFU_AVG_AB(const u8 *p, u8 *temp, int x, int y, int width) {
+	CAT_DEBUG_ENFORCE(x > 0 && y > 0 && x < width-1);
+
+	const u8 *a = p - 4; // A
+	const u8 *d = p - width*4 + 4; // D
+
+	temp[0] = (a[0] + (u16)d[0]) >> 1;
+	temp[1] = (a[1] + (u16)d[1]) >> 1;
+	temp[2] = (a[2] + (u16)d[2]) >> 1;
+	return temp;
+}
+
+static const u8 *SFF_AVG_AC(const u8 *p, u8 *temp, int x, int y, int width) {
+	if (y > 0) {
+		const u8 *b = p - width*4; // B
+
+		if (x > 0) {
+			const u8 *a = p - 4; // A
+			const u8 *c = b - 4; // C
+
+			temp[0] = (a[0] + (u16)c[0]) >> 1;
+			temp[1] = (a[1] + (u16)c[1]) >> 1;
+			temp[2] = (a[2] + (u16)c[2]) >> 1;
+		} else {
+			return b; // B
+		}
+	} else if (x > 0) {
+		return p - 4; // A
+	}
+
+	return FPZ;
+}
+
+static const u8 *SFFU_AVG_AC(const u8 *p, u8 *temp, int x, int y, int width) {
+	CAT_DEBUG_ENFORCE(x > 0 && y > 0 && x < width-1);
+
+	const u8 *a = p - 4; // A
+	const u8 *c = p - width*4 - 4; // C
+
+	temp[0] = (a[0] + (u16)c[0]) >> 1;
+	temp[1] = (a[1] + (u16)c[1]) >> 1;
+	temp[2] = (a[2] + (u16)c[2]) >> 1;
+	return temp;
+}
+
+static const u8 *SFF_AVG_AD(const u8 *p, u8 *temp, int x, int y, int width) {
+	if (y > 0) {
+		const u8 *src = p - width*4; // B
+
+		if (x > 0) {
+			const u8 *a = p - 4; // A
+			if (x < width-1) {
+				src += 4; // D
+			}
+
+			temp[0] = (a[0] + (u16)src[0]) >> 1;
+			temp[1] = (a[1] + (u16)src[1]) >> 1;
+			temp[2] = (a[2] + (u16)src[2]) >> 1;
+			return temp;
+		} else {
+			return src; // B
+		}
+	} else if (x > 0) {
+		return p - 4; // A
+	}
+
+	return FPZ;
+}
+
+static const u8 *SFFU_AVG_AD(const u8 *p, u8 *temp, int x, int y, int width) {
+	CAT_DEBUG_ENFORCE(x > 0 && y > 0 && x < width-1);
+
+	const u8 *a = p - 4; // A
+	const u8 *d = p - width*4 + 4; // D
+
+	temp[0] = (a[0] + (u16)d[0]) >> 1;
+	temp[1] = (a[1] + (u16)d[1]) >> 1;
+	temp[2] = (a[2] + (u16)d[2]) >> 1;
+}
+
+static const u8 *SFF_AVG_BC(const u8 *p, u8 *temp, int x, int y, int width) {
+	if (y > 0) {
+		const u8 *b = p - width*4; // B
+
+		if (x > 0) {
+			const u8 *c = b - 4; // C
+
+			temp[0] = (b[0] + (u16)c[0]) >> 1;
+			temp[1] = (b[1] + (u16)c[1]) >> 1;
+			temp[2] = (b[2] + (u16)c[2]) >> 1;
+			return temp;
+		} else {
+			return b; // B
+		}
+	} else if (x > 0) {
+		return p - 4; // A
+	} else {
+		return FPZ;
+	}
+}
+
+static const u8 *SFFU_AVG_BC(const u8 *p, u8 *temp, int x, int y, int width) {
+	CAT_DEBUG_ENFORCE(x > 0 && y > 0 && x < width-1);
+
+	const u8 *b = p - width*4; // B
+	const u8 *c = b - 4; // C
+
+	temp[0] = (b[0] + (u16)c[0]) >> 1;
+	temp[1] = (b[1] + (u16)c[1]) >> 1;
+	temp[2] = (b[2] + (u16)c[2]) >> 1;
+	return temp;
+}
+
+static const u8 *SFF_AVG_BD(const u8 *p, u8 *temp, int x, int y, int width) {
+	if (y > 0) {
+		const u8 *b = p - width*4; // B
+
+		if (x > 0) {
+			const u8 *src = p - 4; // C
+			if (x < width-1) {
+				src += 8; // D
+			}
+
+			temp[0] = (b[0] + (u16)src[0]) >> 1;
+			temp[1] = (b[1] + (u16)src[1]) >> 1;
+			temp[2] = (b[2] + (u16)src[2]) >> 1;
+			return temp;
+		} else {
+			return b; // B
+		}
+	} else if (x > 0) {
+		return p - 4; // A
+	}
+
+	return FPZ;
+}
+
+static const u8 *SFFU_AVG_BD(const u8 *p, u8 *temp, int x, int y, int width) {
+	CAT_DEBUG_ENFORCE(x > 0 && y > 0 && x < width-1);
+
+	const u8 *b = p - width*4; // B
+	const u8 *d = b + 4; // D
+
+	temp[0] = (b[0] + (u16)d[0]) >> 1;
+	temp[1] = (b[1] + (u16)d[1]) >> 1;
+	temp[2] = (b[2] + (u16)d[2]) >> 1;
+	return temp;
+}
+
+static const u8 *SFF_AVG_CD(const u8 *p, u8 *temp, int x, int y, int width) {
+	if (y > 0) {
+		const u8 *src = p - width*4; // B
+
+		if (x > 0) {
+			const u8 *c = src - 4; // C
+			if (x < width-1) {
+				src += 4; // D
+			}
+
+			temp[0] = (c[0] + (u16)src[0]) >> 1;
+			temp[1] = (c[1] + (u16)src[1]) >> 1;
+			temp[2] = (c[2] + (u16)src[2]) >> 1;
+			return temp;
+		} else {
+			return src; // B
+		}
+	} else if (x > 0) {
+		return p - 4; // A
+	}
+
+	return FPZ;
+}
+
+static const u8 *SFFU_AVG_CD(const u8 *p, u8 *temp, int x, int y, int width) {
+	CAT_DEBUG_ENFORCE(x > 0 && y > 0 && x < width-1);
+
+	const u8 *c = p - width*4 - 4; // C
+	const u8 *d = c + 8; // D
+
+	temp[0] = (c[0] + (u16)d[0]) >> 1;
+	temp[1] = (c[1] + (u16)d[1]) >> 1;
+	temp[2] = (c[2] + (u16)d[2]) >> 1;
+	return temp;
+}
+
+
+//// Dual Average Filters (Round Up)
+
+static const u8 *SFF_AVG_AB1(const u8 *p, u8 *temp, int x, int y, int width) {
+	if (y > 0) {
+		const u8 *b = p - width*4; // B
+
+		if (x > 0) {
+			const u8 *a = p - 4; // A
+
+			temp[0] = (a[0] + (u16)b[0] + 1) >> 1;
+			temp[1] = (a[1] + (u16)b[1] + 1) >> 1;
+			temp[2] = (a[2] + (u16)b[2] + 1) >> 1;
+			return temp;
+		} else {
+			return b; // B
+		}
+	} else if (x > 0) {
+		return p - 4; // A
+	}
+
+	return FPZ;
+}
+
+static const u8 *SFFU_AVG_AB1(const u8 *p, u8 *temp, int x, int y, int width) {
+	CAT_DEBUG_ENFORCE(x > 0 && y > 0 && x < width-1);
+
+	const u8 *a = p - 4; // A
+	const u8 *d = p - width*4 + 4; // D
+
+	temp[0] = (a[0] + (u16)d[0] + 1) >> 1;
+	temp[1] = (a[1] + (u16)d[1] + 1) >> 1;
+	temp[2] = (a[2] + (u16)d[2] + 1) >> 1;
+	return temp;
+}
+
+static const u8 *SFF_AVG_AC1(const u8 *p, u8 *temp, int x, int y, int width) {
+	if (y > 0) {
+		const u8 *b = p - width*4; // B
+
+		if (x > 0) {
+			const u8 *a = p - 4; // A
+			const u8 *c = b - 4; // C
+
+			temp[0] = (a[0] + (u16)c[0] + 1) >> 1;
+			temp[1] = (a[1] + (u16)c[1] + 1) >> 1;
+			temp[2] = (a[2] + (u16)c[2] + 1) >> 1;
+			return temp;
+		} else {
+			return b; // B
+		}
+	} else if (x > 0) {
+		return p - 4; // A
+	}
+
+	return FPZ;
+}
+
+static const u8 *SFFU_AVG_AC1(const u8 *p, u8 *temp, int x, int y, int width) {
+	CAT_DEBUG_ENFORCE(x > 0 && y > 0 && x < width-1);
+
+	const u8 *a = p - 4; // A
+	const u8 *c = p - width*4 - 4; // C
+
+	temp[0] = (a[0] + (u16)c[0] + 1) >> 1;
+	temp[1] = (a[1] + (u16)c[1] + 1) >> 1;
+	temp[2] = (a[2] + (u16)c[2] + 1) >> 1;
+	return temp;
+}
+
+static const u8 *SFF_AVG_AD1(const u8 *p, u8 *temp, int x, int y, int width) {
+	if (y > 0) {
+		const u8 *src = p - width*4; // B
+
+		if (x > 0) {
+			const u8 *a = p - 4; // A
+			if (x < width-1) {
+				src += 4; // D
+			}
+
+			temp[0] = (a[0] + (u16)src[0] + 1) >> 1;
+			temp[1] = (a[1] + (u16)src[1] + 1) >> 1;
+			temp[2] = (a[2] + (u16)src[2] + 1) >> 1;
+			return temp;
+		} else {
+			return src; // B
+		}
+	} else if (x > 0) {
+		return p - 4; // A
+	}
+
+	return FPZ;
+}
+
+static const u8 *SFFU_AVG_AD1(const u8 *p, u8 *temp, int x, int y, int width) {
+	CAT_DEBUG_ENFORCE(x > 0 && y > 0 && x < width-1);
+
+	const u8 *a = p - 4; // A
+	const u8 *d = p - width*4 + 4; // D
+
+	temp[0] = (a[0] + (u16)d[0] + 1) >> 1;
+	temp[1] = (a[1] + (u16)d[1] + 1) >> 1;
+	temp[2] = (a[2] + (u16)d[2] + 1) >> 1;
+	return temp;
+}
+
+static const u8 *SFF_AVG_BC1(const u8 *p, u8 *temp, int x, int y, int width) {
+	if (y > 0) {
+		const u8 *b = p - width*4; // B
+
+		if (x > 0) {
+			const u8 *c = b - 4; // C
+
+			temp[0] = (b[0] + (u16)c[0] + 1) >> 1;
+			temp[1] = (b[1] + (u16)c[1] + 1) >> 1;
+			temp[2] = (b[2] + (u16)c[2] + 1) >> 1;
+			return temp;
+		} else {
+			return b; // B
+		}
+	} else if (x > 0) {
+		return p - 4; // A
+	}
+
+	return FPZ;
+}
+
+static const u8 *SFFU_AVG_BC1(const u8 *p, u8 *temp, int x, int y, int width) {
+	CAT_DEBUG_ENFORCE(x > 0 && y > 0 && x < width-1);
+
+	const u8 *b = p - width*4; // B
+	const u8 *c = b - 4; // C
+
+	temp[0] = (b[0] + (u16)c[0] + 1) >> 1;
+	temp[1] = (b[1] + (u16)c[1] + 1) >> 1;
+	temp[2] = (b[2] + (u16)c[2] + 1) >> 1;
+	return temp;
+}
+
+static const u8 *SFF_AVG_BD1(const u8 *p, u8 *temp, int x, int y, int width) {
+	if (y > 0) {
+		const u8 *b = p - width*4; // B
+
+		if (x > 0) {
+			const u8 *src = p - 4; // C
+			if (x < width-1) {
+				src += 8; // D
+			}
+
+			temp[0] = (b[0] + (u16)src[0] + 1) >> 1;
+			temp[1] = (b[1] + (u16)src[1] + 1) >> 1;
+			temp[2] = (b[2] + (u16)src[2] + 1) >> 1;
+			return temp;
+		} else {
+			return b; // B
+		}
+	} else if (x > 0) {
+		return p - 4; // A
+	}
+
+	return FPZ;
+}
+
+static const u8 *SFFU_AVG_BD1(const u8 *p, u8 *temp, int x, int y, int width) {
+	CAT_DEBUG_ENFORCE(x > 0 && y > 0 && x < width-1);
+
+	const u8 *b = p - width*4; // B
+	const u8 *d = b + 4; // D
+
+	temp[0] = (b[0] + (u16)d[0] + 1) >> 1;
+	temp[1] = (b[1] + (u16)d[1] + 1) >> 1;
+	temp[2] = (b[2] + (u16)d[2] + 1) >> 1;
+	return temp;
+}
+
+static const u8 *SFF_AVG_CD1(const u8 *p, u8 *temp, int x, int y, int width) {
+	if (y > 0) {
+		const u8 *src = p - width*4; // B
+
+		if (x > 0) {
+			const u8 *c = src - 4; // C
+			if (x < width-1) {
+				src += 4; // D
+			}
+
+			temp[0] = (c[0] + (u16)src[0] + 1) >> 1;
+			temp[1] = (c[1] + (u16)src[1] + 1) >> 1;
+			temp[2] = (c[2] + (u16)src[2] + 1) >> 1;
+			return temp;
+		} else {
+			return src; // B
+		}
+	} else if (x > 0) {
+		return p - 4; // A
+	}
+
+	return FPZ;
+}
+
+static const u8 *SFFU_AVG_CD1(const u8 *p, u8 *temp, int x, int y, int width) {
+	CAT_DEBUG_ENFORCE(x > 0 && y > 0 && x < width-1);
+
+	const u8 *c = p - width*4 - 4; // C
+	const u8 *d = c + 8; // D
+
+	temp[0] = (c[0] + (u16)d[0] + 1) >> 1;
+	temp[1] = (c[1] + (u16)d[1] + 1) >> 1;
+	temp[2] = (c[2] + (u16)d[2] + 1) >> 1;
+	return temp;
+}
+
+
+//// Triple Average Filters (Round Down)
+
+static const u8 *SFF_ABC(const u8 *p, u8 *temp, int x, int y, int width) {
+	if (x > 0) {
+		const u8 *a = p - 4; // A
+
+		if (y > 0) {
+			const u8 *b = p - width*4; // B
+			const u8 *c = b - 4; // C
+
+			temp[0] = (a[0] + (u16)b[0] + c[0]) / 3;
+			temp[1] = (a[1] + (u16)b[1] + c[1]) / 3;
+			temp[2] = (a[2] + (u16)b[2] + c[2]) / 3;
+			return temp;
+		} else {
+			return a;
 		}
 	} else if (y > 0) {
-		*pred = p - width*4; // B
-	} else {
-		*pred = FPZ;
+		return p - width*4; // B
 	}
+
+	return FPZ;
 }
 
-static void SFFU_C(const u8 *p, const u8 **pred, int x, int y, int width) {
-	CAT_DEBUG_ENFORCE(x > 0 && y > 0);
+static const u8 *SFFU_ABC(const u8 *p, u8 *temp, int x, int y, int width) {
+	CAT_DEBUG_ENFORCE(x > 0 && y > 0 && x < width-1);
 
-	*pred = p - width*4 - 4; // C
+	const u8 *a = p - 4; // A
+	const u8 *b = p - width*4; // B
+	const u8 *c = b - 4; // C
+
+	temp[0] = (a[0] + (u16)b[0] + c[0]) / 3;
+	temp[1] = (a[1] + (u16)b[1] + c[1]) / 3;
+	temp[2] = (a[2] + (u16)b[2] + c[2]) / 3;
+	return temp;
 }
 
-static void SFF_B(const u8 *p, const u8 **pred, int x, int y, int width) {
-	if (y > 0) {
-		*pred = p - width*4; // B
-	} else if (x > 0) {
-		*pred = p - 4; // A
-	} else {
-		*pred = FPZ;
-	}
-}
-
-static void SFFU_B(const u8 *p, const u8 **pred, int x, int y, int width) {
-	CAT_DEBUG_ENFORCE(y > 0);
-
-	*pred = p - width*4; // B
-}
-
-static void SFF_A(const u8 *p, const u8 **pred, int x, int y, int width) {
+static const u8 *SFF_ACD(const u8 *p, u8 *temp, int x, int y, int width) {
 	if (x > 0) {
-		*pred = p - 4; // A
+		const u8 *a = p - 4; // A
+
+		if (y > 0) {
+			const u8 *b = p - width*4; // B
+			const u8 *c = b - 4; // C
+
+			const u8 *src = b; // B
+			if (x < width-1) {
+				src += 4; // D
+			}
+
+			temp[0] = (a[0] + (u16)c[0] + src[0]) / 3;
+			temp[1] = (a[1] + (u16)c[1] + src[1]) / 3;
+			temp[2] = (a[2] + (u16)c[2] + src[2]) / 3;
+			return temp;
+		} else {
+			return a;
+		}
 	} else if (y > 0) {
-		*pred = p - width*4; // B
-	} else {
-		*pred = FPZ;
+		const u8 *src = p - width*4; // B
+		if CAT_LIKELY(x < width-1) {
+			src += 4; // D
+		}
+
+		return src;
 	}
+
+	return FPZ;
 }
 
-static void SFFU_A(const u8 *p, const u8 **pred, int x, int y, int width) {
-	CAT_DEBUG_ENFORCE(x > 0);
+static const u8 *SFFU_ACD(const u8 *p, u8 *temp, int x, int y, int width) {
+	CAT_DEBUG_ENFORCE(x > 0 && y > 0 && x < width-1);
 
-	*pred = p - 4; // A
+	const u8 *a = p - 4; // A
+	const u8 *b = p - width*4; // B
+	const u8 *c = b - 4; // C
+	const u8 *d = b + 4; // D
+
+	temp[0] = (a[0] + (u16)c[0] + d[0]) / 3;
+	temp[1] = (a[1] + (u16)c[1] + d[1]) / 3;
+	temp[2] = (a[2] + (u16)c[2] + d[2]) / 3;
+	return temp;
 }
+
+static const u8 *SFF_ABD(const u8 *p, u8 *temp, int x, int y, int width) {
+	if (x > 0) {
+		const u8 *a = p - 4; // A
+
+		if (y > 0) {
+			const u8 *b = p - width*4; // B
+
+			const u8 *src = b; // B
+			if (x < width-1) {
+				src += 4; // D
+			}
+
+			temp[0] = (a[0] + (u16)b[0] + src[0]) / 3;
+			temp[1] = (a[1] + (u16)b[1] + src[1]) / 3;
+			temp[2] = (a[2] + (u16)b[2] + src[2]) / 3;
+			return temp;
+		} else {
+			return a;
+		}
+	} else if (y > 0) {
+		const u8 *b = p - width*4; // B
+		const u8 *d = b; // D
+		if CAT_LIKELY(x < width-1) {
+			b += 4;
+		}
+
+		temp[0] = (b[0] + (u16)d[0]) >> 1;
+		temp[1] = (b[1] + (u16)d[1]) >> 1;
+		temp[2] = (b[2] + (u16)d[2]) >> 1;
+		return temp;
+	}
+
+	return FPZ;
+}
+
+static const u8 *SFFU_ABD(const u8 *p, u8 *temp, int x, int y, int width) {
+	CAT_DEBUG_ENFORCE(x > 0 && y > 0 && x < width-1);
+
+	const u8 *a = p - 4; // A
+	const u8 *b = p - width*4; // B
+	const u8 *d = b + 4; // D
+
+	temp[0] = (a[0] + (u16)b[0] + d[0]) / 3;
+	temp[1] = (a[1] + (u16)b[1] + d[1]) / 3;
+	temp[2] = (a[2] + (u16)b[2] + d[2]) / 3;
+	return temp;
+}
+
+static const u8 *SFF_BCD(const u8 *p, u8 *temp, int x, int y, int width) {
+	if (x > 0) {
+		const u8 *a = p - 4; // A
+
+		if (y > 0) {
+			const u8 *b = p - width*4; // B
+			const u8 *c = b - 4; // C
+
+			const u8 *src = b; // B
+			if (x < width-1) {
+				src += 4; // D
+			}
+
+			temp[0] = (b[0] + (u16)c[0] + src[0]) / 3;
+			temp[1] = (b[1] + (u16)c[1] + src[1]) / 3;
+			temp[2] = (b[2] + (u16)c[2] + src[2]) / 3;
+			return temp;
+		} else {
+			return a;
+		}
+	} else if (y > 0) {
+		const u8 *b = p - width*4; // B
+		const u8 *d = b; // D
+		if CAT_LIKELY(x < width-1) {
+			b += 4;
+		}
+
+		temp[0] = (b[0] + (u16)d[0]) >> 1;
+		temp[1] = (b[1] + (u16)d[1]) >> 1;
+		temp[2] = (b[2] + (u16)d[2]) >> 1;
+		return temp;
+	}
+
+	return FPZ;
+}
+
+static const u8 *SFFU_BCD(const u8 *p, u8 *temp, int x, int y, int width) {
+	CAT_DEBUG_ENFORCE(x > 0 && y > 0 && x < width-1);
+
+	const u8 *b = p - width*4; // B
+	const u8 *c = b - 4; // C
+	const u8 *d = b + 4; // D
+
+	temp[0] = (b[0] + (u16)c[0] + d[0]) / 3;
+	temp[1] = (b[1] + (u16)c[1] + d[1]) / 3;
+	temp[2] = (b[2] + (u16)c[2] + d[2]) / 3;
+	return temp;
+}
+
+
+//// Triple Average Filters (Round Up)
+
+static const u8 *SFF_ABC1(const u8 *p, u8 *temp, int x, int y, int width) {
+	if (x > 0) {
+		const u8 *a = p - 4; // A
+
+		if (y > 0) {
+			const u8 *b = p - width*4; // B
+			const u8 *c = b - 4; // C
+
+			temp[0] = (a[0] + (u16)b[0] + c[0] + 2) / 3;
+			temp[1] = (a[1] + (u16)b[1] + c[1] + 2) / 3;
+			temp[2] = (a[2] + (u16)b[2] + c[2] + 2) / 3;
+			return temp;
+		} else {
+			return a;
+		}
+	} else if (y > 0) {
+		return p - width*4; // B
+	}
+
+	return FPZ;
+}
+
+static const u8 *SFFU_ABC1(const u8 *p, u8 *temp, int x, int y, int width) {
+	CAT_DEBUG_ENFORCE(x > 0 && y > 0 && x < width-1);
+
+	const u8 *a = p - 4; // A
+	const u8 *b = p - width*4; // B
+	const u8 *c = b - 4; // C
+
+	temp[0] = (a[0] + (u16)b[0] + c[0] + 2) / 3;
+	temp[1] = (a[1] + (u16)b[1] + c[1] + 2) / 3;
+	temp[2] = (a[2] + (u16)b[2] + c[2] + 2) / 3;
+	return temp;
+}
+
+static const u8 *SFF_ACD1(const u8 *p, u8 *temp, int x, int y, int width) {
+	if (x > 0) {
+		const u8 *a = p - 4; // A
+
+		if (y > 0) {
+			const u8 *b = p - width*4; // B
+			const u8 *c = b - 4; // C
+
+			const u8 *src = b; // B
+			if (x < width-1) {
+				src += 4; // D
+			}
+
+			temp[0] = (a[0] + (u16)c[0] + src[0] + 2) / 3;
+			temp[1] = (a[1] + (u16)c[1] + src[1] + 2) / 3;
+			temp[2] = (a[2] + (u16)c[2] + src[2] + 2) / 3;
+			return temp;
+		} else {
+			return a;
+		}
+	} else if (y > 0) {
+		const u8 *src = p - width*4; // B
+		if CAT_LIKELY(x < width-1) {
+			src += 4; // D
+		}
+
+		return src;
+	}
+
+	return FPZ;
+}
+
+static const u8 *SFFU_ACD1(const u8 *p, u8 *temp, int x, int y, int width) {
+	CAT_DEBUG_ENFORCE(x > 0 && y > 0 && x < width-1);
+
+	const u8 *a = p - 4; // A
+	const u8 *b = p - width*4; // B
+	const u8 *c = b - 4; // C
+	const u8 *d = b + 4; // D
+
+	temp[0] = (a[0] + (u16)c[0] + d[0] + 2) / 3;
+	temp[1] = (a[1] + (u16)c[1] + d[1] + 2) / 3;
+	temp[2] = (a[2] + (u16)c[2] + d[2] + 2) / 3;
+	return temp;
+}
+
+static const u8 *SFF_ABD1(const u8 *p, u8 *temp, int x, int y, int width) {
+	if (x > 0) {
+		const u8 *a = p - 4; // A
+
+		if (y > 0) {
+			const u8 *b = p - width*4; // B
+
+			const u8 *src = b; // B
+			if (x < width-1) {
+				src += 4; // D
+			}
+
+			temp[0] = (a[0] + (u16)b[0] + src[0] + 2) / 3;
+			temp[1] = (a[1] + (u16)b[1] + src[1] + 2) / 3;
+			temp[2] = (a[2] + (u16)b[2] + src[2] + 2) / 3;
+			return temp;
+		} else {
+			return a;
+		}
+	} else if (y > 0) {
+		const u8 *b = p - width*4; // B
+		const u8 *d = b; // D
+		if CAT_LIKELY(x < width-1) {
+			b += 4;
+		}
+
+		temp[0] = (b[0] + (u16)d[0] + 1) >> 1;
+		temp[1] = (b[1] + (u16)d[1] + 1) >> 1;
+		temp[2] = (b[2] + (u16)d[2] + 1) >> 1;
+		return temp;
+	}
+
+	return FPZ;
+}
+
+static const u8 *SFFU_ABD1(const u8 *p, u8 *temp, int x, int y, int width) {
+	CAT_DEBUG_ENFORCE(x > 0 && y > 0 && x < width-1);
+
+	const u8 *a = p - 4; // A
+	const u8 *b = p - width*4; // B
+	const u8 *d = b + 4; // D
+
+	temp[0] = (a[0] + (u16)b[0] + d[0] + 2) / 3;
+	temp[1] = (a[1] + (u16)b[1] + d[1] + 2) / 3;
+	temp[2] = (a[2] + (u16)b[2] + d[2] + 2) / 3;
+	return temp;
+}
+
+static const u8 *SFF_BCD1(const u8 *p, u8 *temp, int x, int y, int width) {
+	if (x > 0) {
+		const u8 *a = p - 4; // A
+
+		if (y > 0) {
+			const u8 *b = p - width*4; // B
+			const u8 *c = b - 4; // C
+
+			const u8 *src = b; // B
+			if (x < width-1) {
+				src += 4; // D
+			}
+
+			temp[0] = (b[0] + (u16)c[0] + src[0] + 2) / 3;
+			temp[1] = (b[1] + (u16)c[1] + src[1] + 2) / 3;
+			temp[2] = (b[2] + (u16)c[2] + src[2] + 2) / 3;
+			return temp;
+		} else {
+			return a;
+		}
+	} else if (y > 0) {
+		const u8 *b = p - width*4; // B
+		const u8 *d = b; // D
+		if CAT_LIKELY(x < width-1) {
+			b += 4;
+		}
+
+		temp[0] = (b[0] + (u16)d[0] + 1) >> 1;
+		temp[1] = (b[1] + (u16)d[1] + 1) >> 1;
+		temp[2] = (b[2] + (u16)d[2] + 1) >> 1;
+		return temp;
+	}
+
+	return FPZ;
+}
+
+static const u8 *SFFU_BCD1(const u8 *p, u8 *temp, int x, int y, int width) {
+	CAT_DEBUG_ENFORCE(x > 0 && y > 0 && x < width-1);
+
+	const u8 *b = p - width*4; // B
+	const u8 *c = b - 4; // C
+	const u8 *d = b + 4; // D
+
+	temp[0] = (b[0] + (u16)c[0] + d[0] + 2) / 3;
+	temp[1] = (b[1] + (u16)c[1] + d[1] + 2) / 3;
+	temp[2] = (b[2] + (u16)c[2] + d[2] + 2) / 3;
+	return temp;
+}
+
+
+//// Quad Average Filters (Round Down)
+
+static const u8 *SFF_ABCD(const u8 *p, u8 *temp, int x, int y, int width) {
+	if (x > 0) {
+		const u8 *a = p - 4; // A
+
+		if (y > 0) {
+			const u8 *b = p - width*4; // B
+			const u8 *c = b - 4; // C
+
+			const u8 *src = b; // B
+			if (x < width-1) {
+				src += 4; // D
+			}
+
+			temp[0] = (a[0] + (int)b[0] + c[0] + (int)src[0]) >> 2;
+			temp[1] = (a[1] + (int)b[1] + c[1] + (int)src[1]) >> 2;
+			temp[2] = (a[2] + (int)b[2] + c[2] + (int)src[2]) >> 2;
+			return temp;
+		} else {
+			return a;
+		}
+	} else if (y > 0) {
+		const u8 *b = p - width*4; // B
+		const u8 *d = b; // D
+		if CAT_LIKELY(x < width-1) {
+			b += 4;
+		}
+
+		temp[0] = (b[0] + (u16)d[0]) >> 1;
+		temp[1] = (b[1] + (u16)d[1]) >> 1;
+		temp[2] = (b[2] + (u16)d[2]) >> 1;
+		return temp;
+	}
+
+	return FPZ;
+}
+
+static const u8 *SFFU_ABCD(const u8 *p, u8 *temp, int x, int y, int width) {
+	CAT_DEBUG_ENFORCE(x > 0 && y > 0 && x < width-1);
+
+	const u8 *a = p - 4; // A
+	const u8 *b = p - width*4; // B
+	const u8 *c = b - 4; // C
+	const u8 *d = b + 4; // D
+
+	temp[0] = (a[0] + (int)b[0] + c[0] + (int)d[0]) >> 2;
+	temp[1] = (a[1] + (int)b[1] + c[1] + (int)d[1]) >> 2;
+	temp[2] = (a[2] + (int)b[2] + c[2] + (int)d[2]) >> 2;
+	return temp;
+}
+
+
+//// Quad Average Filters (Round Up)
+
+static const u8 *SFF_ABCD1(const u8 *p, u8 *temp, int x, int y, int width) {
+	if (x > 0) {
+		const u8 *a = p - 4; // A
+
+		if (y > 0) {
+			const u8 *b = p - width*4; // B
+			const u8 *c = b - 4; // C
+
+			const u8 *src = b; // B
+			if (x < width-1) {
+				src += 4; // D
+			}
+
+			temp[0] = (a[0] + (int)b[0] + c[0] + (int)src[0] + 2) >> 2;
+			temp[1] = (a[1] + (int)b[1] + c[1] + (int)src[1] + 2) >> 2;
+			temp[2] = (a[2] + (int)b[2] + c[2] + (int)src[2] + 2) >> 2;
+			return temp;
+		} else {
+			return a;
+		}
+	} else if (y > 0) {
+		const u8 *b = p - width*4; // B
+		const u8 *d = b; // D
+		if CAT_LIKELY(x < width-1) {
+			b += 4;
+		}
+
+		temp[0] = (b[0] + (u16)d[0] + 1) >> 1;
+		temp[1] = (b[1] + (u16)d[1] + 1) >> 1;
+		temp[2] = (b[2] + (u16)d[2] + 1) >> 1;
+		return temp;
+	}
+
+	return FPZ;
+}
+
+static const u8 *SFFU_ABCD1(const u8 *p, u8 *temp, int x, int y, int width) {
+	CAT_DEBUG_ENFORCE(x > 0 && y > 0 && x < width-1);
+
+	const u8 *a = p - 4; // A
+	const u8 *b = p - width*4; // B
+	const u8 *c = b - 4; // C
+	const u8 *d = b + 4; // D
+
+	temp[0] = (a[0] + (int)b[0] + c[0] + (int)d[0] + 2) >> 2;
+	temp[1] = (a[1] + (int)b[1] + c[1] + (int)d[1] + 2) >> 2;
+	temp[2] = (a[2] + (int)b[2] + c[2] + (int)d[2] + 2) >> 2;
+	return temp;
+}
+
+
+//// ClampedGradPredictor Filter
 
 static CAT_INLINE u8 abcClamp(int a, int b, int c) {
 	int sum = a + b - c;
@@ -125,7 +1017,7 @@ static CAT_INLINE u8 abcClamp(int a, int b, int c) {
 	}
 }
 
-static void SFF_ABC_CLAMP(const u8 *p, const u8 **pred, int x, int y, int width) {
+static const u8 *SFF_ABC_CLAMP(const u8 *p, u8 *temp, int x, int y, int width) {
 	if (x > 0) {
 		const u8 *a = p - 4; // A
 
@@ -133,32 +1025,35 @@ static void SFF_ABC_CLAMP(const u8 *p, const u8 **pred, int x, int y, int width)
 			const u8 *b = p - width*4; // B
 			const u8 *c = b - 4; // C
 
-			u8 *FPT = (u8*)*pred;
-			FPT[0] = abcClamp(a[0], b[0], c[0]);
-			FPT[1] = abcClamp(a[1], b[1], c[1]);
-			FPT[2] = abcClamp(a[2], b[2], c[2]);
+			temp[0] = abcClamp(a[0], b[0], c[0]);
+			temp[1] = abcClamp(a[1], b[1], c[1]);
+			temp[2] = abcClamp(a[2], b[2], c[2]);
+			return temp;
 		} else {
-			*pred = a;
+			return a;
 		}
 	} else if (y > 0) {
-		*pred = p - width*4; // B
-	} else {
-		*pred = FPZ;
+		return p - width*4; // B
 	}
+
+	return FPZ;
 }
 
-static void SFFU_ABC_CLAMP(const u8 *p, const u8 **pred, int x, int y, int width) {
+static const u8 *SFFU_ABC_CLAMP(const u8 *p, u8 *temp, int x, int y, int width) {
 	CAT_DEBUG_ENFORCE(x > 0 && y > 0);
 
 	const u8 *a = p - 4; // A
 	const u8 *b = p - width*4; // B
 	const u8 *c = b - 4; // C
 
-	u8 *FPT = (u8*)*pred;
-	FPT[0] = abcClamp(a[0], b[0], c[0]);
-	FPT[1] = abcClamp(a[1], b[1], c[1]);
-	FPT[2] = abcClamp(a[2], b[2], c[2]);
+	temp[0] = abcClamp(a[0], b[0], c[0]);
+	temp[1] = abcClamp(a[1], b[1], c[1]);
+	temp[2] = abcClamp(a[2], b[2], c[2]);
+	return temp;
 }
+
+
+//// Paeth Filter
 
 static CAT_INLINE u8 paeth(int a, int b, int c) {
 	// Paeth filter
@@ -176,7 +1071,7 @@ static CAT_INLINE u8 paeth(int a, int b, int c) {
 	}
 }
 
-static void SFF_PAETH(const u8 *p, const u8 **pred, int x, int y, int width) {
+static const u8 *SFF_PAETH(const u8 *p, u8 *temp, int x, int y, int width) {
 	if (x > 0) {
 		const u8 *a = p - 4; // A
 
@@ -184,32 +1079,35 @@ static void SFF_PAETH(const u8 *p, const u8 **pred, int x, int y, int width) {
 			const u8 *b = p - width*4; // B
 			const u8 *c = b - 4; // C
 
-			u8 *FPT = (u8*)*pred;
-			FPT[0] = paeth(a[0], b[0], c[0]);
-			FPT[1] = paeth(a[1], b[1], c[1]);
-			FPT[2] = paeth(a[2], b[2], c[2]);
+			temp[0] = paeth(a[0], b[0], c[0]);
+			temp[1] = paeth(a[1], b[1], c[1]);
+			temp[2] = paeth(a[2], b[2], c[2]);
+			return temp;
 		} else {
-			*pred = a;
+			return a;
 		}
 	} else if (y > 0) {
-		*pred = p - width*4; // B
-	} else {
-		*pred = FPZ;
+		return p - width*4; // B
 	}
+
+	return FPZ;
 }
 
-static void SFFU_PAETH(const u8 *p, const u8 **pred, int x, int y, int width) {
+static const u8 *SFFU_PAETH(const u8 *p, u8 *temp, int x, int y, int width) {
 	CAT_DEBUG_ENFORCE(x > 0 && y > 0);
 
 	const u8 *a = p - 4; // A
 	const u8 *b = p - width*4; // B
 	const u8 *c = b - 4; // C
 
-	u8 *FPT = (u8*)*pred;
-	FPT[0] = paeth(a[0], b[0], c[0]);
-	FPT[1] = paeth(a[1], b[1], c[1]);
-	FPT[2] = paeth(a[2], b[2], c[2]);
+	temp[0] = paeth(a[0], b[0], c[0]);
+	temp[1] = paeth(a[1], b[1], c[1]);
+	temp[2] = paeth(a[2], b[2], c[2]);
+	return temp;
 }
+
+
+//// ABC Paeth Filter
 
 static CAT_INLINE u8 abc_paeth(int a, int b, int c) {
 	// Paeth filter with modifications from BCIF
@@ -231,7 +1129,7 @@ static CAT_INLINE u8 abc_paeth(int a, int b, int c) {
 	}
 }
 
-static void SFF_ABC_PAETH(const u8 *p, const u8 **pred, int x, int y, int width) {
+static const u8 *SFF_ABC_PAETH(const u8 *p, u8 *temp, int x, int y, int width) {
 	if (x > 0) {
 		const u8 *a = p - 4; // A
 
@@ -239,32 +1137,34 @@ static void SFF_ABC_PAETH(const u8 *p, const u8 **pred, int x, int y, int width)
 			const u8 *b = p - width*4; // B
 			const u8 *c = b - 4; // C
 
-			u8 *FPT = (u8*)*pred;
-			FPT[0] = abc_paeth(a[0], b[0], c[0]);
-			FPT[1] = abc_paeth(a[1], b[1], c[1]);
-			FPT[2] = abc_paeth(a[2], b[2], c[2]);
+			temp[0] = abc_paeth(a[0], b[0], c[0]);
+			temp[1] = abc_paeth(a[1], b[1], c[1]);
+			temp[2] = abc_paeth(a[2], b[2], c[2]);
+			return temp;
 		} else {
-			*pred = a;
+			return a;
 		}
 	} else if (y > 0) {
-		*pred = p - width*4; // B
-	} else {
-		*pred = FPZ;
+		return p - width*4; // B
 	}
+
+	return FPZ;
 }
 
-static void SFFU_ABC_PAETH(const u8 *p, const u8 **pred, int x, int y, int width) {
+static const u8 *SFFU_ABC_PAETH(const u8 *p, u8 *temp, int x, int y, int width) {
 	CAT_DEBUG_ENFORCE(x > 0 && y > 0);
 
 	const u8 *a = p - 4; // A
 	const u8 *b = p - width*4; // B
 	const u8 *c = b - 4; // C
 
-	u8 *FPT = (u8*)*pred;
-	FPT[0] = abc_paeth(a[0], b[0], c[0]);
-	FPT[1] = abc_paeth(a[1], b[1], c[1]);
-	FPT[2] = abc_paeth(a[2], b[2], c[2]);
+	temp[0] = abc_paeth(a[0], b[0], c[0]);
+	temp[1] = abc_paeth(a[1], b[1], c[1]);
+	temp[2] = abc_paeth(a[2], b[2], c[2]);
+	return temp;
 }
+
+//// PL Filter
 
 static CAT_INLINE u8 predLevel(int a, int b, int c) {
 	if (c >= a && c >= b) {
@@ -284,7 +1184,7 @@ static CAT_INLINE u8 predLevel(int a, int b, int c) {
 	}
 }
 
-static void SFF_PLO(const u8 *p, const u8 **pred, int x, int y, int width) {
+static const u8 *SFF_PLO(const u8 *p, u8 *temp, int x, int y, int width) {
 	if (x > 0) {
 		const u8 *a = p - 4; // A
 
@@ -296,32 +1196,85 @@ static void SFF_PLO(const u8 *p, const u8 **pred, int x, int y, int width) {
 				src += 4; // D
 			}
 
-			u8 *FPT = (u8*)*pred;
-			FPT[0] = predLevel(a[0], src[0], b[0]);
-			FPT[1] = predLevel(a[1], src[1], b[1]);
-			FPT[2] = predLevel(a[2], src[2], b[2]);
+			temp[0] = predLevel(a[0], src[0], b[0]);
+			temp[1] = predLevel(a[1], src[1], b[1]);
+			temp[2] = predLevel(a[2], src[2], b[2]);
+			return temp;
 		} else {
-			*pred = a;
+			return a;
 		}
 	} else if (y > 0) {
-		*pred = p - width*4; // B
-	} else {
-		*pred = FPZ;
+		return p - width*4; // B
 	}
+
+	return FPZ;
 }
 
-static void SFFU_PLO(const u8 *p, const u8 **pred, int x, int y, int width) {
+static const u8 *SFFU_PLO(const u8 *p, u8 *temp, int x, int y, int width) {
 	CAT_DEBUG_ENFORCE(x > 0 && y > 0 && x < width-1);
 
 	const u8 *a = p - 4; // A
 	const u8 *b = p - width*4; // B
 	const u8 *src = b + 4; // D
 
-	u8 *FPT = (u8*)*pred;
-	FPT[0] = predLevel(a[0], src[0], b[0]);
-	FPT[1] = predLevel(a[1], src[1], b[1]);
-	FPT[2] = predLevel(a[2], src[2], b[2]);
+	temp[0] = predLevel(a[0], src[0], b[0]);
+	temp[1] = predLevel(a[1], src[1], b[1]);
+	temp[2] = predLevel(a[2], src[2], b[2]);
+	return temp;
 }
+
+
+//// Select Filter
+
+static CAT_INLINE u8 predSelect(int a, int b, int c) {
+	// Prediction for current pixel
+	int pred = a + b - c;
+
+	// Pick closer distance, preferring A
+	if (AbsVal(pred - a) <= AbsVal(pred - b)) {
+		return a;
+	} else {
+		return b;
+	}
+}
+
+static const u8 *SFF_SELECT(const u8 *p, u8 *temp, int x, int y, int width) {
+	if (x > 0) {
+		const u8 *a = p - 4; // A
+
+		if (y > 0) {
+			const u8 *b = p - width*4; // B
+			const u8 *c = b - 4; // C
+
+			temp[0] = predSelect(a[0], b[0], c[0]);
+			temp[1] = predSelect(a[1], b[1], c[1]);
+			temp[2] = predSelect(a[2], b[2], c[2]);
+			return temp;
+		} else {
+			return a;
+		}
+	} else if (y > 0) {
+		return p - width*4; // B
+	}
+
+	return FPZ;
+}
+
+static const u8 *SFFU_SELECT(const u8 *p, u8 *temp, int x, int y, int width) {
+	CAT_DEBUG_ENFORCE(x > 0 && y > 0 && x < width-1);
+
+	const u8 *a = p - 4; // A
+	const u8 *b = p - width*4; // B
+	const u8 *c = b - 4; // C
+
+	temp[0] = predSelect(a[0], b[0], c[0]);
+	temp[1] = predSelect(a[1], b[1], c[1]);
+	temp[2] = predSelect(a[2], b[2], c[2]);
+	return temp;
+}
+
+
+//// Pick Left Filter
 
 static CAT_INLINE u8 leftSel(int f, int c, int a) {
 	if (AbsVal(f - c) < AbsVal(f - a)) {
@@ -331,28 +1284,26 @@ static CAT_INLINE u8 leftSel(int f, int c, int a) {
 	}
 }
 
-static void SFF_PICK_LEFT(const u8 *p, const u8 **pred, int x, int y, int width) {
+static const u8 *SFF_PICK_LEFT(const u8 *p, u8 *temp, int x, int y, int width) {
 	if (x > 1 && y > 0) {
 		const u8 *a = p - 4;
 		const u8 *c = a - width*4;
 		const u8 *f = c - 4;
 
-		u8 *FPT = (u8*)*pred;
-		FPT[0] = leftSel(f[0], c[0], a[0]);
-		FPT[1] = leftSel(f[1], c[1], a[1]);
-		FPT[2] = leftSel(f[2], c[2], a[2]);
-	} else {
-		if (x > 0) {
-			*pred = p - 4; // A
-		} else if (y > 0) {
-			*pred = p - width*4; // B
-		} else {
-			*pred = FPZ;
-		}
+		temp[0] = leftSel(f[0], c[0], a[0]);
+		temp[1] = leftSel(f[1], c[1], a[1]);
+		temp[2] = leftSel(f[2], c[2], a[2]);
+		return temp;
+	} else if (x > 0) {
+		return p - 4; // A
+	} else if (y > 0) {
+		return p - width*4; // B
 	}
+
+	return FPZ;
 }
 
-static void SFFU_PICK_LEFT(const u8 *p, const u8 **pred, int x, int y, int width) {
+static const u8 *SFFU_PICK_LEFT(const u8 *p, u8 *temp, int x, int y, int width) {
 	CAT_DEBUG_ENFORCE(x > 0 && y > 0 && x < width-1);
 
 	if (x > 1) {
@@ -360,36 +1311,40 @@ static void SFFU_PICK_LEFT(const u8 *p, const u8 **pred, int x, int y, int width
 		const u8 *c = a - width*4;
 		const u8 *f = c - 4;
 
-		u8 *FPT = (u8*)*pred;
-		FPT[0] = leftSel(f[0], c[0], a[0]);
-		FPT[1] = leftSel(f[1], c[1], a[1]);
-		FPT[2] = leftSel(f[2], c[2], a[2]);
-	} else {
-		*pred = p - 4; // A
+		temp[0] = leftSel(f[0], c[0], a[0]);
+		temp[1] = leftSel(f[1], c[1], a[1]);
+		temp[2] = leftSel(f[2], c[2], a[2]);
+		return temp;
 	}
+
+	return p - 4; // A
 }
 
-static void SFF_PRED_UR(const u8 *p, const u8 **pred, int x, int y, int width) {
+
+//// Predict Upper-Right Filter
+
+static const u8 *SFF_PRED_UR(const u8 *p, u8 *temp, int x, int y, int width) {
 	if (y > 1 && x < width - 2) {
 		const u8 *d = p + 4 - width*4;
 		const u8 *e = d + 4 - width*4;
 
-		u8 *FPT = (u8*)*pred;
-		FPT[0] = d[0] * 2 - e[0];
-		FPT[1] = d[1] * 2 - e[1];
-		FPT[2] = d[2] * 2 - e[2];
-	} else {
-		if (x > 0) {
-			*pred = p - 4; // A
-		} else if (y > 0) {
-			*pred = p - width*4; // B
-		} else {
-			*pred = FPZ;
-		}
+		temp[0] = d[0] * 2 - e[0];
+		temp[1] = d[1] * 2 - e[1];
+		temp[2] = d[2] * 2 - e[2];
+		return temp;
+	} else if (x > 0) {
+		return p - 4; // A
+	} else if (y > 0) {
+		return p - width*4; // B
 	}
+
+	return FPZ;
 }
 
 #define SFFU_PRED_UR SFF_PRED_UR
+
+
+//// Clamped Gradient Filter
 
 static CAT_INLINE u8 clampGrad(int b, int a, int c) {
 	int grad = (int)b + (int)a - (int)c;
@@ -416,7 +1371,7 @@ static CAT_INLINE u8 clampGrad(int b, int a, int c) {
 	return grad;
 }
 
-static void SFF_CLAMP_GRAD(const u8 *p, const u8 **pred, int x, int y, int width) {
+static const u8 *SFF_CLAMP_GRAD(const u8 *p, u8 *temp, int x, int y, int width) {
 	if (y > 0) {
 		const u8 *b = p - width*4; // B
 
@@ -424,32 +1379,35 @@ static void SFF_CLAMP_GRAD(const u8 *p, const u8 **pred, int x, int y, int width
 			const u8 *a = p - 4; // A
 			const u8 *c = b - 4; // C
 
-			u8 *FPT = (u8*)*pred;
-			FPT[0] = clampGrad(b[0], a[0], c[0]);
-			FPT[1] = clampGrad(b[1], a[1], c[1]);
-			FPT[2] = clampGrad(b[2], a[2], c[2]);
+			temp[0] = clampGrad(b[0], a[0], c[0]);
+			temp[1] = clampGrad(b[1], a[1], c[1]);
+			temp[2] = clampGrad(b[2], a[2], c[2]);
+			return temp;
 		} else {
-			*pred = b;
+			return b;
 		}
 	} else if (x > 0) {
-		*pred = p - 4; // A
-	} else {
-		*pred = FPZ;
+		return p - 4; // A
 	}
+
+	return FPZ;
 }
 
-static void SFFU_CLAMP_GRAD(const u8 *p, const u8 **pred, int x, int y, int width) {
+static const u8 *SFFU_CLAMP_GRAD(const u8 *p, u8 *temp, int x, int y, int width) {
 	CAT_DEBUG_ENFORCE(x > 0 && y > 0 && x < width-1);
 
 	const u8 *a = p - 4; // A
 	const u8 *b = p - width*4; // B
 	const u8 *c = b - 4; // C
 
-	u8 *FPT = (u8*)*pred;
-	FPT[0] = clampGrad(b[0], a[0], c[0]);
-	FPT[1] = clampGrad(b[1], a[1], c[1]);
-	FPT[2] = clampGrad(b[2], a[2], c[2]);
+	temp[0] = clampGrad(b[0], a[0], c[0]);
+	temp[1] = clampGrad(b[1], a[1], c[1]);
+	temp[2] = clampGrad(b[2], a[2], c[2]);
+	return temp;
 }
+
+
+//// Skewed Gradient Filter
 
 static u8 skewGrad(int b, int a, int c) {
 	int pred = (3 * (b + a) - (c << 1)) >> 2;
@@ -462,7 +1420,7 @@ static u8 skewGrad(int b, int a, int c) {
 	return pred;
 }
 
-static void SFF_SKEW_GRAD(const u8 *p, const u8 **pred, int x, int y, int width) {
+static const u8 *SFF_SKEW_GRAD(const u8 *p, u8 *temp, int x, int y, int width) {
 	if (y > 0) {
 		const u8 *b = p - width*4; // B
 
@@ -470,31 +1428,31 @@ static void SFF_SKEW_GRAD(const u8 *p, const u8 **pred, int x, int y, int width)
 			const u8 *a = p - 4; // A
 			const u8 *c = b - 4; // C
 
-			u8 *FPT = (u8*)*pred;
-			FPT[0] = skewGrad(b[0], a[0], c[0]);
-			FPT[1] = skewGrad(b[1], a[1], c[1]);
-			FPT[2] = skewGrad(b[2], a[2], c[2]);
+			temp[0] = skewGrad(b[0], a[0], c[0]);
+			temp[1] = skewGrad(b[1], a[1], c[1]);
+			temp[2] = skewGrad(b[2], a[2], c[2]);
+			return temp;
 		} else {
-			*pred = b;
+			return b;
 		}
 	} else if (x > 0) {
-		*pred = p - 4; // A
-	} else {
-		*pred = FPZ;
+		return p - 4; // A
 	}
+
+	return FPZ;
 }
 
-static void SFFU_SKEW_GRAD(const u8 *p, const u8 **pred, int x, int y, int width) {
+static const u8 *SFFU_SKEW_GRAD(const u8 *p, u8 *temp, int x, int y, int width) {
 	CAT_DEBUG_ENFORCE(x > 0 && y > 0 && x < width-1);
 
 	const u8 *a = p - 4; // A
 	const u8 *b = p - width*4; // B
 	const u8 *c = b - 4; // C
 
-	u8 *FPT = (u8*)*pred;
-	FPT[0] = skewGrad(b[0], a[0], c[0]);
-	FPT[1] = skewGrad(b[1], a[1], c[1]);
-	FPT[2] = skewGrad(b[2], a[2], c[2]);
+	temp[0] = skewGrad(b[0], a[0], c[0]);
+	temp[1] = skewGrad(b[1], a[1], c[1]);
+	temp[2] = skewGrad(b[2], a[2], c[2]);
+	return temp;
 }
 
 
@@ -602,7 +1560,7 @@ static const int DIV2_FILTER_TAPS[DIV2_TAPPED_COUNT][4] = {
 //// SpatialFilterSet
 
 #define DEFINE_TAPS(TAP) \
-	static void SFF_TAPS_ ## TAP (const u8 *p, const u8 **pred, int x, int y, int width) { \
+	static const u8 *SFF_TAPS_ ## TAP (const u8 *p, u8 *temp, int x, int y, int width) { \
 		if (x > 0) { \
 			const u8 *a = p - 4; /* A */ \
 			if (y > 0) { \
@@ -612,37 +1570,36 @@ static const int DIV2_FILTER_TAPS[DIV2_TAPPED_COUNT][4] = {
 				if (x < width-1) { \
 					d += 4; /* D */ \
 				} \
-				static const int ta = SpatialFilterSet::FILTER_TAPS[TAP][0]; \
-				static const int tb = SpatialFilterSet::FILTER_TAPS[TAP][1]; \
-				static const int tc = SpatialFilterSet::FILTER_TAPS[TAP][2]; \
-				static const int td = SpatialFilterSet::FILTER_TAPS[TAP][3]; \
-				u8 *FPT = (u8*)*pred; \
-				FPT[0] = (ta*a[0] + tb*b[0] + tc*c[0] + td*d[0]) / 2; \
-				FPT[1] = (ta*a[1] + tb*b[1] + tc*c[1] + td*d[1]) / 2; \
-				FPT[2] = (ta*a[2] + tb*b[2] + tc*c[2] + td*d[2]) / 2; \
+				static const int ta = DIV2_FILTER_TAPS[TAP][0]; \
+				static const int tb = DIV2_FILTER_TAPS[TAP][1]; \
+				static const int tc = DIV2_FILTER_TAPS[TAP][2]; \
+				static const int td = DIV2_FILTER_TAPS[TAP][3]; \
+				temp[0] = (ta*a[0] + tb*b[0] + tc*c[0] + td*d[0]) >> 1; \
+				temp[1] = (ta*a[1] + tb*b[1] + tc*c[1] + td*d[1]) >> 1; \
+				temp[2] = (ta*a[2] + tb*b[2] + tc*c[2] + td*d[2]) >> 1; \
+				return temp; \
 			} else { \
-				*pred = a; \
+				return a; \
 			} \
 		} else if (y > 0) { \
-			*pred = p - width*4; /* B */ \
-		} else { \
-			*pred = FPZ; \
+			return p - width*4; /* B */ \
 		} \
+		return FPZ; \
 	} \
-	static void SFFU_TAPS_ ## TAP (const u8 *p, const u8 **pred, int x, int y, int width) { \
+	static const u8 *SFFU_TAPS_ ## TAP (const u8 *p, u8 *temp, int x, int y, int width) { \
 		CAT_DEBUG_ENFORCE(x > 0 && y > 0 && x < width-1); \
 		const u8 *a = p - 4; \
 		const u8 *b = p - width*4; \
 		const u8 *c = b - 4; \
 		const u8 *d = b + 4; \
-		static const int ta = SpatialFilterSet::FILTER_TAPS[TAP][0]; \
-		static const int tb = SpatialFilterSet::FILTER_TAPS[TAP][1]; \
-		static const int tc = SpatialFilterSet::FILTER_TAPS[TAP][2]; \
-		static const int td = SpatialFilterSet::FILTER_TAPS[TAP][3]; \
-		u8 *FPT = (u8*)*pred; \
-		FPT[0] = (ta*a[0] + tb*b[0] + tc*c[0] + td*d[0]) / 2; \
-		FPT[1] = (ta*a[1] + tb*b[1] + tc*c[1] + td*d[1]) / 2; \
-		FPT[2] = (ta*a[2] + tb*b[2] + tc*c[2] + td*d[2]) / 2; \
+		static const int ta = DIV2_FILTER_TAPS[TAP][0]; \
+		static const int tb = DIV2_FILTER_TAPS[TAP][1]; \
+		static const int tc = DIV2_FILTER_TAPS[TAP][2]; \
+		static const int td = DIV2_FILTER_TAPS[TAP][3]; \
+		temp[0] = (ta*a[0] + tb*b[0] + tc*c[0] + td*d[0]) >> 1; \
+		temp[1] = (ta*a[1] + tb*b[1] + tc*c[1] + td*d[1]) >> 1; \
+		temp[2] = (ta*a[2] + tb*b[2] + tc*c[2] + td*d[2]) >> 1; \
+		return temp; \
 	}
 
 DEFINE_TAPS( 0);DEFINE_TAPS( 1);DEFINE_TAPS( 2);DEFINE_TAPS( 3);DEFINE_TAPS( 4)
@@ -1251,11 +2208,11 @@ const int PaletteFilterSet::FILTER_TAPS[TAPPED_COUNT][4] = {
 				if (x < width-1) { \
 					d += 1; /* D */ \
 				} \
-				static const int ta = SpatialFilterSet::FILTER_TAPS[TAP][0]; \
-				static const int tb = SpatialFilterSet::FILTER_TAPS[TAP][1]; \
-				static const int tc = SpatialFilterSet::FILTER_TAPS[TAP][2]; \
-				static const int td = SpatialFilterSet::FILTER_TAPS[TAP][3]; \
-				return (ta*a[0] + tb*b[0] + tc*c[0] + td*d[0]) / 2; \
+				static const int ta = DIV2_FILTER_TAPS[TAP][0]; \
+				static const int tb = DIV2_FILTER_TAPS[TAP][1]; \
+				static const int tc = DIV2_FILTER_TAPS[TAP][2]; \
+				static const int td = DIV2_FILTER_TAPS[TAP][3]; \
+				return (ta*a[0] + tb*b[0] + tc*c[0] + td*d[0]) >> 1; \
 			} else { \
 				return *a; \
 			} \
@@ -1271,11 +2228,11 @@ const int PaletteFilterSet::FILTER_TAPS[TAPPED_COUNT][4] = {
 		const u8 *b = p - width; \
 		const u8 *c = b - 1; \
 		const u8 *d = b + 1; \
-		static const int ta = SpatialFilterSet::FILTER_TAPS[TAP][0]; \
-		static const int tb = SpatialFilterSet::FILTER_TAPS[TAP][1]; \
-		static const int tc = SpatialFilterSet::FILTER_TAPS[TAP][2]; \
-		static const int td = SpatialFilterSet::FILTER_TAPS[TAP][3]; \
-		return (ta*a[0] + tb*b[0] + tc*c[0] + td*d[0]) / 2; \
+		static const int ta = DIV2_FILTER_TAPS[TAP][0]; \
+		static const int tb = DIV2_FILTER_TAPS[TAP][1]; \
+		static const int tc = DIV2_FILTER_TAPS[TAP][2]; \
+		static const int td = DIV2_FILTER_TAPS[TAP][3]; \
+		return (ta*a[0] + tb*b[0] + tc*c[0] + td*d[0]) >> 1; \
 	}
 
 DEFINE_TAPS( 0);DEFINE_TAPS( 1);DEFINE_TAPS( 2);DEFINE_TAPS( 3);DEFINE_TAPS( 4)

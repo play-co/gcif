@@ -71,7 +71,7 @@ enum FixedSpatialFilters {
 	SF_FIXED,		// Number of fixed filters
 };
 
-enum ComplexSpatialFilters {
+enum SpatialFilters {
 	// Simple filters
 	SF_C = MF_FIXED,	// C
 	SF_D,				// D
@@ -99,29 +99,29 @@ enum ComplexSpatialFilters {
 	SF_AVG_BCD,			// (B + C + D) / 3
 
 	// Triple average filters (round up)
-	SF_AVG_ABC1,		// (A + B + C + 1) / 3
-	SF_AVG_ACD1,		// (A + C + D + 1) / 3
-	SF_AVG_ABD1,		// (A + B + D + 1) / 3
-	SF_AVG_BCD1,		// (B + C + D + 1) / 3
+	SF_AVG_ABC1,		// (A + B + C + 2) / 3
+	SF_AVG_ACD1,		// (A + C + D + 2) / 3
+	SF_AVG_ABD1,		// (A + B + D + 2) / 3
+	SF_AVG_BCD1,		// (B + C + D + 2) / 3
 
 	// Quad average filters (round down)
 	SF_AVG_ABCD,		// (A + B + C + D) / 4
 
 	// Quad average filters (round up)
-	SF_AVG_ABCD,		// (A + B + C + D + 2) / 4
+	SF_AVG_ABCD1,		// (A + B + C + D + 2) / 4
 
 	// ABCD Complex filters
-	SF_CLAMP_GRAD,	// ClampedGradPredictor (CBloom #12)
-	SF_SKEW_GRAD,	// Gradient skewed towards average (CBloom #5)
-	SF_ABC_CLAMP,	// A + B - C clamped to [0, 255] (BCIF)
-	SF_PAETH,		// Paeth (PNG)
-	SF_ABC_PAETH,	// If A <= C <= B, A + B - C, else Paeth filter (BCIF)
-	SF_PLO,			// Offset PL (BCIF)
-	SF_SELECT,		// Select (WebP)
+	SF_CLAMP_GRAD,		// ClampedGradPredictor (CBloom #12)
+	SF_SKEW_GRAD,		// Gradient skewed towards average (CBloom #5)
+	SF_ABC_CLAMP,		// A + B - C clamped to [0, 255] (BCIF)
+	SF_PAETH,			// Paeth (PNG)
+	SF_ABC_PAETH,		// If A <= C <= B, A + B - C, else Paeth filter (BCIF)
+	SF_PLO,				// Offset PL (BCIF)
+	SF_SELECT,			// Select (WebP)
 
 	// EF Complex filters
-	SF_PICK_LEFT,	// Pick A or C based on which is closer to F (New)
-	SF_PRED_UR,		// Predict gradient continues from E to D to current (New)
+	SF_PICK_LEFT,		// Pick A or C based on which is closer to F (New)
+	SF_PRED_UR,			// Predict gradient continues from E to D to current (New)
 
 	SF_BASIC_COUNT
 };
@@ -133,24 +133,25 @@ static const int SF_COUNT = SF_BASIC_COUNT + DIV2_TAPPED_COUNT;
  * RGBA filter (Assumes data pointer is 4 bytes wide)
  *
  * p: Pointer to current RGBA pixel
- * pred: Pointer to temporary RGB data buffer
+ * temp: Temp workspace if we need it (3 bytes)
  * x, y: Pixel location
  * stride: Pixels in width of p buffer
  *
  * Returns filter prediction in pred.
  */
-typedef void (*RGBAFilterFunc)(const u8 *p, const u8 **pred, int x, int y, int stride);
+typedef const u8 *(*RGBAFilterFunc)(const u8 *p, u8 *temp, int x, int y, int stride);
 
 /*
  * Monochrome filter (Assumes data pointer is bytewise)
  *
  * p: Pointer to current monochrome pixel
+ * clamp_max: Maximum value when function clamps
  * x, y: Pixel location
  * stride: Pixels in width of p buffer
  *
  * Returns filter prediction.
  */
-typedef u8 (*MonoFilterFunc)(const u8 *p, int x, int y, int stride);
+typedef u8 (*MonoFilterFunc)(const u8 *p, u8 clamp_max, int x, int y, int stride);
 
 
 // Spatial Filters
