@@ -233,7 +233,6 @@ void MonoWriter::designFilters() {
 						}
 
 						for (int f = 0; f < SF_COUNT; ++f) {
-							// TODO: Specialize for num_syms power-of-two
 							u8 prediction = MONO_FILTERS[f].safe(data, num_syms, x, y, size_x);
 							int residual = value + num_syms - prediction;
 							if (residual >= num_syms) {
@@ -327,10 +326,14 @@ void MonoWriter::designFilters() {
 				int sympal_filter = index - SF_COUNT;
 				_sympal_filter_map[sympal_filter] = sympal_f;
 				++sympal_f;
+
+				CAT_INANE("2D") << " - Added palette filter " << sympal_f << " for palette index " << sympal_filter;
 			} else {
 				_filters[normal_f] = MONO_FILTERS[index];
 				_filter_indices[normal_f] = index;
 				++normal_f;
+
+				CAT_INANE("2D") << " - Added filter " << normal_f << " for filter index " << index;
 			}
 
 			++filters_set;
@@ -347,7 +350,7 @@ void MonoWriter::designFilters() {
 
 	CAT_DEBUG_ENFORCE(_filter_count == _normal_filter_count + _sympal_filter_count);
 
-	CAT_INANE("2D") << "Chose " << _filter_count << " filters : " << _sympal_filter_count << " of which are palettes";
+	CAT_INANE("2D") << " + Chose " << _filter_count << " filters : " << _sympal_filter_count << " of which are palettes";
 }
 
 void MonoWriter::designPaletteTiles() {
@@ -478,7 +481,6 @@ void MonoWriter::designTiles() {
 
 							u8 *dest = codes + code_count;
 							for (int f = 0; f < _filter_count; ++f) {
-								// TODO: Specialize for num_syms power-of-two
 								u8 prediction = _filters[f].safe(data, num_syms, x, y, size_x);
 								int residual = value + num_syms - prediction;
 								if (residual >= num_syms) {
@@ -700,7 +702,7 @@ void MonoWriter::designRowFilters() {
 			}
 
 			_tile_row_filters[ty] = best_i;
-			total_entropy += best_e;
+			total_entropy += best_e + 2; // + 2 bits per row for header
 
 			// Add the best option into the running histogram
 			ee.add(codes + tiles_x * best_i, tiles_x);
@@ -740,11 +742,11 @@ void MonoWriter::recurseCompress() {
 
 		// If it does not win over row filters,
 		if (recurse_entropy > _row_filter_entropy) {
-			CAT_INANE("2D") << "Recursive filter did not win over simple row filters";
+			CAT_INANE("2D") << "Recursive filter did not win over simple row filters: " << recurse_entropy << " > " << _row_filter_entropy;
 			delete _filter_encoder;
 			_filter_encoder = 0;
 		} else {
-			CAT_INANE("2D") << "Recursive filter won over simple row filters";
+			CAT_INANE("2D") << "Recursive filter won over simple row filters: " << recurse_entropy << " <= " << _row_filter_entropy;
 		}
 	}
 }
@@ -800,6 +802,9 @@ void MonoWriter::designChaos() {
 		u32 entropy = 0;
 		for (int ii = 0; ii < chaos_levels; ++ii) {
 			entropy += ee[ii].entropyOverall();
+
+			// Approximate cost of adding an entropy level
+			entropy += 5 * _params.num_syms;
 		}
 
 		// If this is the best chaos levels so far,
@@ -825,12 +830,12 @@ u32 MonoWriter::process(const Parameters &params) {
 	u32 best_entropy = 0x7fffffff;
 	u32 best_bits = params.max_bits;
 
+	CAT_INANE("2D") << "!! Monochrome filter processing started for " << _params.size_x << "x" << _params.size_y << " data matrix...";
+
 	// TODO: How to pick tile bits?
 
 	// For each bit count to try,
 	for (int bits = params.min_bits; bits <= params.max_bits; ++bits) {
-		CAT_INANE("2D") << "Trying bits = " << bits << "...";
-
 		// Init with bits
 		_tile_bits_x = bits;
 		_tile_bits_y = bits;
@@ -838,6 +843,8 @@ u32 MonoWriter::process(const Parameters &params) {
 		_tile_size_y = 1 << bits;
 		_tiles_x = (_params.size_x + _tile_size_x - 1) >> bits;
 		_tiles_y = (_params.size_y + _tile_size_y - 1) >> bits;
+
+		CAT_INANE("2D") << " - Trying " << _tile_size_x << "x" << _tile_size_y << " tile size, yielding a subresolution matrix " << _tiles_x << "x" << _tiles_Y << " for input " << _params.size_x << "x" << _params.size_y << " data matrix";
 
 		// Allocate tile memory
 		_tiles_count = _tiles_x * _tiles_y;
@@ -858,6 +865,8 @@ u32 MonoWriter::process(const Parameters &params) {
 		recurseCompress();
 		designChaos();
 	}
+
+	return best_entropy;
 }
 
 void MonoWriter::initializeEncoders() {
