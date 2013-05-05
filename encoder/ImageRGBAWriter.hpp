@@ -26,14 +26,14 @@
 	POSSIBILITY OF SUCH DAMAGE.
 */
 
-#ifndef IMAGE_FILTER_WRITER_HPP
-#define IMAGE_FILTER_WRITER_HPP
+#ifndef IMAGE_RGBA_WRITER_HPP
+#define IMAGE_RGBA_WRITER_HPP
 
 #include "ImageWriter.hpp"
 #include "ImageMaskWriter.hpp"
 #include "ImageLZWriter.hpp"
 #include "ImagePaletteWriter.hpp"
-#include "../decoder/ImageCMReader.hpp"
+#include "../decoder/ImageRGBAReader.hpp"
 #include "EntropyEncoder.hpp"
 #include "FilterScorer.hpp"
 #include "../decoder/Filters.hpp"
@@ -42,7 +42,7 @@
 #include <vector>
 
 /*
- * Game Closure Context Modeling (GC-CM) Compression
+ * Game Closure RGBA Compression
  *
  * This is based heavily on BCIF by Stefano Brocchi
  * from his PhD thesis "Bidimensional pictures: reconstruction, expression and encoding" (Dec 2009)
@@ -65,18 +65,18 @@
 namespace cat {
 
 
-//// ImageCMWriter
+//// ImageRGBAWriter
 
-class ImageCMWriter {
+class ImageRGBAWriter {
 protected:
-	static const int CHAOS_LEVELS_MAX = ImageCMReader::CHAOS_LEVELS_MAX;
+	static const int CHAOS_LEVELS_MAX = ImageRGBAReader::CHAOS_LEVELS_MAX;
 	static const u16 UNUSED_FILTER = 0xffff;
 	static const u16 TODO_FILTER = 0;
-	static const int COLOR_PLANES = ImageCMReader::COLOR_PLANES;
-	static const int ZRLE_SYMS_Y = ImageCMReader::ZRLE_SYMS_Y;
-	static const int ZRLE_SYMS_U = ImageCMReader::ZRLE_SYMS_U;
-	static const int ZRLE_SYMS_V = ImageCMReader::ZRLE_SYMS_V;
-	static const int ZRLE_SYMS_A = ImageCMReader::ZRLE_SYMS_A;
+	static const int COLOR_PLANES = ImageRGBAReader::COLOR_PLANES;
+	static const int ZRLE_SYMS_Y = ImageRGBAReader::ZRLE_SYMS_Y;
+	static const int ZRLE_SYMS_U = ImageRGBAReader::ZRLE_SYMS_U;
+	static const int ZRLE_SYMS_V = ImageRGBAReader::ZRLE_SYMS_V;
+	static const int ZRLE_SYMS_A = ImageRGBAReader::ZRLE_SYMS_A;
 
 	// Chosen spatial filter set
 	SpatialFilterSet _sf_set;
@@ -106,20 +106,6 @@ protected:
 		return _filters[x + y * w];
 	}
 
-	CAT_INLINE void setPaletteFilter(int x, int y, u16 filter) {
-		x >>= PALETTE_ZONE_SIZE_SHIFT_W;
-		y >>= PALETTE_ZONE_SIZE_SHIFT_H;
-		const int w = (_width + PALETTE_ZONE_SIZE_MASK_W) >> PALETTE_ZONE_SIZE_SHIFT_W;
-		_filters[x + y * w] = filter;
-	}
-
-	CAT_INLINE u16 getPaletteFilter(int x, int y) {
-		x >>= PALETTE_ZONE_SIZE_SHIFT_W;
-		y >>= PALETTE_ZONE_SIZE_SHIFT_H;
-		const int w = (_width + PALETTE_ZONE_SIZE_MASK_W) >> PALETTE_ZONE_SIZE_SHIFT_W;
-		return _filters[x + y * w];
-	}
-
 	// Recent measured chaos
 	u8 *_chaos;
 	int _chaos_size;
@@ -136,7 +122,6 @@ protected:
 	// Subsystems
 	ImageMaskWriter *_mask;
 	ImageLZWriter *_lz;
-	ImagePaletteWriter *_pal;
 
 	// List of custom linear filter replacements
 	std::vector<u32> _filter_replacements;
@@ -156,25 +141,18 @@ protected:
 	int init(int width, int height);
 
 	void maskFilters();
-	void maskPalFilters();
 
 	void designFilters();
 	void decideFilters();
-	void designPalFilters();
-	void decidePalFilters();
 
 	void scanlineLZ(); // In progress
 
 	bool applyFilters();
-	bool applyPalFilters();
 
 	void chaosStats();
-	void chaosPalStats();
 
 	bool writeFilters(ImageWriter &writer);
 	bool writeChaos(ImageWriter &writer);
-	bool writePalFilters(ImageWriter &writer);
-	bool writePalChaos(ImageWriter &writer);
 
 #ifdef CAT_COLLECT_STATS
 public:
@@ -199,16 +177,16 @@ public:
 #endif // CAT_COLLECT_STATS
 
 public:
-	CAT_INLINE ImageCMWriter() {
+	CAT_INLINE ImageRGBAWriter() {
 		_filters = 0;
 		_chaos = 0;
 		_seen_filter = 0;
 	}
-	CAT_INLINE virtual ~ImageCMWriter() {
+	CAT_INLINE virtual ~ImageRGBAWriter() {
 		clear();
 	}
 
-	int initFromRGBA(const u8 *rgba, int width, int height, ImageMaskWriter &mask, ImageLZWriter &lz, ImagePaletteWriter &pal, const GCIFKnobs *knobs);
+	int initFromRGBA(const u8 *rgba, int width, int height, ImageMaskWriter &mask, ImageLZWriter &lz, const GCIFKnobs *knobs);
 	void write(ImageWriter &writer);
 
 #ifdef CAT_COLLECT_STATS
@@ -224,5 +202,5 @@ public:
 
 } // namespace cat
 
-#endif // IMAGE_FILTER_WRITER_HPP
+#endif // IMAGE_RGBA_WRITER_HPP
 
