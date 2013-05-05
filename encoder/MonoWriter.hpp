@@ -201,7 +201,6 @@ public:
 		_tiles = 0;
 		_filter_encoder = 0;
 		_tile_row_filters = 0;
-		_chaos = 0;
 		_residuals = 0;
 	}
 	CAT_INLINE virtual ~MonoWriter() {
@@ -212,7 +211,7 @@ public:
 	u32 process(const Parameters &params);
 
 	// Write parameter tables for decoder
-	void writeTables(ImageWriter &writer);
+	int writeTables(ImageWriter &writer);
 
 	// Writer header for a row that is just starting
 	int writeRowHeader(u16 y, ImageWriter &writer); // Returns bits used

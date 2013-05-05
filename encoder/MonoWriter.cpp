@@ -234,9 +234,9 @@ void MonoWriter::designFilters() {
 
 						for (int f = 0; f < SF_COUNT; ++f) {
 							// TODO: Specialize for num_syms power-of-two
-							u8 prediction = MONO_FILTERS[f].safe(data, num_syms, x, y, size_x) % num_syms;
-							u8 residual = value - prediction;
-							u8 score = RESIDUAL_SCORE[residual]; // lower = better
+							u8 prediction = MONO_FILTERS[f].safe(data, num_syms, x, y, size_x);
+							u8 residual = (value + num_syms - prediction) % num_syms;
+							u8 score = ChaosTable::ResidualScore(residual, num_syms); // lower = better
 
 							scores.add(f, score);
 						}
@@ -813,6 +813,8 @@ u32 MonoWriter::process(const Parameters &params) {
 	u32 best_entropy = 0x7fffffff;
 	u32 best_bits = params.max_bits;
 
+	// TODO: How to pick tile bits?
+
 	// For each bit count to try,
 	for (int bits = params.min_bits; bits <= params.max_bits; ++bits) {
 		CAT_INANE("2D") << "Trying bits = " << bits << "...";
@@ -878,7 +880,7 @@ void MonoWriter::initializeEncoders() {
 	}
 
 	// For each chaos level,
-	for (int ii = 0, iiend = _chaos_levels; ii < iiend; ++ii) {
+	for (int ii = 0, iiend = _chaos.getBinCount(); ii < iiend; ++ii) {
 		_encoder[ii].finalize();
 	}
 
@@ -936,7 +938,12 @@ void MonoWriter::initializeEncoders() {
 	}
 }
 
-void MonoWriter::writeTables(ImageWriter &writer) {
+int MonoWriter::writeTables(ImageWriter &writer) {
+	// Initialize stats
+	Stats.basic_overhead_bits = 0;
+	Stats.encoder_overhead_bits = 0;
+	Stats.filter_overhead_bits = 0;
+
 	initializeEncoders();
 
 	// Write tile size
@@ -1020,13 +1027,12 @@ void MonoWriter::writeTables(ImageWriter &writer) {
 	DESYNC_TABLE();
 
 	initializeWriter();
+
+	return Stats.encoder_overhead_bits + Stats.basic_overhead_bits + Stats.filter_overhead_bits;
 }
 
 void MonoWriter::initializeWriter() {
 	// Initialize stats
-	Stats.basic_overhead_bits = 0;
-	Stats.encoder_overhead_bits = 0;
-	Stats.filter_overhead_bits = 0;
 	Stats.data_bits = 0;
 
 	// Initialize writer
@@ -1082,11 +1088,11 @@ int MonoWriter::write(u16 x, u16 y, ImageWriter &writer) {
 			// If recursive filter encoded,
 			if (_filter_encoder) {
 				// Pass filter write down the tree
-				Stats.filter_overhead_bits += _filter_encoder->writeFilter(tx, ty, writer);
+				Stats.filter_overhead_bits += _filter_encoder->write(tx, ty, writer);
 			} else {
 				// Calculate row filter residual for filter data (filter of filters at tree leaf)
 				u8 residual;
-				switch (_tile_row_filter) {
+				switch (_tile_row_filters[ty]) {
 				default:
 					CAT_DEBUG_EXCEPTION();
 				case RF_NOOP:
@@ -1133,7 +1139,7 @@ int MonoWriter::write(u16 x, u16 y, ImageWriter &writer) {
 		u8 residual = _residuals[x + y * _params.size_x];
 
 		// Calculate local chaos
-		int chaos = _chaos_table.get(residual, _params.num_syms);
+		int chaos = _chaos.get(residual, _params.num_syms);
 
 		// Write the residual value
 		_encoder[chaos].write(residual, writer);

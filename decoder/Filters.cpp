@@ -1009,26 +1009,27 @@ static const u8 *SFFU_AVG_ABCD1(const u8 *p, u8 *temp, int x, int y, int width) 
 
 static CAT_INLINE u8 clampGrad(int b, int a, int c) {
 	int grad = (int)b + (int)a - (int)c;
-	int lo = b;
+
+	int lo = b, hi = b;
 	if (lo > a) {
 		lo = a;
+	} else {
+		hi = a;
 	}
 	if (lo > c) {
 		lo = c;
 	}
-	int hi = b;
-	if (hi < a) {
-		hi = a;
-	}
 	if (hi < c) {
 		hi = c;
 	}
+
 	if (grad <= lo) {
 		return lo;
 	}
 	if (grad >= hi) {
 		return hi;
 	}
+
 	return grad;
 }
 
@@ -1121,9 +1122,9 @@ static const u8 *SFFU_SKEW_GRAD(const u8 *p, u8 *temp, int x, int y, int width) 
 
 static CAT_INLINE u8 abcClamp(int a, int b, int c) {
 	int sum = a + b - c;
-	if (sum < 0) {
+	if (sum <= 0) {
 		return 0;
-	} else if (sum > 255) {
+	} else if (sum >= 255) {
 		return 255;
 	}
 
@@ -1388,7 +1389,7 @@ static const u8 *SFFU_SELECT(const u8 *p, u8 *temp, int x, int y, int width) {
 }
 
 
-//// Pick Left Filter
+//// Select F Filter
 
 static CAT_INLINE u8 leftSel(int f, int c, int a) {
 	if (AbsVal(f - c) < AbsVal(f - a)) {
@@ -1398,7 +1399,7 @@ static CAT_INLINE u8 leftSel(int f, int c, int a) {
 	}
 }
 
-static const u8 *SFF_PICK_LEFT(const u8 *p, u8 *temp, int x, int y, int width) {
+static const u8 *SFF_SELECT_F(const u8 *p, u8 *temp, int x, int y, int width) {
 	if (x > 1 && y > 0) {
 		const u8 *a = p - 4;
 		const u8 *c = a - width*4;
@@ -1417,7 +1418,7 @@ static const u8 *SFF_PICK_LEFT(const u8 *p, u8 *temp, int x, int y, int width) {
 	return FPZ;
 }
 
-static const u8 *SFFU_PICK_LEFT(const u8 *p, u8 *temp, int x, int y, int width) {
+static const u8 *SFFU_SELECT_F(const u8 *p, u8 *temp, int x, int y, int width) {
 	CAT_DEBUG_ENFORCE(x > 0 && y > 0 && x < width-1);
 
 	if (x > 1) {
@@ -1435,9 +1436,9 @@ static const u8 *SFFU_PICK_LEFT(const u8 *p, u8 *temp, int x, int y, int width) 
 }
 
 
-//// Predict Upper-Right Filter
+//// EF Gradient Filter
 
-static const u8 *SFF_PRED_UR(const u8 *p, u8 *temp, int x, int y, int width) {
+static const u8 *SFF_EF_GRAD(const u8 *p, u8 *temp, int x, int y, int width) {
 	if (y > 1 && x < width - 2) {
 		const u8 *d = p + 4 - width*4;
 		const u8 *e = d + 4 - width*4;
@@ -1455,7 +1456,19 @@ static const u8 *SFF_PRED_UR(const u8 *p, u8 *temp, int x, int y, int width) {
 	return FPZ;
 }
 
-#define SFFU_PRED_UR SFF_PRED_UR
+static const u8 *SFFU_EF_GRAD(const u8 *p, u8 *temp, int x, int y, int width) {
+	if (y > 1 && x < width - 2) {
+		const u8 *d = p + 4 - width*4;
+		const u8 *e = d + 4 - width*4;
+
+		temp[0] = d[0] * 2 - e[0];
+		temp[1] = d[1] * 2 - e[1];
+		temp[2] = d[2] * 2 - e[2];
+		return temp;
+	}
+
+	return p - 4; // A
+}
 
 
 //// Tapped Filters
@@ -1662,8 +1675,8 @@ const RGBAFilterFuncs cat::RGBA_FILTERS[SF_COUNT] = {
 	{ SFF_ABC_PAETH, SFFU_ABC_PAETH },
 	{ SFF_PLO, SFFU_PLO },
 	{ SFF_SELECT, SFFU_SELECT },
-	{ SFF_PICK_LEFT, SFFU_PICK_LEFT },
-	{ SFF_PRED_UR, SFFU_PRED_UR },
+	{ SFF_SELECT_F, SFFU_SELECT_F },
+	{ SFF_ED_GRAD, SFFU_ED_GRAD },
 	LIST_TAPS( 0), LIST_TAPS( 1), LIST_TAPS( 2), LIST_TAPS( 3), LIST_TAPS( 4),
 	LIST_TAPS( 5), LIST_TAPS( 6), LIST_TAPS( 7), LIST_TAPS( 8), LIST_TAPS( 9),
 	LIST_TAPS(10), LIST_TAPS(11), LIST_TAPS(12), LIST_TAPS(13), LIST_TAPS(14),
@@ -2582,9 +2595,9 @@ static u8 MFFU_SKEW_GRAD(const u8 *p, u8 clamp_max, int x, int y, int width) {
 
 static CAT_INLINE u8 abcClampMono(int a, int b, int c, int clamp_max) {
 	int sum = a + b - c;
-	if (sum < 0) {
+	if (sum <= 0) {
 		return 0;
-	} else if (sum > clamp_max) {
+	} else if (sum >= clamp_max) {
 		return clamp_max;
 	}
 
@@ -2753,9 +2766,9 @@ static u8 MFFU_SELECT(const u8 *p, u8 clamp_max, int x, int y, int width) {
 }
 
 
-//// Pick Left Filter
+//// Select F Filter
 
-static u8 MFF_PICK_LEFT(const u8 *p, u8 clamp_max, int x, int y, int width) {
+static u8 MFF_SELECT_F(const u8 *p, u8 clamp_max, int x, int y, int width) {
 	if (x > 1 && y > 0) {
 		const u8 *a = p - 1;
 		const u8 *c = a - width;
@@ -2771,7 +2784,7 @@ static u8 MFF_PICK_LEFT(const u8 *p, u8 clamp_max, int x, int y, int width) {
 	return 0;
 }
 
-static u8 MFFU_PICK_LEFT(const u8 *p, u8 clamp_max, int x, int y, int width) {
+static u8 MFFU_SELECT_F(const u8 *p, u8 clamp_max, int x, int y, int width) {
 	CAT_DEBUG_ENFORCE(x > 0 && y > 0 && x < width-1);
 
 	if (x > 1) {
@@ -2786,14 +2799,14 @@ static u8 MFFU_PICK_LEFT(const u8 *p, u8 clamp_max, int x, int y, int width) {
 }
 
 
-//// Predict Upper-Right Filter
+//// E-D Gradient Filter
 
-static u8 MFF_PRED_UR(const u8 *p, u8 clamp_max, int x, int y, int width) {
+static u8 MFF_ED_GRAD(const u8 *p, u8 clamp_max, int x, int y, int width) {
 	if (y > 1 && x < width - 2) {
 		const u8 *d = p + 1 - width;
 		const u8 *e = d + 1 - width;
 
-		return d[0] * 2 - e[0];
+		return (d[0] * 2 - e[0]) % clamp_max;
 	} else if (x > 0) {
 		return p[-1]; // A
 	} else if (y > 0) {
@@ -2803,7 +2816,16 @@ static u8 MFF_PRED_UR(const u8 *p, u8 clamp_max, int x, int y, int width) {
 	return 0;
 }
 
-#define MFFU_PRED_UR MFF_PRED_UR
+static u8 MFFU_ED_GRAD(const u8 *p, u8 clamp_max, int x, int y, int width) {
+	if (y > 1 && x < width - 2) {
+		const u8 *d = p + 1 - width;
+		const u8 *e = d + 1 - width;
+
+		return (d[0] * 2 - e[0]) % clamp_max;
+	}
+
+	return p[-1]; // A
+}
 
 
 //// PaletteFilterSet
@@ -2905,8 +2927,8 @@ const MonoFilterFuncs cat::MONO_FILTERS[SF_COUNT] = {
 	{ MFF_ABC_PAETH, MFFU_ABC_PAETH },
 	{ MFF_PLO, MFFU_PLO },
 	{ MFF_SELECT, MFFU_SELECT },
-	{ MFF_PICK_LEFT, MFFU_PICK_LEFT },
-	{ MFF_PRED_UR, MFFU_PRED_UR },
+	{ MFF_SELECT_F, MFFU_SELECT_F },
+	{ MFF_ED_GRAD, MFFU_ED_GRAD },
 	LIST_TAPS( 0), LIST_TAPS( 1), LIST_TAPS( 2), LIST_TAPS( 3), LIST_TAPS( 4),
 	LIST_TAPS( 5), LIST_TAPS( 6), LIST_TAPS( 7), LIST_TAPS( 8), LIST_TAPS( 9),
 	LIST_TAPS(10), LIST_TAPS(11), LIST_TAPS(12), LIST_TAPS(13), LIST_TAPS(14),

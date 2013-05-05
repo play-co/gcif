@@ -111,8 +111,8 @@ enum SpatialFilters {
 	SF_SELECT,			// Select (WebP)
 
 	// EF Complex filters
-	SF_PICK_LEFT,		// Pick A or C based on which is closer to F (New)
-	SF_PRED_UR,			// Predict gradient continues from E to D to current (New)
+	SF_SELECT_F,		// Pick A or C based on which is closer to F (New)
+	SF_ED_GRAD,			// Predict gradient continues from E to D to current (New)
 
 	SF_BASIC_COUNT
 };
@@ -221,12 +221,12 @@ public:
 		return RESIDUAL_SCORE_256[residual];
 #else
 		// If score is "positive",
-		if (score <= 128) {
+		if (residual <= 128) {
 			// Note: 128 = worst score, 0 = best
-			return score;
+			return residual;
 		} else {
 			// Wrap around: ABS(255) = ABS(-1) = 1, etc
-			return 256 - score;
+			return 256 - residual;
 		}
 #endif
 	}
@@ -234,10 +234,10 @@ public:
 	// Residual 0..num_syms-1 value -> Score
 	static CAT_INLINE u8 ResidualScore(u8 residual, const u8 num_syms) {
 		// If score is "positive",
-		if (score <= num_syms / 2) {
-			return score;
+		if (residual <= num_syms / 2) {
+			return residual;
 		} else {
-			return num_syms - score;
+			return num_syms - residual;
 		}
 	}
 
@@ -266,7 +266,7 @@ public:
 
 	void init(int chaos_levels, int width);
 
-	CAT_INLINE getBinCount() {
+	CAT_INLINE int getBinCount() {
 		return _chaos_levels;
 	}
 
