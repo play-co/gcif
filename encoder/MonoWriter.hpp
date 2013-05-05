@@ -52,9 +52,45 @@
 namespace cat {
 
 
-//// MonoWriter 
-
+/*
+ * MonoWriter
+ *
+ * Writes compressed monochrome data.
+ */
 class MonoWriter {
+	u8 *_tile_seen;							// Seen this tile yet during writing?
+	int _tile_seen_alloc;
+
+	void cleanup();
+
+	// Initialize the write engine
+	void initializeWriter();
+
+public:
+	CAT_INLINE MonoWriter() {
+		_tiles = 0;
+		_filter_encoder = 0;
+		_tile_row_filters = 0;
+		_residuals = 0;
+	}
+	CAT_INLINE virtual ~MonoWriter() {
+		cleanup();
+	}
+
+	// Write parameter tables for decoder
+	int writeTables(ImageWriter &writer);
+
+	// Writer header for a row that is just starting
+	int writeRowHeader(u16 y, ImageWriter &writer); // Returns bits used
+
+	// Write a symbol
+	int write(u16 x, u16 y, ImageWriter &writer); // Returns bits used
+};
+
+
+//// MonoWriterFactory
+
+class MonoWriterFactory {
 public:
 	static const int MAX_AWARDS = 8;	// Maximum filters to award
 	static const int MAX_FILTERS = 32;	// Maximum filters to use
@@ -113,13 +149,17 @@ protected:
 
 	// Generated filter tiles
 	u8 *_tiles;								// Filter tiles
+	int _tiles_alloc;
 	u32 _tiles_count;						// Number of tiles
 	int _tiles_x, _tiles_y;					// Tiles in x,y
 	u16 _tile_bits_x, _tile_bits_y;			// Number of bits in size
 	u16 _tile_size_x, _tile_size_y;			// Size of tile
+	u8 *_ecodes;							// Codes used during entropy estimation
+	int _ecodes_alloc;
 
 	// Residuals
 	u8 *_residuals;							// Residual data after applying filters
+	int _residuals_alloc;
 	u32 _residual_entropy;					// Calculated entropy of residuals
 
 	// Filter choices
@@ -136,8 +176,8 @@ protected:
 	// Filter encoder
 	MonoWriter *_filter_encoder;			// Child instance
 	u8 *_tile_row_filters;					// One for each tile row
+	int _tile_row_filters_alloc;
 	u32 _row_filter_entropy;				// Calculated entropy from using row filters
-	u8 *_tile_seen;							// Seen this tile yet during writing?
 
 	// Filter encoder for row mode
 	EntropyEncoder<MAX_FILTERS, ZRLE_SYMS> _row_filter_encoder;
@@ -149,8 +189,11 @@ protected:
 	// Write state
 	u8 _write_filter;						// Current filter
 
-	// TODO: Have entropy encoder select symbol count in initialization function
+	// Data encoders
 	EntropyEncoder<MAX_SYMS, ZRLE_SYMS> _encoder[MAX_CHAOS_LEVELS];
+
+	// Best writer
+	MonoWriter *_best_writer;				// Best writer found
 
 	void cleanup();
 
@@ -196,31 +239,24 @@ protected:
 	// Simulate number of bits required to encode the data this way
 	u32 simulate();
 
-	// Initialize the write engine
-	void initializeWriter();
+	// Process parameters and come up with an encoding scheme
+	u32 process(const Parameters &params);
 
 public:
-	CAT_INLINE MonoWriter() {
+	CAT_INLINE MonoWriterFactory() {
 		_tiles = 0;
 		_filter_encoder = 0;
 		_tile_row_filters = 0;
 		_residuals = 0;
+		_tile_seen = 0;
+		_best_writer = 0;
 	}
-	CAT_INLINE virtual ~MonoWriter() {
+	CAT_INLINE virtual ~MonoWriterFactory() {
 		cleanup();
 	}
 
-	// Process the data
-	u32 process(const Parameters &params);
-
-	// Write parameter tables for decoder
-	int writeTables(ImageWriter &writer);
-
-	// Writer header for a row that is just starting
-	int writeRowHeader(u16 y, ImageWriter &writer); // Returns bits used
-
-	// Write a symbol
-	int write(u16 x, u16 y, ImageWriter &writer); // Returns bits used
+	// Generate writer from this configuration
+	static MonoWriter *generateWriter(const Parameters &params);
 };
 
 

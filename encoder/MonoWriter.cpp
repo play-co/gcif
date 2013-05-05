@@ -26,7 +26,7 @@
 	POSSIBILITY OF SUCH DAMAGE.
 */
 
-#include "MonoWriter.hpp"
+#include "MonoWriterFactory.hpp"
 #include "../decoder/Enforcer.hpp"
 #include "FilterScorer.hpp"
 #include "EntropyEstimator.hpp"
@@ -45,9 +45,9 @@ using namespace cat;
 #endif
 
 
-//// MonoWriter
+//// MonoWriterFactory
 
-void MonoWriter::cleanup() {
+void MonoWriterFactory::cleanup() {
 	if (_tiles) {
 		delete []_tiles;
 		_tiles = 0;
@@ -64,13 +64,13 @@ void MonoWriter::cleanup() {
 		delete []_residuals;
 		_residuals = 0;
 	}
-	if (_tile_seen) {
-		delete []_tile_seen;
-		_tile_seen = 0;
+	if (_best_writer) {
+		delete _best_writer;
+		_best_writer = 0;
 	}
 }
 
-void MonoWriter::maskTiles() {
+void MonoWriterFactory::maskTiles() {
 	const u16 tile_size_x = _tile_size_x, tile_size_y = _tile_size_y;
 	const u16 size_x = _params.size_x, size_y = _params.size_y;
 	u8 *p = _tiles;
@@ -101,7 +101,7 @@ next_tile:;
 	}
 }
 
-void MonoWriter::designPaletteFilters() {
+void MonoWriterFactory::designPaletteFilters() {
 	CAT_INANE("2D") << "Designing palette filters for " << _tiles_x << "x" << _tiles_y << "...";
 
 	const u16 tile_size_x = _tile_size_x, tile_size_y = _tile_size_y;
@@ -186,7 +186,7 @@ void MonoWriter::designPaletteFilters() {
 	_sympal_filter_count = sympal_count;
 }
 
-void MonoWriter::designFilters() {
+void MonoWriterFactory::designFilters() {
 	CAT_INANE("2D") << "Designing filters for " << _tiles_x << "x" << _tiles_y << "...";
 
 	const u16 tile_size_x = _tile_size_x, tile_size_y = _tile_size_y;
@@ -353,7 +353,7 @@ void MonoWriter::designFilters() {
 	CAT_INANE("2D") << " + Chose " << _filter_count << " filters : " << _sympal_filter_count << " of which are palettes";
 }
 
-void MonoWriter::designPaletteTiles() {
+void MonoWriterFactory::designPaletteTiles() {
 	if (_sympal_filter_count < 0) {
 		CAT_INANE("2D") << "No palette filters selected";
 		return;
@@ -394,7 +394,7 @@ void MonoWriter::designPaletteTiles() {
 	}
 }
 
-void MonoWriter::designTiles() {
+void MonoWriterFactory::designTiles() {
 	CAT_INANE("2D") << "Designing tiles for " << _tiles_x << "x" << _tiles_y << "...";
 
 	const u16 tile_size_x = _tile_size_x, tile_size_y = _tile_size_y;
@@ -406,7 +406,15 @@ void MonoWriter::designTiles() {
 	ee.init();
 
 	const u32 code_stride = _tile_size_x * _tile_size_y;
-	u8 *codes = new u8[code_stride * _filter_count];
+	const u32 codes_size = code_stride * _filter_count;
+	if (!_ecodes || codes_size > _ecodes_alloc) {
+		if (_ecodes) {
+			delete []_ecodes;
+		}
+		_ecodes = new u8[codes_size];
+		_ecodes_alloc = codes_size;
+	}
+	u8 *codes = _ecodes;
 
 	// Until revisits are done,
 	int passes = 0;
@@ -561,11 +569,9 @@ void MonoWriter::designTiles() {
 
 		CAT_INANE("2D") << "Revisiting filter selections from the top... " << revisitCount << " left";
 	}
-
-	delete []codes;
 }
 
-void MonoWriter::computeResiduals() {
+void MonoWriterFactory::computeResiduals() {
 	CAT_INANE("2D") << "Executing tiles to generate residual matrix...";
 
 	const u16 tile_size_x = _tile_size_x, tile_size_y = _tile_size_y;
@@ -617,7 +623,7 @@ void MonoWriter::computeResiduals() {
 	}
 }
 
-void MonoWriter::designRowFilters() {
+void MonoWriterFactory::designRowFilters() {
 	CAT_INANE("2D") << "Designing row filters for " << _tiles_x << "x" << _tiles_y << "...";
 
 	const int tiles_x = _tiles_x, tiles_y = _tiles_y;
@@ -629,7 +635,16 @@ void MonoWriter::designRowFilters() {
 
 	u32 total_entropy;
 
-	u8 *codes = new u8[RF_COUNT * tiles_x];
+	// Allocate temporary workspace
+	const u32 codes_size = RF_COUNT * tiles_x;
+	if (!_ecodes || _ecodes_alloc < codes_size) {
+		if (_ecodes) {
+			delete []_ecodes;
+		}
+		_ecodes = new u8[codes_size];
+		_ecodes_alloc = codes_size;
+	}
+	u8 *codes = _ecodes;
 
 	// For each pass through,
 	int passes = 0;
@@ -712,21 +727,19 @@ void MonoWriter::designRowFilters() {
 	}
 
 	_row_filter_entropy = total_entropy;
-
-	delete []codes;
 }
 
-bool MonoWriter::IsMasked(u16 x, u16 y) {
+bool MonoWriterFactory::IsMasked(u16 x, u16 y) {
 	return _tiles[x + y * _tiles_x] == MASK_TILE;
 }
 
-void MonoWriter::recurseCompress() {
+void MonoWriterFactory::recurseCompress() {
 	if (_tiles_count < RECURSE_THRESH_COUNT) {
 		CAT_INANE("2D") << "Stopping below recursive threshold for " << _tiles_x << "x" << _tiles_y << "...";
 	} else {
 		CAT_INANE("2D") << "Recursively compressing tiles for " << _tiles_x << "x" << _tiles_y << "...";
 
-		_filter_encoder = new MonoWriter;
+		_filter_encoder = new MonoWriterFactory;
 
 		Parameters params = _params;
 		params.data = _tiles;
@@ -735,7 +748,7 @@ void MonoWriter::recurseCompress() {
 		params.size_y = _tiles_y;
 
 		// Hook up our mask function
-		params.mask.SetMember<MonoWriter, &MonoWriter::IsMasked>(this);
+		params.mask.SetMember<MonoWriterFactory, &MonoWriterFactory::IsMasked>(this);
 
 		// Recurse!
 		u32 recurse_entropy = _filter_encoder->process(params);
@@ -743,6 +756,7 @@ void MonoWriter::recurseCompress() {
 		// If it does not win over row filters,
 		if (recurse_entropy > _row_filter_entropy) {
 			CAT_INANE("2D") << "Recursive filter did not win over simple row filters: " << recurse_entropy << " > " << _row_filter_entropy;
+
 			delete _filter_encoder;
 			_filter_encoder = 0;
 		} else {
@@ -751,7 +765,7 @@ void MonoWriter::recurseCompress() {
 	}
 }
 
-void MonoWriter::designChaos() {
+void MonoWriterFactory::designChaos() {
 	CAT_INANE("2D") << "Designing chaos...";
 
 	EntropyEstimator ee[MAX_CHAOS_LEVELS];
@@ -819,7 +833,102 @@ void MonoWriter::designChaos() {
 	_chaos_entropy = best_entropy;
 }
 
-u32 MonoWriter::simulate() {
+void MonoWriterFactory::initializeEncoders() {
+	_chaos.start();
+
+	// For each row,
+	const u8 *residuals = _residuals;
+	for (int y = 0; y < _params.size_y; ++y) {
+		_chaos.startRow();
+
+		// For each column,
+		for (int x = 0; x < _params.size_x; ++x) {
+			// If it is a palsym tile,
+			const u8 f = getTile(x, y);
+
+			// If masked,
+			if (f == MASK_TILE || _params.mask(x, y) || f >= _normal_filter_count) {
+				_chaos.zero();
+			} else {
+				// Get residual symbol
+				u8 residual = *residuals;
+
+				// Calculate local chaos
+				int chaos = _chaos.get(residual, _params.num_syms);
+
+				// Add to histogram for this chaos bin
+				_encoder[chaos].add(residual);
+			}
+
+			++residuals;
+		}
+	}
+
+	// For each chaos level,
+	for (int ii = 0, iiend = _chaos.getBinCount(); ii < iiend; ++ii) {
+		_encoder[ii].finalize();
+	}
+
+	// If using row encoders for filters,
+	if (!_filter_encoder) {
+		// For each filter row,
+		const u8 *tile = _tiles;
+		for (int ty = 0; ty < _tiles_y; ++ty) {
+			int tile_row_filter = _tile_row_filters[ty];
+
+			// For each column,
+			for (int tx = 0; tx < _tiles_x; ++tx) {
+				u8 f = *tile++;
+				int residual = f;
+
+				if (f != MASK_TILE) {
+					// Filter the row filters
+					switch (tile_row_filter) {
+					default:
+						CAT_DEBUG_EXCEPTION();
+					case RF_NOOP:
+						break;
+					case RF_A:
+						if (tx > 0) {
+							residual += _filter_count - tile[-1];
+							if (residual >= _filter_count) {
+								residual -= _filter_count;
+							}
+						}
+						break;
+					case RF_B:
+						if (ty > 0) {
+							residual += _filter_count - tile[-_tiles_x];
+							if (residual >= _filter_count) {
+								residual -= _filter_count;
+							}
+						}
+						break;
+					case RF_C:
+						if (tx > 0) {
+							if (ty <= 0) {
+								residual += _filter_count - tile[-1];
+							} else {
+								residual += _filter_count - tile[-_tiles_x - 1];
+							}
+							if (residual >= _filter_count) {
+								residual -= _filter_count;
+							}
+						}
+						break;
+					}
+
+					_row_filter_encoder.add(residual);
+				}
+			}
+		}
+
+		// Finalize the row filter encoder
+		_row_filter_encoder.finalize();
+	}
+}
+
+u32 MonoWriterFactory::simulate() {
 	u32 bits = 0;
 
 	// Chaos overhead
@@ -929,7 +1038,7 @@ u32 MonoWriter::simulate() {
 	return bits;
 }
 
-u32 MonoWriter::process(const Parameters &params) {
+u32 MonoWriterFactory::process(const Parameters &params) {
 	cleanup();
 
 	// Initialize
@@ -954,15 +1063,32 @@ u32 MonoWriter::process(const Parameters &params) {
 
 		CAT_INANE("2D") << " - Trying " << _tile_size_x << "x" << _tile_size_y << " tile size, yielding a subresolution matrix " << _tiles_x << "x" << _tiles_y << " for input " << _params.size_x << "x" << _params.size_y << " data matrix";
 
-		// TODO: Avoid reallocating memory
-
 		// Allocate tile memory
 		_tiles_count = _tiles_x * _tiles_y;
-		_tiles = new u8[_tiles_count];
-		_tile_row_filters = new u8[_tiles_y];
+		if (!_tiles || _tiles_alloc < _tiles_count) {
+			if (_tiles) {
+				delete []_tiles;
+			}
+			_tiles = new u8[_tiles_count];
+			_tiles_alloc = _tiles_count;
+		}
+		if (!_tile_row_filters || _tiles_row_filters_alloc < _tiles_y) {
+			if (_tile_row_filters) {
+				delete []_tile_row_filters;
+			}
+			_tile_row_filters = new u8[_tiles_y];
+			_tiles_row_filters_alloc = _tiles_y;
+		}
 
 		// Allocate residual memory
-		_residuals = new u8[_params.size_x * _params.size_y];
+		const u32 residuals_memory = _params.size_x * _params.size_y;
+		if (!_residuals || residuals_memory > _residuals_alloc) {
+			if (_residuals) {
+				delete []_residuals;
+			}
+			_residuals = new u8[residuals_memory];
+			_residuals_alloc = residuals_memory;
+		}
 
 		// Process
 		maskTiles();
@@ -982,6 +1108,11 @@ u32 MonoWriter::process(const Parameters &params) {
 			best_entropy = entropy;
 			best_bits = bits;
 
+			// Allocate a best writer if needed
+			if (!_best_writer) {
+				_best_writer = new MonoWriter;
+			}
+
 			// TODO: Store off the best option
 		} else {
 			// Stop trying options
@@ -992,100 +1123,17 @@ u32 MonoWriter::process(const Parameters &params) {
 	return best_entropy;
 }
 
-void MonoWriter::initializeEncoders() {
-	// TODO: Restore the best option
+MonoWriter *MonoWriterFactory::generateWriter(const Parameters &params) {
+}
 
-	_chaos.start();
 
-	// For each row,
-	const u8 *residuals = _residuals;
-	for (int y = 0; y < _params.size_y; ++y) {
-		_chaos.startRow();
+//// MonoWriter
 
-		// For each column,
-		for (int x = 0; x < _params.size_x; ++x) {
-			// If it is a palsym tile,
-			const u8 f = getTile(x, y);
-
-			// If masked,
-			if (f == MASK_TILE || _params.mask(x, y) || f >= _normal_filter_count) {
-				_chaos.zero();
-			} else {
-				// Get residual symbol
-				u8 residual = *residuals;
-
-				// Calculate local chaos
-				int chaos = _chaos.get(residual, _params.num_syms);
-
-				// Add to histogram for this chaos bin
-				_encoder[chaos].add(residual);
-			}
-
-			++residuals;
-		}
-	}
-
-	// For each chaos level,
-	for (int ii = 0, iiend = _chaos.getBinCount(); ii < iiend; ++ii) {
-		_encoder[ii].finalize();
-	}
-
-	// If using row encoders for filters,
-	if (!_filter_encoder) {
-		// For each filter row,
-		const u8 *tile = _tiles;
-		for (int ty = 0; ty < _tiles_y; ++ty) {
-			int tile_row_filter = _tile_row_filters[ty];
-
-			// For each column,
-			for (int tx = 0; tx < _tiles_x; ++tx) {
-				u8 f = *tile++;
-				int residual = f;
-
-				if (f != MASK_TILE) {
-					// Filter the row filters
-					switch (tile_row_filter) {
-					default:
-						CAT_DEBUG_EXCEPTION();
-					case RF_NOOP:
-						break;
-					case RF_A:
-						if (tx > 0) {
-							residual += _filter_count - tile[-1];
-							if (residual >= _filter_count) {
-								residual -= _filter_count;
-							}
-						}
-						break;
-					case RF_B:
-						if (ty > 0) {
-							residual += _filter_count - tile[-_tiles_x];
-							if (residual >= _filter_count) {
-								residual -= _filter_count;
-							}
-						}
-						break;
-					case RF_C:
-						if (tx > 0) {
-							if (ty <= 0) {
-								residual += _filter_count - tile[-1];
-							} else {
-								residual += _filter_count - tile[-_tiles_x - 1];
-							}
-							if (residual >= _filter_count) {
-								residual -= _filter_count;
-							}
-						}
-						break;
-					}
-
-					_row_filter_encoder.add(residual);
-				}
-			}
-		}
-
-		// Finalize the row filter encoder
-		_row_filter_encoder.finalize();
+void MonoWriter::cleanup() {
+	// TODO: Add these
+	if (_tile_seen) {
+		delete []_tile_seen;
+		_tile_seen = 0;
 	}
 }
 
@@ -1185,7 +1233,13 @@ void MonoWriter::initializeWriter() {
 	Stats.data_bits = 0;
 
 	// Initialize writer
-	_tile_seen = new u8[_tiles_x];
+	if (!_tile_seen || _tile_seen_alloc < _tiles_x) {
+		if (_tile_seen) {
+			delete []_tile_seen;
+		}
+		_tile_seen = new u8[_tiles_x];
+		_tile_seen_alloc = _tiles_x;
+	}
 
 	_chaos.start();
 
