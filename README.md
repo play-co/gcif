@@ -1,6 +1,12 @@
 GCIF
 ====
 
+
+Currently in the middle of a large overhaul of the compressor to improve the
+architecture and average compression ratio.
+
+
+
 Game Closure Image Format : 1.0
 
 This is a lossless RGBA image format suited for mobile game sprite-sheets and
