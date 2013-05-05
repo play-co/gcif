@@ -250,6 +250,41 @@ public:
 		_runListReadIndex = 0;
 	}
 
+	int simulate(u16 symbol) {
+		CAT_DEBUG_ENFORCE(symbol < NUM_SYMS);
+
+		if (_using_basic) {
+			return _basic.simulateWrite(symbol);
+		}
+
+		int bits = 0;
+
+		// If zero,
+		if (symbol == 0) {
+			// If starting a zero run,
+			if (_zeroRun == 0) {
+				CAT_DEBUG_ENFORCE(_runListReadIndex < (int)_runList.size());
+
+				// Write stored zero run
+				int runLength = _runList[_runListReadIndex++];
+
+				bits += simulateZeroRun(runLength);
+			}
+
+			++_zeroRun;
+		} else {
+			// If just out of a zero run,
+			if (_zeroRun > 0) {
+				_zeroRun = 0;
+				bits += _az.simulateWrite(symbol);
+			} else {
+				bits += _bz.simulateWrite(symbol);
+			}
+		}
+
+		return bits;
+	}
+
 	int write(u16 symbol, ImageWriter &writer) {
 		CAT_DEBUG_ENFORCE(symbol < NUM_SYMS);
 

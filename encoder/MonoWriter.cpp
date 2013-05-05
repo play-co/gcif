@@ -837,13 +837,94 @@ u32 MonoWriter::simulate() {
 	// Sympal choice overhead
 	bits += 4 + 8 * _sympal_filter_count;
 
-	// If recursed,
+	// If not using row encoders for filters,
 	++bits;
 	if (_filter_encoder) {
 		bits += _filter_encoder->simulate();
+	} else {
+		// For each filter row,
+		const u8 *tile = _tiles;
+		for (int ty = 0; ty < _tiles_y; ++ty) {
+			int tile_row_filter = _tile_row_filters[ty];
+
+			// For each column,
+			for (int tx = 0; tx < _tiles_x; ++tx) {
+				u8 f = *tile++;
+				int residual = f;
+
+				if (f != MASK_TILE) {
+					// Filter the row filters
+					switch (tile_row_filter) {
+					default:
+						CAT_DEBUG_EXCEPTION();
+					case RF_NOOP:
+						break;
+					case RF_A:
+						if (tx > 0) {
+							residual += _filter_count - tile[-1];
+							if (residual >= _filter_count) {
+								residual -= _filter_count;
+							}
+						}
+						break;
+					case RF_B:
+						if (ty > 0) {
+							residual += _filter_count - tile[-_tiles_x];
+							if (residual >= _filter_count) {
+								residual -= _filter_count;
+							}
+						}
+						break;
+					case RF_C:
+						if (tx > 0) {
+							if (ty <= 0) {
+								residual += _filter_count - tile[-1];
+							} else {
+								residual += _filter_count - tile[-_tiles_x - 1];
+							}
+							if (residual >= _filter_count) {
+								residual -= _filter_count;
+							}
+						}
+						break;
+					}
+
+					bits += _row_filter_encoder.simulate(residual);
+				}
+			}
+		}
 	}
 
-	// TODO: Simulate residual bits
+	// Simulate residuals
+	_chaos.start();
+
+	// For each row,
+	const u8 *residuals = _residuals;
+	for (int y = 0; y < _params.size_y; ++y) {
+		_chaos.startRow();
+
+		// For each column,
+		for (int x = 0; x < _params.size_x; ++x) {
+			// If it is a palsym tile,
+			const u8 f = getTile(x, y);
+
+			// If masked,
+			if (f == MASK_TILE || _params.mask(x, y) || f >= _normal_filter_count) {
+				_chaos.zero();
+			} else {
+				// Get residual symbol
+				u8 residual = *residuals;
+
+				// Calculate local chaos
+				int chaos = _chaos.get(residual, _params.num_syms);
+
+				// Add to histogram for this chaos bin
+				bits += _encoder[chaos].simulate(residual);
+			}
+
+			++residuals;
+		}
+	}
 
 	return bits;
 }
@@ -871,7 +952,7 @@ u32 MonoWriter::process(const Parameters &params) {
 		_tiles_x = (_params.size_x + _tile_size_x - 1) >> bits;
 		_tiles_y = (_params.size_y + _tile_size_y - 1) >> bits;
 
-		CAT_INANE("2D") << " - Trying " << _tile_size_x << "x" << _tile_size_y << " tile size, yielding a subresolution matrix " << _tiles_x << "x" << _tiles_Y << " for input " << _params.size_x << "x" << _params.size_y << " data matrix";
+		CAT_INANE("2D") << " - Trying " << _tile_size_x << "x" << _tile_size_y << " tile size, yielding a subresolution matrix " << _tiles_x << "x" << _tiles_y << " for input " << _params.size_x << "x" << _params.size_y << " data matrix";
 
 		// TODO: Avoid reallocating memory
 
@@ -893,6 +974,7 @@ u32 MonoWriter::process(const Parameters &params) {
 		designRowFilters();
 		recurseCompress();
 		designChaos();
+		initializeEncoders();
 
 		// Calculate bits required to represent the data with this tile size
 		u32 entropy = simulate();
@@ -949,7 +1031,7 @@ void MonoWriter::initializeEncoders() {
 	}
 
 	// If using row encoders for filters,
-	if (_filter_encoder) {
+	if (!_filter_encoder) {
 		// For each filter row,
 		const u8 *tile = _tiles;
 		for (int ty = 0; ty < _tiles_y; ++ty) {
@@ -1012,8 +1094,6 @@ int MonoWriter::writeTables(ImageWriter &writer) {
 	Stats.basic_overhead_bits = 0;
 	Stats.encoder_overhead_bits = 0;
 	Stats.filter_overhead_bits = 0;
-
-	initializeEncoders();
 
 	// Write tile size
 	{
@@ -1108,6 +1188,16 @@ void MonoWriter::initializeWriter() {
 	_tile_seen = new u8[_tiles_x];
 
 	_chaos.start();
+
+	// Reset filter encoder
+	if (!_filter_encoder) {
+		_row_filter_encoder.reset();
+	}
+
+	// Reset encoders
+	for (int ii = 0, iiend = _chaos.getBinCount(); ii < iiend; ++ii) {
+		_encoder[ii].reset();
+	}
 }
 
 int MonoWriter::writeRowHeader(u16 y, ImageWriter &writer) {
@@ -1122,32 +1212,40 @@ int MonoWriter::writeRowHeader(u16 y, ImageWriter &writer) {
 	// Reset chaos bin subsystem
 	_chaos.startRow();
 
+	int bits;
+
 	// If filter encoder is used instead of row filters,
 	if (_filter_encoder) {
 		// Recurse start row (they all start at 0)
-		Stats.filter_overhead_bits += _filter_encoder->writeRowHeader(ty, writer);
+		bits = _filter_encoder->writeRowHeader(ty, writer);
 	} else {
 		CAT_DEBUG_ENFORCE(RF_COUNT <= 4);
 
 		// Write out chosen row filter
 		writer.writeBits(_tile_row_filters[ty], 2);
-		Stats.filter_overhead_bits += 2;
+		bits = 2;
 	}
 
 	DESYNC_FILTER(0, y);
+
+	Stats.filter_overhead_bits += bits;
+	return bits;
 }
 
 int MonoWriter::write(u16 x, u16 y, ImageWriter &writer) {
+	int overhead_bits = 0, data_bits = 0;
+
 	CAT_DEBUG_ENFORCE(x < _params.size_x && y < _params.size_y);
 
 	// Calculate tile coordinates
-	u16 tx = x >> _tile_bits_y, ty = y >> _tile_bits_y;
+	u16 tx = x >> _tile_bits_y;
 
 	// If tile not seen yet,
 	if (!_tile_seen[tx]) {
 		_tile_seen[tx] = true;
 
 		// Get tile
+		u16 ty = y >> _tile_bits_y;
 		u8 *tile = _tiles + tx + ty * _tiles_x;
 		u8 f = tile[0];
 		_write_filter = f;
@@ -1157,7 +1255,7 @@ int MonoWriter::write(u16 x, u16 y, ImageWriter &writer) {
 			// If recursive filter encoded,
 			if (_filter_encoder) {
 				// Pass filter write down the tree
-				Stats.filter_overhead_bits += _filter_encoder->write(tx, ty, writer);
+				overhead_bits += _filter_encoder->write(tx, ty, writer);
 			} else {
 				// Calculate row filter residual for filter data (filter of filters at tree leaf)
 				int residual = f;
@@ -1197,8 +1295,10 @@ int MonoWriter::write(u16 x, u16 y, ImageWriter &writer) {
 					break;
 				}
 
-				Stats.filter_overhead_bits += _row_filter_encoder.write(residual, writer);
+				overhead_bits += _row_filter_encoder.write(residual, writer);
 			}
+
+			Stats.filter_overhead_bits += overhead_bits;
 		}
 
 		DESYNC_FILTER(x, y);
@@ -1216,9 +1316,13 @@ int MonoWriter::write(u16 x, u16 y, ImageWriter &writer) {
 		int chaos = _chaos.get(residual, _params.num_syms);
 
 		// Write the residual value
-		_encoder[chaos].write(residual, writer);
+		data_bits += _encoder[chaos].write(residual, writer);
+
+		Stats.data_bits += data_bits;
 	}
 
 	DESYNC(x, y);
+
+	return overhead_bits + data_bits;
 }
 

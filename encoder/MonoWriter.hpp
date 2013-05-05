@@ -190,11 +190,11 @@ protected:
 	// Determine number of chaos levels to use when encoding the data
 	void designChaos();
 
-	// Simulate number of bits required to encode the data this way
-	u32 simulate();
-
 	// Load up the encoders with symbol statistics
 	void initializeEncoders();
+
+	// Simulate number of bits required to encode the data this way
+	u32 simulate();
 
 	// Initialize the write engine
 	void initializeWriter();
