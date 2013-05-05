@@ -68,6 +68,8 @@ static const GCIFKnobs DEFAULT_KNOBS[COMPRESS_LEVELS] = {
 		4,			// lz_nonzeroCoeff
 		18,			// lz_tableBits
 
+		0,			// mono_revisitCount
+
 		false,		// cm_sortFilters
 		false,		// cm_designFilters
 		true,		// cm_disableEntropy
@@ -88,6 +90,8 @@ static const GCIFKnobs DEFAULT_KNOBS[COMPRESS_LEVELS] = {
 		16,			// lz_minScore
 		4,			// lz_nonzeroCoeff
 		18,			// lz_tableBits
+
+		0,			// mono_revisitCount
 
 		false,		// cm_sortFilters
 		false,		// cm_designFilters
@@ -110,6 +114,8 @@ static const GCIFKnobs DEFAULT_KNOBS[COMPRESS_LEVELS] = {
 		4,			// lz_nonzeroCoeff
 		18,			// lz_tableBits
 
+		0,			// mono_revisitCount
+
 		false,		// cm_sortFilters
 		true,		// cm_designFilters
 		false,		// cm_disableEntropy
@@ -130,6 +136,8 @@ static const GCIFKnobs DEFAULT_KNOBS[COMPRESS_LEVELS] = {
 		16,			// lz_minScore
 		4,			// lz_nonzeroCoeff
 		19,			// lz_tableBits
+
+		4096,			// mono_revisitCount
 
 		false,		// cm_sortFilters
 		true,		// cm_designFilters

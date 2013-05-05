@@ -124,7 +124,7 @@ protected:
 
 	// Filter choices
 	int _filter_indices[MAX_FILTERS];		// First MF_FIXED are always the same
-	MonoFilterFunc _filters[MAX_FILTERS];	// Chosen filters
+	MonoFilterFuncs _filters[MAX_FILTERS];	// Chosen filters
 	int _normal_filter_count;				// Number of normal filters
 	int _filter_count;						// Totla filters chosen
 
@@ -143,9 +143,7 @@ protected:
 	EntropyEncoder<MAX_FILTERS, ZRLE_SYMS> _row_filter_encoder;
 
 	// Chaos levels
-	int _chaos_levels;						// Number of chaos levels
-	u8 *_chaos;								// Chaos temporary scanline workspace
-	int _chaos_size;						// Number of bytes for chaos memory
+	ChaosTable _chaos;						// Chaos bin lookup table
 	u32 _chaos_entropy;						// Entropy after chaos applied
 
 	// Write state
@@ -156,10 +154,10 @@ protected:
 
 	void cleanup();
 
-	CAT_INLINE u8 *getTile(u16 x, u16 y) {
+	CAT_INLINE u8 getTile(u16 x, u16 y) {
 		x >>= _tile_bits_x;
 		y >>= _tile_bits_y;
-		return _tiles + x + y * _tiles_x;
+		return _tiles[x + y * _tiles_x];
 	}
 
 	// Mask function for child instance

@@ -60,10 +60,6 @@ void MonoWriter::cleanup() {
 		delete _filter_encoder;
 		_filter_encoder = 0;
 	}
-	if (_chaos) {
-		delete []_chaos;
-		_chaos = 0;
-	}
 	if (_residuals) {
 		delete []_residuals;
 		_residuals = 0;
@@ -285,9 +281,6 @@ void MonoWriter::designFilters() {
 		_filter_indices[f] = f;
 	}
 
-	// Adding one bit adds cost to each tile
-	int bit_cost = _tiles_count;
-
 	// Decide how many filters to sort by score
 	int count = _params.max_filters + SF_FIXED;
 	if (count > SF_COUNT) {
@@ -411,7 +404,7 @@ void MonoWriter::designTiles() {
 
 	// Until revisits are done,
 	int passes = 0;
-	int revisitCount = _knobs->mono_revisitCount;
+	int revisitCount = _params.knobs->mono_revisitCount;
 	while (passes < MAX_PASSES) {
 		// For each tile,
 		const u8 *topleft = _params.data;
@@ -449,7 +442,7 @@ void MonoWriter::designTiles() {
 								if (!_params.mask(px, py)) {
 									const u8 value = *data;
 
-									u8 prediction = _filters[old_filter](data, num_syms, x, y, size_x) % num_syms;
+									u8 prediction = _filters[old_filter].safe(data, num_syms, x, y, size_x) % num_syms;
 									u8 residual = (value + num_syms - prediction) % num_syms;
 
 									codes[code_count++] = residual;
@@ -480,7 +473,7 @@ void MonoWriter::designTiles() {
 							u8 *dest = codes + code_count;
 							for (int f = 0; f < _filter_count; ++f) {
 								// TODO: Specialize for num_syms power-of-two
-								u8 prediction = _filters[f](data, num_syms, x, y, size_x) % num_syms;
+								u8 prediction = _filters[f].safe(data, num_syms, x, y, size_x) % num_syms;
 								u8 residual = (value + num_syms - prediction) % num_syms;
 
 								*dest = residual;
@@ -569,9 +562,6 @@ void MonoWriter::computeResiduals() {
 	const u16 num_syms = _params.num_syms;
 	const u8 *p = _tiles;
 
-	const u32 code_stride = _tile_size_x * _tile_size_y;
-	u8 *codes = new u8[code_stride * _filter_count];
-
 	// For each tile,
 	const u8 *topleft = _params.data;
 	size_t residual_delta = (size_t)(_residuals - topleft);
@@ -595,7 +585,7 @@ void MonoWriter::computeResiduals() {
 					if (!_params.mask(px, py)) {
 						const u8 value = *data;
 
-						u8 prediction = _filters[old_filter](data, num_syms, x, y, size_x) % num_syms;
+						u8 prediction = _filters[f].safe(data, num_syms, x, y, size_x) % num_syms;
 						u8 residual = (value + num_syms - prediction) % num_syms;
 
 						// Convert data pointer to residual pointer
@@ -717,7 +707,7 @@ bool MonoWriter::IsMasked(u16 x, u16 y) {
 }
 
 void MonoWriter::recurseCompress() {
-	if (_tiles_count < RECURSIVE_THRESH) {
+	if (_tiles_count < RECURSE_THRESH_COUNT) {
 		CAT_INANE("2D") << "Stopping below recursive threshold for " << _tiles_x << "x" << _tiles_y << "...";
 	} else {
 		CAT_INANE("2D") << "Recursively compressing tiles for " << _tiles_x << "x" << _tiles_y << "...";
@@ -750,10 +740,6 @@ void MonoWriter::recurseCompress() {
 void MonoWriter::designChaos() {
 	CAT_INANE("2D") << "Designing chaos...";
 
-	// Initialize chaos memory
-	_chaos_size = 1 + _params.size_x;
-	_chaos = new u8[_chaos_size];
-
 	EntropyEstimator ee[MAX_CHAOS_LEVELS];
 
 	u32 best_entropy = 0x7fffffff;
@@ -761,22 +747,19 @@ void MonoWriter::designChaos() {
 
 	// For each chaos level,
 	for (int chaos_levels = 1; chaos_levels < MAX_CHAOS_LEVELS; ++chaos_levels) {
+		_chaos.init(chaos_levels, _params.size_x);
+
 		// Reset entropy estimator
 		for (int ii = 0; ii < chaos_levels; ++ii) {
 			ee[ii].init();
 		}
 
-		const u8 *CHAOS = CHAOS_MAPS[chaos_levels - 1];
-
-		// Reset chaos workspace for first row
-		CAT_CLR(_chaos, _chaos_size);
+		_chaos.start();
 
 		// For each row,
 		const u8 *residuals = _residuals;
 		for (int y = 0; y < _params.size_y; ++y) {
-			// Initialize chaos row
-			u8 *last = _chaos + 1;
-			last[-1] = 0;
+			_chaos.startRow();
 
 			// For each column,
 			for (int x = 0; x < _params.size_x; ++x) {
@@ -784,24 +767,17 @@ void MonoWriter::designChaos() {
 				const u8 f = getTile(x, y);
 
 				// If masked,
-				if (f == MASK_TILE || _params.mask(x, y)) {
-					// Skip masked elements
-					last[x] = 0;
-				} else if (f >= _normal_filter_count) {
-					// Symbolic palette used here, no entropy penalty
-					last[x] = 0;
+				if (f == MASK_TILE || _params.mask(x, y) || f >= _normal_filter_count) {
+					_chaos.zero();
 				} else {
-					// Calculate local chaos
-					int chaos = CHAOS[RESIDUAL_SCORE[last[-1]] + RESIDUAL_SCORE[last[0]]];
-
 					// Get residual symbol
-					u8 residual_sym = *residuals;
+					u8 residual = *residuals;
+
+					// Get chaos bin
+					int chaos = _chaos.get(residual, _params.num_syms);
 
 					// Add to histogram for this chaos bin
-					ee[chaos].addSingle(residual_sym);
-
-					// Remember the residual from next chaos calculation
-					last[x] = residual_sym;
+					ee[chaos].addSingle(residual);
 				}
 
 				++residuals;
@@ -822,7 +798,7 @@ void MonoWriter::designChaos() {
 	}
 
 	// Record the best option found
-	_chaos_levels = best_chaos_levels;
+	_chaos.init(best_chaos_levels, _params.size_x);
 	_chaos_entropy = best_entropy;
 }
 
@@ -871,17 +847,12 @@ u32 MonoWriter::process(const Parameters &params) {
 }
 
 void MonoWriter::initializeEncoders() {
-	const u8 *CHAOS = CHAOS_MAPS[_chaos_levels - 1];
-
-	// Reset chaos workspace for first row
-	CAT_CLR(_chaos, _chaos_size);
+	_chaos.start();
 
 	// For each row,
 	const u8 *residuals = _residuals;
 	for (int y = 0; y < _params.size_y; ++y) {
-		// Initialize chaos row
-		u8 *last = _chaos + 1;
-		last[-1] = 0;
+		_chaos.startRow();
 
 		// For each column,
 		for (int x = 0; x < _params.size_x; ++x) {
@@ -889,24 +860,17 @@ void MonoWriter::initializeEncoders() {
 			const u8 f = getTile(x, y);
 
 			// If masked,
-			if (f == MASK_TILE || _params.mask(x, y)) {
-				// Skip masked elements
-				last[x] = 0;
-			} else if (f >= _normal_filter_count) {
-				// Symbolic palette used here, no entropy penalty
-				last[x] = 0;
+			if (f == MASK_TILE || _params.mask(x, y) || f >= _normal_filter_count) {
+				_chaos.zero();
 			} else {
-				// Calculate local chaos
-				int chaos = CHAOS[RESIDUAL_SCORE[last[-1]] + RESIDUAL_SCORE[last[0]]];
-
 				// Get residual symbol
-				u8 residual_sym = *residuals;
+				u8 residual = *residuals;
+
+				// Calculate local chaos
+				int chaos = _chaos.get(residual, _params.num_syms);
 
 				// Add to histogram for this chaos bin
-				_encoder[chaos].add(residual_sym);
-
-				// Remember the residual from next chaos calculation
-				last[x] = residual_sym;
+				_encoder[chaos].add(residual);
 			}
 
 			++residuals;
@@ -1021,7 +985,7 @@ void MonoWriter::writeTables(ImageWriter &writer) {
 	{
 		CAT_DEBUG_ENFORCE(MAX_CHAOS_LEVELS <= 16);
 
-		writer.writeBits(_chaos_levels - 1, 4);
+		writer.writeBits(_chaos.getBinCount() - 1, 4);
 		Stats.basic_overhead_bits += 4;
 	}
 
@@ -1029,7 +993,7 @@ void MonoWriter::writeTables(ImageWriter &writer) {
 
 	// Write encoder tables
 	{
-		for (int ii = 0, iiend = _chaos_levels; ii < iiend; ++ii) {
+		for (int ii = 0, iiend = _chaos.getBinCount(); ii < iiend; ++ii) {
 			Stats.encoder_overhead_bits += _encoder[ii].writeTables(writer);
 		}
 	}
@@ -1068,8 +1032,7 @@ void MonoWriter::initializeWriter() {
 	// Initialize writer
 	_tile_seen = new u8[_tiles_x];
 
-	// Reset chaos memory for first row
-	CAT_CLR(_chaos, _chaos_size);
+	_chaos.start();
 }
 
 int MonoWriter::writeRowHeader(u16 y, ImageWriter &writer) {
@@ -1081,8 +1044,8 @@ int MonoWriter::writeRowHeader(u16 y, ImageWriter &writer) {
 	// Reset seen bitmask
 	CAT_CLR(_tile_seen, _tiles_x * sizeof(*_tile_seen));
 
-	// Clear left
-	_chaos[0] = 0;
+	// Reset chaos bin subsystem
+	_chaos.startRow();
 
 	// If filter encoder is used instead of row filters,
 	if (_filter_encoder) {
@@ -1162,22 +1125,18 @@ int MonoWriter::write(u16 x, u16 y, ImageWriter &writer) {
 	}
 
 	// If filter is masked,
-	if (_write_filter == MASK_TILE || _params.mask(x, y)) {
-		_chaos[x + 1] = 0;
+	u8 f = _write_filter;
+	if (f == MASK_TILE || _params.mask(x, y) || f >= _normal_filter_count) {
+		_chaos.zero();
 	} else {
 		// Look up residual sym
-		u8 residual_sym = _residuals[x + y * _params.size_x];
-
-		const u8 *CHAOS = CHAOS_MAPS[_chaos_levels - 1];
+		u8 residual = _residuals[x + y * _params.size_x];
 
 		// Calculate local chaos
-		int chaos = CHAOS[RESIDUAL_SCORE[_chaos[x]] + RESIDUAL_SCORE[_chaos[x + 1]]];
+		int chaos = _chaos_table.get(residual, _params.num_syms);
 
-		// Add to histogram for this chaos bin
-		_encoder[chaos].add(residual_sym);
-
-		// Remember the residual from next chaos calculation
-		_chaos[x + 1] = residual_sym;
+		// Write the residual value
+		_encoder[chaos].write(residual, writer);
 	}
 
 	DESYNC(x, y);

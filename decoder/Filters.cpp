@@ -3360,33 +3360,8 @@ YUV2RGBFilterFunction cat::YUV2RGB_FILTERS[CF_COUNT] = {
 
 //// Chaos
 
-// Sort of hackish but it works
-const u8 cat::CHAOS_TABLE_1[512] = {
-	0
-};
-
-// Roughly number of bits used, clamped at 8
-const u8 cat::CHAOS_TABLE_8[512] = {
-	0,1,2,2,3,3,3,3,4,4,4,4,4,4,4,4,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,
-	6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,
-	7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,
-	7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,
-	7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,
-	7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,
-	7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,
-	7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,
-	7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,
-	7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,
-	7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,
-	7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,
-	7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,
-	7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,
-	7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,
-	7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,
-};
-
 // Wrap around after 128, 255 = -1 -> 1
-const u8 cat::CHAOS_SCORE[256] = {
+const u8 ChaosTable::CHAOS_SCORE[256] = {
 	0x00,0x01,0x02,0x03,0x04,0x05,0x06,0x07,0x08,0x09,0x0a,0x0b,0x0c,0x0d,0x0e,0x0f,
 	0x10,0x11,0x12,0x13,0x14,0x15,0x16,0x17,0x18,0x19,0x1a,0x1b,0x1c,0x1d,0x1e,0x1f,
 	0x20,0x21,0x22,0x23,0x24,0x25,0x26,0x27,0x28,0x29,0x2a,0x2b,0x2c,0x2d,0x2e,0x2f,
@@ -3404,4 +3379,50 @@ const u8 cat::CHAOS_SCORE[256] = {
 	0x20,0x1f,0x1e,0x1d,0x1c,0x1b,0x1a,0x19,0x18,0x17,0x16,0x15,0x14,0x13,0x12,0x11,
 	0x10,0x0f,0x0e,0x0d,0x0c,0x0b,0x0a,0x09,0x08,0x07,0x06,0x05,0x04,0x03,0x02,0x01,
 };
+
+void ChaosTable::cleanup() {
+	if (_row) {
+		delete []_row;
+		_row = 0;
+	}
+}
+
+void ChaosTable::init(int chaos_levels, int width) {
+	// Allocate row space
+	const int row_alloc = 1 + width;
+	if (!_row || _row_alloc < row_alloc) {
+		if (_row) {
+			delete []_row;
+		}
+		_row = new u8[row_alloc];
+		_row_alloc = row_alloc;
+	}
+
+	// If already set at this number of chaos levels
+	if (_chaos_levels != chaos_levels) {
+		_chaos_levels = chaos_levels;
+
+		// Initialize chaos table
+		_table[0] = 0;
+		--chaos_levels;
+
+		// For each chaos level,
+		int ii;
+		for (ii = 1; ii < 512; ++ii) {
+			int msb = BSR32(ii) + 1;
+
+			// If done with ramp up,
+			if (msb >= chaos_levels) {
+				break;
+			}
+
+			_table[ii] = msb;
+		}
+
+		// Fill the rest with the max chaos level
+		for (; ii < 512; ++ii) {
+			_table[ii] = chaos_levels;
+		}
+	}
+}
 

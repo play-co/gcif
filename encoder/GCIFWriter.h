@@ -82,6 +82,10 @@ struct GCIFKnobs {
 	int lz_nonzeroCoeff;	// 4: Number of times nonzeroes worth over zeroes
 	int lz_tableBits;		// 18: Hash table bits
 
+	//// Image Mono writer
+
+	int mono_revisitCount;	// 4096: Number of pixels to revisit
+
 	//// Image CM writer
 
 	bool cm_sortFilters;		// false: L1 sort filter options before entropy

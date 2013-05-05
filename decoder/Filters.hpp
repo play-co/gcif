@@ -207,34 +207,107 @@ extern YUV2RGBFilterFunction YUV2RGB_FILTERS[];
 const char *GetColorFilterString(int cf);
 
 
-//// Residual Scores
-
-// Lookup table version of inline function ResidualScore() below.
-extern const u8 RESIDUAL_SCORE[256];
-
-CAT_INLINE u8 ResidualScore(u8 score) {
-#ifdef CAT_ISA_X86
-	return RESIDUAL_SCORE[score];
-#else
-	// If score is "positive",
-	if (score <= 128) {
-		// Note: 128 = worst score, 0 = best
-		return score;
-	} else {
-		// Wrap around: ABS(255) = ABS(-1) = 1, etc
-		return 256 - score;
-	}
-#endif
-}
-
-
 //// Chaos
 
-// Number of chaos levels supported by LUTs
-static const int MAX_CHAOS_LEVELS = 16;
-
 // Map ResidualScore Up/Left Sum -> Chaos Level for each of the chaos levels
-extern const u8 CHAOS_TABLES[MAX_CHAOS_LEVELS][512];
+class ChaosTable {
+public:
+	// Lookup table version of inline function ResidualScore256() below.
+	static const u8 RESIDUAL_SCORE_256[256];
+
+	// Residual 0..255 value -> Score
+	static CAT_INLINE u8 ResidualScore256(u8 residual) {
+#ifdef CAT_ISA_X86
+		return RESIDUAL_SCORE_256[residual];
+#else
+		// If score is "positive",
+		if (score <= 128) {
+			// Note: 128 = worst score, 0 = best
+			return score;
+		} else {
+			// Wrap around: ABS(255) = ABS(-1) = 1, etc
+			return 256 - score;
+		}
+#endif
+	}
+
+	// Residual 0..num_syms-1 value -> Score
+	static CAT_INLINE u8 ResidualScore(u8 residual, const u8 num_syms) {
+		// If score is "positive",
+		if (score <= num_syms / 2) {
+			return score;
+		} else {
+			return num_syms - score;
+		}
+	}
+
+protected:
+	// Chaos Lookup Table: residual score -> chaos bin index
+	int _chaos_levels;
+	u8 _table[512];
+
+	// Residual score memory for left/last row
+	u8 *_row;
+	int _row_alloc;
+
+	// Current read/write position
+	u8 *_current;
+
+	void cleanup();
+
+public:
+	CAT_INLINE ChaosTable() {
+		_chaos_levels = 0;
+		_row = 0;
+	}
+	CAT_INLINE virtual ~ChaosTable() {
+		cleanup();
+	}
+
+	void init(int chaos_levels, int width);
+
+	CAT_INLINE getBinCount() {
+		return _chaos_levels;
+	}
+
+	CAT_INLINE void start() {
+		// Initialize top margin to 0
+		CAT_CLR(_row, _row_alloc);
+	}
+
+	CAT_INLINE void startRow() {
+		// Initialize left margin to 0
+		_row[0] = 0;
+
+		// Initialize first write position after the margin
+		_current = _row + 1;
+	}
+
+	CAT_INLINE void zero() {
+		// Set to zero (optimization)
+		*_current++ = 0;
+	}
+
+	CAT_INLINE u8 get256(u8 r) {
+		// Lookup bin based on left/up scores
+		const u8 bin = _table[_current[-1] + (u16)_current[0]];
+
+		// Write residual score
+		*_current++ = ResidualScore256(r);
+
+		return bin;
+	}
+
+	CAT_INLINE u8 get(u8 r, u8 num_syms) {
+		// Lookup bin based on left/up scores
+		const u8 bin = _table[_current[-1] + (u16)_current[0]];
+
+		// Write residual score
+		*_current++ = ResidualScore(r, num_syms);
+
+		return bin;
+	}
+};
 
 
 } // namespace cat
