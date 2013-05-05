@@ -819,6 +819,35 @@ void MonoWriter::designChaos() {
 	_chaos_entropy = best_entropy;
 }
 
+u32 MonoWriter::simulate() {
+	u32 bits = 0;
+
+	// Chaos overhead
+	bits += 4 + _chaos.getBinCount() * 5 * _params.num_syms;
+
+	// Tile bits overhead
+	u32 range = (_params.max_bits - _params.min_bits);
+	if (range > 0) {
+		bits += BSR32(range) + 1;
+	}
+
+	// Filter choice overhead
+	bits += 5 + 7 * _normal_filter_count;
+
+	// Sympal choice overhead
+	bits += 4 + 8 * _sympal_filter_count;
+
+	// If recursed,
+	++bits;
+	if (_filter_encoder) {
+		bits += _filter_encoder->simulate();
+	}
+
+	// TODO: Simulate residual bits
+
+	return bits;
+}
+
 u32 MonoWriter::process(const Parameters &params) {
 	cleanup();
 
@@ -828,11 +857,9 @@ u32 MonoWriter::process(const Parameters &params) {
 
 	// Determine best tile size to use
 	u32 best_entropy = 0x7fffffff;
-	u32 best_bits = params.max_bits;
+	int best_bits = params.max_bits;
 
 	CAT_INANE("2D") << "!! Monochrome filter processing started for " << _params.size_x << "x" << _params.size_y << " data matrix...";
-
-	// TODO: How to pick tile bits?
 
 	// For each bit count to try,
 	for (int bits = params.min_bits; bits <= params.max_bits; ++bits) {
@@ -845,6 +872,8 @@ u32 MonoWriter::process(const Parameters &params) {
 		_tiles_y = (_params.size_y + _tile_size_y - 1) >> bits;
 
 		CAT_INANE("2D") << " - Trying " << _tile_size_x << "x" << _tile_size_y << " tile size, yielding a subresolution matrix " << _tiles_x << "x" << _tiles_Y << " for input " << _params.size_x << "x" << _params.size_y << " data matrix";
+
+		// TODO: Avoid reallocating memory
 
 		// Allocate tile memory
 		_tiles_count = _tiles_x * _tiles_y;
@@ -864,12 +893,26 @@ u32 MonoWriter::process(const Parameters &params) {
 		designRowFilters();
 		recurseCompress();
 		designChaos();
+
+		// Calculate bits required to represent the data with this tile size
+		u32 entropy = simulate();
+		if (best_entropy > entropy) {
+			best_entropy = entropy;
+			best_bits = bits;
+
+			// TODO: Store off the best option
+		} else {
+			// Stop trying options
+			break;
+		}
 	}
 
 	return best_entropy;
 }
 
 void MonoWriter::initializeEncoders() {
+	// TODO: Restore the best option
+
 	_chaos.start();
 
 	// For each row,
