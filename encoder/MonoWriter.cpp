@@ -235,7 +235,10 @@ void MonoWriter::designFilters() {
 						for (int f = 0; f < SF_COUNT; ++f) {
 							// TODO: Specialize for num_syms power-of-two
 							u8 prediction = MONO_FILTERS[f].safe(data, num_syms, x, y, size_x);
-							u8 residual = (value + num_syms - prediction) % num_syms;
+							int residual = value + num_syms - prediction;
+							if (residual >= num_syms) {
+								residual -= num_syms;
+							}
 							u8 score = ChaosTable::ResidualScore(residual, num_syms); // lower = better
 
 							scores.add(f, score);
@@ -442,8 +445,11 @@ void MonoWriter::designTiles() {
 								if (!_params.mask(px, py)) {
 									const u8 value = *data;
 
-									u8 prediction = _filters[old_filter].safe(data, num_syms, x, y, size_x) % num_syms;
-									u8 residual = (value + num_syms - prediction) % num_syms;
+									u8 prediction = _filters[old_filter].safe(data, num_syms, x, y, size_x);
+									int residual = value + num_syms - prediction;
+									if (residual >= num_syms) {
+										residual -= num_syms;
+									}
 
 									codes[code_count++] = residual;
 								}
@@ -473,8 +479,11 @@ void MonoWriter::designTiles() {
 							u8 *dest = codes + code_count;
 							for (int f = 0; f < _filter_count; ++f) {
 								// TODO: Specialize for num_syms power-of-two
-								u8 prediction = _filters[f].safe(data, num_syms, x, y, size_x) % num_syms;
-								u8 residual = (value + num_syms - prediction) % num_syms;
+								u8 prediction = _filters[f].safe(data, num_syms, x, y, size_x);
+								int residual = value + num_syms - prediction;
+								if (residual >= num_syms) {
+									residual -= num_syms;
+								}
 
 								*dest = residual;
 								dest += code_stride;
@@ -585,8 +594,11 @@ void MonoWriter::computeResiduals() {
 					if (!_params.mask(px, py)) {
 						const u8 value = *data;
 
-						u8 prediction = _filters[f].safe(data, num_syms, x, y, size_x) % num_syms;
-						u8 residual = (value + num_syms - prediction) % num_syms;
+						u8 prediction = _filters[f].safe(data, num_syms, x, y, size_x);
+						int residual = value + num_syms - prediction;
+						if (residual >= num_syms) {
+							residual -= num_syms;
+						}
 
 						// Convert data pointer to residual pointer
 						u8 *residual_data = (u8*)data + residual_delta;
@@ -893,7 +905,8 @@ void MonoWriter::initializeEncoders() {
 
 			// For each column,
 			for (int tx = 0; tx < _tiles_x; ++tx) {
-				u8 f = *tile++, residual = 0;
+				u8 f = *tile++;
+				int residual = f;
 
 				if (f != MASK_TILE) {
 					// Filter the row filters
@@ -901,29 +914,33 @@ void MonoWriter::initializeEncoders() {
 					default:
 						CAT_DEBUG_EXCEPTION();
 					case RF_NOOP:
-						residual = f;
 						break;
 					case RF_A:
-						if (tx <= 0) {
-							residual = f;
-						} else {
-							residual = f - tile[-1];
+						if (tx > 0) {
+							residual += _filter_count - tile[-1];
+							if (residual >= _filter_count) {
+								residual -= _filter_count;
+							}
 						}
 						break;
 					case RF_B:
-						if (ty <= 0) {
-							residual = f;
-						} else {
-							residual = f - tile[-_tiles_x];
+						if (ty > 0) {
+							residual += _filter_count - tile[-_tiles_x];
+							if (residual >= _filter_count) {
+								residual -= _filter_count;
+							}
 						}
 						break;
 					case RF_C:
-						if (tx <= 0) {
-							residual = f;
-						} else if (ty <= 0) {
-							residual = f - tile[-1];
-						} else {
-							residual = f - tile[-_tiles_x - 1];
+						if (tx > 0) {
+							if (ty <= 0) {
+								residual += _filter_count - tile[-1];
+							} else {
+								residual += _filter_count - tile[-_tiles_x - 1];
+							}
+							if (residual >= _filter_count) {
+								residual -= _filter_count;
+							}
 						}
 						break;
 					}
@@ -1091,34 +1108,39 @@ int MonoWriter::write(u16 x, u16 y, ImageWriter &writer) {
 				Stats.filter_overhead_bits += _filter_encoder->write(tx, ty, writer);
 			} else {
 				// Calculate row filter residual for filter data (filter of filters at tree leaf)
-				u8 residual;
+				int residual = f;
+
 				switch (_tile_row_filters[ty]) {
 				default:
 					CAT_DEBUG_EXCEPTION();
 				case RF_NOOP:
-					residual = f;
 					break;
 				case RF_A:
-					if (tx <= 0) {
-						residual = f;
-					} else {
-						residual = f - tile[-1];
+					if (tx > 0) {
+						residual += _filter_count - tile[-1];
+						if (residual >= _filter_count) {
+							residual -= _filter_count;
+						}
 					}
 					break;
 				case RF_B:
-					if (ty <= 0) {
-						residual = f;
-					} else {
-						residual = f - tile[-_tiles_x];
+					if (ty > 0) {
+						residual += _filter_count - tile[-_tiles_x];
+						if (residual >= _filter_count) {
+							residual -= _filter_count;
+						}
 					}
 					break;
 				case RF_C:
-					if (tx <= 0) {
-						residual = f;
-					} else if (ty <= 0) {
-						residual = f - tile[-1];
-					} else {
-						residual = f - tile[-_tiles_x - 1];
+					if (tx > 0) {
+						if (ty <= 0) {
+							residual += _filter_count - tile[-1];
+						} else {
+							residual += _filter_count - tile[-_tiles_x - 1];
+						}
+						if (residual >= _filter_count) {
+							residual -= _filter_count;
+						}
 					}
 					break;
 				}
