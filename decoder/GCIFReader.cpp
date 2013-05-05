@@ -31,8 +31,7 @@
 #include "ImageMaskReader.hpp"
 #include "ImageLZReader.hpp"
 #include "ImagePaletteReader.hpp"
-#include "ImageCMReader.hpp"
-#include "ImageCMReaderPal.hpp"
+#include "ImageRGBAReader.hpp"
 #include "EndianNeutral.hpp"
 using namespace cat;
 
@@ -58,27 +57,20 @@ static int gcif_read(ImageReader &reader, GCIFImage *image) {
 	}
 	imageLZReader.dumpStats();
 
-	// Global Palette
+	// Global Palette Decompression
 	ImagePaletteReader imagePaletteReader;
 	if ((err = imagePaletteReader.read(reader))) {
 		return err;
 	}
 	imagePaletteReader.dumpStats();
 
-	if (imagePaletteReader.enabled()) {
-		// Context Modeling Decompression (Palette Mode)
-		ImageCMReaderPal imageCMReaderPal;
-		if ((err = imageCMReaderPal.read(reader, maskReader, imageLZReader, imagePaletteReader, image))) {
+	if (!imagePaletteReader.enabled()) {
+		// RGBA Decompression
+		ImageRGBAReader imageRGBAReader;
+		if ((err = imageRGBAReader.read(reader, maskReader, imageLZReader, image))) {
 			return err;
 		}
-		imageCMReaderPal.dumpStats();
-	} else {
-		// Context Modeling Decompression
-		ImageCMReader imageCMReader;
-		if ((err = imageCMReader.read(reader, maskReader, imageLZReader, image))) {
-			return err;
-		}
-		imageCMReader.dumpStats();
+		imageRGBAReader.dumpStats();
 	}
 
 	return GCIF_RE_OK;

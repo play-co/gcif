@@ -26,7 +26,7 @@
 	POSSIBILITY OF SUCH DAMAGE.
 */
 
-#include "ImageCMReader.hpp"
+#include "ImageRGBAReader.hpp"
 #include "Enforcer.hpp"
 using namespace cat;
 
@@ -50,9 +50,9 @@ static cat::Clock *m_clock = 0;
 #endif
 
 
-//// ImageCMReader
+//// ImageRGBAReader
 
-void ImageCMReader::clear() {
+void ImageRGBAReader::clear() {
 	if (_chaos) {
 		delete []_chaos;
 		_chaos = 0;
@@ -64,7 +64,7 @@ void ImageCMReader::clear() {
 	// Do not free RGBA data here
 }
 
-int ImageCMReader::init(GCIFImage *image) {
+int ImageRGBAReader::init(GCIFImage *image) {
 	_width = image->width;
 	_height = image->height;
 
@@ -100,7 +100,7 @@ int ImageCMReader::init(GCIFImage *image) {
 	return GCIF_RE_OK;
 }
 
-int ImageCMReader::readFilterTables(ImageReader &reader) {
+int ImageRGBAReader::readFilterTables(ImageReader &reader) {
 	// Read in count of custom spatial filters
 	int rep_count = reader.readBits(5);
 	if (rep_count > SF_COUNT) {
@@ -143,7 +143,7 @@ int ImageCMReader::readFilterTables(ImageReader &reader) {
 	return GCIF_RE_OK;
 }
 
-int ImageCMReader::readChaosTables(ImageReader &reader) {
+int ImageRGBAReader::readChaosTables(ImageReader &reader) {
 	_chaos_levels = reader.readBits(3) + 1;
 
 	switch (_chaos_levels) {
@@ -182,7 +182,7 @@ int ImageCMReader::readChaosTables(ImageReader &reader) {
 	return GCIF_RE_OK;
 }
 
-int ImageCMReader::readPixels(ImageReader &reader) {
+int ImageRGBAReader::readPixels(ImageReader &reader) {
 	const int width = _width;
 	const u32 MASK_COLOR = _mask->getColor();
 
@@ -567,7 +567,7 @@ int ImageCMReader::readPixels(ImageReader &reader) {
 	return GCIF_RE_OK;
 }
 
-int ImageCMReader::read(ImageReader &reader, ImageMaskReader &maskReader, ImageLZReader &lzReader, GCIFImage *image) {
+int ImageRGBAReader::read(ImageReader &reader, ImageMaskReader &maskReader, ImageLZReader &lzReader, GCIFImage *image) {
 #ifdef CAT_COLLECT_STATS
 	m_clock = Clock::ref();
 
@@ -629,15 +629,15 @@ int ImageCMReader::read(ImageReader &reader, ImageMaskReader &maskReader, ImageL
 
 #ifdef CAT_COLLECT_STATS
 
-bool ImageCMReader::dumpStats() {
-	CAT_INANE("stats") << "(CM Decode)     Initialization : " << Stats.initUsec << " usec (" << Stats.initUsec * 100.f / Stats.overallUsec << " %total)";
-	CAT_INANE("stats") << "(CM Decode) Read Filter Tables : " << Stats.readFilterTablesUsec << " usec (" << Stats.readFilterTablesUsec * 100.f / Stats.overallUsec << " %total)";
-	CAT_INANE("stats") << "(CM Decode)  Read Chaos Tables : " << Stats.readChaosTablesUsec << " usec (" << Stats.readChaosTablesUsec * 100.f / Stats.overallUsec << " %total)";
-	CAT_INANE("stats") << "(CM Decode)      Decode Pixels : " << Stats.readPixelsUsec << " usec (" << Stats.readPixelsUsec * 100.f / Stats.overallUsec << " %total)";
-	CAT_INANE("stats") << "(CM Decode)            Overall : " << Stats.overallUsec << " usec";
+bool ImageRGBAReader::dumpStats() {
+	CAT_INANE("stats") << "(RGBA Decode)     Initialization : " << Stats.initUsec << " usec (" << Stats.initUsec * 100.f / Stats.overallUsec << " %total)";
+	CAT_INANE("stats") << "(RGBA Decode) Read Filter Tables : " << Stats.readFilterTablesUsec << " usec (" << Stats.readFilterTablesUsec * 100.f / Stats.overallUsec << " %total)";
+	CAT_INANE("stats") << "(RGBA Decode)  Read Chaos Tables : " << Stats.readChaosTablesUsec << " usec (" << Stats.readChaosTablesUsec * 100.f / Stats.overallUsec << " %total)";
+	CAT_INANE("stats") << "(RGBA Decode)      Decode Pixels : " << Stats.readPixelsUsec << " usec (" << Stats.readPixelsUsec * 100.f / Stats.overallUsec << " %total)";
+	CAT_INANE("stats") << "(RGBA Decode)            Overall : " << Stats.overallUsec << " usec";
 
-	CAT_INANE("stats") << "(CM Decode)         Throughput : " << (_width * _height * 4) / Stats.overallUsec << " MBPS (output bytes/time)";
-	CAT_INANE("stats") << "(CM Decode)   Image Dimensions : " << _width << " x " << _height << " pixels";
+	CAT_INANE("stats") << "(RGBA Decode)         Throughput : " << (_width * _height * 4) / Stats.overallUsec << " MBPS (output bytes/time)";
+	CAT_INANE("stats") << "(RGBA Decode)   Image Dimensions : " << _width << " x " << _height << " pixels";
 
 	return true;
 }
