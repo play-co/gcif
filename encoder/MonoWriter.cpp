@@ -301,6 +301,8 @@ void MonoWriterFactory::designFilters() {
 	int filters_set = SF_FIXED; // Total filters
 	FilterScorer::Score *top = awards.getTop(count, true);
 
+	u8 palette[MAX_PALETTE];
+
 	// For each of the sorted filter scores,
 	for (int ii = 0; ii < count; ++ii) {
 		int index = top[ii].index;
@@ -325,6 +327,8 @@ void MonoWriterFactory::designFilters() {
 				// Map it from sympal filter index to new filter index
 				int sympal_filter = index - SF_COUNT;
 				_sympal_filter_map[sympal_filter] = sympal_f;
+
+				palette[sympal_f] = index;
 				++sympal_f;
 
 				CAT_INANE("2D") << " - Added palette filter " << sympal_f << " for palette index " << sympal_filter;
@@ -341,6 +345,11 @@ void MonoWriterFactory::designFilters() {
 				break;
 			}
 		}
+	}
+
+	// Insert filter indices at the end
+	for (int ii = 0; ii < sympal_f; ++ii) {
+		_filter_indices[ii + normal_f] = palette[ii];
 	}
 
 	// Record counts
@@ -1113,6 +1122,14 @@ u32 MonoWriterFactory::process(const Parameters &params) {
 				_best_writer = new MonoWriter;
 			}
 
+			u32 range = (_params.max_bits - _params.min_bits);
+			u32 bits_bc = 0;
+			if (range > 0) {
+				u32 bits_value = _tile_bits_x - _params.max_bits;
+				bits_bc = BSR32(range) + 1;
+			}
+			_best_writer->_bits_bc = bits_bc;
+
 			// TODO: Store off the best option
 		} else {
 			// Stop trying options
@@ -1142,17 +1159,15 @@ int MonoWriter::writeTables(ImageWriter &writer) {
 	Stats.basic_overhead_bits = 0;
 	Stats.encoder_overhead_bits = 0;
 	Stats.filter_overhead_bits = 0;
+	Stats.data_bits = 0;
 
 	// Write tile size
 	{
 		CAT_DEBUG_ENFORCE(_tile_bits_x == _tile_bits_y);	// Square regions only for now
 
-		u32 range = (_params.max_bits - _params.min_bits);
-		if (range > 0) {
-			u32 bits_value = _tile_bits_x - _params.max_bits;
-			u32 bits_bc = BSR32(range) + 1;
-			writer.writeBits(bits_value, bits_bc);
-			Stats.basic_overhead_bits += bits_bc;
+		if (_tile_bits_bc > 0) {
+			writer.writeBits(_tile_bits_x - _tile_min_bits, _tile_bits_bc);
+			Stats.basic_overhead_bits += _tile_bits_bc;
 		}
 	}
 
@@ -1229,9 +1244,6 @@ int MonoWriter::writeTables(ImageWriter &writer) {
 }
 
 void MonoWriter::initializeWriter() {
-	// Initialize stats
-	Stats.data_bits = 0;
-
 	// Initialize writer
 	if (!_tile_seen || _tile_seen_alloc < _tiles_x) {
 		if (_tile_seen) {
@@ -1255,7 +1267,7 @@ void MonoWriter::initializeWriter() {
 }
 
 int MonoWriter::writeRowHeader(u16 y, ImageWriter &writer) {
-	CAT_DEBUG_ENFORCE(y < _params.size_y);
+	CAT_DEBUG_ENFORCE(y < _size_y);
 
 	// Calculate tile y-coordinate
 	u16 ty = y >> _tile_bits_y;
@@ -1289,7 +1301,7 @@ int MonoWriter::writeRowHeader(u16 y, ImageWriter &writer) {
 int MonoWriter::write(u16 x, u16 y, ImageWriter &writer) {
 	int overhead_bits = 0, data_bits = 0;
 
-	CAT_DEBUG_ENFORCE(x < _params.size_x && y < _params.size_y);
+	CAT_DEBUG_ENFORCE(x < _size_x && y < _size_y);
 
 	// Calculate tile coordinates
 	u16 tx = x >> _tile_bits_y;

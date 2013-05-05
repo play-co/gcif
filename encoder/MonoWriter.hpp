@@ -58,8 +58,62 @@ namespace cat {
  * Writes compressed monochrome data.
  */
 class MonoWriter {
+public:
+	// bool IsMasked(u16 x, u16 y)
+	typedef Delegate2<bool, u16, u16> MaskDelegate;
+
+	struct _Stats {
+		int basic_overhead_bits;
+		int encoder_overhead_bits;
+		int filter_overhead_bits;
+		int data_bits;
+	} Stats;
+
+	// 2-bit row filters
+	enum RowFilters {
+		RF_NOOP,
+		RF_A,	// Left
+		RF_B,	// Up
+		RF_C,	// Up-Left
+
+		RF_COUNT
+	};
+
+protected:
+	u16 _num_syms;							// Number of symbols in data [0..num_syms-1]
+	u16 _size_x, _size_y;					// Data dimensions
+
 	u8 *_tile_seen;							// Seen this tile yet during writing?
 	int _tile_seen_alloc;
+
+	u16 _tile_min_bits;						// Tile bits minimum
+	u16 _tile_bits_bc;						// Bitcount field size
+
+	u16 _tile_bits_x, _tile_bits_y;			// Number of bits in size
+	int _tiles_x, _tiles_y;					// Tiles in x,y
+	u8 *_tiles;								// Filter tiles
+	int _tiles_alloc;
+
+	int _filter_indices[MAX_FILTERS];		// First MF_FIXED are always the same
+	MonoFilterFuncs _filters[MAX_FILTERS];	// Chosen filters
+	int _normal_filter_count;				// Number of normal filters
+	int _filter_count;						// Total filters chosen
+
+	u8 *_tile_row_filters;					// One for each tile row
+	int _tile_row_filters_alloc;
+
+	u8 _sympal[MAX_PALETTE];				// Palette filter values
+	int _sympal_filter_count;				// Number of palette filters
+
+	// Write state
+	u8 _write_filter;						// Current filter
+
+	ChaosTable _chaos;						// Chaos bin lookup table
+
+	MonoWriter *_filter_encoder;			// Filter encoder
+
+	EntropyEncoder<MAX_FILTERS, ZRLE_SYMS> _row_filter_encoder;
+	EntropyEncoder<MAX_SYMS, ZRLE_SYMS> _encoder[MAX_CHAOS_LEVELS];
 
 	void cleanup();
 
@@ -88,15 +142,15 @@ public:
 };
 
 
-//// MonoWriterFactory
-
+/*
+ * MonoWriterFactory
+ *
+ * Designs and generates MonoWriter objects.
+ */
 class MonoWriterFactory {
 public:
 	static const int MAX_AWARDS = 8;	// Maximum filters to award
 	static const int MAX_FILTERS = 32;	// Maximum filters to use
-
-	// bool IsMasked(u16 x, u16 y)
-	typedef Delegate2<bool, u16, u16> MaskDelegate;
 
 	// Parameters provided to process()
 	struct Parameters {
@@ -112,23 +166,6 @@ public:
 		u32 AWARDS[MAX_AWARDS];			// Awards to give for top N filters
 		int award_count;				// Number of awards to give out
 	};
-
-	// 2-bit row filters
-	enum RowFilters {
-		RF_NOOP,
-		RF_A,	// Left
-		RF_B,	// Up
-		RF_C,	// Up-Left
-
-		RF_COUNT
-	};
-
-	struct _Stats {
-		int basic_overhead_bits;
-		int encoder_overhead_bits;
-		int filter_overhead_bits;
-		int data_bits;
-	} Stats;
 
 protected:
 	static const int MAX_SYMS = 256;
@@ -166,7 +203,7 @@ protected:
 	int _filter_indices[MAX_FILTERS];		// First MF_FIXED are always the same
 	MonoFilterFuncs _filters[MAX_FILTERS];	// Chosen filters
 	int _normal_filter_count;				// Number of normal filters
-	int _filter_count;						// Totla filters chosen
+	int _filter_count;						// Total filters chosen
 
 	// Palette filters
 	u8 _sympal[MAX_PALETTE];				// Palette filter values
