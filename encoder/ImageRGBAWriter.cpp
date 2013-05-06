@@ -811,10 +811,14 @@ bool ImageRGBAWriter::writePixels(ImageWriter &writer) {
 				_chaos.zero();
 			} else {
 				// Writer filters
-				if (!_seen_filter[x >> _tile_bits_x]) {
-					_seen_filter[x >> _tile_bits_x] = true;
-					_sf_encoder.write(x, y, writer);
-					_cf_encoder.write(x, y, writer);
+				u16 tx = x >> _tile_bits_x;
+
+				if (!_seen_filter[tx]) {
+					u16 ty = y >> _tile_bits_y;
+
+					_seen_filter[tx] = true;
+					_sf_encoder.write(tx, ty, writer);
+					_cf_encoder.write(tx, ty, writer);
 				}
 
 				// Get chaos bin
