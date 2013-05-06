@@ -69,7 +69,7 @@ u32 EntropyEstimator::entropy(const u8 *symbols, int count) {
 	// Generate histogram for symbols
 	u8 hist[NUM_SYMS] = {0};
 	for (int ii = 0; ii < count; ++ii) {
-		hist[ii]++;
+		hist[symbols[ii]]++;
 	}
 
 	// Calculate bits required for symbols

@@ -668,10 +668,12 @@ void MonoWriter::designRowFilters() {
 
 				// If tile is not masked,
 				if (f != MASK_TILE) {
+					CAT_DEBUG_ENFORCE(f < _filter_count);
+
 					// RF_NOOP
 					codes[tx] = f;
 
-					// RF_A
+					// RF_PREV
 					u8 fprev = f + num_filters - prev;
 					if (fprev >= num_filters) {
 						fprev -= num_filters;
@@ -688,26 +690,27 @@ void MonoWriter::designRowFilters() {
 			// If on the second or later pass,
 			if (passes > 0) {
 				// Subtract out the previous winner
-				ee.subtract(codes + tiles_x * _tile_row_filters[ty], tiles_x);
+				if (_tile_row_filters[ty] == MonoReader::RF_NOOP) {
+					ee.subtract(codes, tiles_x);
+				} else {
+					ee.subtract(codes + tiles_x, tiles_x);
+				}
 			}
 
 			// Calculate entropy for each of the row filter options
 			u32 e0 = ee.entropy(codes, tiles_x);
 			u32 e1 = ee.entropy(codes + tiles_x, tiles_x);
 
-			// Find the best one
-			u32 best_e = e0;
-			u32 best_i = 0;
-			if (best_e > e1) {
-				best_e = e1;
-				best_i = 1;
+			// Pick the better one
+			if (e0 <= e1) {
+				_tile_row_filters[ty] = MonoReader::RF_NOOP;
+				total_entropy += 1 + e0; // + 1 bit per row for header
+				ee.add(codes, tiles_x);
+			} else {
+				_tile_row_filters[ty] = MonoReader::RF_PREV;
+				total_entropy += 1 + e0; // + 1 bit per row for header
+				ee.add(codes + tiles_x, tiles_x);
 			}
-
-			_tile_row_filters[ty] = best_i;
-			total_entropy += 1 + best_e; // + 1 bit per row for header
-
-			// Add the best option into the running histogram
-			ee.add(codes + tiles_x * best_i, tiles_x);
 		}
 
 		++passes;
