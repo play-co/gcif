@@ -44,7 +44,7 @@ using namespace std;
 #include "lodepng.h"
 
 #ifdef CAT_DESYNCH_CHECKS
-#define DESYNC_TABLE() writer.writeBits(1234567);
+#define DESYNC_TABLE() writer.writeBits(1234567, 16);
 #define DESYNC(x, y) writer.writeBits(x ^ 12345, 16); writer.writeBits(y ^ 54321, 16);
 #define DESYNC_FILTER(x, y) writer.writeBits(x ^ 31337, 16); writer.writeBits(y ^ 31415, 16);
 #else

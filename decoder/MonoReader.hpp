@@ -91,6 +91,7 @@ protected:
 	Parameters _params;
 
 	SmartArray<u8> _tiles;
+	u8 *_tiles_row;
 	u16 _tile_size_x, _tile_size_y;
 	u16 _tile_bits_x, _tile_bits_y;
 	u16 _tile_mask_x, _tile_mask_y;
@@ -101,14 +102,11 @@ protected:
 	int _normal_filter_count, _sympal_filter_count, _filter_count;
 
 	MonoReader *_filter_decoder;
-	u8 _row_filter;
+	u8 _row_filter, _prev_filter;
 	EntropyDecoder<MAX_FILTERS, ZRLE_SYMS> _row_filter_decoder;
-	u8 *_current_tile;
-	u8 _current_filter;
 
 	MonoChaos _chaos;
 	EntropyDecoder<MAX_SYMS, ZRLE_SYMS> _decoder[MAX_CHAOS_LEVELS];
-	int _last_seen_tile_x;
 	u8 *_current_data;
 
 	void cleanup();
@@ -125,9 +123,12 @@ public:
 
 	int readRowHeader(u16 y, ImageReader &reader);
 
-	void masked(u16 x, u16 y, ImageReader &reader);
+	void masked(u8 value);
 
 	u8 read(u16 x, u16 y, ImageReader &reader);
+
+	// Faster top-level version, when spatial filters can be unsafe
+	u8 read_unsafe(u16 x, u16 y, ImageReader &reader);
 };
 
 

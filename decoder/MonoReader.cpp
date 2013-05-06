@@ -152,6 +152,7 @@ int MonoReader::readTables(const Parameters &params, ImageReader &reader) {
 
 		Parameters params;
 		params.data = _tiles.get();
+		params.data_step = 1;
 		params.size_x = _tiles_x;
 		params.size_y = _tiles_y;
 		params.min_bits = _params.min_bits;
@@ -179,7 +180,7 @@ int MonoReader::readTables(const Parameters &params, ImageReader &reader) {
 	CAT_DEBUG_ENFORCE(!reader.eof());
 
 	_current_data = _params.data;
-	_current_tile = _tiles.get();
+	_tiles_row = _tiles.get() - _tiles_x; // Offset for first increment
 
 	return GCIF_RE_OK;
 }
@@ -196,22 +197,27 @@ int MonoReader::readRowHeader(u16 y, ImageReader &reader) {
 		} else {
 			// Read row filter
 			_row_filter = reader.readBit();
+
+			// Clear previous filter
+			_prev_filter = 0;
 		}
+
+		// Increment to next row
+		_tiles_row += _tiles_x;
 	}
 
 	DESYNC_FILTER(0, y);
 
 	CAT_DEBUG_ENFORCE(!reader.eof());
 
-	_last_seen_tile_x = -1;
-
 	return GCIF_RE_OK;
 }
 
-void MonoReader::masked(u16 x, u16 y, ImageReader &reader) {
+void MonoReader::masked(u8 value) {
 	_chaos.zero();
 
-	// Skip this one
+	// Fill in provided value
+	*_current_data = value;
 	_current_data += _params.data_step;
 }
 
@@ -220,17 +226,16 @@ u8 MonoReader::read(u16 x, u16 y, ImageReader &reader) {
 
 	// Check cached filter
 	const u16 tx = x >> _tile_bits_x;
+	u8 *tile = _tiles_row + tx;
+	u8 f = *tile;
 
 	// If now in a new filter tile,
-	u8 f;
-	if (tx == _last_seen_tile_x) {
-		f = _current_filter;
-	} else {
-		_last_seen_tile_x = tx;
+	if (f == READ_TILE) {
 		const u16 ty = y >> _tile_bits_y;
 
 		// If filter is recursively compressed,
 		if (_filter_decoder) {
+			// NOTE: Allow child to update tiles row here
 			f = _filter_decoder->read(tx, ty, reader);
 		} else {
 			// Read filter residual directly
@@ -238,16 +243,15 @@ u8 MonoReader::read(u16 x, u16 y, ImageReader &reader) {
 
 			// Defilter the filter value
 			if (_row_filter == RF_PREV) {
-				f += _current_filter;
+				f += _prev_filter;
 				if (f >= _filter_count) {
 					f -= _filter_count;
 				}
+				_prev_filter = f;
 			}
 
-			*_current_tile++ = f;
+			*tile = f;
 		}
-
-		_current_filter = f;
 	}
 
 	// If the filter is a palette symbol,
@@ -274,6 +278,87 @@ u8 MonoReader::read(u16 x, u16 y, ImageReader &reader) {
 
 		// Read filter result
 		u16 pred = _sf[f].safe(_current_data, num_syms - 1, x, y, _params.size_x);
+
+		// Defilter value
+		value = residual + pred;
+		if (value >= num_syms) {
+			value -= num_syms;
+		}
+	}
+
+	DESYNC(x, y);
+
+	CAT_DEBUG_ENFORCE(!reader.eof());
+
+	*_current_data = (u8)value;
+	_current_data += _params.data_step;
+	return value;
+}
+
+
+
+/*
+ * KEEP THIS IN SYNC WITH VERSION ABOVE!
+ * The only change should be that unsafe() is used.
+ */
+
+u8 MonoReader::read_unsafe(u16 x, u16 y, ImageReader &reader) {
+	CAT_DEBUG_ENFORCE(x < _size_x && y < _size_y);
+
+	// Check cached filter
+	const u16 tx = x >> _tile_bits_x;
+	u8 *tile = _tiles_row + tx;
+	u8 f = *tile;
+
+	// If now in a new filter tile,
+	if (f == READ_TILE) {
+		const u16 ty = y >> _tile_bits_y;
+
+		// If filter is recursively compressed,
+		if (_filter_decoder) {
+			// NOTE: Allow child to update tiles row here
+			f = _filter_decoder->read(tx, ty, reader);
+		} else {
+			// Read filter residual directly
+			f = _row_filter_decoder.next(reader);
+
+			// Defilter the filter value
+			if (_row_filter == RF_PREV) {
+				f += _prev_filter;
+				if (f >= _filter_count) {
+					f -= _filter_count;
+				}
+				_prev_filter = f;
+			}
+
+			*tile = f;
+		}
+	}
+
+	// If the filter is a palette symbol,
+	u16 value;
+	if (f >= _normal_filter_count) {
+		f -= _normal_filter_count;
+
+		CAT_DEBUG_ENFORCE(f < _sympal_filter_count);
+
+		// Set up so that this is always within array bounds at least
+		value = _palette[f];
+
+		_chaos.zero();
+	} else {
+		// Get chaos bin
+		int chaos = _chaos.get();
+
+		// Read residual from bitstream
+		u16 residual = _decoder[chaos].next(reader);
+
+		// Store for next chaos lookup
+		const u16 num_syms = _params.num_syms;
+		_chaos.store(residual, num_syms);
+
+		// Read filter result
+		u16 pred = _sf[f].unsafe(_current_data, num_syms - 1, x, y, _params.size_x);
 
 		// Defilter value
 		value = residual + pred;

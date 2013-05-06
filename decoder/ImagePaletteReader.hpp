@@ -31,6 +31,10 @@
 
 #include "ImageReader.hpp"
 #include "Enforcer.hpp"
+#include "MonoReader.hpp"
+#include "ImageMaskReader.hpp"
+#include "ImageLZReader.hpp"
+#include "SmartArray.hpp"
 
 /*
  * Game Closure Global Palette Decompression
@@ -51,42 +55,37 @@ protected:
 	int _palette_size;
 	u8 _mask_palette;	// Masked palette index
 
+	ImageMaskReader *_mask;
+	ImageLZReader *_lz;
+
+	u8 *_rgba;
+	u16 _size_x, _size_y;
+
+	SmartArray<u8> _image;
+
+	MonoReader _mono_decoder;
+
 	int readPalette(ImageReader &reader);
+	int readTables(ImageReader &reader);
+	int readPixels(ImageReader &reader);
 
 #ifdef CAT_COLLECT_STATS
 public:
 	struct _Stats {
-		double readUsec;
+		double paletteUsec;
+		double tablesUsec;
+		double pixelsUsec;
 
 		int colorCount;
 	} Stats;
 #endif
 
 public:
-	CAT_INLINE ImagePaletteReader() {
-	}
-	virtual CAT_INLINE ~ImagePaletteReader() {
-	}
-
 	CAT_INLINE bool enabled() {
 		return _palette_size > 0;
 	}
 
-	CAT_INLINE int getPaletteSize() {
-		return _palette_size;
-	}
-
-	CAT_INLINE u8 getMaskPalette() {
-		return _mask_palette;
-	}
-
-	CAT_INLINE u32 getColor(int palette) {
-		CAT_DEBUG_ENFORCE(palette < _palette_size);
-
-		return _palette[palette];
-	}
-
-	int read(ImageReader &reader);
+	int read(ImageReader &reader, ImageMaskReader &mask, ImageLZReader &lz, GCIFImage *image);
 
 #ifdef CAT_COLLECT_STATS
 	bool dumpStats();

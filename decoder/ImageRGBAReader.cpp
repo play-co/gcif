@@ -38,6 +38,8 @@ static cat::Clock *m_clock = 0;
 #endif // CAT_COLLECT_STATS
 
 #ifdef CAT_DESYNCH_CHECKS
+#define DESYNC_TABLE() \
+	CAT_ENFORCE(reader.readBits(16) == 1234567); \
 #define DESYNC(x, y) \
 	CAT_ENFORCE(reader.readBits(16) == (x ^ 12345)); \
 	CAT_ENFORCE(reader.readBits(16) == (y ^ 54321));
@@ -45,6 +47,7 @@ static cat::Clock *m_clock = 0;
 	CAT_ENFORCE(reader.readBits(16) == (x ^ 31337)); \
 	CAT_ENFORCE(reader.readBits(16) == (y ^ 31415));
 #else
+#define DESYNC_TABLE()
 #define DESYNC(x, y)
 #define DESYNC_FILTER(x, y)
 #endif

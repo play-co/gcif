@@ -41,6 +41,22 @@ static cat::Clock *m_clock = 0;
 #endif // CAT_COLLECT_STATS
 
 
+#ifdef CAT_DESYNCH_CHECKS
+#define DESYNC_TABLE() \
+	CAT_ENFORCE(reader.readBits(16) == 1234567); \
+#define DESYNC(x, y) \
+	CAT_ENFORCE(reader.readBits(16) == (x ^ 12345)); \
+	CAT_ENFORCE(reader.readBits(16) == (y ^ 54321));
+#define DESYNC_FILTER(x, y) \
+	CAT_ENFORCE(reader.readBits(16) == (x ^ 31337)); \
+	CAT_ENFORCE(reader.readBits(16) == (y ^ 31415));
+#else
+#define DESYNC_TABLE()
+#define DESYNC(x, y)
+#define DESYNC_FILTER(x, y)
+#endif
+
+
 //// ImagePaletteReader
 
 int ImagePaletteReader::readPalette(ImageReader &reader) {
@@ -101,14 +117,99 @@ int ImagePaletteReader::readPalette(ImageReader &reader) {
 		}
 	}
 
-	if (reader.eof()) {
+	DESYNC_TABLE();
+
+	if CAT_UNLIKELY(reader.eof()) {
 		return GCIF_RE_BAD_PAL;
 	}
 
 	return GCIF_RE_OK;
 }
 
-int ImagePaletteReader::read(ImageReader &reader) {
+int ImagePaletteReader::readTables(ImageReader &reader) {
+
+	_image.resize(_size_x * _size_y);
+
+	MonoReader::Parameters params;
+	params.data = _image.get();
+	params.data_step = 1;
+	params.size_x = _size_x;
+	params.size_y = _size_y;
+	params.min_bits = 2;
+	params.max_bits = 5;
+	params.num_syms = _palette_size;
+	
+	int err = _mono_decoder.readTables(params, reader);
+
+	DESYNC_TABLE();
+
+	if CAT_UNLIKELY(reader.eof()) {
+		return GCIF_RE_BAD_PAL;
+	}
+
+	return err;
+}
+
+int ImagePaletteReader::readPixels(ImageReader &reader) {
+	const u32 MASK_COLOR = _mask->getColor();
+	const u8 MASK_PAL = _mask_palette;
+
+	u8 *p = _rgba;
+
+	u16 trigger_x_lz = _lz->getTriggerX();
+
+	for (int y = 0; y < _size_y; ++y) {
+		_mono_decoder.readRowHeader(y, reader);
+		DESYNC_FILTER(x, y);
+
+		if (y == _lz->getTriggerY()) {
+			_lz->triggerY();
+			trigger_x_lz = _lz->getTriggerX();
+		}
+
+		const u32 *mask_next = _mask->nextScanline();
+		int mask_left = 0;
+		u32 mask;
+
+		int lz_skip = 0;
+
+		for (int x = 0; x < _size_x; ++x) {
+			DESYNC(x, y);
+
+			// If LZ triggered,
+			if (x == trigger_x_lz) {
+				lz_skip = _lz->triggerX(p);
+				trigger_x_lz = _lz->getTriggerX();
+			}
+
+			// Next mask word
+			if (mask_left-- <= 0) {
+				mask = *mask_next++;
+				mask_left = 31;
+			}
+
+			if (lz_skip > 0) {
+				--lz_skip;
+				_mono_decoder.masked(MASK_PAL);
+			} else if ((s32)mask < 0) {
+				*reinterpret_cast<u32 *>( p ) = MASK_COLOR;
+				_mono_decoder.masked(MASK_PAL);
+			} else {
+				u8 p = _mono_decoder.read(x, y, reader);
+
+				CAT_DEBUG_ENFORCE(p < _palette_size);
+
+				*reinterpret_cast<u32 *>( p ) = _palette[p];
+			}
+
+			p += 4;
+			mask <<= 1;
+		}
+	}
+	return GCIF_RE_OK;
+}
+
+int ImagePaletteReader::read(ImageReader &reader, ImageMaskReader &mask, ImageLZReader &lz, GCIFImage *image) {
 #ifdef CAT_COLLECT_STATS
 	m_clock = Clock::ref();
 
@@ -120,10 +221,40 @@ int ImagePaletteReader::read(ImageReader &reader) {
 		return err;
 	}
 
+	// If not enabled,
+	if (!enabled()) {
+		return GCIF_RE_OK;
+	}
+
 #ifdef CAT_COLLECT_STATS
 	double t1 = m_clock->usec();
+#endif // CAT_COLLECT_STATS
 
-	Stats.readUsec = t1 - t0;
+	_mask = &mask;
+	_lz = &lz;
+
+	_size_x = image->size_x;
+	_size_y = image->size_y;
+	_rgba = image->rgba;
+
+	if ((err = readTables(reader))) {
+		return err;
+	}
+
+#ifdef CAT_COLLECT_STATS
+	double t2 = m_clock->usec();
+#endif // CAT_COLLECT_STATS
+
+	if ((err = readPixels(reader))) {
+		return err;
+	}
+
+#ifdef CAT_COLLECT_STATS
+	double t3 = m_clock->usec();
+
+	Stats.paletteUsec = t1 - t0;
+	Stats.tablesUsec = t2 - t1;
+	Stats.pixelsUsec = t3 - t2;
 	Stats.colorCount = _palette_size;
 #endif // CAT_COLLECT_STATS
 
@@ -136,8 +267,10 @@ bool ImagePaletteReader::dumpStats() {
 	if (!enabled()) {
 		CAT_INANE("stats") << "(Palette Decode)    Disabled.";
 	} else {
-		CAT_INANE("stats") << "(Palette Decode)     Read Time : " << Stats.readUsec << " usec";
-		CAT_INANE("stats") << "(Palette Decode)  Palette Size : " << Stats.colorCount << " colors";
+		CAT_INANE("stats") << "(Palette Decode) Palette Read Time : " << Stats.paletteUsec << " usec";
+		CAT_INANE("stats") << "(Palette Decode)  Tables Read Time : " << Stats.tablesUsec << " usec";
+		CAT_INANE("stats") << "(Palette Decode)  Pixels Read Time : " << Stats.pixelsUsec << " usec";
+		CAT_INANE("stats") << "(Palette Decode)      Palette Size : " << Stats.colorCount << " colors";
 	}
 
 	return true;

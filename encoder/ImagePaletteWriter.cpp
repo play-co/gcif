@@ -37,6 +37,17 @@ using namespace cat;
 #include <algorithm> // std::sort
 
 
+#ifdef CAT_DESYNCH_CHECKS
+#define DESYNC_TABLE() writer.writeBits(1234567, 16);
+#define DESYNC(x, y) writer.writeBits(x ^ 12345, 16); writer.writeBits(y ^ 54321, 16);
+#define DESYNC_FILTER(x, y) writer.writeBits(x ^ 31337, 16); writer.writeBits(y ^ 31415, 16);
+#else
+#define DESYNC_TABLE()
+#define DESYNC(x, y)
+#define DESYNC_FILTER(x, y)
+#endif
+
+
 //// ImagePaletteWriter
 
 bool ImagePaletteWriter::generatePalette() {
@@ -208,8 +219,12 @@ void ImagePaletteWriter::writePixels(ImageWriter &writer) {
 	for (int y = 0; y < _size_y; ++y) {
 		_mono_writer.writeRowHeader(y, writer);
 
+		DESYNC_FILTER(0, y);
+
 		for (int x = 0; x < _size_x; ++x) {
 			_mono_writer.write(x, y, writer);
+
+			DESYNC(x, y);
 		}
 	}
 }
@@ -346,8 +361,12 @@ void ImagePaletteWriter::writeTable(ImageWriter &writer) {
 		}
 	}
 
+	DESYNC_TABLE();
+
 	// Write monochrome tables
 	bits += _mono_writer.writeTables(writer);
+
+	DESYNC_TABLE();
 
 #ifdef CAT_COLLECT_STATS
 	Stats.palette_size = (int)_palette.size();

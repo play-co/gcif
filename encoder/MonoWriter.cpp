@@ -1158,10 +1158,10 @@ int MonoWriter::writeRowHeader(u16 y, ImageWriter &writer) {
 			// Write out chosen row filter
 			writer.writeBit(_tile_row_filters[ty]);
 			bits++;
-		}
 
-		// Clear prev filter
-		_prev_filter = 0;
+			// Clear prev filter
+			_prev_filter = 0;
+		}
 	}
 
 	DESYNC_FILTER(0, y);
@@ -1174,6 +1174,11 @@ int MonoWriter::write(u16 x, u16 y, ImageWriter &writer) {
 	int overhead_bits = 0, data_bits = 0;
 
 	CAT_DEBUG_ENFORCE(x < _size_x && y < _size_y);
+
+	// If this pixel is masked,
+	if (_params.mask(x, y)) {
+		_chaos.zero();
+	}
 
 	// Calculate tile coordinates
 	u16 tx = x >> _tile_bits_x;
@@ -1217,7 +1222,7 @@ int MonoWriter::write(u16 x, u16 y, ImageWriter &writer) {
 
 	// If filter is masked,
 	u8 f = _write_filter;
-	if (f == MASK_TILE || _params.mask(x, y) || f >= _normal_filter_count) {
+	if (f >= _normal_filter_count) {
 		_chaos.zero();
 	} else {
 		// Look up residual sym
