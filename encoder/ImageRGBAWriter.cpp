@@ -794,10 +794,12 @@ bool ImageRGBAWriter::writePixels(ImageWriter &writer) {
 
 		// If at the start of a tile row,
 		if ((y & tile_mask) == 0) {
+			u16 ty = y >> _tile_bits_y;
+
 			_seen_filter.fill_00();
 
-			_sf_encoder.writeRowHeader(y, writer);
-			_cf_encoder.writeRowHeader(y, writer);
+			_sf_encoder.writeRowHeader(ty, writer);
+			_cf_encoder.writeRowHeader(ty, writer);
 		}
 
 		_a_encoder.writeRowHeader(y, writer);
