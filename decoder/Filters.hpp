@@ -90,12 +90,6 @@ enum SpatialFilters {
 	SF_AVG_ABD,			// (A + B + D) / 3
 	SF_AVG_BCD,			// (B + C + D) / 3
 
-	// Triple average filters (round up)
-	SF_AVG_ABC1,		// (A + B + C + 2) / 3
-	SF_AVG_ACD1,		// (A + C + D + 2) / 3
-	SF_AVG_ABD1,		// (A + B + D + 2) / 3
-	SF_AVG_BCD1,		// (B + C + D + 2) / 3
-
 	// Quad average filters (round down)
 	SF_AVG_ABCD,		// (A + B + C + D) / 4
 
