@@ -76,6 +76,7 @@ void ImageRGBAWriter::maskTiles() {
 						*sf++ = TODO_TILE;
 						goto next_tile;
 					}
+					++px;
 				}
 				++py;
 			}
@@ -138,6 +139,7 @@ void ImageRGBAWriter::designFilters() {
 							scores.add(f, score);
 						}
 					}
+					++px;
 					data += 4;
 				}
 				++py;
@@ -272,6 +274,7 @@ void ImageRGBAWriter::designTiles() {
 								codes[2][code_count] = yuv[2];
 								++code_count;
 							}
+							++px;
 							data += 4;
 						}
 						++py;
@@ -323,10 +326,11 @@ void ImageRGBAWriter::designTiles() {
 
 							++code_count;
 						}
-						++data;
+						++px;
+						data += 4;
 					}
 					++py;
-					row += size_x;
+					row += size_x * 4;
 				}
 
 				// Evaluate entropy of codes
@@ -451,6 +455,7 @@ void ImageRGBAWriter::computeResiduals() {
 						residual_data[1] = yuv[1];
 						residual_data[2] = yuv[2];
 					}
+					++px;
 					data += 4;
 				}
 				++py;

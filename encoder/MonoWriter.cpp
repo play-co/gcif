@@ -76,6 +76,7 @@ void MonoWriter::maskTiles() {
 						*p++ = TODO_TILE;
 						goto next_tile;
 					}
+					++px;
 				}
 				++py;
 			}
@@ -129,6 +130,7 @@ void MonoWriter::designPaletteFilters() {
 							break;
 						}
 					}
+					++px;
 					++data;
 				}
 				++py;
@@ -229,6 +231,7 @@ void MonoWriter::designFilters() {
 							scores.add(f, score);
 						}
 					}
+					++px;
 					++data;
 				}
 				++py;
@@ -450,6 +453,7 @@ void MonoWriter::designTiles() {
 
 									codes[code_count++] = residual;
 								}
+								++px;
 								++data;
 							}
 							++py;
@@ -487,6 +491,7 @@ void MonoWriter::designTiles() {
 
 							++code_count;
 						}
+						++px;
 						++data;
 					}
 					++py;
@@ -600,6 +605,7 @@ void MonoWriter::computeResiduals() {
 						// Write residual data
 						*residual_data = residual;
 					}
+					++px;
 					++data;
 				}
 				++py;
