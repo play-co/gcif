@@ -536,6 +536,7 @@ void MonoWriter::designTiles() {
 
 				// Evaluate entropy of codes
 				u8 *src = codes;
+				u8 *best_src = src;
 				int lowest_entropy = 0x7fffffff;
 				int bestFilterIndex = 0;
 
@@ -563,10 +564,13 @@ void MonoWriter::designTiles() {
 					if (lowest_entropy > entropy) {
 						lowest_entropy = entropy;
 						bestFilterIndex = f;
+						best_src = src;
 					}
 
 					src += code_stride;
 				}
+
+				ee.add(best_src, code_count);
 
 				*p = (u8)bestFilterIndex;
 			}
@@ -1087,9 +1091,9 @@ int MonoWriter::writeTables(ImageWriter &writer) {
 
 	// Sympal filters
 	{
-		CAT_DEBUG_ENFORCE(MAX_PALETTE <= 16);
+		CAT_DEBUG_ENFORCE(MAX_PALETTE <= 15);
 
-		writer.writeBits(_sympal_filter_count - 1, 4);
+		writer.writeBits(_sympal_filter_count, 4);
 		for (int f = 0; f < _sympal_filter_count; ++f) {
 			writer.writeBits(_sympal[f], 8);
 			Stats.basic_overhead_bits += 8;

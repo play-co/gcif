@@ -51,7 +51,7 @@ class MonoReader {
 public:
 	static const int MAX_FILTERS = 32;
 	static const int MAX_CHAOS_LEVELS = 16;
-	static const int MAX_PALETTE = 16;
+	static const int MAX_PALETTE = 15;
 	static const int MAX_SYMS = 256;
 	static const int ZRLE_SYMS = 16;
 

@@ -91,7 +91,7 @@ int MonoReader::readTables(const Parameters &params, ImageReader &reader) {
 	_tiles.fill_ff(); // READ_TILE
 
 	// Read palette
-	_sympal_filter_count = reader.readBits(4) + 1;
+	_sympal_filter_count = reader.readBits(4);
 	for (int ii = 0; ii < _sympal_filter_count; ++ii) {
 		_palette[ii] = reader.readBits(8);
 	}
