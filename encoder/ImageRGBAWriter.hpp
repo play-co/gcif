@@ -70,10 +70,7 @@ namespace cat {
 class ImageRGBAWriter {
 protected:
 	static const int MAX_CHAOS_LEVELS = ImageRGBAReader::MAX_CHAOS_LEVELS;
-	static const int ZRLE_SYMS_Y = ImageRGBAReader::ZRLE_SYMS_Y;
-	static const int ZRLE_SYMS_U = ImageRGBAReader::ZRLE_SYMS_U;
-	static const int ZRLE_SYMS_V = ImageRGBAReader::ZRLE_SYMS_V;
-	static const int ZRLE_SYMS_A = ImageRGBAReader::ZRLE_SYMS_A;
+	static const int ZRLE_SYMS = ImageRGBAReader::ZRLE_SYMS;
 	static const int MAX_FILTERS = ImageRGBAReader::MAX_FILTERS;
 	static const int MAX_PASSES = 4;
 	static const int MAX_SYMS = 256;
@@ -105,15 +102,15 @@ protected:
 
 	// Write state
 	SmartArray<u8> _residuals, _seen_filter;
-	RGBAChaos _chaos;
+	RGBChaos _chaos;
 
-	// Color channel encoders
-	EntropyEncoder<MAX_SYMS, ZRLE_SYMS_Y> _y_encoder[MAX_CHAOS_LEVELS];
-	EntropyEncoder<MAX_SYMS, ZRLE_SYMS_U> _u_encoder[MAX_CHAOS_LEVELS];
-	EntropyEncoder<MAX_SYMS, ZRLE_SYMS_V> _v_encoder[MAX_CHAOS_LEVELS];
+	// RGB encoders
+	EntropyEncoder<MAX_SYMS, ZRLE_SYMS> _y_encoder[MAX_CHAOS_LEVELS];
+	EntropyEncoder<MAX_SYMS, ZRLE_SYMS> _u_encoder[MAX_CHAOS_LEVELS];
+	EntropyEncoder<MAX_SYMS, ZRLE_SYMS> _v_encoder[MAX_CHAOS_LEVELS];
 
-	MonoWriter _sf_encoder;
-	MonoWriter _cf_encoder;
+	// Filter encoders
+	MonoWriter _sf_encoder, _cf_encoder;
 
 	// Alpha channel encoder
 	SmartArray<u8> _alpha;

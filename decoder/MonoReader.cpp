@@ -213,14 +213,6 @@ int MonoReader::readRowHeader(u16 y, ImageReader &reader) {
 	return GCIF_RE_OK;
 }
 
-void MonoReader::masked(u8 value) {
-	_chaos.zero();
-
-	// Fill in provided value
-	*_current_data = value;
-	_current_data += _params.data_step;
-}
-
 u8 MonoReader::read(u16 x, u16 y, ImageReader &reader) {
 	CAT_DEBUG_ENFORCE(x < _size_x && y < _size_y);
 

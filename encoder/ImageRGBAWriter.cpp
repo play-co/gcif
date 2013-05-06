@@ -46,11 +46,9 @@ using namespace std;
 #ifdef CAT_DESYNCH_CHECKS
 #define DESYNC_TABLE() writer.writeBits(1234567, 16);
 #define DESYNC(x, y) writer.writeBits(x ^ 12345, 16); writer.writeBits(y ^ 54321, 16);
-#define DESYNC_FILTER(x, y) writer.writeBits(x ^ 31337, 16); writer.writeBits(y ^ 31415, 16);
 #else
 #define DESYNC_TABLE()
 #define DESYNC(x, y)
-#define DESYNC_FILTER(x, y)
 #endif
 
 
@@ -133,9 +131,9 @@ void ImageRGBAWriter::designFilters() {
 							u8 rg = g - pred[1];
 							u8 rb = b - pred[2];
 
-							int score = RGBAChaos::ResidualScore(rr);
-							score += RGBAChaos::ResidualScore(rg);
-							score += RGBAChaos::ResidualScore(rb);
+							int score = RGBChaos::ResidualScore(rr);
+							score += RGBChaos::ResidualScore(rg);
+							score += RGBChaos::ResidualScore(rb);
 
 							scores.add(f, score);
 						}
@@ -498,7 +496,7 @@ void ImageRGBAWriter::designChaos() {
 					const u8 chaos_v = _chaos.getV();
 
 					// Update chaos
-					_chaos.store(residuals[0], residuals[1], residuals[2], 0);
+					_chaos.store(residuals);
 
 					// Add to histogram for this chaos bin
 					ee[chaos_y].addSingle(residuals[0]);
@@ -597,7 +595,7 @@ void ImageRGBAWriter::initializeEncoders() {
 				const u8 chaos_v = _chaos.getV();
 
 				// Update chaos
-				_chaos.store(residuals[0], residuals[1], residuals[2], 0);
+				_chaos.store(residuals);
 
 				// Add to histogram for this chaos bin
 				_y_encoder[chaos_y].add(residuals[0]);
@@ -675,8 +673,9 @@ bool ImageRGBAWriter::writeTables(ImageWriter &writer) {
 
 	CAT_DEBUG_ENFORCE(MAX_FILTERS <= 32);
 	CAT_DEBUG_ENFORCE(SF_COUNT <= 128);
+	CAT_DEBUG_ENFORCE(_tile_bits_x <= 8);
 
-	writer.writeBits(_tile_bits_x, 3);
+	writer.writeBits(_tile_bits_x - 1, 3);
 	int basic_bits = 3;
 
 	DESYNC_TABLE();
@@ -764,8 +763,9 @@ bool ImageRGBAWriter::writePixels(ImageWriter &writer) {
 
 			_sf_encoder.writeRowHeader(y, writer);
 			_cf_encoder.writeRowHeader(y, writer);
-			_a_encoder.writeRowHeader(y, writer);
 		}
+
+		_a_encoder.writeRowHeader(y, writer);
 
 		// For each pixel,
 		for (u16 x = 0; x < _size_x; ++x) {
@@ -775,13 +775,20 @@ bool ImageRGBAWriter::writePixels(ImageWriter &writer) {
 			if (IsMasked(x, y)) {
 				_chaos.zero();
 			} else {
+				// Writer filters
+				if (!_seen_filter[x >> _tile_bits_x]) {
+					_seen_filter[x >> _tile_bits_x] = true;
+					_sf_encoder.write(x, y, writer);
+					_cf_encoder.write(x, y, writer);
+				}
+
 				// Get chaos bin
 				const u8 chaos_y = _chaos.getY();
 				const u8 chaos_u = _chaos.getU();
 				const u8 chaos_v = _chaos.getV();
 
 				// Update chaos
-				_chaos.store(residuals[0], residuals[1], residuals[2], 0);
+				_chaos.store(residuals);
 
 				// Add to histogram for this chaos bin
 				y_bits += _y_encoder[chaos_y].write(residuals[0], writer);

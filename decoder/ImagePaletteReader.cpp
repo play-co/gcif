@@ -195,6 +195,7 @@ int ImagePaletteReader::readPixels(ImageReader &reader) {
 				*reinterpret_cast<u32 *>( p ) = MASK_COLOR;
 				_mono_decoder.masked(MASK_PAL);
 			} else {
+				// TODO: Unroll to use unsafe version
 				u8 p = _mono_decoder.read(x, y, reader);
 
 				CAT_DEBUG_ENFORCE(p < _palette_size);

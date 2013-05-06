@@ -36,6 +36,7 @@
 #include "Filters.hpp"
 #include "EntropyDecoder.hpp"
 #include "MonoReader.hpp"
+#include "SmartArray.hpp"
 
 /*
  * Game Closure RGBA Decompression
@@ -66,10 +67,7 @@ class ImageRGBAReader {
 public:
 	static const int MAX_CHAOS_LEVELS = 32;
 	static const int MAX_FILTERS = 32;
-	static const int ZRLE_SYMS_Y = 128;
-	static const int ZRLE_SYMS_U = 128;
-	static const int ZRLE_SYMS_V = 128;
-	static const int ZRLE_SYMS_A = 128;
+	static const int ZRLE_SYMS = 128;
 
 protected:
 	static const int NUM_COLORS = 256;
@@ -80,25 +78,112 @@ protected:
 	// RGBA output data
 	u8 *_rgba;
 	u16 _size_x, _size_y;
-	u16 _tile_bits_x, _tiles_bits_y;
-	u16 _tile_size_x, _tiles_size_y;
 
-	RGBAChaos _chaos;
+	// Tiles
+	u16 _tile_bits_x, _tile_bits_y;
+	u16 _tile_size_x, _tile_size_y;
+	u16 _tile_mask_x, _tile_mask_y;
+	u16 _tiles_x, _tiles_y;
 
+	struct FilterSelection {
+		YUV2RGBFilterFunction cf;
+		RGBAFilterFuncs sf;
+
+		CAT_INLINE bool ready() {
+			return cf != 0;
+		}
+	};
+
+	// Filter functions
 	RGBAFilterFuncs _sf[MAX_FILTERS];
 	int _sf_count;
+	SmartArray<FilterSelection> _filters;
 
-	// Filter and alpha channel decoders
+	// Filter/Alpha decoders
+	SmartArray<u8> _sf_tiles, _cf_tiles;
 	MonoReader _sf_decoder, _cf_decoder, _a_decoder;
 
-	// Color plane decoders
-	EntropyDecoder<NUM_COLORS, ZRLE_SYMS_Y> _y_decoder[MAX_CHAOS_LEVELS];
-	EntropyDecoder<NUM_COLORS, ZRLE_SYMS_U> _u_decoder[MAX_CHAOS_LEVELS];
-	EntropyDecoder<NUM_COLORS, ZRLE_SYMS_V> _v_decoder[MAX_CHAOS_LEVELS];
+	// RGB decoders
+	RGBChaos _chaos;
+	EntropyDecoder<NUM_COLORS, ZRLE_SYMS> _y_decoder[MAX_CHAOS_LEVELS];
+	EntropyDecoder<NUM_COLORS, ZRLE_SYMS> _u_decoder[MAX_CHAOS_LEVELS];
+	EntropyDecoder<NUM_COLORS, ZRLE_SYMS> _v_decoder[MAX_CHAOS_LEVELS];
+
+	CAT_INLINE FilterSelection *readFilter(u16 x, ImageReader &reader) {
+		FilterSelection *filter = &_filters[x >> _tile_bits_x];
+
+		if (!filter->ready()) {
+			filter->cf = YUV2RGB_FILTERS[_cf_decoder.read(x, y, reader)];
+			filter->sf = _sf[_sf_decoder.read(x, y, reader)];
+		}
+
+		return filter;
+	}
+
+	u8 _FPT[3];
+
+	CAT_INLINE void readSafe(u16 x, u16 y, u8 *p, ImageReader &reader) {
+		FilterSelection *filter = readFilter(x, reader);
+
+		// Calculate YUV chaos
+		const int chaos_y = _chaos.getY();
+		const int chaos_u = _chaos.getU();
+		const int chaos_v = _chaos.getV();
+
+		// Read YUV filtered pixel
+		u8 YUV[3];
+		YUV[0] = (u8)_y_decoder[chaos_y].next(reader);
+		YUV[1] = (u8)_u_decoder[chaos_u].next(reader);
+		YUV[2] = (u8)_v_decoder[chaos_v].next(reader);
+
+		// Reverse color filter
+		filter->cf(YUV, p);
+
+		// Reverse spatial filter
+		const u8 *pred = filter->sf.safe(p, _FPT, x, y, _size_x);
+		p[0] += pred[0];
+		p[1] += pred[1];
+		p[2] += pred[2];
+
+		// Read alpha pixel
+		u8 A = (u8)_a_decoder.read(x, y, reader);
+
+		_chaos.store(YUV);
+	}
+
+	// WARNING: Should be exactly the same as above, except call unsafe()
+	CAT_INLINE void readUnsafe(u16 x, u16 y, u8 *p, ImageReader &reader) {
+		FilterSelection *filter = readFilter(x, reader);
+
+		// Calculate YUV chaos
+		const int chaos_y = _chaos.getY();
+		const int chaos_u = _chaos.getU();
+		const int chaos_v = _chaos.getV();
+
+		// Read YUV filtered pixel
+		u8 YUV[3];
+		YUV[0] = (u8)_y_decoder[chaos_y].next(reader);
+		YUV[1] = (u8)_u_decoder[chaos_u].next(reader);
+		YUV[2] = (u8)_v_decoder[chaos_v].next(reader);
+
+		// Reverse color filter
+		filter->cf(YUV, p);
+
+		// Reverse spatial filter
+		const u8 *pred = filter->sf.unsafe(p, _FPT, x, y, _size_x);
+		p[0] += pred[0];
+		p[1] += pred[1];
+		p[2] += pred[2];
+
+		// Read alpha pixel
+		u8 A = (u8)_a_decoder.read(x, y, reader);
+
+		_chaos.store(YUV);
+	}
 
 	int init(GCIFImage *image);
 	int readFilterTables(ImageReader &reader);
-	int readChaosTables(ImageReader &reader);
+	int readRGBATables(ImageReader &reader);
 	int readPixels(ImageReader &reader);
 
 #ifdef CAT_COLLECT_STATS
@@ -110,12 +195,6 @@ public:
 #endif
 
 public:
-	CAT_INLINE ImageRGBAReader() {
-		_rgba = 0;
-	}
-	virtual CAT_INLINE ~ImageRGBAReader() {
-	}
-
 	int read(ImageReader &reader, ImageMaskReader &maskReader, ImageLZReader &lzReader, GCIFImage *image);
 
 #ifdef CAT_COLLECT_STATS

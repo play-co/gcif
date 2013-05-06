@@ -43,13 +43,9 @@ static cat::Clock *m_clock = 0;
 #define DESYNC(x, y) \
 	CAT_ENFORCE(reader.readBits(16) == (x ^ 12345)); \
 	CAT_ENFORCE(reader.readBits(16) == (y ^ 54321));
-#define DESYNC_FILTER(x, y) \
-	CAT_ENFORCE(reader.readBits(16) == (x ^ 31337)); \
-	CAT_ENFORCE(reader.readBits(16) == (y ^ 31415));
 #else
 #define DESYNC_TABLE()
 #define DESYNC(x, y)
-#define DESYNC_FILTER(x, y)
 #endif
 
 
@@ -69,81 +65,113 @@ int ImageRGBAReader::init(GCIFImage *image) {
 }
 
 int ImageRGBAReader::readFilterTables(ImageReader &reader) {
-	// Read in count of custom spatial filters
-	int rep_count = reader.readBits(5);
-	if (rep_count > SF_COUNT) {
-		CAT_DEBUG_EXCEPTION();
-		return GCIF_RE_CM_CODES;
-	}
+	int err;
 
-	_sf_set.init();
+	// Read tile bits
+	_tile_bits_x = reader.readBits(3) + 1;
+	_tile_bits_y = _tile_bits_x;
+	_tile_size_x = 1 << _tile_bits_x;
+	_tile_size_y = 1 << _tile_bits_y;
+	_tile_mask_x = _tile_size_x - 1;
+	_tile_mask_y = _tile_size_y - 1;
+	_tiles_x = (_size_x + _tile_mask_x) >> _tile_bits_x;
+	_tiles_y = (_size_y + _tile_mask_y) >> _tile_bits_y;
+	_filters.resize(_tiles_x);
 
-	// Read in the preset index for each custom filter
-	for (int ii = 0; ii < rep_count; ++ii) {
-		int def = reader.readBits(5);
+	const int tile_count = _tiles_x * _tiles_y;
+	_sf_tiles.resize(tile_count);
+	_cf_tiles.resize(tile_count);
 
-		if (def >= SF_COUNT) {
+	DESYNC_TABLE();
+
+	// Read filter choices
+	_sf_count = reader.readBits(5) + SF_FIXED;
+	for (int ii = SF_FIXED; ii < _sf_count; ++ii) {
+		u8 sf = reader.readBits(7);
+
+		if (sf >= SF_COUNT) {
 			CAT_DEBUG_EXCEPTION();
-			return GCIF_RE_CM_CODES;
+			return GCIF_RE_BAD_RGBA;
 		}
 
-		int cust = reader.readBits(7);
-		if (cust >= SpatialFilterSet::TAPPED_COUNT) {
-			CAT_DEBUG_EXCEPTION();
-			return GCIF_RE_CM_CODES;
+		_sf[ii] = RGBA_FILTERS[sf];
+	}
+
+	DESYNC_TABLE();
+
+	// Read SF decoder
+	{
+		MonoReader::Parameters params;
+		params.data = _sf_tiles.get();
+		params.data_step = 1;
+		params.size_x = _tiles_x;
+		params.size_y = _tiles_y;
+		params.num_syms = _sf_count;
+
+		if ((err = _sf_decoder.readTables(params, reader))) {
+			return err;
 		}
-
-		_sf_set.replace(def, cust);
 	}
 
-	// Initialize huffman decoder
-	if (reader.eof() || !_cf.init(CF_COUNT, reader, 8)) {
-		CAT_DEBUG_EXCEPTION();
-		return GCIF_RE_CM_CODES;
+	DESYNC_TABLE();
+
+	// Read CF decoder
+	{
+		MonoReader::Parameters params;
+		params.data = _cf_tiles.get();
+		params.data_step = 1;
+		params.size_x = _tiles_x;
+		params.size_y = _tiles_y;
+		params.num_syms = CF_COUNT;
+
+		if ((err = _cf_decoder.readTables(params, reader))) {
+			return err;
+		}
 	}
 
-	// Initialize huffman decoder
-	if (reader.eof() || !_sf.init(SF_COUNT, reader, 8)) {
-		CAT_DEBUG_EXCEPTION();
-		return GCIF_RE_CM_CODES;
-	}
+	DESYNC_TABLE();
 
 	return GCIF_RE_OK;
 }
 
-int ImageRGBAReader::readChaosTables(ImageReader &reader) {
-	_chaos_levels = reader.readBits(3) + 1;
+int ImageRGBAReader::readRGBATables(ImageReader &reader) {
+	int err;
 
-	switch (_chaos_levels) {
-		case 1:
-			_chaos_table = CHAOS_TABLE_1;
-			break;
-		case 8:
-			_chaos_table = CHAOS_TABLE_8;
-			break;
-		default:
-			CAT_DEBUG_EXCEPTION();
-			return GCIF_RE_CM_CODES;
+	// Read alpha decoder
+	{
+		MonoReader::Parameters params;
+		params.data = _rgba + 3;
+		params.data_step = 4;
+		params.size_x = _size_x;
+		params.size_y = _size_y;
+		params.num_syms = 256;
+
+		if ((err = _a_decoder.readTables(params, reader))) {
+			return err;
+		}
 	}
 
+	DESYNC_TABLE();
+
+	// Read chaos levels
+	const int chaos_levels = reader.readBits(4) + 1;
+
+	_chaos.init(chaos_levels, _size_x);
+
 	// For each chaos level,
-	for (int jj = 0; jj < _chaos_levels; ++jj) {
+	for (int jj = 0; jj < chaos_levels; ++jj) {
 		// Read the decoder tables
 		if (!_y_decoder[jj].init(reader)) {
 			CAT_DEBUG_EXCEPTION();
-			return GCIF_RE_CM_CODES;
+			return GCIF_RE_BAD_RGBA;
 		}
 		if (!_u_decoder[jj].init(reader)) {
 			CAT_DEBUG_EXCEPTION();
-			return GCIF_RE_CM_CODES;
+			return GCIF_RE_BAD_RGBA;
 		}
 		if (!_v_decoder[jj].init(reader)) {
 			CAT_DEBUG_EXCEPTION();
-			return GCIF_RE_CM_CODES;
-		}
-		if (!_a_decoder[jj].init(reader)) {
-			CAT_DEBUG_EXCEPTION();
-			return GCIF_RE_CM_CODES;
+			return GCIF_RE_BAD_RGBA;
 		}
 	}
 
@@ -159,11 +187,8 @@ int ImageRGBAReader::readPixels(ImageReader &reader) {
 
 	// Start from upper-left of image
 	u8 *p = _rgba;
-	u8 *lastStart = _chaos + COLOR_PLANES;
-	CAT_CLR(_chaos, _chaos_size);
 
-	const u8 *CHAOS_TABLE = _chaos_table;
-	u8 FPT[3];
+	_chaos.start();
 
 	// Unroll y = 0 scanline
 	{
@@ -176,7 +201,13 @@ int ImageRGBAReader::readPixels(ImageReader &reader) {
 		}
 
 		// Clear filters data
-		CAT_CLR(_filters, _filters_bytes);
+		_filters.fill_00();
+
+		// Read row headers
+		_sf_decoder.readRowHeader(y, reader);
+		_cf_decoder.readRowHeader(y, reader);
+
+		_a_decoder.readRowHeader(y, reader);
 
 		// Read mask scanline
 		const u32 *mask_next = _mask->nextScanline();
@@ -184,7 +215,6 @@ int ImageRGBAReader::readPixels(ImageReader &reader) {
 		u32 mask;
 
 		// Restart for scanline
-		u8 *last = lastStart;
 		int lz_skip = 0;
 
 		// For each pixel,
@@ -205,65 +235,19 @@ int ImageRGBAReader::readPixels(ImageReader &reader) {
 
 			if (lz_skip > 0) {
 				--lz_skip;
-				*reinterpret_cast<u32 *>( last ) = 0;
+				_chaos.zero();
+				_a_decoder.maskedSkip();
 			} else if ((s32)mask < 0) {
 				*reinterpret_cast<u32 *>( p ) = MASK_COLOR;
-				*reinterpret_cast<u32 *>( last ) = 0;
+				_chaos.zero();
+				_a_decoder.maskedSkip();
 			} else {
-				// Read SF and CF for this zone
-				FilterSelection *filter = &_filters[x >> FILTER_ZONE_SIZE_SHIFT_W];
-				if (!filter->ready()) {
-					filter->cf = YUV2RGB_FILTERS[_cf.next(reader)];
-					DESYNC_FILTER(x, y);
-					filter->sf = _sf_set.get(_sf.next(reader));
-					DESYNC_FILTER(x, y);
-				}
+				readSafe(x, y, p, reader);
 
-				// Calculate YUV chaos
-				const u32 chaos_y = CHAOS_TABLE[last[-4]];
-				const u32 chaos_u = CHAOS_TABLE[last[-3]];
-				const u32 chaos_v = CHAOS_TABLE[last[-2]];
-
-				// Read YUV filtered pixel
-				u8 YUV[3];
-				YUV[0] = (u8)_y_decoder[chaos_y].next(reader);
 				DESYNC(x, y);
-				YUV[1] = (u8)_u_decoder[chaos_u].next(reader);
-				DESYNC(x, y);
-				YUV[2] = (u8)_v_decoder[chaos_v].next(reader);
-				DESYNC(x, y);
-
-				// Calculate alpha chaos
-				const u32 chaos_a = CHAOS_TABLE[last[-1]];
-
-				// Reverse color filter
-				filter->cf(YUV, p);
-
-				// Reverse spatial filter
-				const u8 *pred = FPT;
-				filter->sf.safe(p, &pred, x, y, size_x);
-				p[0] += pred[0];
-				p[1] += pred[1];
-				p[2] += pred[2];
-
-				// Read alpha pixel
-				u8 A = (u8)_a_decoder[chaos_a].next(reader);
-				DESYNC(x, y);
-				if (x > 0) {
-					p[3] = p[-1] - A;
-				} else {
-					p[3] = 255 - A;
-				}
-
-				// Convert last to score
-				last[0] = CHAOS_SCORE[YUV[0]];
-				last[1] = CHAOS_SCORE[YUV[1]];
-				last[2] = CHAOS_SCORE[YUV[2]];
-				last[3] = CHAOS_SCORE[A];
 			}
 
 			// Next pixel
-			last += COLOR_PLANES;
 			mask <<= 1;
 			p += 4;
 		}
@@ -279,9 +263,16 @@ int ImageRGBAReader::readPixels(ImageReader &reader) {
 		}
 
 		// If it is time to clear the filters data,
-		if ((y & FILTER_ZONE_SIZE_MASK_W) == 0) {
-			CAT_CLR(_filters, _filters_bytes);
+		if ((y & _tile_mask_y) == 0) {
+			// Clear filters data
+			_filters.fill_00();
+
+			// Read row headers
+			_sf_decoder.readRowHeader(y, reader);
+			_cf_decoder.readRowHeader(y, reader);
 		}
+
+		_a_decoder.readRowHeader(y, reader);
 
 		// Read mask scanline
 		const u32 *mask_next = _mask->nextScanline();
@@ -289,7 +280,6 @@ int ImageRGBAReader::readPixels(ImageReader &reader) {
 		u32 mask;
 
 		// Restart for scanline
-		u8 *last = lastStart;
 		int lz_skip = 0;
 
 		// Unroll x = 0 pixel
@@ -310,61 +300,19 @@ int ImageRGBAReader::readPixels(ImageReader &reader) {
 			// If pixel was copied with LZ subsystem,
 			if (lz_skip > 0) {
 				--lz_skip;
-				*reinterpret_cast<u32 *>( last ) = 0;
+				_chaos.zero();
+				_a_decoder.maskedSkip();
 			} else if ((s32)mask < 0) {
 				*reinterpret_cast<u32 *>( p ) = MASK_COLOR;
-				*reinterpret_cast<u32 *>( last ) = 0;
+				_chaos.zero();
+				_a_decoder.maskedSkip();
 			} else {
-				// Read SF and CF for this zone
-				FilterSelection *filter = &_filters[x >> FILTER_ZONE_SIZE_SHIFT_W];
-				if (!filter->ready()) {
-					filter->cf = YUV2RGB_FILTERS[_cf.next(reader)];
-					DESYNC_FILTER(x, y);
-					filter->sf = _sf_set.get(_sf.next(reader));
-					DESYNC_FILTER(x, y);
-				}
+				readSafe(x, y, p, reader);
 
-				// Calculate YUV chaos
-				const u32 chaos_y = CHAOS_TABLE[last[0]];
-				const u32 chaos_u = CHAOS_TABLE[last[1]];
-				const u32 chaos_v = CHAOS_TABLE[last[2]];
-
-				// Read YUV filtered pixel
-				u8 YUV[3];
-				YUV[0] = (u8)_y_decoder[chaos_y].next(reader);;
 				DESYNC(x, y);
-				YUV[1] = (u8)_u_decoder[chaos_u].next(reader);
-				DESYNC(x, y);
-				YUV[2] = (u8)_v_decoder[chaos_v].next(reader);
-				DESYNC(x, y);
-
-				// Calculate alpha chaos
-				const u32 chaos_a = CHAOS_TABLE[last[3]];
-
-				// Reverse color filter
-				filter->cf(YUV, p);
-
-				// Reverse spatial filter
-				const u8 *pred = FPT;
-				filter->sf.safe(p, &pred, x, y, size_x);
-				p[0] += pred[0];
-				p[1] += pred[1];
-				p[2] += pred[2];
-
-				// Read alpha pixel
-				u8 A = (u8)_a_decoder[chaos_a].next(reader);
-				DESYNC(x, y);
-				p[3] = 255 - A;
-
-				// Convert last to score
-				last[0] = CHAOS_SCORE[YUV[0]];
-				last[1] = CHAOS_SCORE[YUV[1]];
-				last[2] = CHAOS_SCORE[YUV[2]];
-				last[3] = CHAOS_SCORE[A];
 			}
 
 			// Next pixel
-			last += COLOR_PLANES;
 			mask <<= 1;
 			p += 4;
 		}
@@ -392,70 +340,29 @@ int ImageRGBAReader::readPixels(ImageReader &reader) {
 			// If pixel was copied with LZ subsystem,
 			if (lz_skip > 0) {
 				--lz_skip;
-				*reinterpret_cast<u32 *>( last ) = 0;
+				_chaos.zero();
+				_a_decoder.maskedSkip();
 			} else if ((s32)mask < 0) {
 				*reinterpret_cast<u32 *>( p ) = MASK_COLOR;
-				*reinterpret_cast<u32 *>( last ) = 0;
+				_chaos.zero();
+				_a_decoder.maskedSkip();
 			} else {
-				// Read SF and CF for this zone
-				FilterSelection *filter = &_filters[x >> FILTER_ZONE_SIZE_SHIFT_W];
-				if (!filter->ready()) {
-					filter->cf = YUV2RGB_FILTERS[_cf.next(reader)];
-					DESYNC_FILTER(x, y);
-					filter->sf = _sf_set.get(_sf.next(reader));
-					DESYNC_FILTER(x, y);
-				}
+				// Note: Reading with unsafe spatial filter
+				readUnsafe(x, y, p, reader);
 
-				// Calculate YUV chaos
-				const u32 chaos_y = CHAOS_TABLE[last[-4] + (u16)last[0]];
-				const u32 chaos_u = CHAOS_TABLE[last[-3] + (u16)last[1]];
-				const u32 chaos_v = CHAOS_TABLE[last[-2] + (u16)last[2]];
-
-				// Read YUV filtered pixel
-				u8 YUV[3];
-				YUV[0] = (u8)_y_decoder[chaos_y].next(reader);
 				DESYNC(x, y);
-				YUV[1] = (u8)_u_decoder[chaos_u].next(reader);
-				DESYNC(x, y);
-				YUV[2] = (u8)_v_decoder[chaos_v].next(reader);
-				DESYNC(x, y);
-
-				// Calculate alpha chaos
-				const u32 chaos_a = CHAOS_TABLE[last[-1] + (u16)last[3]];
-
-				// Reverse color filter
-				filter->cf(YUV, p);
-
-				// Reverse spatial filter
-				const u8 *pred = FPT;
-				filter->sf.unsafe(p, &pred, x, y, size_x);
-				p[0] += pred[0];
-				p[1] += pred[1];
-				p[2] += pred[2];
-
-				// Read alpha pixel
-				u32 A = (u8)_a_decoder[chaos_a].next(reader);
-				p[3] = p[-1] - A;
-				DESYNC(x, y);
-
-				// Convert last to score
-				last[0] = CHAOS_SCORE[YUV[0]];
-				last[1] = CHAOS_SCORE[YUV[1]];
-				last[2] = CHAOS_SCORE[YUV[2]];
-				last[3] = CHAOS_SCORE[A];
 			}
 
 			// Next pixel
 			p += 4;
 			mask <<= 1;
-			last += COLOR_PLANES;
 		}
 
 		
 		//// BIG INNER LOOP END ////
 
 
-		// For x = size_x-1,
+		// For right image edge,
 		{
 			const int x = size_x - 1;
 			DESYNC(x, y);
@@ -474,57 +381,16 @@ int ImageRGBAReader::readPixels(ImageReader &reader) {
 			// If pixel was copied with LZ subsystem,
 			if (lz_skip > 0) {
 				--lz_skip;
-				*reinterpret_cast<u32 *>( last ) = 0;
+				_chaos.zero();
+				_a_decoder.maskedSkip();
 			} else if ((s32)mask < 0) {
 				*reinterpret_cast<u32 *>( p ) = MASK_COLOR;
-				*reinterpret_cast<u32 *>( last ) = 0;
+				_chaos.zero();
+				_a_decoder.maskedSkip();
 			} else {
-				// Read SF and CF for this zone
-				FilterSelection *filter = &_filters[x >> FILTER_ZONE_SIZE_SHIFT_W];
-				if (!filter->ready()) {
-					filter->cf = YUV2RGB_FILTERS[_cf.next(reader)];
-					DESYNC_FILTER(x, y);
-					filter->sf = _sf_set.get(_sf.next(reader));
-					DESYNC_FILTER(x, y);
-				}
+				readSafe(x, y, p, reader);
 
-				// Calculate YUV chaos
-				const u32 chaos_y = CHAOS_TABLE[last[-4] + (u16)last[0]];
-				const u32 chaos_u = CHAOS_TABLE[last[-3] + (u16)last[1]];
-				const u32 chaos_v = CHAOS_TABLE[last[-2] + (u16)last[2]];
-
-				// Read YUV filtered pixel
-				u8 YUV[3];
-				YUV[0] = (u8)_y_decoder[chaos_y].next(reader);
 				DESYNC(x, y);
-				YUV[1] = (u8)_u_decoder[chaos_u].next(reader);
-				DESYNC(x, y);
-				YUV[2] = (u8)_v_decoder[chaos_v].next(reader);
-				DESYNC(x, y);
-
-				// Calculate alpha chaos
-				const u32 chaos_a = CHAOS_TABLE[last[-1] + (u16)last[3]];
-
-				// Reverse color filter
-				filter->cf(YUV, p);
-
-				// Reverse (safe) spatial filter
-				const u8 *pred = FPT;
-				filter->sf.safe(p, &pred, x, y, size_x);
-				p[0] += pred[0];
-				p[1] += pred[1];
-				p[2] += pred[2];
-
-				// Read alpha pixel
-				u8 A = (u8)_a_decoder[chaos_a].next(reader);
-				DESYNC(x, y);
-				p[3] = p[-1] - A;
-
-				// Convert last to score
-				last[0] = CHAOS_SCORE[YUV[0]];
-				last[1] = CHAOS_SCORE[YUV[1]];
-				last[2] = CHAOS_SCORE[YUV[2]];
-				last[3] = CHAOS_SCORE[A];
 			}
 
 			// Next pixel
@@ -566,7 +432,7 @@ int ImageRGBAReader::read(ImageReader &reader, ImageMaskReader &maskReader, Imag
 #endif	
 
 	// Read Huffman tables for each RGB channel and chaos level
-	if ((err = readChaosTables(reader))) {
+	if ((err = readRGBATables(reader))) {
 		return err;
 	}
 
@@ -600,7 +466,7 @@ int ImageRGBAReader::read(ImageReader &reader, ImageMaskReader &maskReader, Imag
 bool ImageRGBAReader::dumpStats() {
 	CAT_INANE("stats") << "(RGBA Decode)     Initialization : " << Stats.initUsec << " usec (" << Stats.initUsec * 100.f / Stats.overallUsec << " %total)";
 	CAT_INANE("stats") << "(RGBA Decode) Read Filter Tables : " << Stats.readFilterTablesUsec << " usec (" << Stats.readFilterTablesUsec * 100.f / Stats.overallUsec << " %total)";
-	CAT_INANE("stats") << "(RGBA Decode)  Read Chaos Tables : " << Stats.readChaosTablesUsec << " usec (" << Stats.readChaosTablesUsec * 100.f / Stats.overallUsec << " %total)";
+	CAT_INANE("stats") << "(RGBA Decode)   Read RGBA Tables : " << Stats.readChaosTablesUsec << " usec (" << Stats.readChaosTablesUsec * 100.f / Stats.overallUsec << " %total)";
 	CAT_INANE("stats") << "(RGBA Decode)      Decode Pixels : " << Stats.readPixelsUsec << " usec (" << Stats.readPixelsUsec * 100.f / Stats.overallUsec << " %total)";
 	CAT_INANE("stats") << "(RGBA Decode)            Overall : " << Stats.overallUsec << " usec";
 

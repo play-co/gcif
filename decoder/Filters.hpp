@@ -300,9 +300,9 @@ public:
 
 
 /*
- * RGBA Residuals -> Chaos bins
+ * RGB Residuals -> Chaos bins
  */
-class RGBAChaos {
+class RGBChaos {
 public:
 	// Residual 0..255 value -> Score
 	static CAT_INLINE u8 ResidualScore(u8 residual) {
@@ -332,7 +332,7 @@ protected:
 	u8 *_current;
 
 public:
-	CAT_INLINE RGBAChaos() {
+	CAT_INLINE RGBChaos() {
 		_chaos_levels = 0;
 	}
 
@@ -349,38 +349,38 @@ public:
 
 	CAT_INLINE void startRow() {
 		// Initialize left margin to 0
-		*reinterpret_cast<u32 *>( _row.get() ) = 0;
+		u8 *row = _row.get();
+		row[0] = 0;
+		row[1] = 0;
+		row[2] = 0;
 
 		// Initialize first write position after the margin
-		_current = _row.get() + 4;
+		_current = row + 3;
 	}
 
 	CAT_INLINE void zero() {
 		// Set to zero (optimization)
-		*reinterpret_cast<u32 *>( _current ) = 0;
-
-		_current += 4;
+		_current[0] = 0;
+		_current[1] = 0;
+		_current[2] = 0;
+		_current += 3;
 	}
 
 	CAT_INLINE u8 getY() {
-		return _table[_current[-4] + (u16)_current[0]];
+		return _table[_current[-3] + (u16)_current[0]];
 	}
 	CAT_INLINE u8 getU() {
-		return _table[_current[-3] + (u16)_current[1]];
+		return _table[_current[-2] + (u16)_current[1]];
 	}
 	CAT_INLINE u8 getV() {
-		return _table[_current[-2] + (u16)_current[2]];
-	}
-	CAT_INLINE u8 getA() {
-		return _table[_current[-1] + (u16)_current[3]];
+		return _table[_current[-1] + (u16)_current[2]];
 	}
 
-	CAT_INLINE void store(u8 y, u8 u, u8 v, u8 a) {
-		_current[0] = ResidualScore(y);
-		_current[1] = ResidualScore(u);
-		_current[2] = ResidualScore(v);
-		_current[3] = ResidualScore(a);
-		_current += 4;
+	CAT_INLINE void store(const u8 YUV[3]) {
+		_current[0] = ResidualScore(YUV[0]);
+		_current[1] = ResidualScore(YUV[1]);
+		_current[2] = ResidualScore(YUV[2]);
+		_current += 3;
 	}
 };
 

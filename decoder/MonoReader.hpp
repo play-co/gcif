@@ -123,7 +123,20 @@ public:
 
 	int readRowHeader(u16 y, ImageReader &reader);
 
-	void masked(u8 value);
+	CAT_INLINE void maskedWrite(u8 value) {
+		_chaos.zero();
+
+		// Fill in provided value
+		*_current_data = value;
+		_current_data += _params.data_step;
+	}
+
+	CAT_INLINE void maskedSkip() {
+		_chaos.zero();
+
+		// Skip data
+		_current_data += _params.data_step;
+	}
 
 	u8 read(u16 x, u16 y, ImageReader &reader);
 
