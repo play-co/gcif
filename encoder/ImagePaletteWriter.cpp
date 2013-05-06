@@ -195,6 +195,9 @@ int ImagePaletteWriter::init(const u8 *rgba, int size_x, int size_y, const GCIFK
 
 		// Generate palette raster
 		generateImage();
+
+		// Generate mono writer
+		generateMonoWriter();
 	}
 
 	return GCIF_WE_OK;

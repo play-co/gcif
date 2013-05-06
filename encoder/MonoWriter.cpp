@@ -145,7 +145,7 @@ void MonoWriter::designPaletteFilters() {
 			}
 		}
 
-		topleft_row += _params.size_x * 4 * _tile_size_y;
+		topleft_row += _params.size_x * _tile_size_y;
 	}
 
 	// Determine threshold
@@ -268,7 +268,7 @@ void MonoWriter::designFilters() {
 			}
 		}
 
-		topleft_row += _params.size_x * 4 * _tile_size_y;
+		topleft_row += _params.size_x * _tile_size_y;
 	}
 
 	// Copy the first SF_FIXED filters
@@ -397,7 +397,7 @@ void MonoWriter::designPaletteTiles() {
 			}
 		}
 
-		topleft_row += _params.size_x * 4 * _tile_size_y;
+		topleft_row += _params.size_x * _tile_size_y;
 	}
 }
 
@@ -572,7 +572,7 @@ void MonoWriter::designTiles() {
 				*p = (u8)bestFilterIndex;
 			}
 
-			topleft_row += _params.size_x * 4 * _tile_size_y;
+			topleft_row += _params.size_x * _tile_size_y;
 		}
 
 		CAT_INANE("2D") << "Revisiting filter selections from the top... " << revisitCount << " left";
@@ -632,7 +632,7 @@ void MonoWriter::computeResiduals() {
 			}
 		}
 
-		topleft_row += _params.size_x * 4 * _tile_size_y;
+		topleft_row += _params.size_x * _tile_size_y;
 	}
 }
 
