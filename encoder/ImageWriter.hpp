@@ -77,7 +77,6 @@ public:
 		_head = _work = 0;
 		_used = _allocated = _size = 0;
 	}
-
 	CAT_INLINE virtual ~WriteVector() {
 		clear();
 	}
@@ -121,18 +120,13 @@ protected:
 	int _bits;
 
 public:
-	CAT_INLINE ImageWriter() {
-	}
-	CAT_INLINE virtual ~ImageWriter() {
-	}
-
 	CAT_INLINE ImageReader::Header *getHeader() {
 		return &_header;
 	}
 
 	static const char *ErrorString(int err);
 
-	int init(int width, int height);
+	int init(int size_x, int size_y);
 
 	// Only works with len in [1..32], and code must not have dirty high bits
 	void writeBits(u32 code, int len);

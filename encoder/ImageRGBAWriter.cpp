@@ -393,8 +393,8 @@ void ImageRGBAWriter::compressAlpha() {
 void ImageRGBAWriter::initializeEncoders() {
 	// Find number of pixels to encode
 	int chaos_count = 0;
-	for (int y = 0; y < _height; ++y) {
-		for (int x = 0; x < _width; ++x) {
+	for (int y = 0; y < _size_y; ++y) {
+		for (int x = 0; x < _size_x; ++x) {
 			if (!_lz->visited(x, y) && !_mask->masked(x, y)) {
 				++chaos_count;
 			}
@@ -417,7 +417,7 @@ void ImageRGBAWriter::initializeEncoders() {
 		_chaos_table = CHAOS_TABLE_1;
 	}
 
-	const int width = _width;
+	const int size_x = _size_x;
 
 	// For each scanline,
 	const u8 *p = _rgba;
@@ -427,7 +427,7 @@ void ImageRGBAWriter::initializeEncoders() {
 	const u8 *CHAOS_TABLE = _chaos_table;
 	u8 FPT[3];
 
-	for (int y = 0; y < _height; ++y) {
+	for (int y = 0; y < _size_y; ++y) {
 		u8 *last = lastStart;
 
 		// Zero left
@@ -437,7 +437,7 @@ void ImageRGBAWriter::initializeEncoders() {
 		last[3 - 4] = 0;
 
 		// For each pixel,
-		for (int x = 0; x < width; ++x) {
+		for (int x = 0; x < size_x; ++x) {
 			// If not masked out,
 			if (!_lz->visited(x, y) && !_mask->masked(x, y)) {
 				// Get filter for this pixel
@@ -447,7 +447,7 @@ void ImageRGBAWriter::initializeEncoders() {
 
 				// Apply spatial filter
 				const u8 *pred = FPT;
-				_sf_set.get(sf).safe(p, &pred, x, y, width);
+				_sf_set.get(sf).safe(p, &pred, x, y, size_x);
 				u8 temp[3];
 				for (int jj = 0; jj < 3; ++jj) {
 					temp[jj] = p[jj] - pred[jj];
@@ -616,7 +616,7 @@ bool ImageRGBAWriter::writeChaos(ImageWriter &writer) {
 	overhead_bits += bits;
 #endif
 
-	const int width = _width;
+	const int size_x = _size_x;
 
 	// For each scanline,
 	const u8 *p = _rgba;
@@ -626,7 +626,7 @@ bool ImageRGBAWriter::writeChaos(ImageWriter &writer) {
 	const u8 *CHAOS_TABLE = _chaos_table;
 	u8 FPT[3];
 
-	for (int y = 0; y < _height; ++y) {
+	for (int y = 0; y < _size_y; ++y) {
 		u8 *last = lastStart;
 
 		// Zero left
@@ -641,7 +641,7 @@ bool ImageRGBAWriter::writeChaos(ImageWriter &writer) {
 		}
 
 		// For each pixel,
-		for (int x = 0; x < width; ++x) {
+		for (int x = 0; x < size_x; ++x) {
 			DESYNC(x, y);
 
 			// If not masked out,
@@ -669,7 +669,7 @@ bool ImageRGBAWriter::writeChaos(ImageWriter &writer) {
 
 				// Apply spatial filter
 				const u8 *pred = FPT;
-				_sf_set.get(sf).safe(p, &pred, x, y, width);
+				_sf_set.get(sf).safe(p, &pred, x, y, size_x);
 				u8 temp[3];
 				for (int jj = 0; jj < 3; ++jj) {
 					temp[jj] = p[jj] - pred[jj];
@@ -758,7 +758,7 @@ void ImageRGBAWriter::write(ImageWriter &writer) {
 	total += _mask->Stats.compressedDataBits;
 	Stats.total_bits = total;
 
-	Stats.overall_compression_ratio = _width * _height * 4 * 8 / (double)Stats.total_bits;
+	Stats.overall_compression_ratio = _size_x * _size_y * 4 * 8 / (double)Stats.total_bits;
 
 	Stats.chaos_compression_ratio = Stats.chaos_count * COLOR_PLANES * 8 / (double)Stats.chaos_bits;
 #endif
@@ -783,7 +783,7 @@ bool ImageRGBAWriter::dumpStats() {
 	CAT_INANE("stats") << "(RGBA Compress) Chaos compression ratio : " << Stats.chaos_compression_ratio << ":1";
 	CAT_INANE("stats") << "(RGBA Compress) Overall size : " << Stats.total_bits << " bits (" << Stats.total_bits/8 << " bytes)";
 	CAT_INANE("stats") << "(RGBA Compress) Overall compression ratio : " << Stats.overall_compression_ratio << ":1";
-	CAT_INANE("stats") << "(RGBA Compress) Image dimensions were : " << _width << " x " << _height << " pixels";
+	CAT_INANE("stats") << "(RGBA Compress) Image dimensions were : " << _size_x << " x " << _size_y << " pixels";
 
 	return true;
 }

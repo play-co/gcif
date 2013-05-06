@@ -112,16 +112,16 @@ void WriteVector::write(u32 *target) {
 
 //// ImageWriter
 
-int ImageWriter::init(int width, int height) {
+int ImageWriter::init(int size_x, int size_y) {
 	// Validate
-	if (width < 0 || height < 0 ||
-		width > MAX_WIDTH || height > MAX_HEIGHT) {
+	if (size_x < 0 || size_y < 0 ||
+		size_x > MAX_WIDTH || size_y > MAX_HEIGHT) {
 		return GCIF_WE_BAD_DIMS;
 	}
 
 	// Initialize
-	_header.width = static_cast<u16>( width );
-	_header.height = static_cast<u16>( height );
+	_header.size_x = static_cast<u16>( size_x );
+	_header.size_y = static_cast<u16>( size_y );
 
 	_work = 0;
 	_bits = 0;
@@ -130,8 +130,8 @@ int ImageWriter::init(int width, int height) {
 
 	// Write header
 	writeWord(HEAD_MAGIC);
-	writeBits(width, MAX_WIDTH_BITS);
-	writeBits(height, MAX_HEIGHT_BITS);
+	writeBits(size_x, MAX_WIDTH_BITS);
+	writeBits(size_y, MAX_HEIGHT_BITS);
 
 	return GCIF_WE_OK;
 }
