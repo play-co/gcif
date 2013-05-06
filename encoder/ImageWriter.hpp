@@ -107,10 +107,10 @@ public:
 class ImageWriter {
 public:
 	static const u32 HEAD_MAGIC = ImageReader::HEAD_MAGIC;
-	static const u32 MAX_WIDTH_BITS = ImageReader::MAX_WIDTH_BITS;
-	static const u32 MAX_WIDTH = ImageReader::MAX_WIDTH;
-	static const u32 MAX_HEIGHT_BITS = ImageReader::MAX_HEIGHT_BITS;
-	static const u32 MAX_HEIGHT = ImageReader::MAX_HEIGHT;
+	static const u32 MAX_X_BITS = ImageReader::MAX_X_BITS;
+	static const u32 MAX_X = ImageReader::MAX_X;
+	static const u32 MAX_Y_BITS = ImageReader::MAX_Y_BITS;
+	static const u32 MAX_Y = ImageReader::MAX_Y;
 
 protected:
 	ImageReader::Header _header;

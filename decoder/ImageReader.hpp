@@ -42,13 +42,13 @@ namespace cat {
 class ImageReader {
 public:
 	static const u32 HEAD_MAGIC = 0x46494347; // "GCIF" (LE32)
-	static const u32 MAX_WIDTH_BITS = 14;
-	static const u32 MAX_WIDTH = 16383;
-	static const u32 MAX_HEIGHT_BITS = 14;
-	static const u32 MAX_HEIGHT = 16383;
+	static const u32 MAX_X_BITS = 14;
+	static const u32 MAX_X = (1 << MAX_X_BITS) - 1;
+	static const u32 MAX_Y_BITS = 14;
+	static const u32 MAX_Y = (1 << MAX_Y_BITS) - 1;
 
 	struct Header {
-		u16 width, height; // pixels
+		u16 size_x, size_y; // pixels
 	};
 
 protected:

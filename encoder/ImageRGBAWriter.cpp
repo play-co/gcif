@@ -578,7 +578,7 @@ bool ImageRGBAWriter::compressCF() {
 
 void ImageRGBAWriter::initializeEncoders() {
 	_chaos.start();
-	int chaos_count = 0;
+	int rgba_count = 0;
 
 	// For each row,
 	const u8 *residuals = _residuals.get();
@@ -604,7 +604,7 @@ void ImageRGBAWriter::initializeEncoders() {
 				_u_encoder[chaos_u].add(residuals[1]);
 				_v_encoder[chaos_v].add(residuals[2]);
 
-				++chaos_count;
+				++rgba_count;
 			}
 
 			residuals += 4;
@@ -612,7 +612,7 @@ void ImageRGBAWriter::initializeEncoders() {
 	}
 
 #ifdef CAT_COLLECT_STATS
-	Stats.chaos_count = chaos_count;
+	Stats.rgba_count = rgba_count;
 	Stats.chaos_bins = _chaos.getBinCount();
 #endif
 
@@ -700,7 +700,7 @@ bool ImageRGBAWriter::writeTables(ImageWriter &writer) {
 
 	DESYNC_TABLE();
 
-	int af_table_bits = _af_encoder.writeTables(writer);
+	int a_table_bits = _a_encoder.writeTables(writer);
 
 	DESYNC_TABLE();
 
@@ -733,7 +733,7 @@ bool ImageRGBAWriter::writeTables(ImageWriter &writer) {
 	Stats.sf_choice_bits = choice_bits;
 	Stats.sf_table_bits = sf_table_bits;
 	Stats.cf_table_bits = cf_table_bits;
-	Stats.af_table_bits = af_table_bits;
+	Stats.a_table_bits = a_table_bits;
 #endif // CAT_COLLECT_STATS
 
 	return true;
@@ -780,9 +780,9 @@ bool ImageRGBAWriter::writePixels(ImageWriter &writer) {
 				_chaos.store(residuals[0], residuals[1], residuals[2], 0);
 
 				// Add to histogram for this chaos bin
-				y_bits += _y_encoder[chaos_y].add(residuals[0]);
-				u_bits += _u_encoder[chaos_u].add(residuals[1]);
-				v_bits += _v_encoder[chaos_v].add(residuals[2]);
+				y_bits += _y_encoder[chaos_y].write(residuals[0], writer);
+				u_bits += _u_encoder[chaos_u].write(residuals[1], writer);
+				v_bits += _v_encoder[chaos_v].write(residuals[2], writer);
 				a_bits += _a_encoder.write(x, y, writer);
 			}
 
@@ -809,46 +809,52 @@ void ImageRGBAWriter::write(ImageWriter &writer) {
 	writePixels(writer);
 
 #ifdef CAT_COLLECT_STATS
-	int total = 0;
-	for (int ii = 0; ii < 2; ++ii) {
-		total += Stats.filter_table_bits[ii];
-		total += Stats.filter_compressed_bits[ii];
-	}
-	for (int ii = 0; ii < 4; ++ii) {
-		total += Stats.rgba_bits[ii];
-	}
-	total += Stats.chaos_overhead_bits;
-	Stats.chaos_bits = total;
+	int rgba_total = 0;
+	rgba_total += Stats.basic_overhead_bits;
+	rgba_total += Stats.sf_choice_bits;
+	rgba_total += Stats.cf_table_bits;
+	rgba_total += Stats.y_table_bits;
+	rgba_total += Stats.u_table_bits;
+	rgba_total += Stats.v_table_bits;
+	rgba_total += Stats.a_table_bits;
+	rgba_total += Stats.sf_bits;
+	rgba_total += Stats.cf_bits;
+	rgba_total += Stats.y_bits;
+	rgba_total += Stats.u_bits;
+	rgba_total += Stats.v_bits;
+	rgba_total += Stats.a_bits;
+	Stats.rgba_bits = rgba_total;
+
+	int total = rgba_total;
 	total += _lz->Stats.huff_bits;
 	total += _mask->Stats.compressedDataBits;
 	Stats.total_bits = total;
 
-	Stats.overall_compression_ratio = _size_x * _size_y * 4 * 8 / (double)Stats.total_bits;
-
-	Stats.chaos_compression_ratio = Stats.chaos_count * 4 * 8 / (double)Stats.chaos_bits;
+	Stats.rgba_compression_ratio = Stats.rgba_count * 32 / (double)Stats.rgba_bits;
+	Stats.overall_compression_ratio = _size_x * _size_y * 32 / (double)Stats.total_bits;
 #endif
 }
 
 #ifdef CAT_COLLECT_STATS
 
 bool ImageRGBAWriter::dumpStats() {
-	CAT_INANE("stats") << "(RGBA Compress) Spatial Filter Table Size : " <<  Stats.filter_table_bits[0] << " bits (" << Stats.filter_table_bits[0]/8 << " bytes)";
-	CAT_INANE("stats") << "(RGBA Compress) Spatial Filter Compressed Size : " <<  Stats.filter_compressed_bits[0] << " bits (" << Stats.filter_compressed_bits[0]/8 << " bytes)";
-
-	CAT_INANE("stats") << "(RGBA Compress) Color Filter Table Size : " <<  Stats.filter_table_bits[1] << " bits (" << Stats.filter_table_bits[1]/8 << " bytes)";
-	CAT_INANE("stats") << "(RGBA Compress) Color Filter Compressed Size : " <<  Stats.filter_compressed_bits[1] << " bits (" << Stats.filter_compressed_bits[1]/8 << " bytes)";
-
-	CAT_INANE("stats") << "(RGBA Compress) Y-Channel Compressed Size : " <<  Stats.rgb_bits[0] << " bits (" << Stats.rgb_bits[0]/8 << " bytes)";
-	CAT_INANE("stats") << "(RGBA Compress) U-Channel Compressed Size : " <<  Stats.rgb_bits[1] << " bits (" << Stats.rgb_bits[1]/8 << " bytes)";
-	CAT_INANE("stats") << "(RGBA Compress) V-Channel Compressed Size : " <<  Stats.rgb_bits[2] << " bits (" << Stats.rgb_bits[2]/8 << " bytes)";
-	CAT_INANE("stats") << "(RGBA Compress) A-Channel Compressed Size : " <<  Stats.rgb_bits[3] << " bits (" << Stats.rgb_bits[3]/8 << " bytes)";
-
-	CAT_INANE("stats") << "(RGBA Compress) YUVA Overhead Size : " << Stats.chaos_overhead_bits << " bits (" << Stats.chaos_overhead_bits/8 << " bytes)";
-	CAT_INANE("stats") << "(RGBA Compress) Chaos pixel count : " << Stats.chaos_count << " pixels";
-	CAT_INANE("stats") << "(RGBA Compress) Chaos compression ratio : " << Stats.chaos_compression_ratio << ":1";
-	CAT_INANE("stats") << "(RGBA Compress) Overall size : " << Stats.total_bits << " bits (" << Stats.total_bits/8 << " bytes)";
-	CAT_INANE("stats") << "(RGBA Compress) Overall compression ratio : " << Stats.overall_compression_ratio << ":1";
-	CAT_INANE("stats") << "(RGBA Compress) Image dimensions were : " << _size_x << " x " << _size_y << " pixels";
+	CAT_INANE("stats") << "(RGBA Compress)     Basic Overhead : " <<  Stats.basic_overhead_bits << " bits (" << Stats.basic_overhead_bits/8 << " bytes, " << Stats.basic_overhead_bits * 100.f / Stats.rgba_bits << "% of RGBA)";
+	CAT_INANE("stats") << "(RGBA Compress) SF Choice Overhead : " <<  Stats.sf_choice_bits << " bits (" << Stats.sf_choice_bits/8 << " bytes, " << Stats.sf_choice_bits * 100.f / Stats.rgba_bits << "% of RGBA)";
+	CAT_INANE("stats") << "(RGBA Compress)  SF Table Overhead : " <<  Stats.sf_table_bits << " bits (" << Stats.sf_table_bits/8 << " bytes, " << Stats.sf_table_bits * 100.f / Stats.rgba_bits << "% of RGBA)";
+	CAT_INANE("stats") << "(RGBA Compress)  CF Table Overhead : " <<  Stats.cf_table_bits << " bits (" << Stats.cf_table_bits/8 << " bytes, " << Stats.cf_table_bits * 100.f / Stats.rgba_bits << "% of RGBA)";
+	CAT_INANE("stats") << "(RGBA Compress)   Y Table Overhead : " <<  Stats.y_table_bits << " bits (" << Stats.y_table_bits/8 << " bytes, " << Stats.y_table_bits * 100.f / Stats.rgba_bits << "% of RGBA)";
+	CAT_INANE("stats") << "(RGBA Compress)   U Table Overhead : " <<  Stats.u_table_bits << " bits (" << Stats.u_table_bits/8 << " bytes, " << Stats.u_table_bits * 100.f / Stats.rgba_bits << "% of RGBA)";
+	CAT_INANE("stats") << "(RGBA Compress)   V Table Overhead : " <<  Stats.v_table_bits << " bits (" << Stats.v_table_bits/8 << " bytes, " << Stats.v_table_bits * 100.f / Stats.rgba_bits << "% of RGBA)";
+	CAT_INANE("stats") << "(RGBA Compress)   A Table Overhead : " <<  Stats.a_table_bits << " bits (" << Stats.a_table_bits/8 << " bytes, " << Stats.a_table_bits * 100.f / Stats.rgba_bits << "% of RGBA)";
+	CAT_INANE("stats") << "(RGBA Compress)       Y Compressed : " <<  Stats.y_bits << " bits (" << Stats.y_bits/8 << " bytes, " << Stats.y_bits * 100.f / Stats.rgba_bits << "% of RGBA)";
+	CAT_INANE("stats") << "(RGBA Compress)       U Compressed : " <<  Stats.u_bits << " bits (" << Stats.u_bits/8 << " bytes, " << Stats.u_bits * 100.f / Stats.rgba_bits << "% of RGBA)";
+	CAT_INANE("stats") << "(RGBA Compress)       V Compressed : " <<  Stats.v_bits << " bits (" << Stats.v_bits/8 << " bytes, " << Stats.v_bits * 100.f / Stats.rgba_bits << "% of RGBA)";
+	CAT_INANE("stats") << "(RGBA Compress)       A Compressed : " <<  Stats.a_bits << " bits (" << Stats.a_bits/8 << " bytes, " << Stats.a_bits * 100.f / Stats.rgba_bits << "% of RGBA)";
+	CAT_INANE("stats") << "(RGBA Compress)  Overall RGBA Data : " <<  Stats.rgba_bits << " bits (" << Stats.rgba_bits/8 << " bytes, " << Stats.rgba_bits * 100.f / Stats.total_bits << "% of total)";
+	CAT_INANE("stats") << "(RGBA Compress)   RGBA write count : " << Stats.rgba_count << " pixels for " << _size_x << "x" << _size_y << " pixel image (" << Stats.rgba_count * 100.f / (_size_x * _size_y) << " % of total)";
+	CAT_INANE("stats") << "(RGBA Compress)    RGBA Compression Ratio : " << Stats.rgba_compression_ratio << ":1 compression ratio";
+	CAT_INANE("stats") << "(RGBA Compress)              Overall Size : " << Stats.total_bits << " bits (" << Stats.total_bits/8 << " bytes)";
+	CAT_INANE("stats") << "(RGBA Compress) Overall Compression Ratio : " << Stats.overall_compression_ratio << ":1";
 
 	return true;
 }

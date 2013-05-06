@@ -74,7 +74,7 @@ protected:
 	static const int ZRLE_SYMS_U = ImageRGBAReader::ZRLE_SYMS_U;
 	static const int ZRLE_SYMS_V = ImageRGBAReader::ZRLE_SYMS_V;
 	static const int ZRLE_SYMS_A = ImageRGBAReader::ZRLE_SYMS_A;
-	static const int MAX_FILTERS = 32;
+	static const int MAX_FILTERS = ImageRGBAReader::MAX_FILTERS;
 	static const int MAX_PASSES = 4;
 	static const int MAX_SYMS = 256;
 
@@ -108,9 +108,9 @@ protected:
 	RGBAChaos _chaos;
 
 	// Color channel encoders
-	EntropyEncoder<MAX_SYMS, ZRLE_SYMS_Y> _y_encoder[CHAOS_LEVELS_MAX];
-	EntropyEncoder<MAX_SYMS, ZRLE_SYMS_U> _u_encoder[CHAOS_LEVELS_MAX];
-	EntropyEncoder<MAX_SYMS, ZRLE_SYMS_V> _v_encoder[CHAOS_LEVELS_MAX];
+	EntropyEncoder<MAX_SYMS, ZRLE_SYMS_Y> _y_encoder[MAX_CHAOS_LEVELS];
+	EntropyEncoder<MAX_SYMS, ZRLE_SYMS_U> _u_encoder[MAX_CHAOS_LEVELS];
+	EntropyEncoder<MAX_SYMS, ZRLE_SYMS_V> _v_encoder[MAX_CHAOS_LEVELS];
 
 	MonoWriter _sf_encoder;
 	MonoWriter _cf_encoder;
@@ -138,11 +138,13 @@ protected:
 public:
 	struct _Stats {
 		int basic_overhead_bits, sf_choice_bits;
-		int sf_table_bits, cf_table_bits, af_table_bits, y_table_bits, u_table_bits, v_table_bits;
+		int sf_table_bits, cf_table_bits, y_table_bits, u_table_bits, v_table_bits, a_table_bits;
 		int sf_bits, cf_bits, y_bits, u_bits, v_bits, a_bits;
 
-		u32 chaos_count, chaos_bins;
-		double chaos_compression_ratio;
+		int rgba_bits, total_bits; // Total includes LZ, mask overhead
+
+		u32 rgba_count, chaos_bins;
+		double rgba_compression_ratio;
 
 		double overall_compression_ratio;
 	} Stats;

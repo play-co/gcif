@@ -108,7 +108,7 @@ public:
 	}
 
 	CAT_INLINE u8 *get(int x, int y) {
-		return _image + x + y * _size_x;
+		return _image.get() + x + y * _size_x;
 	}
 
 	void write(ImageWriter &writer);

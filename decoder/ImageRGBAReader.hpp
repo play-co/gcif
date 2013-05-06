@@ -64,6 +64,7 @@ namespace cat {
 class ImageRGBAReader {
 public:
 	static const int MAX_CHAOS_LEVELS = 32;
+	static const int MAX_FILTERS = 32;
 	static const int ZRLE_SYMS_Y = 128;
 	static const int ZRLE_SYMS_U = 128;
 	static const int ZRLE_SYMS_V = 128;
