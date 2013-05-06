@@ -13,16 +13,15 @@ CPFLAGS = $(CFLAGS)
 # List of object files
 
 decode_objects = EndianNeutral.o Enforcer.o Filters.o GCIFReader.o
-decode_objects += HuffmanDecoder.o ImageCMReader.o ImageLZReader.o
+decode_objects += HuffmanDecoder.o ImageRGBAReader.o ImageLZReader.o
 decode_objects += ImageMaskReader.o ImageReader.o MappedFile.o lz4.o
-decode_objects += ImagePaletteReader.o ImageCMReaderPal.o
-decode_objects += MonoReader.o
+decode_objects += ImagePaletteReader.o MonoReader.o
 
 gcif_objects = gcif.o lodepng.o Log.o Mutex.o Clock.o Thread.o
 gcif_objects += lz4hc.o HuffmanEncoder.o
 gcif_objects += SystemInfo.o ImageWriter.o
 gcif_objects += ImageMaskWriter.o MonoWriter.o
-gcif_objects += ImageCMWriter.o FilterScorer.o
+gcif_objects += ImageRGBAWriter.o FilterScorer.o
 gcif_objects += ImageLZWriter.o ImagePaletteWriter.o
 gcif_objects += GCIFWriter.o EntropyEstimator.o WaitableFlag.o
 gcif_objects += $(decode_objects)
@@ -34,10 +33,9 @@ gcif_objects += $(decode_objects)
 DECODE_SRCS = decoder/EndianNeutral.cpp decoder/Enforcer.cpp
 DECODE_SRCS += decoder/Filters.cpp decoder/GCIFReader.cpp
 DECODE_SRCS += decoder/HuffmanDecoder.cpp
-DECODE_SRCS += decoder/ImageCMReader.cpp
+DECODE_SRCS += decoder/ImageRGBAReader.cpp
 DECODE_SRCS += decoder/ImageLZReader.cpp
 DECODE_SRCS += decoder/ImagePaletteReader.cpp
-DECODE_SRCS += decoder/ImageCMReaderPal.cpp
 DECODE_SRCS += decoder/ImageMaskReader.cpp
 DECODE_SRCS += decoder/ImageReader.cpp
 DECODE_SRCS += decoder/MappedFile.cpp
@@ -50,7 +48,7 @@ SRCS += encoder/lz4hc.c encoder/MonoWriter.cpp
 SRCS += encoder/HuffmanEncoder.cpp
 SRCS += encoder/SystemInfo.cpp encoder/ImageWriter.cpp
 SRCS += encoder/ImageMaskWriter.cpp
-SRCS += encoder/ImageCMWriter.cpp
+SRCS += encoder/ImageRGBAWriter.cpp
 SRCS += encoder/FilterScorer.cpp
 SRCS += encoder/ImageLZWriter.cpp
 SRCS += encoder/GCIFWriter.cpp
@@ -162,14 +160,11 @@ ImagePaletteWriter.o : encoder/ImagePaletteWriter.cpp
 ImagePaletteReader.o : decoder/ImagePaletteReader.cpp
 	$(CCPP) $(CPFLAGS) -c decoder/ImagePaletteReader.cpp
 
-ImageCMWriter.o : encoder/ImageCMWriter.cpp
-	$(CCPP) $(CPFLAGS) -c encoder/ImageCMWriter.cpp
+ImageRGBAWriter.o : encoder/ImageRGBAWriter.cpp
+	$(CCPP) $(CPFLAGS) -c encoder/ImageRGBAWriter.cpp
 
-ImageCMReader.o : decoder/ImageCMReader.cpp
-	$(CCPP) $(CPFLAGS) -c decoder/ImageCMReader.cpp
-
-ImageCMReaderPal.o : decoder/ImageCMReaderPal.cpp
-	$(CCPP) $(CPFLAGS) -c decoder/ImageCMReaderPal.cpp
+ImageRGBAReader.o : decoder/ImageRGBAReader.cpp
+	$(CCPP) $(CPFLAGS) -c decoder/ImageRGBAReader.cpp
 
 GCIFReader.o : decoder/GCIFReader.cpp
 	$(CCPP) $(CPFLAGS) -c decoder/GCIFReader.cpp

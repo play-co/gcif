@@ -162,6 +162,30 @@ void ImagePaletteWriter::generateImage() {
 	_masked_palette = masked_palette;
 }
 
+void ImagePaletteWriter::generateMonoWriter() {
+	MonoWriter::Parameters params;
+
+	params.knobs = _knobs;
+	params.data = _image;
+	params.num_syms = (u16)_palette.size();
+	params.size_x = _width;
+	params.size_y = _height;
+	params.max_filters = 32;
+	params.min_bits = 2;
+	params.max_bits = 5;
+	params.sympal_thresh = 0.9;
+	params.filter_thresh = 0.9;
+	params.mask.SetMember<ImagePaletteWriter, &ImagePaletteWriter::IsMasked>(this);
+	params.AWARDS[0] = 5;
+	params.AWARDS[1] = 3;
+	params.AWARDS[2] = 1;
+	params.AWARDS[3] = 1;
+	params.award_count = 4;
+
+	MonoWriterFactory factory;
+	_mono_writer = factory.generate(params);
+}
+
 int ImagePaletteWriter::initFromRGBA(const u8 *rgba, int width, int height, const GCIFKnobs *knobs, ImageMaskWriter &mask, ImageLZWriter &lz) {
 	_knobs = knobs;
 	_rgba = rgba;
@@ -182,7 +206,9 @@ int ImagePaletteWriter::initFromRGBA(const u8 *rgba, int width, int height, cons
 	return GCIF_WE_OK;
 }
 
-
+bool ImagePaletteWriter::IsMasked(u16 x, u16 y) {
+	return _mask->masked(x, y) || _lz->visited(x, y);
+}
 
 void ImagePaletteWriter::write(ImageWriter &writer) {
 	int bits = 1;

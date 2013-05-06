@@ -52,13 +52,28 @@
 namespace cat {
 
 
-/*
- * MonoWriter
- *
- * Writes compressed monochrome data.
- */
+//// MonoWriter
+
 class MonoWriter {
 public:
+	static const int MAX_AWARDS = 8;	// Maximum filters to award
+	static const int MAX_FILTERS = 32;	// Maximum filters to use
+
+	// Parameters provided to process()
+	struct Parameters {
+		const GCIFKnobs *knobs;			// Global knobs
+		const u8 *data;					// Input data
+		u16 num_syms;					// Number of symbols in data [0..num_syms-1]
+		u16 size_x, size_y;				// Data dimensions
+		u16 max_filters;				// Maximum number of filters to use
+		u16 min_bits, max_bits;			// Tile size bit range to try
+		float sympal_thresh;			// Normalized coverage to add a symbol palette filter (1.0 = entire image)
+		float filter_thresh;			// Normalized coverage to stop adding filters (1.0 = entire image)
+		MaskDelegate mask;				// Function to call to determine if an element is masked out
+		u32 AWARDS[MAX_AWARDS];			// Awards to give for top N filters
+		int award_count;				// Number of awards to give out
+	};
+
 	// bool IsMasked(u16 x, u16 y)
 	typedef Delegate2<bool, u16, u16> MaskDelegate;
 
@@ -77,94 +92,6 @@ public:
 		RF_C,	// Up-Left
 
 		RF_COUNT
-	};
-
-protected:
-	u16 _num_syms;							// Number of symbols in data [0..num_syms-1]
-	u16 _size_x, _size_y;					// Data dimensions
-
-	u8 *_tile_seen;							// Seen this tile yet during writing?
-	int _tile_seen_alloc;
-
-	u16 _tile_min_bits;						// Tile bits minimum
-	u16 _tile_bits_bc;						// Bitcount field size
-
-	u16 _tile_bits_x, _tile_bits_y;			// Number of bits in size
-	int _tiles_x, _tiles_y;					// Tiles in x,y
-	u8 *_tiles;								// Filter tiles
-	int _tiles_alloc;
-
-	int _filter_indices[MAX_FILTERS];		// First MF_FIXED are always the same
-	MonoFilterFuncs _filters[MAX_FILTERS];	// Chosen filters
-	int _normal_filter_count;				// Number of normal filters
-	int _filter_count;						// Total filters chosen
-
-	u8 *_tile_row_filters;					// One for each tile row
-	int _tile_row_filters_alloc;
-
-	u8 _sympal[MAX_PALETTE];				// Palette filter values
-	int _sympal_filter_count;				// Number of palette filters
-
-	// Write state
-	u8 _write_filter;						// Current filter
-
-	ChaosTable _chaos;						// Chaos bin lookup table
-
-	MonoWriter *_filter_encoder;			// Filter encoder
-
-	EntropyEncoder<MAX_FILTERS, ZRLE_SYMS> _row_filter_encoder;
-	EntropyEncoder<MAX_SYMS, ZRLE_SYMS> _encoder[MAX_CHAOS_LEVELS];
-
-	void cleanup();
-
-	// Initialize the write engine
-	void initializeWriter();
-
-public:
-	CAT_INLINE MonoWriter() {
-		_tiles = 0;
-		_filter_encoder = 0;
-		_tile_row_filters = 0;
-		_residuals = 0;
-	}
-	CAT_INLINE virtual ~MonoWriter() {
-		cleanup();
-	}
-
-	// Write parameter tables for decoder
-	int writeTables(ImageWriter &writer);
-
-	// Writer header for a row that is just starting
-	int writeRowHeader(u16 y, ImageWriter &writer); // Returns bits used
-
-	// Write a symbol
-	int write(u16 x, u16 y, ImageWriter &writer); // Returns bits used
-};
-
-
-/*
- * MonoWriterFactory
- *
- * Designs and generates MonoWriter objects.
- */
-class MonoWriterFactory {
-public:
-	static const int MAX_AWARDS = 8;	// Maximum filters to award
-	static const int MAX_FILTERS = 32;	// Maximum filters to use
-
-	// Parameters provided to process()
-	struct Parameters {
-		const GCIFKnobs *knobs;			// Global knobs
-		const u8 *data;					// Input data
-		u16 num_syms;					// Number of symbols in data [0..num_syms-1]
-		u16 size_x, size_y;				// Data dimensions
-		u16 max_filters;				// Maximum number of filters to use
-		u16 min_bits, max_bits;			// Tile size bit range to try
-		float sympal_thresh;			// Normalized coverage to add a symbol palette filter (1.0 = entire image)
-		float filter_thresh;			// Normalized coverage to stop adding filters (1.0 = entire image)
-		MaskDelegate mask;				// Function to call to determine if an element is masked out
-		u32 AWARDS[MAX_AWARDS];			// Awards to give for top N filters
-		int award_count;				// Number of awards to give out
 	};
 
 protected:
@@ -279,6 +206,9 @@ protected:
 	// Process parameters and come up with an encoding scheme
 	u32 process(const Parameters &params);
 
+	// Initialize the write engine
+	void initializeWriter();
+
 public:
 	CAT_INLINE MonoWriterFactory() {
 		_tiles = 0;
@@ -293,7 +223,16 @@ public:
 	}
 
 	// Generate writer from this configuration
-	static MonoWriter *generateWriter(const Parameters &params);
+	bool init(const Parameters &params);
+
+	// Write parameter tables for decoder
+	int writeTables(ImageWriter &writer);
+
+	// Writer header for a row that is just starting
+	int writeRowHeader(u16 y, ImageWriter &writer); // Returns bits used
+
+	// Write a symbol
+	int write(u16 x, u16 y, ImageWriter &writer); // Returns bits used
 };
 
 

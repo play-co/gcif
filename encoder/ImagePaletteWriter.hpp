@@ -35,6 +35,7 @@
 #include "ImageLZWriter.hpp"
 #include "ImageMaskWriter.hpp"
 #include "../decoder/ImagePaletteReader.hpp"
+#include "MonoWriter.hpp"
 
 #include <vector>
 #include <map>
@@ -67,10 +68,15 @@ class ImagePaletteWriter {
 	std::map<u32, u16> _map;
 	bool _enabled;
 
+	MonoWriter *_mono_writer;
+
+	bool IsMasked(u16 x, u16 y);
+
 	void clear();
 	bool generatePalette();
 	void sortPalette();
 	void generateImage();
+	void generateMonoWriter();
 
 #ifdef CAT_COLLECT_STATS
 public:
