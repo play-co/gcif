@@ -76,7 +76,6 @@ static const GCIFKnobs DEFAULT_KNOBS[COMPRESS_LEVELS] = {
 		0,			// cm_revisitCount
 		4000,		// cm_chaosThresh
 		1.3f,		// cm_minTapQuality
-		false		// cm_scanlineFilters
 	},
 	{	// L1 Better
 		0,			// Bump
@@ -97,7 +96,6 @@ static const GCIFKnobs DEFAULT_KNOBS[COMPRESS_LEVELS] = {
 		0,			// cm_revisitCount
 		4000,		// cm_chaosThresh
 		1.3f,		// cm_minTapQuality
-		false		// cm_scanlineFilters
 	},
 	{	// L2 Harder
 		0,			// Bump
@@ -118,7 +116,6 @@ static const GCIFKnobs DEFAULT_KNOBS[COMPRESS_LEVELS] = {
 		0,			// cm_revisitCount
 		4000,		// cm_chaosThresh
 		1.3f,		// cm_minTapQuality
-		true		// cm_scanlineFilters
 	},
 	{	// L3 Stronger
 		0,			// Bump
@@ -139,14 +136,13 @@ static const GCIFKnobs DEFAULT_KNOBS[COMPRESS_LEVELS] = {
 		4096,		// cm_revisitCount
 		4000,		// cm_chaosThresh
 		1.3f,		// cm_minTapQuality
-		true		// cm_scanlineFilters
 	}
 };
 
 
-extern "C" int gcif_write_ex(const void *rgba, int width, int height, const char *output_file_path, const GCIFKnobs *knobs) {
+extern "C" int gcif_write_ex(const void *rgba, int size_x, int size_y, const char *output_file_path, const GCIFKnobs *knobs) {
 	// Validate input
-	if (!rgba || width < 0 || height < 0 || !output_file_path || !*output_file_path) {
+	if (!rgba || size_x < 0 || size_y < 0 || !output_file_path || !*output_file_path) {
 		return GCIF_WE_BAD_PARAMS;
 	}
 
@@ -155,13 +151,13 @@ extern "C" int gcif_write_ex(const void *rgba, int width, int height, const char
 
 	// Initialize image writer
 	ImageWriter writer;
-	if ((err = writer.init(width, height))) {
+	if ((err = writer.init(size_x, size_y))) {
 		return err;
 	}
 
 	// Dominant Color Mask
 	ImageMaskWriter imageMaskWriter;
-	if ((err = imageMaskWriter.initFromRGBA(image, width, height, knobs))) {
+	if ((err = imageMaskWriter.init(image, size_x, size_y, knobs))) {
 		return err;
 	}
 
@@ -170,7 +166,7 @@ extern "C" int gcif_write_ex(const void *rgba, int width, int height, const char
 
 	// 2D-LZ Exact Match
 	ImageLZWriter imageLZWriter;
-	if ((err = imageLZWriter.initFromRGBA(image, width, height, knobs))) {
+	if ((err = imageLZWriter.init(image, size_x, size_y, knobs))) {
 		return err;
 	}
 
@@ -179,7 +175,7 @@ extern "C" int gcif_write_ex(const void *rgba, int width, int height, const char
 
 	// Global Palette
 	ImagePaletteWriter imagePaletteWriter;
-	if ((err = imagePaletteWriter.initFromRGBA(image, width, height, knobs, imageMaskWriter, imageLZWriter))) {
+	if ((err = imagePaletteWriter.init(image, size_x, size_y, knobs, imageMaskWriter, imageLZWriter))) {
 		return err;
 	}
 
@@ -189,7 +185,7 @@ extern "C" int gcif_write_ex(const void *rgba, int width, int height, const char
 	if (!imagePaletteWriter.enabled()) {
 		// Context Modeling Decompression
 		ImageRGBAWriter imageRGBAWriter;
-		if ((err = imageRGBAWriter.initFromRGBA(image, width, height, imageMaskWriter, imageLZWriter, knobs))) {
+		if ((err = imageRGBAWriter.init(image, size_x, size_y, imageMaskWriter, imageLZWriter, knobs))) {
 			return err;
 		}
 
@@ -208,7 +204,7 @@ extern "C" int gcif_write_ex(const void *rgba, int width, int height, const char
 	return GCIF_WE_OK;
 }
 
-extern "C" int gcif_write(const void *rgba, int width, int height, const char *output_file_path, int compression_level) {
+extern "C" int gcif_write(const void *rgba, int size_x, int size_y, const char *output_file_path, int compression_level) {
 	// Error on invalid input
 	if (compression_level < 0) {
 		return GCIF_WE_BAD_PARAMS;
@@ -222,5 +218,5 @@ extern "C" int gcif_write(const void *rgba, int width, int height, const char *o
 	const GCIFKnobs *knobs = &DEFAULT_KNOBS[compression_level];
 
 	// Run with selected knobs
-	return gcif_write_ex(rgba, width, height, output_file_path, knobs);
+	return gcif_write_ex(rgba, size_x, size_y, output_file_path, knobs);
 }

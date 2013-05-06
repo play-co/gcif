@@ -46,11 +46,11 @@ using namespace cat;
 
 static int compress(const char *filename, const char *outfile, int compress_level) {
 	vector<unsigned char> image;
-	unsigned width, height;
+	unsigned size_x, size_y;
 
 	CAT_WARN("main") << "Reading input PNG image file: " << filename;
 
-	unsigned error = lodepng::decode(image, width, height, filename);
+	unsigned error = lodepng::decode(image, size_x, size_y, filename);
 
 	if (error) {
 		CAT_WARN("main") << "PNG read error " << error << ": " << lodepng_error_text(error);
@@ -61,7 +61,7 @@ static int compress(const char *filename, const char *outfile, int compress_leve
 
 	int err;
 
-	if ((err = gcif_write(&image[0], width, height, outfile, compress_level))) {
+	if ((err = gcif_write(&image[0], size_x, size_y, outfile, compress_level))) {
 		CAT_WARN("main") << "Error while compressing the image: " << gcif_write_errstr(err);
 		return err;
 	}
@@ -83,7 +83,7 @@ static int decompress(const char *filename, const char *outfile) {
 
 	CAT_WARN("main") << "Writing output PNG image file: " << outfile;
 
-	lodepng_encode_file(outfile, (const unsigned char*)image.rgba, image.width, image.height, LCT_RGBA, 8);
+	lodepng_encode_file(outfile, (const unsigned char*)image.rgba, image.size_x, image.size_y, LCT_RGBA, 8);
 
 	gcif_free_image(image.rgba);
 
@@ -98,13 +98,13 @@ struct BenchStats {
 
 static int benchfile(BenchStats &stats, string filename) {
 	vector<unsigned char> image;
-	unsigned width, height;
+	unsigned size_x, size_y;
 
 	const int compress_level = 9999;
 
 	double t0 = Clock::ref()->usec();
 
-	unsigned error = lodepng::decode(image, width, height, filename);
+	unsigned error = lodepng::decode(image, size_x, size_y, filename);
 
 	double t1 = Clock::ref()->usec();
 
@@ -119,7 +119,7 @@ static int benchfile(BenchStats &stats, string filename) {
 	string benchfile = filename + ".gci";
 	const char *cbenchfile = benchfile.c_str();
 
-	if ((err = gcif_write(&image[0], width, height, cbenchfile, compress_level))) {
+	if ((err = gcif_write(&image[0], size_x, size_y, cbenchfile, compress_level))) {
 		CAT_WARN("main") << "Error while compressing the image: " << gcif_write_errstr(err) << " for " << filename;
 		return err;
 	}
@@ -134,7 +134,7 @@ static int benchfile(BenchStats &stats, string filename) {
 
 	double t3 = Clock::ref()->usec();
 
-	for (u32 ii = 0; ii < width * height * 4; ++ii) {
+	for (u32 ii = 0; ii < size_x * size_y * 4; ++ii) {
 		if (outimage.rgba[ii] != image[ii]) {
 			CAT_WARN("main") << "Output image does not match input image for " << filename << " at " << ii;
 			break;
@@ -301,13 +301,13 @@ static int benchmark(const char *path) {
 
 static int replacefile(string filename) {
 	vector<unsigned char> image;
-	unsigned width, height;
+	unsigned size_x, size_y;
 
 	const int compress_level = 9999;
 
 	double t0 = Clock::ref()->usec();
 
-	unsigned error = lodepng::decode(image, width, height, filename);
+	unsigned error = lodepng::decode(image, size_x, size_y, filename);
 
 	double t1 = Clock::ref()->usec();
 
@@ -322,7 +322,7 @@ static int replacefile(string filename) {
 	string benchfile = filename + ".gci";
 	const char *cbenchfile = benchfile.c_str();
 
-	if ((err = gcif_write(&image[0], width, height, cbenchfile, compress_level))) {
+	if ((err = gcif_write(&image[0], size_x, size_y, cbenchfile, compress_level))) {
 		CAT_WARN("main") << "Error while compressing the image: " << gcif_write_errstr(err) << " for " << filename;
 		return err;
 	}
@@ -337,7 +337,7 @@ static int replacefile(string filename) {
 
 	double t3 = Clock::ref()->usec();
 
-	for (u32 ii = 0; ii < width * height * 4; ++ii) {
+	for (u32 ii = 0; ii < size_x * size_y * 4; ++ii) {
 		if (outimage.rgba[ii] != image[ii]) {
 			CAT_WARN("main") << "Error: Output GCIF image does not match input image for " << filename;
 			break;

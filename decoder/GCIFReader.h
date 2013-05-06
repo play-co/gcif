@@ -64,7 +64,7 @@ const char *gcif_read_errstr(int err);
 // Return data
 typedef struct _GCIFImage {
 	unsigned char *rgba;	// RGBA pixels; free with "delete []rgba" when done
-	int width, height;		// Dimensions in pixels
+	int size_x, size_y;		// Dimensions in pixels
 } GCIFImage;
 
 
@@ -112,12 +112,12 @@ void gcif_free_image(const void *rgba);
 /*
  * gcif_get_size()
  *
- * Width and height will be set to the size of the decompressed image.  This is
+ * size_x and size_y will be set to the size of the decompressed image.  This is
  * a fast utility function.
  *
  * Returns GCIF_RE_OK if the data is for a GCIF file else a nonzero error code.
  */
-int gcif_get_size(const void *file_data_in, long file_size_bytes_in, int *width, int *height);
+int gcif_get_size(const void *file_data_in, long file_size_bytes_in, int *size_x, int *size_y);
 
 /*
  * gcif_sig_cmp()

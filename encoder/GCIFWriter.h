@@ -52,9 +52,9 @@ const char *gcif_write_errstr(int err);
 /*
  * gcif_write()
  *
- * rgba: Pass in the 8-bit/channel RGBA raster data in OpenGL RGBA8888 format, row-first, stride = width
- * width: Pixels per row
- * height: Pixels per column
+ * rgba: Pass in the 8-bit/channel RGBA raster data in OpenGL RGBA8888 format, row-first, stride = size_x
+ * size_x: Pixels per row
+ * size_y: Pixels per column
  * output_file_path: File write location
  * compression_level:
  * 		0 = Faster
@@ -62,7 +62,7 @@ const char *gcif_write_errstr(int err);
  * 		2 = Harder
  * 		3 = Stronger
  */
-int gcif_write(const void *rgba, int width, int height, const char *output_file_path, int compression_level);
+int gcif_write(const void *rgba, int size_x, int size_y, const char *output_file_path, int compression_level);
 
 
 // Extra twiddly knobs to eke out better performance if you prefer
@@ -88,7 +88,6 @@ struct GCIFKnobs {
 
 	//// Image CM writer
 
-	bool cm_sortFilters;		// false: L1 sort filter options before entropy
 	bool cm_disableEntropy;		// false: Disable entropy testing (faster)
 	int cm_maxEntropySkip;		// 4: Max filter error to skip entropy test
 	int cm_filterSelectFuzz;	// 256: Top L1 norm scored count for entropy test
@@ -102,7 +101,7 @@ struct GCIFKnobs {
  * knobs structure which gives you full control over the available options
  * controlling how the compressor works.
  */
-int gcif_write_ex(const void *rgba, int width, int height, const char *output_file_path, const GCIFKnobs *knobs);
+int gcif_write_ex(const void *rgba, int size_x, int size_y, const char *output_file_path, const GCIFKnobs *knobs);
 
 
 #ifdef __cplusplus

@@ -35,6 +35,7 @@
 #include "GCIFReader.h"
 #include "Filters.hpp"
 #include "EntropyDecoder.hpp"
+#include "MonoReader.hpp"
 
 /*
  * Game Closure RGBA Decompression

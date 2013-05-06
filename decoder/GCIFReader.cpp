@@ -38,10 +38,10 @@ using namespace cat;
 static int gcif_read(ImageReader &reader, GCIFImage *image) {
 	int err;
 
-	// Fill in image width and height
+	// Fill in image size_x and size_y
 	ImageReader::Header *header = reader.getHeader();
-	image->width = header->width;
-	image->height = header->height;
+	image->size_x = header->size_x;
+	image->size_y = header->size_y;
 
 	// Color mask
 	ImageMaskReader maskReader;
@@ -83,8 +83,8 @@ extern "C" int gcif_read_file(const char *input_file_path_in, GCIFImage *image_o
 
 	// Initialize image data
 	image_out->rgba = 0;
-	image_out->width = -1;
-	image_out->height = -1;
+	image_out->size_x = -1;
+	image_out->size_y = -1;
 
 	// Initialize image reader
 	ImageReader reader;
@@ -97,7 +97,7 @@ extern "C" int gcif_read_file(const char *input_file_path_in, GCIFImage *image_o
 
 #endif // CAT_COMPILE_MMAP
 
-extern "C" int gcif_get_size(const void *file_data_in, long file_size_bytes_in, int *width, int *height) {
+extern "C" int gcif_get_size(const void *file_data_in, long file_size_bytes_in, int *size_x, int *size_y) {
 	// Validate length
 	if (file_size_bytes_in < 4) {
 		return GCIF_RE_BAD_HEAD;
@@ -110,13 +110,10 @@ extern "C" int gcif_get_size(const void *file_data_in, long file_size_bytes_in, 
 		return GCIF_RE_BAD_HEAD;
 	}
 
-	CAT_DEBUG_ENFORCE(ImageReader::MAX_HEIGHT == ((1 << ImageReader::MAX_HEIGHT_BITS) - 1));
-	CAT_DEBUG_ENFORCE(ImageReader::MAX_WIDTH == ((1 << ImageReader::MAX_WIDTH_BITS) - 1));
-
-	// Read width, height
+	// Read size_x, size_y
 	u32 word1 = getLE(head_word[1]);
-	*width = (u16)((word1 >> (32 - ImageReader::MAX_WIDTH_BITS)) & ((1 << ImageReader::MAX_WIDTH_BITS) - 1));
-	*height = (u16)((word1 >> (32 - ImageReader::MAX_WIDTH_BITS - ImageReader::MAX_HEIGHT_BITS)) & ((1 << ImageReader::MAX_HEIGHT_BITS) - 1));
+	*size_x = (u16)((word1 >> (32 - ImageReader::MAX_X_BITS)) & ((1 << ImageReader::MAX_X_BITS) - 1));
+	*size_y = (u16)((word1 >> (32 - ImageReader::MAX_X_BITS - ImageReader::MAX_Y_BITS)) & ((1 << ImageReader::MAX_Y_BITS) - 1));
 
 	return GCIF_RE_OK;
 }
@@ -142,8 +139,8 @@ extern "C" int gcif_read_memory(const void *file_data_in, long file_size_bytes_i
 
 	// Initialize image data
 	image_out->rgba = 0;
-	image_out->width = -1;
-	image_out->height = -1;
+	image_out->size_x = -1;
+	image_out->size_y = -1;
 
 	// Initialize image reader
 	ImageReader reader;

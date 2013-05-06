@@ -30,6 +30,7 @@
 #define FILTERS_HPP
 
 #include "Platform.hpp"
+#include "SmartArray.hpp"
 
 namespace cat {
 
@@ -249,21 +250,14 @@ protected:
 	u8 _table[512];
 
 	// Residual score memory for left/last row
-	u8 *_row;
-	int _row_alloc;
+	SmartArray<u8> _row;
 
 	// Current read/write position
 	u8 *_current;
 
-	void cleanup();
-
 public:
 	CAT_INLINE MonoChaos() {
 		_chaos_levels = 0;
-		_row = 0;
-	}
-	CAT_INLINE virtual ~MonoChaos() {
-		cleanup();
 	}
 
 	void init(int chaos_levels, int size_x);
@@ -274,7 +268,7 @@ public:
 
 	CAT_INLINE void start() {
 		// Initialize top margin to 0
-		CAT_CLR(_row, _row_alloc);
+		_row.fill_00();
 	}
 
 	CAT_INLINE void startRow() {
@@ -282,7 +276,7 @@ public:
 		_row[0] = 0;
 
 		// Initialize first write position after the margin
-		_current = _row + 1;
+		_current = _row.get() + 1;
 	}
 
 	CAT_INLINE void zero() {
@@ -339,21 +333,14 @@ protected:
 	u8 _table[512];
 
 	// Residual score memory for left/last row
-	u8 *_row;
-	int _row_alloc;
+	SmartArray<u8> _row;
 
 	// Current read/write position
 	u8 *_current;
 
-	void cleanup();
-
 public:
 	CAT_INLINE RGBAChaos() {
 		_chaos_levels = 0;
-		_row = 0;
-	}
-	CAT_INLINE virtual ~RGBAChaos() {
-		cleanup();
 	}
 
 	void init(int chaos_levels, int size_x);
@@ -364,15 +351,15 @@ public:
 
 	CAT_INLINE void start() {
 		// Initialize top margin to 0
-		CAT_CLR(_row, _row_alloc);
+		_row.fill_00();
 	}
 
 	CAT_INLINE void startRow() {
 		// Initialize left margin to 0
-		*reinterpret_cast<u32 *>( _row ) = 0;
+		*reinterpret_cast<u32 *>( _row.get() ) = 0;
 
 		// Initialize first write position after the margin
-		_current = _row + 4;
+		_current = _row.get() + 4;
 	}
 
 	CAT_INLINE void zero() {
