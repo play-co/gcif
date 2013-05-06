@@ -29,6 +29,7 @@
 #include "EntropyEstimator.hpp"
 #include "../decoder/BitMath.hpp"
 #include "Log.hpp"
+#include "../decoder/Enforcer.hpp"
 using namespace cat;
 
 void EntropyEstimator::init() {
@@ -66,10 +67,17 @@ static u32 calculateCodelen(u32 inst, u32 total) {
 }
 
 u32 EntropyEstimator::entropy(const u8 *symbols, int count) {
+	if (count == 0) {
+		return 0;
+	}
+
+	u32 hist[NUM_SYMS] = {0};
+
 	// Generate histogram for symbols
-	u8 hist[NUM_SYMS] = {0};
 	for (int ii = 0; ii < count; ++ii) {
-		hist[symbols[ii]]++;
+		const u8 symbol = symbols[ii];
+
+		hist[symbol]++;
 	}
 
 	// Calculate bits required for symbols
@@ -77,12 +85,14 @@ u32 EntropyEstimator::entropy(const u8 *symbols, int count) {
 	u32 bits = 0;
 	const u32 total = _hist_total + count;
 
+	CAT_DEBUG_ENFORCE(total > 0);
+
 	// For each symbol,
 	for (int ii = 0; ii < count; ++ii) {
 		const u8 symbol = symbols[ii];
 
 		// Zeroes are not counted towards entropy since they are the ideal
-		if (symbol != 0) {
+		if (symbol > 0) {
 			// If codelen not determined yet,
 			if (!codelens[symbol]) {
 				// Get number of instances of this symbol out of total
@@ -128,15 +138,18 @@ void EntropyEstimator::subtract(const u8 *symbols, int count) {
 
 
 u32 EntropyEstimator::entropySingle(const u8 symbol, int count) {
-	if (symbol == 0) {
+	if (symbol <= 0) {
 		return 0;
 	} else {
 		// Get number of instances of this symbol out of total
-		u32 inst = _hist[symbol] + count;
 		const u32 total = _hist_total + count;
 
-		// Calculate codelen
-		return calculateCodelen(inst, total);
+		if (total <= 0) {
+			return 0;
+		} else {
+			u32 inst = _hist[symbol] + count;
+			return calculateCodelen(inst, total);
+		}
 	}
 }
 
@@ -161,11 +174,13 @@ u32 EntropyEstimator::entropyOverall() {
 	u32 entropy_sum = 0;
 	const u32 total = _hist_total;
 
-	for (u32 sym = 0; sym < NUM_SYMS; ++sym) {
-		u32 inst = _hist[sym];
+	if (total > 0) {
+		for (u32 sym = 0; sym < NUM_SYMS; ++sym) {
+			u32 inst = _hist[sym];
 
-		if (inst > 0) {
-			entropy_sum += calculateCodelen(inst, total);
+			if (inst > 0) {
+				entropy_sum += calculateCodelen(inst, total);
+			}
 		}
 	}
 

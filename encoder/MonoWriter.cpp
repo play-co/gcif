@@ -662,6 +662,7 @@ void MonoWriter::designRowFilters() {
 		// For each tile,
 		for (int ty = 0; ty < tiles_y; ++ty) {
 			u8 prev = 0;
+			int code_count = 0;
 
 			for (int tx = 0; tx < tiles_x; ++tx) {
 				u8 f = p[0];
@@ -671,7 +672,7 @@ void MonoWriter::designRowFilters() {
 					CAT_DEBUG_ENFORCE(f < _filter_count);
 
 					// RF_NOOP
-					codes[tx] = f;
+					codes[code_count] = f;
 
 					// RF_PREV
 					u8 fprev = f + num_filters - prev;
@@ -681,7 +682,9 @@ void MonoWriter::designRowFilters() {
 
 					CAT_DEBUG_ENFORCE(fprev < _filter_count);
 
-					codes[tx + tiles_x] = fprev;
+					codes[code_count + tiles_x] = fprev;
+
+					++code_count;
 				}
 
 				++p;
@@ -691,25 +694,25 @@ void MonoWriter::designRowFilters() {
 			if (passes > 0) {
 				// Subtract out the previous winner
 				if (_tile_row_filters[ty] == MonoReader::RF_NOOP) {
-					ee.subtract(codes, tiles_x);
+					ee.subtract(codes, code_count);
 				} else {
-					ee.subtract(codes + tiles_x, tiles_x);
+					ee.subtract(codes + tiles_x, code_count);
 				}
 			}
 
 			// Calculate entropy for each of the row filter options
-			u32 e0 = ee.entropy(codes, tiles_x);
-			u32 e1 = ee.entropy(codes + tiles_x, tiles_x);
+			u32 e0 = ee.entropy(codes, code_count);
+			u32 e1 = ee.entropy(codes + tiles_x, code_count);
 
 			// Pick the better one
 			if (e0 <= e1) {
 				_tile_row_filters[ty] = MonoReader::RF_NOOP;
 				total_entropy += 1 + e0; // + 1 bit per row for header
-				ee.add(codes, tiles_x);
+				ee.add(codes, code_count);
 			} else {
 				_tile_row_filters[ty] = MonoReader::RF_PREV;
 				total_entropy += 1 + e0; // + 1 bit per row for header
-				ee.add(codes + tiles_x, tiles_x);
+				ee.add(codes + tiles_x, code_count);
 			}
 		}
 
