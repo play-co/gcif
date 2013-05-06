@@ -95,7 +95,7 @@ public:
 protected:
 	static const int MAX_PASSES = 4;
 	static const int MAX_ROW_PASSES = 4;
-	static const int RECURSE_THRESH_COUNT = 128;
+	static const int RECURSE_THRESH_COUNT = 256*256;
 
 	static const u8 MASK_TILE = 255;
 	static const u8 TODO_TILE = 0;
