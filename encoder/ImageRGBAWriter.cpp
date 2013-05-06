@@ -226,15 +226,17 @@ void ImageRGBAWriter::designTiles() {
 	// Until revisits are done,
 	int passes = 0;
 	int revisitCount = _knobs->cm_revisitCount;
-	u8 *sf = _sf_tiles.get();
-	u8 *cf = _cf_tiles.get();
 	while (passes < MAX_PASSES) {
-		// For each tile,
 		const u8 *topleft_row = _rgba;
 		int ty = 0;
+		u8 *sf = _sf_tiles.get();
+		u8 *cf = _cf_tiles.get();
+
+		// For each tile,
 		for (u16 y = 0; y < size_y; y += tile_size_y, ++ty) {
 			const u8 *topleft = topleft_row;
 			int tx = 0;
+
 			for (u16 x = 0; x < size_x; x += tile_size_x, ++sf, ++cf, topleft += tile_size_x * 4, ++tx) {
 				u8 osf = *sf;
 
@@ -369,6 +371,8 @@ void ImageRGBAWriter::designTiles() {
 
 			topleft_row += _size_x * 4 * _tile_size_y;
 		}
+
+		++passes;
 
 		CAT_INANE("RGBA") << "Revisiting filter selections from the top... " << revisitCount << " left";
 	}

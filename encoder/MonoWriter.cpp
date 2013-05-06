@@ -407,7 +407,6 @@ void MonoWriter::designTiles() {
 	const u16 tile_size_x = _tile_size_x, tile_size_y = _tile_size_y;
 	const u16 size_x = _params.size_x, size_y = _params.size_y;
 	const u16 num_syms = _params.num_syms;
-	u8 *p = _tiles.get();
 
 	EntropyEstimator ee;
 	ee.init();
@@ -422,6 +421,7 @@ void MonoWriter::designTiles() {
 	int revisitCount = _params.knobs->mono_revisitCount;
 	while (passes < MAX_PASSES) {
 		// For each tile,
+		u8 *p = _tiles.get();
 		const u8 *topleft_row = _params.data;
 		int ty = 0;
 
@@ -574,6 +574,8 @@ void MonoWriter::designTiles() {
 
 			topleft_row += _params.size_x * _tile_size_y;
 		}
+
+		++passes;
 
 		CAT_INANE("2D") << "Revisiting filter selections from the top... " << revisitCount << " left";
 	}
