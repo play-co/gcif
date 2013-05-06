@@ -34,6 +34,7 @@
 #include "Filters.hpp"
 #include "EntropyDecoder.hpp"
 #include "GCIFReader.h"
+#include "Delegates.hpp"
 
 #include <vector>
 
@@ -47,14 +48,72 @@ namespace cat {
 //// MonoReader 
 
 class MonoReader {
+public:
+	static const int MAX_FILTERS = 32;
+	static const int MAX_CHAOS_LEVELS = 16;
+	static const int MAX_PALETTE = 16;
+	static const int MAX_SYMS = 256;
+	static const int ZRLE_SYMS = 16;
+
+	// 2-bit row filters
+	enum RowFilters {
+		RF_NOOP,
+		RF_A,	// Left
+		RF_B,	// Up
+		RF_C,	// Up-Left
+
+		RF_COUNT
+	};
+
+	// bool IsMasked(u16 x, u16 y)
+	typedef Delegate2<bool, u16, u16> MaskDelegate;
+
+	struct Parameters {
+		// Shared
+		u16 size_x, size_y;				// Data dimensions
+		u16 min_bits, max_bits;			// Tile size bit range to try
+		MaskDelegate mask;				// Function to call to determine if an element is masked out
+		u16 num_syms;					// Number of symbols in data [0..num_syms-1]
+
+		// Decoder-only
+	};
+
+protected:
+	Parameters _params;
+
+	u8 _sympal_filters[MAX_PALETTE];
+	struct FilterSelection {
+		MonoFilterFuncs sf;
+
+		CAT_INLINE bool ready() {
+			return sf.safe != 0;
+		}
+	} _filters[MAX_FILTERS];
+	int _normal_filter_count;
+	int _sympal_filter_count;
+	int _filter_count;
+
+	MonoReader *_filter_decoder;
+	u8 *_tile_row_filters;					// One for each tile row
+
+	MonoChaos _chaos;						// Chaos bin lookup table
+	EntropyDecoder<MAX_SYMS, ZRLE_SYMS> _encoder[MAX_CHAOS_LEVELS];
+
 	void cleanup();
+
+	int readTables(ImageReader &reader);
+	int readPixels(ImageReader &reader);
 
 public:
 	CAT_INLINE MonoReader() {
+		_tile_row_filters = 0;
+		_filter_decoder = 0;
 	}
-	CAT_INLINE virtual ~MonoWriter() {
+	CAT_INLINE virtual ~MonoReader() {
 		cleanup();
 	}
+
+	int read(Parameters &params, ImageReader &reader);
 };
 
 

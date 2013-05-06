@@ -52,7 +52,7 @@
  * + Much better compression ratios
  * + Maintainable codebase for future improvements
  * + 2D LZ Exact Matc, Dominant Color Mask, and Global Palette integration
- * + Uses 4x4 zones instead of 8x8
+ * + Uses 4x4 tiles instead of 8x8
  * + More/better non-linear spatial and more color filters supported
  * + Linear spatial filters tuned to image where improvement is found
  * + Chaos metric is order-1 stats, so do not fuzz them, and use just 8 levels
@@ -70,65 +70,44 @@ namespace cat {
 class ImageRGBAWriter {
 protected:
 	static const int CHAOS_LEVELS_MAX = ImageRGBAReader::CHAOS_LEVELS_MAX;
-	static const u16 UNUSED_FILTER = 0xffff;
-	static const u16 TODO_FILTER = 0;
 	static const int COLOR_PLANES = ImageRGBAReader::COLOR_PLANES;
 	static const int ZRLE_SYMS_Y = ImageRGBAReader::ZRLE_SYMS_Y;
 	static const int ZRLE_SYMS_U = ImageRGBAReader::ZRLE_SYMS_U;
 	static const int ZRLE_SYMS_V = ImageRGBAReader::ZRLE_SYMS_V;
 	static const int ZRLE_SYMS_A = ImageRGBAReader::ZRLE_SYMS_A;
+	static const int MAX_FILTERS = 32;
 
-	// Chosen spatial filter set
-	SpatialFilterSet _sf_set;
-	PaletteFilterSet _pf_set;
+	static const u8 MASK_TILE = 255;
+	static const u8 TODO_TILE = 0;
 
 	// Twiddly knobs from the write API
 	const GCIFKnobs *_knobs;
-
-	// Filter matrix, storing filter decisions made up front
-	u16 *_filters;		// One element per zone
-	int _filters_alloc;
-	u8 *_seen_filter;	// Seen filter yet for a block
-	int _seen_filter_alloc;
-	int _filter_stride;	// Filters per scanline
-
-	CAT_INLINE void setSpatialFilter(int x, int y, u16 filter) {
-		x >>= FILTER_ZONE_SIZE_SHIFT_W;
-		y >>= FILTER_ZONE_SIZE_SHIFT_H;
-		const int w = (_width + FILTER_ZONE_SIZE_MASK_W) >> FILTER_ZONE_SIZE_SHIFT_W;
-		_filters[x + y * w] = filter;
-	}
-
-	CAT_INLINE u16 getSpatialFilter(int x, int y) {
-		x >>= FILTER_ZONE_SIZE_SHIFT_W;
-		y >>= FILTER_ZONE_SIZE_SHIFT_H;
-		const int w = (_width + FILTER_ZONE_SIZE_MASK_W) >> FILTER_ZONE_SIZE_SHIFT_W;
-		return _filters[x + y * w];
-	}
-
-	// Recent measured chaos
-	u8 *_chaos;
-	int _chaos_size;
-	int _chaos_alloc;
-
-	// Recent post-filter data
-	int _chaos_levels;
-	const u8 *_chaos_table;
-
-	// RGBA input data
-	const u8 *_rgba;
-	int _width, _height;
 
 	// Subsystems
 	ImageMaskWriter *_mask;
 	ImageLZWriter *_lz;
 
-	// List of custom linear filter replacements
-	std::vector<u32> _filter_replacements;
+	// RGBA image
+	const u8 *_rgba;
+	u16 _size_x, _size_y;
 
-	// Filter encoders
-	HuffmanEncoder<CF_COUNT> _cf_encoder;
-	HuffmanEncoder<SF_COUNT> _sf_encoder;
+	// Filter tiles
+	u16 _tile_bits_x, _tile_bits_y;
+	u16 _tile_size_x, _tile_size_y;
+	u16 _tiles_x, _tiles_y;
+	u8 *_sf_tiles;
+	u8 *_cf_tiles;
+	int _tiles_alloc;
+
+	// Chosen spatial filter set
+	RGBAFilterFuncs _sf[MAX_FILTERS];
+	u16 _sf_indices[MAX_FILTERS];
+	int _sf_count;
+
+	// Write state
+	u8 *_seen_filter;
+	int _seen_filter_alloc;
+	RGBAChaos _chaos;
 
 	// Color channel encoders
 	EntropyEncoder<256, ZRLE_SYMS_Y> _y_encoder[CHAOS_LEVELS_MAX];
@@ -136,20 +115,18 @@ protected:
 	EntropyEncoder<256, ZRLE_SYMS_V> _v_encoder[CHAOS_LEVELS_MAX];
 	EntropyEncoder<256, ZRLE_SYMS_A> _a_encoder[CHAOS_LEVELS_MAX];
 
+	MonoWriter _sf_encoder;
+	MonoWriter _cf_encoder;
+
 	void clear();
 
-	int init(int width, int height);
+	bool IsMasked(u16 x, u16 y);
 
-	void maskFilters();
-
+	void maskTiles();
 	void designFilters();
-	void decideFilters();
-
-	void scanlineLZ(); // In progress
-
-	bool applyFilters();
-
-	void chaosStats();
+	void designTiles();
+	void compressFilters();
+	void initializeEncoders();
 
 	bool writeFilters(ImageWriter &writer);
 	bool writeChaos(ImageWriter &writer);
@@ -178,15 +155,16 @@ public:
 
 public:
 	CAT_INLINE ImageRGBAWriter() {
-		_filters = 0;
-		_chaos = 0;
+		_sf_tiles = 0;
+		_cf_tiles = 0;
 		_seen_filter = 0;
 	}
 	CAT_INLINE virtual ~ImageRGBAWriter() {
 		clear();
 	}
 
-	int initFromRGBA(const u8 *rgba, int width, int height, ImageMaskWriter &mask, ImageLZWriter &lz, const GCIFKnobs *knobs);
+	int init(const u8 *rgba, int size_x, int size_y, ImageMaskWriter &mask, ImageLZWriter &lz, const GCIFKnobs *knobs);
+
 	void write(ImageWriter &writer);
 
 #ifdef CAT_COLLECT_STATS

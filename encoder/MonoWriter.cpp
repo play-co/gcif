@@ -26,7 +26,7 @@
 	POSSIBILITY OF SUCH DAMAGE.
 */
 
-#include "MonoWriterFactory.hpp"
+#include "MonoWriter.hpp"
 #include "../decoder/Enforcer.hpp"
 #include "FilterScorer.hpp"
 #include "EntropyEstimator.hpp"
@@ -45,9 +45,9 @@ using namespace cat;
 #endif
 
 
-//// MonoWriterFactory
+//// MonoWriter
 
-void MonoWriterFactory::cleanup() {
+void MonoWriter::cleanup() {
 	if (_tiles) {
 		delete []_tiles;
 		_tiles = 0;
@@ -68,9 +68,13 @@ void MonoWriterFactory::cleanup() {
 		delete _best_writer;
 		_best_writer = 0;
 	}
+	if (_tile_seen) {
+		delete []_tile_seen;
+		_tile_seen = 0;
+	}
 }
 
-void MonoWriterFactory::maskTiles() {
+void MonoWriter::maskTiles() {
 	const u16 tile_size_x = _tile_size_x, tile_size_y = _tile_size_y;
 	const u16 size_x = _params.size_x, size_y = _params.size_y;
 	u8 *p = _tiles;
@@ -101,7 +105,7 @@ next_tile:;
 	}
 }
 
-void MonoWriterFactory::designPaletteFilters() {
+void MonoWriter::designPaletteFilters() {
 	CAT_INANE("2D") << "Designing palette filters for " << _tiles_x << "x" << _tiles_y << "...";
 
 	const u16 tile_size_x = _tile_size_x, tile_size_y = _tile_size_y;
@@ -186,7 +190,7 @@ void MonoWriterFactory::designPaletteFilters() {
 	_sympal_filter_count = sympal_count;
 }
 
-void MonoWriterFactory::designFilters() {
+void MonoWriter::designFilters() {
 	CAT_INANE("2D") << "Designing filters for " << _tiles_x << "x" << _tiles_y << "...";
 
 	const u16 tile_size_x = _tile_size_x, tile_size_y = _tile_size_y;
@@ -238,7 +242,7 @@ void MonoWriterFactory::designFilters() {
 							if (residual >= num_syms) {
 								residual -= num_syms;
 							}
-							u8 score = ChaosTable::ResidualScore(residual, num_syms); // lower = better
+							u8 score = MonoChaos::ResidualScore(residual, num_syms); // lower = better
 
 							scores.add(f, score);
 						}
@@ -362,7 +366,7 @@ void MonoWriterFactory::designFilters() {
 	CAT_INANE("2D") << " + Chose " << _filter_count << " filters : " << _sympal_filter_count << " of which are palettes";
 }
 
-void MonoWriterFactory::designPaletteTiles() {
+void MonoWriter::designPaletteTiles() {
 	if (_sympal_filter_count < 0) {
 		CAT_INANE("2D") << "No palette filters selected";
 		return;
@@ -403,7 +407,7 @@ void MonoWriterFactory::designPaletteTiles() {
 	}
 }
 
-void MonoWriterFactory::designTiles() {
+void MonoWriter::designTiles() {
 	CAT_INANE("2D") << "Designing tiles for " << _tiles_x << "x" << _tiles_y << "...";
 
 	const u16 tile_size_x = _tile_size_x, tile_size_y = _tile_size_y;
@@ -580,7 +584,7 @@ void MonoWriterFactory::designTiles() {
 	}
 }
 
-void MonoWriterFactory::computeResiduals() {
+void MonoWriter::computeResiduals() {
 	CAT_INANE("2D") << "Executing tiles to generate residual matrix...";
 
 	const u16 tile_size_x = _tile_size_x, tile_size_y = _tile_size_y;
@@ -632,7 +636,7 @@ void MonoWriterFactory::computeResiduals() {
 	}
 }
 
-void MonoWriterFactory::designRowFilters() {
+void MonoWriter::designRowFilters() {
 	CAT_INANE("2D") << "Designing row filters for " << _tiles_x << "x" << _tiles_y << "...";
 
 	const int tiles_x = _tiles_x, tiles_y = _tiles_y;
@@ -645,7 +649,7 @@ void MonoWriterFactory::designRowFilters() {
 	u32 total_entropy;
 
 	// Allocate temporary workspace
-	const u32 codes_size = RF_COUNT * tiles_x;
+	const u32 codes_size = MonoReader::RF_COUNT * tiles_x;
 	if (!_ecodes || _ecodes_alloc < codes_size) {
 		if (_ecodes) {
 			delete []_ecodes;
@@ -738,17 +742,17 @@ void MonoWriterFactory::designRowFilters() {
 	_row_filter_entropy = total_entropy;
 }
 
-bool MonoWriterFactory::IsMasked(u16 x, u16 y) {
+bool MonoWriter::IsMasked(u16 x, u16 y) {
 	return _tiles[x + y * _tiles_x] == MASK_TILE;
 }
 
-void MonoWriterFactory::recurseCompress() {
+void MonoWriter::recurseCompress() {
 	if (_tiles_count < RECURSE_THRESH_COUNT) {
 		CAT_INANE("2D") << "Stopping below recursive threshold for " << _tiles_x << "x" << _tiles_y << "...";
 	} else {
 		CAT_INANE("2D") << "Recursively compressing tiles for " << _tiles_x << "x" << _tiles_y << "...";
 
-		_filter_encoder = new MonoWriterFactory;
+		_filter_encoder = new MonoWriter;
 
 		Parameters params = _params;
 		params.data = _tiles;
@@ -757,7 +761,7 @@ void MonoWriterFactory::recurseCompress() {
 		params.size_y = _tiles_y;
 
 		// Hook up our mask function
-		params.mask.SetMember<MonoWriterFactory, &MonoWriterFactory::IsMasked>(this);
+		params.mask.SetMember<MonoWriter, &MonoWriter::IsMasked>(this);
 
 		// Recurse!
 		u32 recurse_entropy = _filter_encoder->process(params);
@@ -774,7 +778,7 @@ void MonoWriterFactory::recurseCompress() {
 	}
 }
 
-void MonoWriterFactory::designChaos() {
+void MonoWriter::designChaos() {
 	CAT_INANE("2D") << "Designing chaos...";
 
 	EntropyEstimator ee[MAX_CHAOS_LEVELS];
@@ -842,7 +846,7 @@ void MonoWriterFactory::designChaos() {
 	_chaos_entropy = best_entropy;
 }
 
-void MonoWriterFactory::initializeEncoders() {
+void MonoWriter::initializeEncoders() {
 	_chaos.start();
 
 	// For each row,
@@ -895,9 +899,9 @@ void MonoWriterFactory::initializeEncoders() {
 					switch (tile_row_filter) {
 					default:
 						CAT_DEBUG_EXCEPTION();
-					case RF_NOOP:
+					case MonoReader::RF_NOOP:
 						break;
-					case RF_A:
+					case MonoReader::RF_A:
 						if (tx > 0) {
 							residual += _filter_count - tile[-1];
 							if (residual >= _filter_count) {
@@ -905,7 +909,7 @@ void MonoWriterFactory::initializeEncoders() {
 							}
 						}
 						break;
-					case RF_B:
+					case MonoReader::RF_B:
 						if (ty > 0) {
 							residual += _filter_count - tile[-_tiles_x];
 							if (residual >= _filter_count) {
@@ -913,7 +917,7 @@ void MonoWriterFactory::initializeEncoders() {
 							}
 						}
 						break;
-					case RF_C:
+					case MonoReader::RF_C:
 						if (tx > 0) {
 							if (ty <= 0) {
 								residual += _filter_count - tile[-1];
@@ -937,7 +941,7 @@ void MonoWriterFactory::initializeEncoders() {
 	}
 }
 
-u32 MonoWriterFactory::simulate() {
+u32 MonoWriter::simulate() {
 	u32 bits = 0;
 
 	// Chaos overhead
@@ -975,9 +979,9 @@ u32 MonoWriterFactory::simulate() {
 					switch (tile_row_filter) {
 					default:
 						CAT_DEBUG_EXCEPTION();
-					case RF_NOOP:
+					case MonoReader::RF_NOOP:
 						break;
-					case RF_A:
+					case MonoReader::RF_A:
 						if (tx > 0) {
 							residual += _filter_count - tile[-1];
 							if (residual >= _filter_count) {
@@ -985,7 +989,7 @@ u32 MonoWriterFactory::simulate() {
 							}
 						}
 						break;
-					case RF_B:
+					case MonoReader::RF_B:
 						if (ty > 0) {
 							residual += _filter_count - tile[-_tiles_x];
 							if (residual >= _filter_count) {
@@ -993,7 +997,7 @@ u32 MonoWriterFactory::simulate() {
 							}
 						}
 						break;
-					case RF_C:
+					case MonoReader::RF_C:
 						if (tx > 0) {
 							if (ty <= 0) {
 								residual += _filter_count - tile[-1];
@@ -1047,12 +1051,20 @@ u32 MonoWriterFactory::simulate() {
 	return bits;
 }
 
-u32 MonoWriterFactory::process(const Parameters &params) {
+u32 MonoWriter::process(const Parameters &params) {
 	cleanup();
 
 	// Initialize
 	_params = params;
 	_filter_encoder = 0;
+
+	// Calculate bits to represent tile bits field
+	u32 range = (_params.max_bits - _params.min_bits);
+	int bits_bc = 0;
+	if (range > 0) {
+		bits_bc = BSR32(range) + 1;
+	}
+	_tile_bits_field_bc = bits_bc;
 
 	// Determine best tile size to use
 	u32 best_entropy = 0x7fffffff;
@@ -1081,12 +1093,12 @@ u32 MonoWriterFactory::process(const Parameters &params) {
 			_tiles = new u8[_tiles_count];
 			_tiles_alloc = _tiles_count;
 		}
-		if (!_tile_row_filters || _tiles_row_filters_alloc < _tiles_y) {
+		if (!_tile_row_filters || _tile_row_filters_alloc < _tiles_y) {
 			if (_tile_row_filters) {
 				delete []_tile_row_filters;
 			}
 			_tile_row_filters = new u8[_tiles_y];
-			_tiles_row_filters_alloc = _tiles_y;
+			_tile_row_filters_alloc = _tiles_y;
 		}
 
 		// Allocate residual memory
@@ -1122,14 +1134,6 @@ u32 MonoWriterFactory::process(const Parameters &params) {
 				_best_writer = new MonoWriter;
 			}
 
-			u32 range = (_params.max_bits - _params.min_bits);
-			u32 bits_bc = 0;
-			if (range > 0) {
-				u32 bits_value = _tile_bits_x - _params.max_bits;
-				bits_bc = BSR32(range) + 1;
-			}
-			_best_writer->_bits_bc = bits_bc;
-
 			// TODO: Store off the best option
 		} else {
 			// Stop trying options
@@ -1140,18 +1144,10 @@ u32 MonoWriterFactory::process(const Parameters &params) {
 	return best_entropy;
 }
 
-MonoWriter *MonoWriterFactory::generateWriter(const Parameters &params) {
-}
+bool MonoWriter::init(const Parameters &params) {
+	process(params);
 
-
-//// MonoWriter
-
-void MonoWriter::cleanup() {
-	// TODO: Add these
-	if (_tile_seen) {
-		delete []_tile_seen;
-		_tile_seen = 0;
-	}
+	return true;
 }
 
 int MonoWriter::writeTables(ImageWriter &writer) {
@@ -1165,23 +1161,9 @@ int MonoWriter::writeTables(ImageWriter &writer) {
 	{
 		CAT_DEBUG_ENFORCE(_tile_bits_x == _tile_bits_y);	// Square regions only for now
 
-		if (_tile_bits_bc > 0) {
-			writer.writeBits(_tile_bits_x - _tile_min_bits, _tile_bits_bc);
-			Stats.basic_overhead_bits += _tile_bits_bc;
-		}
-	}
-
-	DESYNC_TABLE();
-
-	// Normal filters
-	{
-		CAT_DEBUG_ENFORCE(MAX_FILTERS <= 32);
-		CAT_DEBUG_ENFORCE(SF_COUNT + MAX_PALETTE <= 128);
-
-		writer.writeBits(_normal_filter_count - 1, 5);
-		for (int f = 0; f < _normal_filter_count; ++f) {
-			writer.writeBits(_filter_indices[f], 7);
-			Stats.basic_overhead_bits += 7;
+		if (_tile_bits_field_bc > 0) {
+			writer.writeBits(_tile_bits_x - _params.min_bits, _tile_bits_field_bc);
+			Stats.basic_overhead_bits += _tile_bits_field_bc;
 		}
 	}
 
@@ -1195,6 +1177,20 @@ int MonoWriter::writeTables(ImageWriter &writer) {
 		for (int f = 0; f < _sympal_filter_count; ++f) {
 			writer.writeBits(_sympal[f], 8);
 			Stats.basic_overhead_bits += 8;
+		}
+	}
+
+	DESYNC_TABLE();
+
+	// Normal filters
+	{
+		CAT_DEBUG_ENFORCE(MAX_FILTERS <= 32);
+		CAT_DEBUG_ENFORCE(SF_COUNT + MAX_PALETTE <= 128);
+
+		writer.writeBits(_normal_filter_count - SF_FIXED, 5);
+		for (int f = SF_FIXED; f < _normal_filter_count; ++f) {
+			writer.writeBits(_filter_indices[f], 7);
+			Stats.basic_overhead_bits += 7;
 		}
 	}
 
@@ -1329,9 +1325,9 @@ int MonoWriter::write(u16 x, u16 y, ImageWriter &writer) {
 				switch (_tile_row_filters[ty]) {
 				default:
 					CAT_DEBUG_EXCEPTION();
-				case RF_NOOP:
+				case MonoReader::RF_NOOP:
 					break;
-				case RF_A:
+				case MonoReader::RF_A:
 					if (tx > 0) {
 						residual += _filter_count - tile[-1];
 						if (residual >= _filter_count) {
@@ -1339,7 +1335,7 @@ int MonoWriter::write(u16 x, u16 y, ImageWriter &writer) {
 						}
 					}
 					break;
-				case RF_B:
+				case MonoReader::RF_B:
 					if (ty > 0) {
 						residual += _filter_count - tile[-_tiles_x];
 						if (residual >= _filter_count) {
@@ -1347,7 +1343,7 @@ int MonoWriter::write(u16 x, u16 y, ImageWriter &writer) {
 						}
 					}
 					break;
-				case RF_C:
+				case MonoReader::RF_C:
 					if (tx > 0) {
 						if (ty <= 0) {
 							residual += _filter_count - tile[-1];

@@ -63,56 +63,35 @@ namespace cat {
 
 class ImageRGBAReader {
 public:
-	static const int CHAOS_LEVELS_MAX = 8;
-	static const int COLOR_PLANES = 4;
 	static const int ZRLE_SYMS_Y = 128;
 	static const int ZRLE_SYMS_U = 128;
 	static const int ZRLE_SYMS_V = 128;
 	static const int ZRLE_SYMS_A = 128;
 
 protected:
-	// RGBA output data
-	int _width, _height;
-	u8 *_rgba;
+	static const int NUM_COLORS = 256;
 
-	// Recent chaos memory
-	u8 *_chaos;
-	u32 _chaos_size;
-	u32 _chaos_alloc;
-
-	// Chaos lookup table
-	int _chaos_levels;
-	const u8 *_chaos_table;
-
-	// Recent scanline filters
-	struct FilterSelection {
-		YUV2RGBFilterFunction cf;
-		SpatialFilterSet::Functions sf;
-
-		CAT_INLINE bool ready() {
-			return cf != 0;
-		}
-	} *_filters;
-	int _filters_bytes;
-	int _filters_alloc;
-
-	// Mask and LZ subsystems
 	ImageMaskReader *_mask;
 	ImageLZReader *_lz;
 
-	// Chosen spatial filter set
-	SpatialFilterSet _sf_set;
+	// RGBA output data
+	u8 *_rgba;
+	u16 _size_x, _size_y;
+	u16 _tile_bits_x, _tiles_bits_y;
+	u16 _tile_size_x, _tiles_size_y;
 
-	// Filter decoders
-	HuffmanDecoder _sf, _cf;
+	RGBAChaos _chaos;
+
+	RGBAFilterFuncs _sf[MAX_FILTERS];
+	int _sf_count;
+
+	MonoReader _sf_decoder, _cf_decoder;
 
 	// Color plane decoders
-	EntropyDecoder<256, ZRLE_SYMS_Y> _y_decoder[CHAOS_LEVELS_MAX];
-	EntropyDecoder<256, ZRLE_SYMS_U> _u_decoder[CHAOS_LEVELS_MAX];
-	EntropyDecoder<256, ZRLE_SYMS_V> _v_decoder[CHAOS_LEVELS_MAX];
-	EntropyDecoder<256, ZRLE_SYMS_A> _a_decoder[CHAOS_LEVELS_MAX];
-
-	void clear();
+	EntropyDecoder<NUM_COLORS, ZRLE_SYMS_Y> _y_decoder[CHAOS_LEVELS_MAX];
+	EntropyDecoder<NUM_COLORS, ZRLE_SYMS_U> _u_decoder[CHAOS_LEVELS_MAX];
+	EntropyDecoder<NUM_COLORS, ZRLE_SYMS_V> _v_decoder[CHAOS_LEVELS_MAX];
+	EntropyDecoder<NUM_COLORS, ZRLE_SYMS_A> _a_decoder[CHAOS_LEVELS_MAX];
 
 	int init(GCIFImage *image);
 	int readFilterTables(ImageReader &reader);
@@ -130,11 +109,8 @@ public:
 public:
 	CAT_INLINE ImageRGBAReader() {
 		_rgba = 0;
-		_chaos = 0;
-		_filters = 0;
 	}
 	virtual CAT_INLINE ~ImageRGBAReader() {
-		clear();
 	}
 
 	int read(ImageReader &reader, ImageMaskReader &maskReader, ImageLZReader &lzReader, GCIFImage *image);

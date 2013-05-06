@@ -140,7 +140,7 @@ struct RGBAFilterFuncs {
 	RGBAFilterFunc unsafe;
 };
 
-extern RGBAFilterFuncs RGBA_FILTERS[SF_COUNT];
+extern const RGBAFilterFuncs RGBA_FILTERS[SF_COUNT];
 
 /*
  * Monochrome filter (Assumes data pointer is bytewise)
@@ -162,7 +162,7 @@ struct MonoFilterFuncs {
 	MonoFilterFunc unsafe;
 };
 
-extern MonoFilterFuncs MONO_FILTERS[SF_COUNT];
+extern const MonoFilterFuncs MONO_FILTERS[SF_COUNT];
 
 
 //// Color Filters
@@ -201,20 +201,22 @@ enum ColorFilters {
 typedef void (*RGB2YUVFilterFunction)(const u8 rgb_in[3], u8 yuv_out[3]);
 typedef void (*YUV2RGBFilterFunction)(const u8 yuv_in[3], u8 rgb_out[3]);
 
-extern RGB2YUVFilterFunction RGB2YUV_FILTERS[];
-extern YUV2RGBFilterFunction YUV2RGB_FILTERS[];
+extern const RGB2YUVFilterFunction RGB2YUV_FILTERS[];
+extern const YUV2RGBFilterFunction YUV2RGB_FILTERS[];
 
 const char *GetColorFilterString(int cf);
 
 
 //// Chaos
 
-// Map ResidualScore Up/Left Sum -> Chaos Level for each of the chaos levels
-class ChaosTable {
-public:
-	// Lookup table version of inline function ResidualScore256() below.
-	static const u8 RESIDUAL_SCORE_256[256];
+// Lookup table version of inline function ResidualScore256() below.
+extern const u8 RESIDUAL_SCORE_256[256];
 
+/*
+ * Monochrome residuals -> Chaos bin
+ */
+class MonoChaos {
+public:
 	// Residual 0..255 value -> Score
 	static CAT_INLINE u8 ResidualScore256(u8 residual) {
 #ifdef CAT_ISA_X86
@@ -256,15 +258,15 @@ protected:
 	void cleanup();
 
 public:
-	CAT_INLINE ChaosTable() {
+	CAT_INLINE MonoChaos() {
 		_chaos_levels = 0;
 		_row = 0;
 	}
-	CAT_INLINE virtual ~ChaosTable() {
+	CAT_INLINE virtual ~MonoChaos() {
 		cleanup();
 	}
 
-	void init(int chaos_levels, int width);
+	void init(int chaos_levels, int size_x);
 
 	CAT_INLINE int getBinCount() {
 		return _chaos_levels;
@@ -306,6 +308,99 @@ public:
 		*_current++ = ResidualScore(r, num_syms);
 
 		return bin;
+	}
+};
+
+
+/*
+ * RGBA Residuals -> Chaos bin
+ */
+class RGBAChaos {
+public:
+	// Residual 0..255 value -> Score
+	static CAT_INLINE u8 ResidualScore(u8 residual) {
+#ifdef CAT_ISA_X86
+		return RESIDUAL_SCORE_256[residual];
+#else
+		// If score is "positive",
+		if (residual <= 128) {
+			// Note: 128 = worst score, 0 = best
+			return residual;
+		} else {
+			// Wrap around: ABS(255) = ABS(-1) = 1, etc
+			return 256 - residual;
+		}
+#endif
+	}
+
+protected:
+	// Chaos Lookup Table: residual score -> chaos bin index
+	int _chaos_levels;
+	u8 _table[512];
+
+	// Residual score memory for left/last row
+	u8 *_row;
+	int _row_alloc;
+
+	// Current read/write position
+	u8 *_current;
+
+	void cleanup();
+
+public:
+	CAT_INLINE RGBAChaos() {
+		_chaos_levels = 0;
+		_row = 0;
+	}
+	CAT_INLINE virtual ~RGBAChaos() {
+		cleanup();
+	}
+
+	void init(int chaos_levels, int size_x);
+
+	CAT_INLINE int getBinCount() {
+		return _chaos_levels;
+	}
+
+	CAT_INLINE void start() {
+		// Initialize top margin to 0
+		CAT_CLR(_row, _row_alloc);
+	}
+
+	CAT_INLINE void startRow() {
+		// Initialize left margin to 0
+		*reinterpret_cast<u32 *>( _row ) = 0;
+
+		// Initialize first write position after the margin
+		_current = _row + 4;
+	}
+
+	CAT_INLINE void zero() {
+		// Set to zero (optimization)
+		*reinterpret_cast<u32 *>( _current ) = 0;
+
+		_current += 4;
+	}
+
+	CAT_INLINE u8 getChaosY() {
+		return _table[_current[-4] + (u16)_current[0]];
+	}
+	CAT_INLINE u8 getChaosU() {
+		return _table[_current[-3] + (u16)_current[1]];
+	}
+	CAT_INLINE u8 getChaosV() {
+		return _table[_current[-2] + (u16)_current[2]];
+	}
+	CAT_INLINE u8 getChaosA() {
+		return _table[_current[-1] + (u16)_current[3]];
+	}
+
+	CAT_INLINE void store(u8 y, u8 u, u8 v, u8 a) {
+		_current[0] = ResidualScore(y);
+		_current[1] = ResidualScore(u);
+		_current[2] = ResidualScore(v);
+		_current[3] = ResidualScore(a);
+		_current += 4;
 	}
 };
 

@@ -28,6 +28,7 @@
 
 #include "Filters.hpp"
 #include "Enforcer.hpp"
+#include "BitMath.hpp"
 using namespace cat;
 
 
@@ -1436,9 +1437,9 @@ static const u8 *SFFU_SELECT_F(const u8 *p, u8 *temp, int x, int y, int width) {
 }
 
 
-//// EF Gradient Filter
+//// ED Gradient Filter
 
-static const u8 *SFF_EF_GRAD(const u8 *p, u8 *temp, int x, int y, int width) {
+static const u8 *SFF_ED_GRAD(const u8 *p, u8 *temp, int x, int y, int width) {
 	if (y > 1 && x < width - 2) {
 		const u8 *d = p + 4 - width*4;
 		const u8 *e = d + 4 - width*4;
@@ -1456,7 +1457,7 @@ static const u8 *SFF_EF_GRAD(const u8 *p, u8 *temp, int x, int y, int width) {
 	return FPZ;
 }
 
-static const u8 *SFFU_EF_GRAD(const u8 *p, u8 *temp, int x, int y, int width) {
+static const u8 *SFFU_ED_GRAD(const u8 *p, u8 *temp, int x, int y, int width) {
 	if (y > 1 && x < width - 2) {
 		const u8 *d = p + 4 - width*4;
 		const u8 *e = d + 4 - width*4;
@@ -1881,7 +1882,7 @@ static u8 MFF_AVG_BC(const u8 *p, u8 clamp_max, int x, int y, int width) {
 		return p[-1]; // A
 	}
 
-	return FPZ;
+	return 0;
 }
 
 static u8 MFFU_AVG_BC(const u8 *p, u8 clamp_max, int x, int y, int width) {
@@ -2113,7 +2114,7 @@ static u8 MFF_AVG_CD1(const u8 *p, u8 clamp_max, int x, int y, int width) {
 			return src[0]; // B
 		}
 	} else if (x > 0) {
-		return p - 1; // A
+		return p[-1]; // A
 	}
 
 	return 0;
@@ -2630,7 +2631,7 @@ static u8 MFFU_ABC_CLAMP(const u8 *p, u8 clamp_max, int x, int y, int width) {
 	const u8 *b = p - width; // B
 	const u8 *c = b - 1; // C
 
-	return abcClamp(a[0], b[0], c[0], clamp_max);
+	return abcClampMono(a[0], b[0], c[0], clamp_max);
 }
 
 
@@ -3145,7 +3146,7 @@ void CFF_R2Y_NONE(const u8 rgb[3], u8 yuv[3]) {
 #undef END_R2Y
 
 
-RGB2YUVFilterFunction cat::RGB2YUV_FILTERS[CF_COUNT] = {
+const RGB2YUVFilterFunction cat::RGB2YUV_FILTERS[CF_COUNT] = {
 	CFF_R2Y_GB_RG,
 	CFF_R2Y_GR_BG,
 	CFF_R2Y_YUVr,
@@ -3359,7 +3360,7 @@ void CFF_Y2R_NONE(const u8 yuv[3], u8 rgb[3]) {
 #undef END_Y2R
 
 
-YUV2RGBFilterFunction cat::YUV2RGB_FILTERS[CF_COUNT] = {
+const YUV2RGBFilterFunction cat::YUV2RGB_FILTERS[CF_COUNT] = {
 	CFF_Y2R_GB_RG,
 	CFF_Y2R_GR_BG,
 	CFF_Y2R_YUVr,
@@ -3383,7 +3384,7 @@ YUV2RGBFilterFunction cat::YUV2RGB_FILTERS[CF_COUNT] = {
 //// Chaos
 
 // Wrap around after 128, 255 = -1 -> 1
-const u8 ChaosTable::CHAOS_SCORE[256] = {
+const u8 cat::CHAOS_SCORE[256] = {
 	0x00,0x01,0x02,0x03,0x04,0x05,0x06,0x07,0x08,0x09,0x0a,0x0b,0x0c,0x0d,0x0e,0x0f,
 	0x10,0x11,0x12,0x13,0x14,0x15,0x16,0x17,0x18,0x19,0x1a,0x1b,0x1c,0x1d,0x1e,0x1f,
 	0x20,0x21,0x22,0x23,0x24,0x25,0x26,0x27,0x28,0x29,0x2a,0x2b,0x2c,0x2d,0x2e,0x2f,
@@ -3402,14 +3403,60 @@ const u8 ChaosTable::CHAOS_SCORE[256] = {
 	0x10,0x0f,0x0e,0x0d,0x0c,0x0b,0x0a,0x09,0x08,0x07,0x06,0x05,0x04,0x03,0x02,0x01,
 };
 
-void ChaosTable::cleanup() {
+void MonoChaos::cleanup() {
 	if (_row) {
 		delete []_row;
 		_row = 0;
 	}
 }
 
-void ChaosTable::init(int chaos_levels, int width) {
+void MonoChaos::init(int chaos_levels, int width) {
+	// Allocate row space
+	const int row_alloc = 1 + width;
+	if (!_row || _row_alloc < row_alloc) {
+		if (_row) {
+			delete []_row;
+		}
+		_row = new u8[row_alloc];
+		_row_alloc = row_alloc;
+	}
+
+	// If already set at this number of chaos levels
+	if (_chaos_levels != chaos_levels) {
+		_chaos_levels = chaos_levels;
+
+		// Initialize chaos table
+		_table[0] = 0;
+		--chaos_levels;
+
+		// For each chaos level,
+		int ii;
+		for (ii = 1; ii < 512; ++ii) {
+			int msb = BSR32(ii) + 1;
+
+			// If done with ramp up,
+			if (msb >= chaos_levels) {
+				break;
+			}
+
+			_table[ii] = msb;
+		}
+
+		// Fill the rest with the max chaos level
+		for (; ii < 512; ++ii) {
+			_table[ii] = chaos_levels;
+		}
+	}
+}
+
+void RGBAChaos::cleanup() {
+	if (_row) {
+		delete []_row;
+		_row = 0;
+	}
+}
+
+void RGBAChaos::init(int chaos_levels, int width) {
 	// Allocate row space
 	const int row_alloc = 1 + width;
 	if (!_row || _row_alloc < row_alloc) {

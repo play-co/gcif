@@ -29,7 +29,7 @@
 #ifndef CAT_THREAD_HPP
 #define CAT_THREAD_HPP
 
-#include "Delegates.hpp"
+#include "../decoder/Delegates.hpp"
 #include "Singleton.hpp"
 #include "Mutex.hpp"
 

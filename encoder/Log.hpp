@@ -29,7 +29,7 @@
 #ifndef CAT_LOG_HPP
 #define CAT_LOG_HPP
 
-#include "Delegates.hpp"
+#include "../decoder/Delegates.hpp"
 #include "Singleton.hpp"
 #include "Mutex.hpp"
 #include <string>

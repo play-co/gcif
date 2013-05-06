@@ -30,13 +30,12 @@
 #define MONO_WRITER_HPP
 
 #include "../decoder/Platform.hpp"
+#include "../decoder/MonoReader.hpp"
 #include "ImageWriter.hpp"
-#include "../decoder/ImageMaskReader.hpp"
-#include "../decoder/ImageLZReader.hpp"
 #include "../decoder/Filters.hpp"
 #include "EntropyEncoder.hpp"
 #include "GCIFWriter.h"
-#include "Delegates.hpp"
+#include "../decoder/Delegates.hpp"
 
 #include <vector>
 
@@ -56,26 +55,34 @@ namespace cat {
 
 class MonoWriter {
 public:
-	static const int MAX_AWARDS = 8;	// Maximum filters to award
-	static const int MAX_FILTERS = 32;	// Maximum filters to use
+	static const int MAX_FILTERS = MonoReader::MAX_FILTERS;
+	static const int MAX_CHAOS_LEVELS = MonoReader::MAX_CHAOS_LEVELS;
+	static const int MAX_PALETTE = MonoReader::MAX_PALETTE;
+	static const int MAX_SYMS = MonoReader::MAX_SYMS;
+	static const int ZRLE_SYMS = MonoReader::ZRLE_SYMS;
 
-	// Parameters provided to process()
-	struct Parameters {
-		const GCIFKnobs *knobs;			// Global knobs
-		const u8 *data;					// Input data
-		u16 num_syms;					// Number of symbols in data [0..num_syms-1]
-		u16 size_x, size_y;				// Data dimensions
-		u16 max_filters;				// Maximum number of filters to use
-		u16 min_bits, max_bits;			// Tile size bit range to try
-		float sympal_thresh;			// Normalized coverage to add a symbol palette filter (1.0 = entire image)
-		float filter_thresh;			// Normalized coverage to stop adding filters (1.0 = entire image)
-		MaskDelegate mask;				// Function to call to determine if an element is masked out
-		u32 AWARDS[MAX_AWARDS];			// Awards to give for top N filters
-		int award_count;				// Number of awards to give out
-	};
+	static const int MAX_AWARDS = 8;	// Maximum filters to award
 
 	// bool IsMasked(u16 x, u16 y)
 	typedef Delegate2<bool, u16, u16> MaskDelegate;
+
+	// Parameters provided to process()
+	struct Parameters {
+		// Shared
+		u16 size_x, size_y;				// Data dimensions
+		u16 min_bits, max_bits;			// Tile size bit range to try
+		MaskDelegate mask;				// Function to call to determine if an element is masked out
+		u16 num_syms;					// Number of symbols in data [0..num_syms-1]
+
+		// Encoder-only
+		const GCIFKnobs *knobs;			// Global knobs
+		const u8 *data;					// Input data
+		u16 max_filters;				// Maximum number of filters to use
+		float sympal_thresh;			// Normalized coverage to add a symbol palette filter (1.0 = entire image)
+		float filter_thresh;			// Normalized coverage to stop adding filters (1.0 = entire image)
+		u32 AWARDS[MAX_AWARDS];			// Awards to give for top N filters
+		int award_count;				// Number of awards to give out
+	};
 
 	struct _Stats {
 		int basic_overhead_bits;
@@ -84,24 +91,10 @@ public:
 		int data_bits;
 	} Stats;
 
-	// 2-bit row filters
-	enum RowFilters {
-		RF_NOOP,
-		RF_A,	// Left
-		RF_B,	// Up
-		RF_C,	// Up-Left
-
-		RF_COUNT
-	};
-
 protected:
-	static const int MAX_SYMS = 256;
-	static const int ZRLE_SYMS = 16;
-	static const int MAX_CHAOS_LEVELS = 16;
 	static const int MAX_PASSES = 4;
 	static const int MAX_ROW_PASSES = 4;
 	static const int RECURSE_THRESH_COUNT = 128;
-	static const int MAX_PALETTE = 16;
 
 	static const u8 MASK_TILE = 255;
 	static const u8 TODO_TILE = 0;
@@ -116,6 +109,7 @@ protected:
 	int _tiles_alloc;
 	u32 _tiles_count;						// Number of tiles
 	int _tiles_x, _tiles_y;					// Tiles in x,y
+	int _tile_bits_field_bc;
 	u16 _tile_bits_x, _tile_bits_y;			// Number of bits in size
 	u16 _tile_size_x, _tile_size_y;			// Size of tile
 	u8 *_ecodes;							// Codes used during entropy estimation
@@ -147,11 +141,13 @@ protected:
 	EntropyEncoder<MAX_FILTERS, ZRLE_SYMS> _row_filter_encoder;
 
 	// Chaos levels
-	ChaosTable _chaos;						// Chaos bin lookup table
+	MonoChaos _chaos;						// Chaos bin lookup table
 	u32 _chaos_entropy;						// Entropy after chaos applied
 
 	// Write state
 	u8 _write_filter;						// Current filter
+	u8 *_tile_seen;							// Boolean array: Seen tile yet while writing?
+	int _tile_seen_alloc;
 
 	// Data encoders
 	EntropyEncoder<MAX_SYMS, ZRLE_SYMS> _encoder[MAX_CHAOS_LEVELS];
@@ -210,7 +206,7 @@ protected:
 	void initializeWriter();
 
 public:
-	CAT_INLINE MonoWriterFactory() {
+	CAT_INLINE MonoWriter() {
 		_tiles = 0;
 		_filter_encoder = 0;
 		_tile_row_filters = 0;
@@ -218,7 +214,7 @@ public:
 		_tile_seen = 0;
 		_best_writer = 0;
 	}
-	CAT_INLINE virtual ~MonoWriterFactory() {
+	CAT_INLINE virtual ~MonoWriter() {
 		cleanup();
 	}
 

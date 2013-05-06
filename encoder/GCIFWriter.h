@@ -96,7 +96,6 @@ struct GCIFKnobs {
 	int cm_revisitCount;		// 4096: Number of pixels to revisit
 	int cm_chaosThresh;			// 4000: Min # of chaos pixels to use 8-level tables
 	float cm_minTapQuality;		// 1.3: Min coverage improvement to accept one
-	bool cm_scanlineFilters;	// true: Try doing scanline filters
 };
 
 /*

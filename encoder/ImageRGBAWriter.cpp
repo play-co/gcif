@@ -52,94 +52,58 @@ using namespace std;
 #endif
 
 
-static CAT_INLINE int scoreYUV(u8 *yuv) {
-	return CHAOS_SCORE[yuv[0]] + CHAOS_SCORE[yuv[1]] + CHAOS_SCORE[yuv[2]];
-}
-
-static CAT_INLINE int wrapNeg(u8 p) {
-	if (p == 0) {
-		return 0;
-	} else if (p < 128) {
-		return ((p - 1) << 1) | 1;
-	} else {
-		return (256 - p) << 1;
-	}
-}
-
-
 //// ImageRGBAWriter
 
 void ImageRGBAWriter::clear() {
-	if (_filters) {
-		delete []_filters;
-		_filters = 0;
+	if (_sf_tiles) {
+		delete []_sf_tiles;
+		_sf_tiles = 0;
+	}
+	if (_cf_tiles) {
+		delete []_cf_tiles;
+		_cf_tiles = 0;
 	}
 	if (_seen_filter) {
 		delete []_seen_filter;
 		_seen_filter = 0;
 	}
-	if (_chaos) {
-		delete []_chaos;
-		_chaos = 0;
-	}
-
-	_filter_replacements.clear();
 }
 
-int ImageRGBAWriter::init(int width, int height) {
-	if (width < 0 || height < 0) {
-		return GCIF_WE_BAD_DIMS;
-	}
+void ImageRGBAWriter::maskTiles() {
+	const u16 tile_size_x = _tile_size_x, tile_size_y = _tile_size_y;
+	const u16 size_x = _size_x, size_y = _size_y;
+	u8 *sf = _sf_tiles;
+	u8 *cf = _cf_tiles;
 
-	_width = width;
-	_height = height;
+	// For each tile,
+	for (u16 y = 0; y < size_y; y += tile_size_y) {
+		for (u16 x = 0; x < size_x; x += tile_size_x) {
 
-	int fw, fh;
+			// For each element in the tile,
+			u16 py = y, cy = tile_size_y;
+			while (cy-- > 0 && py < size_y) {
+				u16 px = x, cx = tile_size_x;
+				while (cx-- > 0 && px < size_x) {
+					// If it is not masked,
+					if (!IsMasked(px, py)) {
+						// We need to do this tile
+						*cf++ = TODO_TILE;
+						*sf++ = TODO_TILE;
+						goto next_tile;
+					}
+				}
+				++py;
+			}
 
-	if (_pal->enabled()) {
-		fw = (width + PALETTE_ZONE_SIZE_MASK_W) >> PALETTE_ZONE_SIZE_SHIFT_W;
-		fh = (height + PALETTE_ZONE_SIZE_MASK_H) >> PALETTE_ZONE_SIZE_SHIFT_H;
-	} else {
-		fw = (width + FILTER_ZONE_SIZE_MASK_W) >> FILTER_ZONE_SIZE_SHIFT_W;
-		fh = (height + FILTER_ZONE_SIZE_MASK_H) >> FILTER_ZONE_SIZE_SHIFT_H;
-	}
-
-	const int filters_size = fw * fh;
-	if (!_filters || filters_size > _filters_alloc) {
-		if (_filters) {
-			delete []_filters;
+			// Tile is masked out entirely
+			*cf++ = MASK_TILE;
+			*sf++ = MASK_TILE;
+next_tile:;
 		}
-		_filters = new u16[filters_size];
-		_filters_alloc = filters_size;
 	}
-
-	_filter_stride = fw;
-
-	if (!_seen_filter || fw > _seen_filter_alloc) {
-		if (!_seen_filter) {
-			delete []_seen_filter;
-		}
-		_seen_filter = new u8[fw];
-		_seen_filter_alloc = fw;
-	}
-
-	// And last row of chaos data
-	_chaos_size = (width + 1) * COLOR_PLANES;
-
-	if (!_chaos || _chaos_size > _chaos_alloc) {
-		if (!_chaos) {
-			delete []_chaos;
-		}
-		_chaos = new u8[_chaos_size];
-		_chaos_alloc = _chaos_size;
-	}
-
-	return GCIF_WE_OK;
 }
 
 void ImageRGBAWriter::designFilters() {
-	_sf_set.init();
-
 	// If disabled,
 	if (!_knobs->cm_designFilters) {
 		CAT_INANE("CM") << "Skipping filter design";
@@ -152,104 +116,73 @@ void ImageRGBAWriter::designFilters() {
 	 * a,b,c,d = {-4, -3, -2, -1, 0, 1, 2, 3, 4}
 	 */
 
-	const int width = _width;
-
 	FilterScorer scores;
-	const int TAPPED_COUNT = SpatialFilterSet::TAPPED_COUNT;
-	scores.init(SF_COUNT + TAPPED_COUNT);
+	scores.init(SF_COUNT);
 
-	int bestHist[SF_COUNT + TAPPED_COUNT] = {0};
+	int hist[SF_COUNT] = {0};
 	u8 FPT[3];
 
 	CAT_INANE("CM") << "Designing filters...";
 
-	for (int y = 0; y < _height; y += FILTER_ZONE_SIZE_H) {
-		for (int x = 0; x < width; x += FILTER_ZONE_SIZE_W) {
-			// If this zone is skipped,
-			if (getSpatialFilter(x, y) == UNUSED_FILTER) {
+	const u16 tile_size_x = _tile_size_x, tile_size_y = _tile_size_y;
+	const u16 size_x = _size_x, size_y = _size_y;
+
+	u8 *sf = _sf_tiles;
+	u8 *cf = _cf_tiles;
+	const u8 *topleft = _rgba;
+	for (int y = 0; y < _size_y; y += _tile_size_y) {
+		for (int x = 0; x < _size_x; x += _tile_size_x, ++sf, ++cf, topleft += _tile_size_x * 4) {
+			if (*sf == MASK_TILE) {
 				continue;
 			}
 
 			scores.reset();
 
-			// For each pixel in the zone,
-			for (int yy = 0; yy < FILTER_ZONE_SIZE_H; ++yy) {
-				for (int xx = 0; xx < FILTER_ZONE_SIZE_W; ++xx) {
-					int px = x + xx, py = y + yy;
-					if (px >= _width || py >= _height) {
-						continue;
-					}
-					if (_mask->masked(px, py)) {
-						continue;
-					}
-					if (_lz->visited(px, py)) {
-						continue;
-					}
+			// For each element in the tile,
+			const u8 *row = topleft;
+			u16 py = y, cy = tile_size_y;
+			while (cy-- > 0 && py < size_y) {
+				const u8 *data = row;
+				u16 px = x, cx = tile_size_x;
+				while (cx-- > 0 && px < size_x) {
+					// If element is not masked,
+					if (!IsMasked(px, py)) {
+						const u8 r = data[0];
+						const u8 g = data[1];
+						const u8 b = data[2];
 
-					const u8 *p = _rgba + (px + py * width) * 4;
+						for (int f = 0; f < SF_COUNT; ++f) {
+							const u8 *pred = RGBA_FILTERS[f].safe(data, FPT, x, y, size_x);
 
-					int A[3] = {0};
-					int B[3] = {0};
-					int C[3] = {0};
-					int D[3] = {0};
+							u8 rr = r - pred[0];
+							u8 rg = g - pred[1];
+							u8 rb = b - pred[2];
 
-					for (int cc = 0; cc < 3; ++cc) {
-						if (px > 0) {
-							A[cc] = p[(-1) * 4 + cc];
-						}
-						if (py > 0 ) {
-							B[cc] = p[(-width) * 4 + cc];
-							if (px > 0) {
-								C[cc] = p[(-width - 1) * 4 + cc];
-							}
-							if (px < width - 1) {
-								D[cc] = p[(-width + 1) * 4 + cc];
-							}
+							int score = RGBAChaos::ResidualScore(rr);
+							score += RGBAChaos::ResidualScore(rg);
+							score += RGBAChaos::ResidualScore(rb);
+
+							scores.add(f, score);
 						}
 					}
-
-					for (int ii = 0; ii < SF_COUNT; ++ii) {
-						const u8 *pred = FPT;
-						_sf_set.get(ii).safe(p, &pred, px, py, width);
-
-						int sum = 0;
-
-						for (int cc = 0; cc < 3; ++cc) {
-							int err = p[cc] - (int)pred[cc];
-							if (err < 0) err = -err;
-							sum += err;
-						}
-						scores.add(ii, sum);
-					}
-
-					for (int ii = 0; ii < TAPPED_COUNT; ++ii) {
-						const int a = SpatialFilterSet::FILTER_TAPS[ii][0];
-						const int b = SpatialFilterSet::FILTER_TAPS[ii][1];
-						const int c = SpatialFilterSet::FILTER_TAPS[ii][2];
-						const int d = SpatialFilterSet::FILTER_TAPS[ii][3];
-
-						int sum = 0;
-						for (int cc = 0; cc < 3; ++cc) {
-							const int pred = (u8)((a * A[cc] + b * B[cc] + c * C[cc] + d * D[cc]) / 2);
-							int err = p[cc] - pred;
-							if (err < 0) err = -err;
-							sum += err;
-						}
-
-						scores.add(ii + SF_COUNT, sum);
-					}
+					data += 4;
 				}
+				++py;
+				row += size_x * 4;
 			}
 
-			FilterScorer::Score *top = scores.getLowest();
-			bestHist[top[0].index] += 4;
-
-			top = scores.getTop(4, false);
-			bestHist[top[0].index] += 1;
-			bestHist[top[1].index] += 1;
-			bestHist[top[2].index] += 1;
-			bestHist[top[3].index] += 1;
+			FilterScorer::Score *top = scores.getTop(4, true);
+			hist[top[0].index] += 5;
+			hist[top[1].index] += 3;
+			hist[top[2].index] += 1;
+			hist[top[3].index] += 1;
 		}
+	}
+
+	// Copy fixed functions
+	for (int jj = 0; jj < SF_FIXED; ++jj) {
+		_sf_indices[jj] = jj;
+		_sf[jj] = RGBA_FILTERS[jj];
 	}
 
 	// Replace filters
@@ -258,8 +191,8 @@ void ImageRGBAWriter::designFilters() {
 		int lowest_sf = 0x7fffffffUL, lowest_index = 0;
 
 		for (int ii = 0; ii < SF_COUNT; ++ii) {
-			if (bestHist[ii] < lowest_sf) {
-				lowest_sf = bestHist[ii];
+			if (hist[ii] < lowest_sf) {
+				lowest_sf = hist[ii];
 				lowest_index = ii;
 			}
 		}
@@ -564,187 +497,7 @@ void ImageRGBAWriter::decideFilters() {
 	}
 }
 
-void ImageRGBAWriter::scanlineLZ() {
-
-	//CAT_INANE("CM") << "Comparing performance with ScanlineLZ...";
-
-	/*
-	 * For each filter zone set of scanlines there are two options:
-	 * + Use chosen zone filters as normal (good for natural images)
-	 * + Choose a new filter for each scanline + do LZ (synthetic images)
-	 *
-	 * ScanlineLZ is coded differently:
-	 *
-	 * An escape code is used in place of the first nonzero CF selection
-	 * to indicate that the following four symbols are the filters for the
-	 * next 4 scanlines.
-	 *
-	 * During these scanlines, the encoding is changed.  This encoding
-	 * is expected to be used only when LZ is applicable to the data after
-	 * filtering, so the LZ field sizes are heuristic to work even better
-	 * when it works well.
-	 *
-	 * Based on the LZ4 frame, the ScanlineLZ frame is:
-	 *
-	 * <literal count(4)>
-	 * <match count(4)>
-	 * [extended literal count (8+)]
-	 * [literal pixels]
-	 * [extended match count (8+)]
-	 * <match offset(16)>
-	 *
-	 * (counts and offsets are in pixels)
-	 *
-	 * Since the decoder needs to write out the post-filter values to a
-	 * small circular buffer anyway to calculate the chaos metric, this
-	 * same circular buffer can be easily adapted as the history used for
-	 * LZ matches.
-	 *
-	 * This format gets RLE for free.
-	 */
-/*
-	CAT_CLR(_chaos, _chaos_size);
-
-	for (int fy = 0; fy < _height; fy += FILTER_ZONE_SIZE) {
-		u8 *last = lastStart;
-		int base_bits = 0;
-
-		// Simulate writes to get a baseline for what we want to improve on
-		for (int iy = 0; iy < FILTER_ZONE_SIZE; ++iy) {
-			const int y = fy + iy;
-			last = lastStart;
-
-			// Zero left
-			last[0 - 4] = 0;
-			last[1 - 4] = 0;
-			last[2 - 4] = 0;
-			last[3 - 4] = 0;
-
-			// For each pixel,
-			for (int x = 0; x < width; ++x) {
-				// If not masked out,
-				if (!_lz->visited(x, y) && !_mask->masked(x, y)) {
-					// Get filter for this pixel
-					const u16 filter = getFilter(x, y);
-					const u8 cf = (u8)filter;
-					const u8 sf = (u8)(filter >> 8);
-
-					// Apply spatial filter
-					const u8 *pred = SPATIAL_FILTERS[sf](p, x, y, width);
-					u8 temp[3];
-					for (int jj = 0; jj < 3; ++jj) {
-						temp[jj] = p[jj] - pred[jj];
-					}
-
-					// Apply color filter
-					u8 yuv[COLOR_PLANES];
-					RGB2YUV_FILTERS[cf](temp, yuv);
-					if (x > 0) {
-						yuv[3] = p[-1] - p[3];
-					} else {
-						yuv[3] = 255 - p[3];
-					}
-
-					u8 chaos = CHAOS_TABLE[chaosScore(last[0 - 4]) + chaosScore(last[0])];
-					base_bits += _y_encoder[chaos].simulate(yuv[0]);
-					chaos = CHAOS_TABLE[chaosScore(last[1 - 4]) + chaosScore(last[1])];
-					base_bits += _u_encoder[chaos].simulate(yuv[1]);
-					chaos = CHAOS_TABLE[chaosScore(last[2 - 4]) + chaosScore(last[2])];
-					base_bits += _v_encoder[chaos].simulate(yuv[2]);
-					chaos = CHAOS_TABLE[chaosScore(last[3 - 4]) + chaosScore(last[3])];
-					base_bits += _a_encoder[chaos].simulate(yuv[3]);
-
-					for (int c = 0; c < COLOR_PLANES; ++c) {
-						last[c] = yuv[c];
-					}
-				} else {
-					for (int c = 0; c < COLOR_PLANES; ++c) {
-						last[c] = 0;
-					}
-				}
-
-				// Next pixel
-				last += COLOR_PLANES;
-				p += 4;
-			}
-		}
-
-		// base_bits is now the target we need to beat
-
-		// For each scanline to encode,
-		for (int iy = 0; iy < FILTER_ZONE_SIZE; ++iy) {
-			const int y = fy + iy;
-
-			// For each filter option,
-			for (int sf = 0; sf < SF_COUNT; ++sf) {
-				for (int cf = 0; cf < CF_COUNT; ++cf) {
-				}
-			}
-		}
-	}*/
-}
-
-void ImageRGBAWriter::maskFilters() {
-	// For each zone,
-	for (int y = 0, height = _height; y < height; y += FILTER_ZONE_SIZE_H) {
-		for (int x = 0, width = _width; x < width; x += FILTER_ZONE_SIZE_W) {
-			bool on = true;
-
-			for (int ii = 0; ii < FILTER_ZONE_SIZE_W; ++ii) {
-				for (int jj = 0; jj < FILTER_ZONE_SIZE_H; ++jj) {
-					int px = x + ii, py = y + jj;
-					if (px >= _width || py >= _height) {
-						continue;
-					}
-					if (!_mask->masked(px, py) &&
-						!_lz->visited(px, py)) {
-						on = false;
-						ii = FILTER_ZONE_SIZE_W;
-						break;
-					}
-				}
-			}
-
-			if (on) {
-				setSpatialFilter(x, y, UNUSED_FILTER);
-			} else {
-				setSpatialFilter(x, y, TODO_FILTER);
-			}
-		}
-	}
-}
-
-bool ImageRGBAWriter::applyFilters() {
-	FreqHistogram<SF_COUNT> sf_hist;
-	FreqHistogram<CF_COUNT> cf_hist;
-
-	// For each zone,
-	for (int y = 0, height = _height; y < height; y += FILTER_ZONE_SIZE_H) {
-		for (int x = 0, width = _width; x < width; x += FILTER_ZONE_SIZE_W) {
-			// Read filter
-			u16 filter = getSpatialFilter(x, y);
-			if (filter != UNUSED_FILTER) {
-				u8 cf = (u8)filter;
-				u8 sf = (u8)(filter >> 8);
-
-				sf_hist.add(sf);
-				cf_hist.add(cf);
-			}
-		}
-	}
-
-	// Geneerate huffman codes from final histogram
-	if (!_cf_encoder.init(cf_hist)) {
-		return false;
-	}
-	if (!_sf_encoder.init(sf_hist)) {
-		return false;
-	}
-
-	return true;
-}
-
-void ImageRGBAWriter::chaosStats() {
+void ImageRGBAWriter::initializeEncoders() {
 	// Find number of pixels to encode
 	int chaos_count = 0;
 	for (int y = 0; y < _height; ++y) {
@@ -841,7 +594,7 @@ void ImageRGBAWriter::chaosStats() {
 	}
 
 	// Finalize
-	for (int jj = 0; jj < _chaos_levels; ++jj) {
+	for (int jj = 0; jj < _chaos.getBinCount(); ++jj) {
 		_y_encoder[jj].finalize();
 		_u_encoder[jj].finalize();
 		_v_encoder[jj].finalize();
@@ -849,7 +602,11 @@ void ImageRGBAWriter::chaosStats() {
 	}
 }
 
-int ImageRGBAWriter::initFromRGBA(const u8 *rgba, int width, int height, ImageMaskWriter &mask, ImageLZWriter &lz, const GCIFKnobs *knobs) {
+bool ImageRGBAWriter::IsMasked(u16 x, u16 y) {
+	return _mask->masked(x, y) && _lz->visited(x, y);
+}
+
+int ImageRGBAWriter::init(const u8 *rgba, int size_x, int size_y, ImageMaskWriter &mask, ImageLZWriter &lz, const GCIFKnobs *knobs) {
 	int err;
 
 	_knobs = knobs;
@@ -857,28 +614,55 @@ int ImageRGBAWriter::initFromRGBA(const u8 *rgba, int width, int height, ImageMa
 	_mask = &mask;
 	_lz = &lz;
 
-	if ((err = init(width, height))) {
-		return err;
+	if (size_x < 0 || size_y < 0) {
+		return GCIF_WE_BAD_DIMS;
 	}
 
 	if ((!knobs->cm_disableEntropy && knobs->cm_filterSelectFuzz <= 0)) {
 		return GCIF_WE_BAD_PARAMS;
 	}
 
+	_size_x = size_x;
+	_size_y = size_y;
+
+	// Use constant tile size of 4x4 for now
+	_tile_bits_x = 2;
+	_tile_bits_y = 2;
+	_tile_size_x = 1 << _tile_bits_x;
+	_tile_size_y = 1 << _tile_bits_y;
+	_tiles_x = (_size_x + _tile_size_x - 1) >> _tile_bits_x;
+	_tiles_y = (_size_y + _tile_size_y - 1) >> _tile_bits_y;
+
+	const int tiles_size = _tiles_x * _tiles_y;
+	if (!_sf_tiles || tiles_size > _tiles_alloc) {
+		if (_sf_tiles) {
+			delete []_sf_tiles;
+		}
+		_sf_tiles = new u8[tiles_size];
+		_tiles_alloc = tiles_size;
+	}
+	if (!_cf_tiles || tiles_size > _tiles_alloc) {
+		if (_cf_tiles) {
+			delete []_cf_tiles;
+		}
+		_cf_tiles = new u8[tiles_size];
+		_tiles_alloc = tiles_size;
+	}
+
+	if (!_seen_filter || _tiles_x > _seen_filter_alloc) {
+		if (!_seen_filter) {
+			delete []_seen_filter;
+		}
+		_seen_filter = new u8[_tiles_x];
+		_seen_filter_alloc = _tiles_x;
+	}
+
+	// Process
 	maskFilters();
-
 	designFilters();
-	decideFilters();
-
-	if (_knobs->cm_scanlineFilters) {
-		scanlineLZ();
-	}
-
-	if (!applyFilters()) {
-		return GCIF_WE_BUG;
-	}
-
-	chaosStats();
+	designTiles();
+	compressFilters();
+	initializeEncoders();
 
 	return GCIF_WE_OK;
 }

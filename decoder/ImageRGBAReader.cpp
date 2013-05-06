@@ -52,50 +52,15 @@ static cat::Clock *m_clock = 0;
 
 //// ImageRGBAReader
 
-void ImageRGBAReader::clear() {
-	if (_chaos) {
-		delete []_chaos;
-		_chaos = 0;
-	}
-	if (_filters) {
-		delete []_filters;
-		_filters = 0;
-	}
-	// Do not free RGBA data here
-}
-
 int ImageRGBAReader::init(GCIFImage *image) {
-	_width = image->width;
-	_height = image->height;
+	_size_x = image->width;
+	_size_y = image->height;
 
 	// Always allocate new RGBA data
-	_rgba = new u8[_width * _height * 4];
+	_rgba = new u8[_size_x * _size_y * 4];
 
 	// Fill in image pointer
 	image->rgba = _rgba;
-
-	// Just need to remember the last row of filters
-	const int filter_count = (_width + FILTER_ZONE_SIZE_MASK_W) >> FILTER_ZONE_SIZE_SHIFT_W;
-	_filters_bytes = filter_count * sizeof(FilterSelection);
-
-	if (!_filters || _filters_bytes > _filters_alloc) {
-		if (_filters) {
-			delete []_filters;
-		}
-		_filters = new FilterSelection[filter_count];
-		_filters_alloc = _filters_bytes;
-	}
-
-	// And last row of chaos data
-	_chaos_size = (_width + 1) * COLOR_PLANES;
-
-	if (!_chaos || _chaos_alloc < _chaos_size) {
-		if (_chaos) {
-			delete []_chaos;
-		}
-		_chaos = new u8[_chaos_size];
-		_chaos_alloc = _chaos_size;
-	}
 
 	return GCIF_RE_OK;
 }
