@@ -133,6 +133,7 @@ protected:
 	MonoWriter *_filter_encoder;			// Child instance
 	SmartArray<u8> _tile_row_filters;
 	u32 _row_filter_entropy;				// Calculated entropy from using row filters
+	u8 _prev_filter;						// Previous filter for row encoding
 
 	// Filter encoder for row mode
 	EntropyEncoder<MAX_FILTERS, ZRLE_SYMS> _row_filter_encoder;

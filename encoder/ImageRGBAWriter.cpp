@@ -493,9 +493,9 @@ void ImageRGBAWriter::designChaos() {
 					_chaos.zero();
 				} else {
 					// Get chaos bin
-					const u8 chaos_y = _chaos.getChaosY();
-					const u8 chaos_u = _chaos.getChaosU();
-					const u8 chaos_v = _chaos.getChaosV();
+					const u8 chaos_y = _chaos.getY();
+					const u8 chaos_u = _chaos.getU();
+					const u8 chaos_v = _chaos.getV();
 
 					// Update chaos
 					_chaos.store(residuals[0], residuals[1], residuals[2], 0);
@@ -592,9 +592,9 @@ void ImageRGBAWriter::initializeEncoders() {
 				_chaos.zero();
 			} else {
 				// Get chaos bin
-				const u8 chaos_y = _chaos.getChaosY();
-				const u8 chaos_u = _chaos.getChaosU();
-				const u8 chaos_v = _chaos.getChaosV();
+				const u8 chaos_y = _chaos.getY();
+				const u8 chaos_u = _chaos.getU();
+				const u8 chaos_v = _chaos.getV();
 
 				// Update chaos
 				_chaos.store(residuals[0], residuals[1], residuals[2], 0);
@@ -671,6 +671,8 @@ int ImageRGBAWriter::init(const u8 *rgba, int size_x, int size_y, ImageMaskWrite
 }
 
 bool ImageRGBAWriter::writeTables(ImageWriter &writer) {
+	CAT_INANE("RGBA") << "Writing tables...";
+
 	CAT_DEBUG_ENFORCE(MAX_FILTERS <= 32);
 	CAT_DEBUG_ENFORCE(SF_COUNT <= 128);
 
@@ -740,6 +742,8 @@ bool ImageRGBAWriter::writeTables(ImageWriter &writer) {
 }
 
 bool ImageRGBAWriter::writePixels(ImageWriter &writer) {
+	CAT_INANE("RGBA") << "Writing interleaved pixel/filter data...";
+
 #ifdef CAT_COLLECT_STATS
 	int sf_bits = 0, cf_bits = 0, y_bits = 0, u_bits = 0, v_bits = 0, a_bits = 0;
 #endif
@@ -772,9 +776,9 @@ bool ImageRGBAWriter::writePixels(ImageWriter &writer) {
 				_chaos.zero();
 			} else {
 				// Get chaos bin
-				const u8 chaos_y = _chaos.getChaosY();
-				const u8 chaos_u = _chaos.getChaosU();
-				const u8 chaos_v = _chaos.getChaosV();
+				const u8 chaos_y = _chaos.getY();
+				const u8 chaos_u = _chaos.getU();
+				const u8 chaos_v = _chaos.getV();
 
 				// Update chaos
 				_chaos.store(residuals[0], residuals[1], residuals[2], 0);
@@ -803,9 +807,8 @@ bool ImageRGBAWriter::writePixels(ImageWriter &writer) {
 }
 
 void ImageRGBAWriter::write(ImageWriter &writer) {
-	CAT_INANE("RGBA") << "Writing encoded pixel data...";
-
 	writeTables(writer);
+
 	writePixels(writer);
 
 #ifdef CAT_COLLECT_STATS

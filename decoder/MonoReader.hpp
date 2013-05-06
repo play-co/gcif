@@ -55,12 +55,21 @@ public:
 	static const int MAX_SYMS = 256;
 	static const int ZRLE_SYMS = 16;
 
-	// 2-bit row filters
 	enum RowFilters {
-		RF_NOOP,
-		RF_A,	// Left
-		RF_B,	// Up
-		RF_C,	// Up-Left
+		RF_NOOP,		// Pass-through filter
+		RF_PREV,		// Predict same as previously emitted spatial filter
+		/*
+		 * Note: This filter is a little weird because it is not necessarily
+		 * the "tile to the left" that it is predicting.  Masking can cause the
+		 * previous to actually be to the right..  The important thing here is
+		 * that the encoder has verified that this new representation reduces
+		 * the entropy of the filter data and has chosen it over just sending
+		 * the filter data unmodified.
+		 *
+		 * Initialized to 0 at the start of each tile row.
+		 *
+		 * This design decision was made in favor of low decoder complexity.
+		 */
 
 		RF_COUNT
 	};
@@ -69,51 +78,56 @@ public:
 	typedef Delegate2<bool, u16, u16> MaskDelegate;
 
 	struct Parameters {
-		// Shared
+		u8 *data;						// Output data
+		int data_step;					// Bytes between data write positions (for alpha)
 		u16 size_x, size_y;				// Data dimensions
 		u16 min_bits, max_bits;			// Tile size bit range to try
-		MaskDelegate mask;				// Function to call to determine if an element is masked out
 		u16 num_syms;					// Number of symbols in data [0..num_syms-1]
-
-		// Decoder-only
 	};
 
 protected:
+	static const u8 READ_TILE = 255;
+
 	Parameters _params;
 
-	u8 _sympal_filters[MAX_PALETTE];
-	struct FilterSelection {
-		MonoFilterFuncs sf;
+	SmartArray<u8> _tiles;
+	u16 _tile_size_x, _tile_size_y;
+	u16 _tile_bits_x, _tile_bits_y;
+	u16 _tile_mask_x, _tile_mask_y;
+	u16 _tiles_x, _tiles_y;
 
-		CAT_INLINE bool ready() {
-			return sf.safe != 0;
-		}
-	} _filters[MAX_FILTERS];
-	int _normal_filter_count;
-	int _sympal_filter_count;
-	int _filter_count;
+	u8 _palette[MAX_PALETTE];
+	MonoFilterFuncs _sf[MAX_FILTERS];
+	int _normal_filter_count, _sympal_filter_count, _filter_count;
 
 	MonoReader *_filter_decoder;
-	u8 *_tile_row_filters;					// One for each tile row
+	u8 _row_filter;
+	EntropyDecoder<MAX_FILTERS, ZRLE_SYMS> _row_filter_decoder;
+	u8 *_current_tile;
+	u8 _current_filter;
 
-	MonoChaos _chaos;						// Chaos bin lookup table
-	EntropyDecoder<MAX_SYMS, ZRLE_SYMS> _encoder[MAX_CHAOS_LEVELS];
+	MonoChaos _chaos;
+	EntropyDecoder<MAX_SYMS, ZRLE_SYMS> _decoder[MAX_CHAOS_LEVELS];
+	int _last_seen_tile_x;
+	u8 *_current_data;
 
 	void cleanup();
 
-	int readTables(ImageReader &reader);
-	int readPixels(ImageReader &reader);
-
 public:
 	CAT_INLINE MonoReader() {
-		_tile_row_filters = 0;
 		_filter_decoder = 0;
 	}
 	CAT_INLINE virtual ~MonoReader() {
 		cleanup();
 	}
 
-	int read(Parameters &params, ImageReader &reader);
+	int readTables(const Parameters &params, ImageReader &reader);
+
+	int readRowHeader(u16 y, ImageReader &reader);
+
+	void masked(u16 x, u16 y, ImageReader &reader);
+
+	u8 read(u16 x, u16 y, ImageReader &reader);
 };
 
 

@@ -88,13 +88,13 @@ protected:
 	RGBAFilterFuncs _sf[MAX_FILTERS];
 	int _sf_count;
 
-	MonoReader _sf_decoder, _cf_decoder;
+	// Filter and alpha channel decoders
+	MonoReader _sf_decoder, _cf_decoder, _a_decoder;
 
 	// Color plane decoders
 	EntropyDecoder<NUM_COLORS, ZRLE_SYMS_Y> _y_decoder[MAX_CHAOS_LEVELS];
 	EntropyDecoder<NUM_COLORS, ZRLE_SYMS_U> _u_decoder[MAX_CHAOS_LEVELS];
 	EntropyDecoder<NUM_COLORS, ZRLE_SYMS_V> _v_decoder[MAX_CHAOS_LEVELS];
-	EntropyDecoder<NUM_COLORS, ZRLE_SYMS_A> _a_decoder[MAX_CHAOS_LEVELS];
 
 	int init(GCIFImage *image);
 	int readFilterTables(ImageReader &reader);

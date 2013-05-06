@@ -213,6 +213,7 @@ const char *GetColorFilterString(int cf);
 // Lookup table version of inline function ResidualScore256() below.
 extern const u8 RESIDUAL_SCORE_256[256];
 
+
 /*
  * Monochrome residuals -> Chaos bin
  */
@@ -235,7 +236,7 @@ public:
 	}
 
 	// Residual 0..num_syms-1 value -> Score
-	static CAT_INLINE u8 ResidualScore(u8 residual, const u8 num_syms) {
+	static CAT_INLINE u8 ResidualScore(u8 residual, const u16 num_syms) {
 		// If score is "positive",
 		if (residual <= num_syms / 2) {
 			return residual;
@@ -284,30 +285,22 @@ public:
 		*_current++ = 0;
 	}
 
-	CAT_INLINE u8 get256(u8 r) {
-		// Lookup bin based on left/up scores
-		const u8 bin = _table[_current[-1] + (u16)_current[0]];
-
-		// Write residual score
-		*_current++ = ResidualScore256(r);
-
-		return bin;
+	CAT_INLINE u8 get() {
+		return _table[_current[-1] + (u16)_current[0]];
 	}
 
-	CAT_INLINE u8 get(u8 r, u8 num_syms) {
-		// Lookup bin based on left/up scores
-		const u8 bin = _table[_current[-1] + (u16)_current[0]];
+	CAT_INLINE void store256(u8 r) {
+		*_current++ = ResidualScore256(r);
+	}
 
-		// Write residual score
+	CAT_INLINE void store(u8 r, u16 num_syms) {
 		*_current++ = ResidualScore(r, num_syms);
-
-		return bin;
 	}
 };
 
 
 /*
- * RGBA Residuals -> Chaos bin
+ * RGBA Residuals -> Chaos bins
  */
 class RGBAChaos {
 public:
@@ -369,16 +362,16 @@ public:
 		_current += 4;
 	}
 
-	CAT_INLINE u8 getChaosY() {
+	CAT_INLINE u8 getY() {
 		return _table[_current[-4] + (u16)_current[0]];
 	}
-	CAT_INLINE u8 getChaosU() {
+	CAT_INLINE u8 getU() {
 		return _table[_current[-3] + (u16)_current[1]];
 	}
-	CAT_INLINE u8 getChaosV() {
+	CAT_INLINE u8 getV() {
 		return _table[_current[-2] + (u16)_current[2]];
 	}
-	CAT_INLINE u8 getChaosA() {
+	CAT_INLINE u8 getA() {
 		return _table[_current[-1] + (u16)_current[3]];
 	}
 

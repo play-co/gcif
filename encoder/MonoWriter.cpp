@@ -221,7 +221,7 @@ void MonoWriter::designFilters() {
 						}
 
 						for (int f = 0; f < SF_COUNT; ++f) {
-							u8 prediction = MONO_FILTERS[f].safe(data, num_syms, x, y, size_x);
+							u8 prediction = MONO_FILTERS[f].safe(data, num_syms - 1, x, y, size_x);
 							int residual = value + num_syms - prediction;
 							if (residual >= num_syms) {
 								residual -= num_syms;
@@ -444,7 +444,7 @@ void MonoWriter::designTiles() {
 								if (!_params.mask(px, py)) {
 									const u8 value = *data;
 
-									u8 prediction = _filters[old_filter].safe(data, num_syms, x, y, size_x);
+									u8 prediction = _filters[old_filter].safe(data, num_syms - 1, x, y, size_x);
 									int residual = value + num_syms - prediction;
 									if (residual >= num_syms) {
 										residual -= num_syms;
@@ -477,7 +477,7 @@ void MonoWriter::designTiles() {
 
 							u8 *dest = codes + code_count;
 							for (int f = 0; f < _filter_count; ++f) {
-								u8 prediction = _filters[f].safe(data, num_syms, x, y, size_x);
+								u8 prediction = _filters[f].safe(data, num_syms - 1, x, y, size_x);
 								int residual = value + num_syms - prediction;
 								if (residual >= num_syms) {
 									residual -= num_syms;
@@ -590,7 +590,7 @@ void MonoWriter::computeResiduals() {
 					if (!_params.mask(px, py)) {
 						const u8 value = *data;
 
-						u8 prediction = _filters[f].safe(data, num_syms, x, y, size_x);
+						u8 prediction = _filters[f].safe(data, num_syms - 1, x, y, size_x);
 						int residual = value + num_syms - prediction;
 						if (residual >= num_syms) {
 							residual -= num_syms;
@@ -635,36 +635,22 @@ void MonoWriter::designRowFilters() {
 
 		// For each tile,
 		for (int ty = 0; ty < tiles_y; ++ty) {
+			u8 prev = 0;
+
 			for (int tx = 0; tx < tiles_x; ++tx) {
 				u8 f = p[0];
 
 				// If tile is not masked,
 				if (f != MASK_TILE) {
-					// Get neighbors
-					u8 a = 0, b = 0, c = 0;
-					if (tx > 0) {
-						a = p[-1];
-						if (ty > 0) {
-							c = p[-tiles_x-1];
-						} else {
-							c = a;
-						}
-					}
-					if (ty > 0) {
-						b = p[-tiles_x];
-					}
-
 					// RF_NOOP
 					codes[tx] = f;
 
 					// RF_A
-					codes[tx + tiles_x] = (f + num_filters - a) % num_filters;
-
-					// RF_B
-					codes[tx + tiles_x*2] = (f + num_filters - b) % num_filters;
-
-					// RF_C
-					codes[tx + tiles_x*3] = (f + num_filters - c) % num_filters;
+					u8 fprev = f + num_filters - prev;
+					if (fprev >= num_filters) {
+						fprev -= num_filters;
+					}
+					codes[tx + tiles_x] = fprev;
 				}
 
 				++p;
@@ -679,8 +665,6 @@ void MonoWriter::designRowFilters() {
 			// Calculate entropy for each of the row filter options
 			u32 e0 = ee.entropy(codes, tiles_x);
 			u32 e1 = ee.entropy(codes + tiles_x, tiles_x);
-			u32 e2 = ee.entropy(codes + tiles_x*2, tiles_x);
-			u32 e3 = ee.entropy(codes + tiles_x*3, tiles_x);
 
 			// Find the best one
 			u32 best_e = e0;
@@ -689,17 +673,9 @@ void MonoWriter::designRowFilters() {
 				best_e = e1;
 				best_i = 1;
 			}
-			if (best_e > e2) {
-				best_e = e2;
-				best_i = 2;
-			}
-			if (best_e > e3) {
-				best_e = e3;
-				best_i = 3;
-			}
 
 			_tile_row_filters[ty] = best_i;
-			total_entropy += best_e + 2; // + 2 bits per row for header
+			total_entropy += 1 + best_e; // + 1 bit per row for header
 
 			// Add the best option into the running histogram
 			ee.add(codes + tiles_x * best_i, tiles_x);
@@ -784,7 +760,8 @@ void MonoWriter::designChaos() {
 					u8 residual = *residuals;
 
 					// Get chaos bin
-					int chaos = _chaos.get(residual, _params.num_syms);
+					int chaos = _chaos.get();
+					_chaos.store(residual, _params.num_syms);
 
 					// Add to histogram for this chaos bin
 					ee[chaos].addSingle(residual);
@@ -836,7 +813,8 @@ void MonoWriter::initializeEncoders() {
 				u8 residual = *residuals;
 
 				// Calculate local chaos
-				int chaos = _chaos.get(residual, _params.num_syms);
+				int chaos = _chaos.get();
+				_chaos.store(residual, _params.num_syms);
 
 				// Add to histogram for this chaos bin
 				_encoder[chaos].add(residual);
@@ -857,50 +835,25 @@ void MonoWriter::initializeEncoders() {
 		const u8 *tile = _tiles.get();
 		for (int ty = 0; ty < _tiles_y; ++ty) {
 			int tile_row_filter = _tile_row_filters[ty];
+			u8 prev = 0;
 
 			// For each column,
 			for (int tx = 0; tx < _tiles_x; ++tx) {
 				u8 f = *tile++;
-				int residual = f;
 
 				if (f != MASK_TILE) {
-					// Filter the row filters
-					switch (tile_row_filter) {
-					default:
-						CAT_DEBUG_EXCEPTION();
-					case MonoReader::RF_NOOP:
-						break;
-					case MonoReader::RF_A:
-						if (tx > 0) {
-							residual += _filter_count - tile[-1];
-							if (residual >= _filter_count) {
-								residual -= _filter_count;
-							}
+					u8 rf = f;
+
+					// If filtering this row,
+					if (tile_row_filter == MonoReader::RF_PREV) {
+						rf += _filter_count - prev;
+						if (rf >= _filter_count) {
+							rf -= _filter_count;
 						}
-						break;
-					case MonoReader::RF_B:
-						if (ty > 0) {
-							residual += _filter_count - tile[-_tiles_x];
-							if (residual >= _filter_count) {
-								residual -= _filter_count;
-							}
-						}
-						break;
-					case MonoReader::RF_C:
-						if (tx > 0) {
-							if (ty <= 0) {
-								residual += _filter_count - tile[-1];
-							} else {
-								residual += _filter_count - tile[-_tiles_x - 1];
-							}
-							if (residual >= _filter_count) {
-								residual -= _filter_count;
-							}
-						}
-						break;
+						prev = f;
 					}
 
-					_row_filter_encoder.add(residual);
+					_row_filter_encoder.add(rf);
 				}
 			}
 		}
@@ -937,50 +890,24 @@ u32 MonoWriter::simulate() {
 		const u8 *tile = _tiles.get();
 		for (int ty = 0; ty < _tiles_y; ++ty) {
 			int tile_row_filter = _tile_row_filters[ty];
+			u8 prev = 0;
 
 			// For each column,
 			for (int tx = 0; tx < _tiles_x; ++tx) {
 				u8 f = *tile++;
-				int residual = f;
 
 				if (f != MASK_TILE) {
-					// Filter the row filters
-					switch (tile_row_filter) {
-					default:
-						CAT_DEBUG_EXCEPTION();
-					case MonoReader::RF_NOOP:
-						break;
-					case MonoReader::RF_A:
-						if (tx > 0) {
-							residual += _filter_count - tile[-1];
-							if (residual >= _filter_count) {
-								residual -= _filter_count;
-							}
+					u8 rf = f;
+
+					if (tile_row_filter == MonoReader::RF_PREV) {
+						rf += _filter_count - prev;
+						if (rf >= _filter_count) {
+							rf -= _filter_count;
 						}
-						break;
-					case MonoReader::RF_B:
-						if (ty > 0) {
-							residual += _filter_count - tile[-_tiles_x];
-							if (residual >= _filter_count) {
-								residual -= _filter_count;
-							}
-						}
-						break;
-					case MonoReader::RF_C:
-						if (tx > 0) {
-							if (ty <= 0) {
-								residual += _filter_count - tile[-1];
-							} else {
-								residual += _filter_count - tile[-_tiles_x - 1];
-							}
-							if (residual >= _filter_count) {
-								residual -= _filter_count;
-							}
-						}
-						break;
+						prev = f;
 					}
 
-					bits += _row_filter_encoder.simulate(residual);
+					bits += _row_filter_encoder.simulate(rf);
 				}
 			}
 		}
@@ -1007,7 +934,8 @@ u32 MonoWriter::simulate() {
 				u8 residual = *residuals;
 
 				// Calculate local chaos
-				int chaos = _chaos.get(residual, _params.num_syms);
+				int chaos = _chaos.get();
+				_chaos.store(residual, _params.num_syms);
 
 				// Add to histogram for this chaos bin
 				bits += _encoder[chaos].simulate(residual);
@@ -1105,7 +1033,7 @@ int MonoWriter::writeTables(ImageWriter &writer) {
 	// Initialize stats
 	Stats.basic_overhead_bits = 0;
 	Stats.encoder_overhead_bits = 0;
-	Stats.filter_overhead_bits = 0;
+	Stats.filter_overhead_bits = 1;
 	Stats.data_bits = 0;
 
 	// Write tile size
@@ -1168,8 +1096,6 @@ int MonoWriter::writeTables(ImageWriter &writer) {
 
 	// Bit : row filters or recurse write tables
 	{
-		Stats.basic_overhead_bits++;
-
 		// If we decided to recurse,
 		if (_filter_encoder) {
 			writer.writeBit(1);
@@ -1180,6 +1106,7 @@ int MonoWriter::writeTables(ImageWriter &writer) {
 			writer.writeBit(0);
 
 			// Will write row filters at this depth
+			Stats.filter_overhead_bits += _row_filter_encoder.writeTables(writer);
 		}
 	}
 
@@ -1225,12 +1152,16 @@ int MonoWriter::writeRowHeader(u16 y, ImageWriter &writer) {
 			// Recurse start row (they all start at 0)
 			bits += _filter_encoder->writeRowHeader(ty, writer);
 		} else {
-			CAT_DEBUG_ENFORCE(RF_COUNT <= 4);
+			CAT_DEBUG_ENFORCE(RF_COUNT <= 2);
+			CAT_DEBUG_ENFORCE(_tile_row_filters[ty] < 2);
 
 			// Write out chosen row filter
-			writer.writeBits(_tile_row_filters[ty], 2);
-			bits += 2;
+			writer.writeBit(_tile_row_filters[ty]);
+			bits++;
 		}
+
+		// Clear prev filter
+		_prev_filter = 0;
 	}
 
 	DESYNC_FILTER(0, y);
@@ -1265,44 +1196,17 @@ int MonoWriter::write(u16 x, u16 y, ImageWriter &writer) {
 				overhead_bits += _filter_encoder->write(tx, ty, writer);
 			} else {
 				// Calculate row filter residual for filter data (filter of filters at tree leaf)
-				int residual = f;
+				u8 rf = f;
 
-				switch (_tile_row_filters[ty]) {
-				default:
-					CAT_DEBUG_EXCEPTION();
-				case MonoReader::RF_NOOP:
-					break;
-				case MonoReader::RF_A:
-					if (tx > 0) {
-						residual += _filter_count - tile[-1];
-						if (residual >= _filter_count) {
-							residual -= _filter_count;
-						}
+				if (_tile_row_filters[ty] == MonoReader::RF_PREV) {
+					rf += _filter_count - _prev_filter;
+					if (rf >= _filter_count) {
+						rf -= _filter_count;
 					}
-					break;
-				case MonoReader::RF_B:
-					if (ty > 0) {
-						residual += _filter_count - tile[-_tiles_x];
-						if (residual >= _filter_count) {
-							residual -= _filter_count;
-						}
-					}
-					break;
-				case MonoReader::RF_C:
-					if (tx > 0) {
-						if (ty <= 0) {
-							residual += _filter_count - tile[-1];
-						} else {
-							residual += _filter_count - tile[-_tiles_x - 1];
-						}
-						if (residual >= _filter_count) {
-							residual -= _filter_count;
-						}
-					}
-					break;
+					_prev_filter = f;
 				}
 
-				overhead_bits += _row_filter_encoder.write(residual, writer);
+				overhead_bits += _row_filter_encoder.write(rf, writer);
 			}
 
 			Stats.filter_overhead_bits += overhead_bits;
@@ -1320,7 +1224,8 @@ int MonoWriter::write(u16 x, u16 y, ImageWriter &writer) {
 		u8 residual = _residuals[x + y * _params.size_x];
 
 		// Calculate local chaos
-		int chaos = _chaos.get(residual, _params.num_syms);
+		int chaos = _chaos.get();
+		_chaos.store(residual, _params.num_syms);
 
 		// Write the residual value
 		data_bits += _encoder[chaos].write(residual, writer);

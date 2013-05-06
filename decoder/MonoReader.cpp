@@ -53,357 +53,13 @@ static cat::Clock *m_clock = 0;
 //// MonoReader
 
 void MonoReader::cleanup() {
-	if (_tile_row_filters) {
-		delete []_tile_row_filters;
-		_tile_row_filters = 0;
-	}
 	if (_filter_decoder) {
 		delete _filter_decoder;
 		_filter_decoder = 0;
 	}
 }
 
-int MonoReader::readTables(ImageReader &reader) {
-	// Read tile size
-	{
-	}
-
-	_chaos_levels = reader.readBits(3) + 1;
-
-	switch (_chaos_levels) {
-		case 1:
-			_chaos_table = CHAOS_TABLE_1;
-			break;
-		case 8:
-			_chaos_table = CHAOS_TABLE_8;
-			break;
-		default:
-			CAT_DEBUG_EXCEPTION();
-			return GCIF_RE_CM_CODES;
-	}
-
-	// For each chaos level,
-	for (int jj = 0; jj < _chaos_levels; ++jj) {
-		// Read the decoder tables
-		if (!_decoder[jj].init(reader)) {
-			CAT_DEBUG_EXCEPTION();
-			return GCIF_RE_CM_CODES;
-		}
-	}
-
-	return GCIF_RE_OK;
-}
-
-int MonoReader::readPixels(ImageReader &reader) {
-	const int width = _width;
-	const u16 PAL_SIZE = static_cast<u16>( _pal->getPaletteSize() );
-	const u32 MASK_COLOR = _mask->getColor();
-	static u8 MASK_PALETTE = _pal->getMaskPalette();
-
-	// Get initial triggers
-	u16 trigger_x_lz = _lz->getTriggerX();
-
-	// Start from upper-left of image
-	u32 *rgba = reinterpret_cast<u32 *>( _rgba );
-	u8 *p = _pdata;
-
-	u8 *lastStart = _chaos + 1;
-	CAT_CLR(_chaos, _chaos_size);
-
-	const u8 *CHAOS_TABLE = _chaos_table;
-
-	// Unroll y = 0 scanline
-	{
-		const int y = 0;
-
-		// If LZ triggered,
-		if (y == _lz->getTriggerY()) {
-			_lz->triggerY();
-			trigger_x_lz = _lz->getTriggerX();
-		}
-
-		// Clear filters data
-		CAT_CLR(_filters, _filters_bytes);
-
-		// Read mask scanline
-		const u32 *mask_next = _mask->nextScanline();
-		int mask_left = 0;
-		u32 mask;
-
-		// Restart for scanline
-		u8 *last = lastStart;
-		int lz_skip = 0;
-
-		// For each pixel,
-		for (int x = 0; x < width; ++x) {
-			DESYNC(x, y);
-
-			// If LZ triggered,
-			if (x == trigger_x_lz) {
-				lz_skip = _lz->triggerXPal(p, rgba);
-				trigger_x_lz = _lz->getTriggerX();
-			}
-
-			// Next mask word
-			if (mask_left-- <= 0) {
-				mask = *mask_next++;
-				mask_left = 31;
-			}
-
-			u8 code = 0;
-
-			if (lz_skip > 0) {
-				--lz_skip;
-			} else if ((s32)mask < 0) {
-				*rgba = MASK_COLOR;
-				*p = MASK_PALETTE;
-			} else {
-				// Read filter for this zone
-				FilterSelection *filter = &_filters[x >> PALETTE_ZONE_SIZE_SHIFT_W];
-				if (!filter->ready()) {
-					filter->sf = _pf_set.get(_pf.next(reader));
-					DESYNC_FILTER(x, y);
-				}
-
-				// Calculate chaos
-				const u32 chaos = CHAOS_TABLE[last[-1]];
-
-				// Read filtered pixel
-				code = (u8)_decoder[chaos].next(reader);
-				DESYNC(x, y);
-
-				// Reverse spatial filter
-				const u32 pred = filter->sf.safe(p, x, y, width);
-				u8 index = (code + pred) % PAL_SIZE;
-
-				// Reverse palette to RGBA
-				*rgba = _pal->getColor(index);
-				*p = index;
-
-				// Convert to score
-				code = CHAOS_SCORE[code];
-			}
-
-			// Next pixel
-			++rgba;
-			++p;
-			mask <<= 1;
-
-			// Record chaos
-			*last++ = code;
-		}
-	}
-
-	// For each scanline,
-	for (int y = 1; y < _height; ++y) {
-		// If LZ triggered,
-		if (y == _lz->getTriggerY()) {
-			_lz->triggerY();
-			trigger_x_lz = _lz->getTriggerX();
-		}
-
-		// If it is time to clear the filters data,
-		if ((y & PALETTE_ZONE_SIZE_MASK_H) == 0) {
-			CAT_CLR(_filters, _filters_bytes);
-		}
-
-		// Read mask scanline
-		const u32 *mask_next = _mask->nextScanline();
-		int mask_left = 0;
-		u32 mask;
-
-		// Restart for scanline
-		u8 *last = lastStart;
-		int lz_skip = 0;
-
-		// Unroll x = 0 pixel
-		{
-			const int x = 0;
-			DESYNC(x, y);
-
-			// If LZ triggered,
-			if (x == trigger_x_lz) {
-				lz_skip = _lz->triggerXPal(p, rgba);
-				trigger_x_lz = _lz->getTriggerX();
-			}
-
-			// Next mask word
-			mask = *mask_next++;
-			mask_left = 31;
-
-			u8 code = 0;
-
-			if (lz_skip > 0) {
-				--lz_skip;
-			} else if ((s32)mask < 0) {
-				*rgba = MASK_COLOR; 
-				*p = MASK_PALETTE;
-			} else {
-				// Read filter for this zone
-				FilterSelection *filter = &_filters[x >> PALETTE_ZONE_SIZE_SHIFT_W];
-				if (!filter->ready()) {
-					filter->sf = _pf_set.get(_pf.next(reader));
-					DESYNC_FILTER(x, y);
-				}
-
-				// Calculate chaos
-				const u32 chaos = CHAOS_TABLE[last[0]];
-
-				// Read filtered pixel
-				code = (u8)_decoder[chaos].next(reader);
-				DESYNC(x, y);
-
-				// Reverse spatial filter
-				const u32 pred = filter->sf.safe(p, x, y, width);
-				u8 index = (code + pred) % PAL_SIZE;
-
-				// Reverse palette to RGBA
-				*rgba = _pal->getColor(index);
-				*p = index;
-
-				// Convert to score
-				code = CHAOS_SCORE[code];
-			}
-
-			// Next pixel
-			++rgba;
-			++p;
-			mask <<= 1;
-
-			// Record chaos
-			*last++ = code;
-		}
-
-
-		//// BIG INNER LOOP START ////
-
-
-		// For each pixel,
-		for (int x = 1, xend = width - 1; x < xend; ++x) {
-			DESYNC(x, y);
-
-			// If LZ triggered,
-			if (x == trigger_x_lz) {
-				lz_skip = _lz->triggerXPal(p, rgba);
-				trigger_x_lz = _lz->getTriggerX();
-			}
-
-			// Next mask word
-			if (mask_left-- <= 0) {
-				mask = *mask_next++;
-				mask_left = 31;
-			}
-
-			u8 code = 0;
-
-			if (lz_skip > 0) {
-				--lz_skip;
-			} else if ((s32)mask < 0) {
-				*rgba = MASK_COLOR; 
-				*p = MASK_PALETTE;
-			} else {
-				// Read filter for this zone
-				FilterSelection *filter = &_filters[x >> PALETTE_ZONE_SIZE_SHIFT_W];
-				if (!filter->ready()) {
-					filter->sf = _pf_set.get(_pf.next(reader));
-					DESYNC_FILTER(x, y);
-				}
-
-				// Calculate chaos
-				const u32 chaos = CHAOS_TABLE[last[-1] + (u16)last[0]];
-
-				// Read filtered pixel
-				code = (u8)_decoder[chaos].next(reader);
-				DESYNC(x, y);
-
-				// Reverse spatial filter
-				const u32 pred = filter->sf.safe(p, x, y, width);
-				u8 index = (code + pred) % PAL_SIZE;
-
-				// Reverse palette to RGBA
-				*rgba = _pal->getColor(index);
-				*p = index;
-
-				// Convert to score
-				code = CHAOS_SCORE[code];
-			}
-
-			// Next pixel
-			++rgba;
-			++p;
-			mask <<= 1;
-
-			// Record chaos
-			*last++ = code;
-		}
-
-		
-		//// BIG INNER LOOP END ////
-
-
-		// For x = width-1,
-		{
-			const int x = width - 1;
-			DESYNC(x, y);
-
-			// If LZ triggered,
-			if (x == trigger_x_lz) {
-				lz_skip = _lz->triggerXPal(p, rgba);
-				trigger_x_lz = _lz->getTriggerX();
-			}
-
-			// Next mask word
-			if (mask_left <= 0) {
-				mask = *mask_next;
-			}
-
-			u8 code = 0;
-
-			if (lz_skip > 0) {
-				--lz_skip;
-			} else if ((s32)mask < 0) {
-				*rgba = MASK_COLOR; 
-				*p = MASK_PALETTE;
-			} else {
-				// Read filter for this zone
-				FilterSelection *filter = &_filters[x >> PALETTE_ZONE_SIZE_SHIFT_W];
-				if (!filter->ready()) {
-					filter->sf = _pf_set.get(_pf.next(reader));
-					DESYNC_FILTER(x, y);
-				}
-
-				// Calculate chaos
-				const u32 chaos = CHAOS_TABLE[last[-1] + (u16)last[0]];
-
-				// Read filtered pixel
-				code = (u8)_decoder[chaos].next(reader);
-				DESYNC(x, y);
-
-				// Reverse spatial filter
-				const u32 pred = filter->sf.safe(p, x, y, width);
-				u8 index = (code + pred) % PAL_SIZE;
-
-				// Reverse palette to RGBA
-				*rgba = _pal->getColor(index);
-				*p = index;
-
-				// Convert to score
-				code = CHAOS_SCORE[code];
-			}
-
-			// Next pixel
-			++rgba;
-			++p;
-
-			// Record chaos
-			*last = code;
-		} // next x
-	} // next y
-
-	return GCIF_RE_OK;
-}
-
-int MonoReader::read(const Parameters &params, ImageReader &reader) {
+int MonoReader::readTables(const Parameters &params, ImageReader &reader) {
 	_params = params;
 
 	// Calculate bits to represent tile bits field
@@ -411,27 +67,227 @@ int MonoReader::read(const Parameters &params, ImageReader &reader) {
 	int bits_bc = 0;
 	if (range > 0) {
 		bits_bc = BSR32(range) + 1;
+
+		int tile_bits_field_bc = bits_bc;
+
+		// Read tile bits
+		_tile_bits_x = reader.readBits(tile_bits_field_bc) + _params.min_bits;
+
+		// Validate input
+		if (_tile_bits_x > _params.max_bits) {
+			CAT_DEBUG_EXCEPTION();
+			return GCIF_RE_BAD_MONO;
+		}
+	} else {
+		_tile_bits_x = _params.min_bits;
 	}
-	_tile_bits_field_bc = bits_bc;
+
+	DESYNC_TABLE();
+
+	// Initialize tile sizes
+	_tile_bits_y = _tile_bits_x;
+	_tile_size_x = 1 << _tile_bits_x;
+	_tile_size_y = 1 << _tile_bits_y;
+	_tile_mask_x = _tile_size_x - 1;
+	_tile_mask_y = _tile_size_y - 1;
+	_tiles_x = (_params.size_x + _tile_size_x - 1) >> _tile_bits_x;
+	_tiles_y = (_params.size_y + _tile_size_y - 1) >> _tile_bits_y;
+
+	_tiles.resize(_tiles_x * _tiles_y);
+	_tiles.fill_ff(); // READ_TILE
+
+	// Read palette
+	_sympal_filter_count = reader.readBits(4) + 1;
+	for (int ii = 0; ii < _sympal_filter_count; ++ii) {
+		_palette[ii] = reader.readBits(8);
+	}
+
+	CAT_OBJCLR(_palette);
+
+	DESYNC_TABLE();
+
+	// Initialize fixed filters
+	for (int ii = 0; ii < SF_FIXED; ++ii) {
+		_sf[ii] = MONO_FILTERS[ii];
+	}
+
+	// Read normal filters
+	_normal_filter_count = reader.readBits(5) + SF_FIXED;
+	for (int ii = SF_FIXED; ii < _normal_filter_count; ++ii) {
+		u8 sf = reader.readBits(7);
+
+		if (sf >= SF_COUNT) {
+			CAT_DEBUG_EXCEPTION();
+			return GCIF_RE_BAD_MONO;
+		}
+
+		_sf[ii] = MONO_FILTERS[sf];
+	}
+	_filter_count = _normal_filter_count + _sympal_filter_count;
+
+	DESYNC_TABLE();
+
+	// Read chaos levels
+	int chaos_levels = reader.readBits(5) + 1;
+	_chaos.init(chaos_levels, _params.size_x);
+
+	DESYNC_TABLE();
+
+	// For each chaos level,
+	for (int ii = 0; ii < chaos_levels; ++ii) {
+		if (!_decoder[ii].init(reader)) {
+			CAT_DEBUG_EXCEPTION();
+			return GCIF_RE_BAD_MONO;
+		}
+	}
+
+	DESYNC_TABLE();
+
+	// If recursively encoded,
+	if (reader.readBit()) {
+		// Create a recursive decoder if needed
+		if (!_filter_decoder) {
+			_filter_decoder = new MonoReader;
+		}
+
+		Parameters params;
+		params.data = _tiles.get();
+		params.size_x = _tiles_x;
+		params.size_y = _tiles_y;
+		params.min_bits = _params.min_bits;
+		params.max_bits = _params.max_bits;
+		params.num_syms = MAX_FILTERS;
+
+		int err;
+		if ((err = _filter_decoder->readTables(params, reader))) {
+			return err;
+		}
+	} else {
+		// Ensure that old filter decoder is erased
+		if (_filter_decoder) {
+			delete _filter_decoder;
+			_filter_decoder = 0;
+		}
+
+		if (!_row_filter_decoder.init(reader)) {
+			return GCIF_RE_BAD_MONO;
+		}
+	}
+
+	DESYNC_TABLE();
+
+	CAT_DEBUG_ENFORCE(!reader.eof());
+
+	_current_data = _params.data;
+	_current_tile = _tiles.get();
 
 	return GCIF_RE_OK;
 }
 
-#ifdef CAT_COLLECT_STATS
+int MonoReader::readRowHeader(u16 y, ImageReader &reader) {
+	_chaos.startRow();
 
-bool MonoReader::dumpStats() {
-	CAT_INANE("stats") << "(Mono Decode)     Initialization : " << Stats.initUsec << " usec (" << Stats.initUsec * 100.f / Stats.overallUsec << " %total)";
-	CAT_INANE("stats") << "(Mono Decode) Read Filter Tables : " << Stats.readFilterTablesUsec << " usec (" << Stats.readFilterTablesUsec * 100.f / Stats.overallUsec << " %total)";
-	CAT_INANE("stats") << "(Mono Decode)  Read Chaos Tables : " << Stats.readChaosTablesUsec << " usec (" << Stats.readChaosTablesUsec * 100.f / Stats.overallUsec << " %total)";
-	CAT_INANE("stats") << "(Mono Decode)      Decode Pixels : " << Stats.readPixelsUsec << " usec (" << Stats.readPixelsUsec * 100.f / Stats.overallUsec << " %total)";
-	CAT_INANE("stats") << "(Mono Decode)            Overall : " << Stats.overallUsec << " usec";
+	// If at the start of a tile row,
+	if ((y & _tile_mask_y) == 0) {
+		// If using recursive decoder,
+		if (_filter_decoder) {
+			// Read its header too
+			_filter_decoder->readRowHeader(y >> _tile_bits_y, reader);
+		} else {
+			// Read row filter
+			_row_filter = reader.readBit();
+		}
+	}
 
-	CAT_INANE("stats") << "(Mono Decode)         Throughput : " << (_width * _height * 4) / Stats.overallUsec << " MBPS (output bytes/time)";
-	CAT_INANE("stats") << "(Mono Decode)   Image Dimensions : " << _width << " x " << _height << " pixels";
+	DESYNC_FILTER(0, y);
 
-	return true;
+	CAT_DEBUG_ENFORCE(!reader.eof());
+
+	_last_seen_tile_x = -1;
+
+	return GCIF_RE_OK;
 }
 
-#endif
+void MonoReader::masked(u16 x, u16 y, ImageReader &reader) {
+	_chaos.zero();
 
+	// Skip this one
+	_current_data += _params.data_step;
+}
+
+u8 MonoReader::read(u16 x, u16 y, ImageReader &reader) {
+	CAT_DEBUG_ENFORCE(x < _size_x && y < _size_y);
+
+	// Check cached filter
+	const u16 tx = x >> _tile_bits_x;
+
+	// If now in a new filter tile,
+	u8 f;
+	if (tx == _last_seen_tile_x) {
+		f = _current_filter;
+	} else {
+		_last_seen_tile_x = tx;
+		const u16 ty = y >> _tile_bits_y;
+
+		// If filter is recursively compressed,
+		if (_filter_decoder) {
+			f = _filter_decoder->read(tx, ty, reader);
+		} else {
+			// Read filter residual directly
+			f = _row_filter_decoder.next(reader);
+
+			// Defilter the filter value
+			if (_row_filter == RF_PREV) {
+				f += _current_filter;
+				if (f >= _filter_count) {
+					f -= _filter_count;
+				}
+			}
+
+			*_current_tile++ = f;
+		}
+
+		_current_filter = f;
+	}
+
+	// If the filter is a palette symbol,
+	u16 value;
+	if (f >= _normal_filter_count) {
+		f -= _normal_filter_count;
+
+		CAT_DEBUG_ENFORCE(f < _sympal_filter_count);
+
+		// Set up so that this is always within array bounds at least
+		value = _palette[f];
+
+		_chaos.zero();
+	} else {
+		// Get chaos bin
+		int chaos = _chaos.get();
+
+		// Read residual from bitstream
+		u16 residual = _decoder[chaos].next(reader);
+
+		// Store for next chaos lookup
+		const u16 num_syms = _params.num_syms;
+		_chaos.store(residual, num_syms);
+
+		// Read filter result
+		u16 pred = _sf[f].safe(_current_data, num_syms - 1, x, y, _params.size_x);
+
+		// Defilter value
+		value = residual + pred;
+		if (value >= num_syms) {
+			value -= num_syms;
+		}
+	}
+
+	DESYNC(x, y);
+
+	CAT_DEBUG_ENFORCE(!reader.eof());
+
+	*_current_data = (u8)value;
+	_current_data += _params.data_step;
+	return value;
+}
 

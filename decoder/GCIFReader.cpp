@@ -186,13 +186,13 @@ extern "C" const char *gcif_read_errstr(int err) {
 			return "Corrupted:GCIF_RE_LZ_BAD";
 
 		case GCIF_RE_BAD_PAL:		// Bad data in Palette section
-			return "Corrupted:GCIF_RE_PAL_BAD";
+			return "Corrupted:GCIF_RE_BAD_PAL";
 
-		case GCIF_RE_CM_CODES:	// CM codelen read failed
-			return "Corrupted:GCIF_RE_CM_CODES";
+		case GCIF_RE_BAD_MONO:		// Bad data in Mono section
+			return "Corrupted:GCIF_RE_BAD_MONO";
 
-		case GCIF_RE_BAD_HASH:	// Image hash does not match
-			return "Corrupted:GCIF_RE_BAD_HASH";
+		case GCIF_RE_BAD_RGBA:		// Bad data in RGBA section
+			return "Corrupted:GCIF_RE_BAD_RGBA";
 
 		default:
 			break;

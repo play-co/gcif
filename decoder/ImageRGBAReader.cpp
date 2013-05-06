@@ -53,8 +53,8 @@ static cat::Clock *m_clock = 0;
 //// ImageRGBAReader
 
 int ImageRGBAReader::init(GCIFImage *image) {
-	_size_x = image->width;
-	_size_y = image->height;
+	_size_x = image->size_x;
+	_size_y = image->size_y;
 
 	// Always allocate new RGBA data
 	_rgba = new u8[_size_x * _size_y * 4];
@@ -148,7 +148,7 @@ int ImageRGBAReader::readChaosTables(ImageReader &reader) {
 }
 
 int ImageRGBAReader::readPixels(ImageReader &reader) {
-	const int width = _width;
+	const int size_x = _size_x;
 	const u32 MASK_COLOR = _mask->getColor();
 
 	// Get initial triggers
@@ -185,7 +185,7 @@ int ImageRGBAReader::readPixels(ImageReader &reader) {
 		int lz_skip = 0;
 
 		// For each pixel,
-		for (int x = 0; x < width; ++x) {
+		for (int x = 0; x < size_x; ++x) {
 			DESYNC(x, y);
 
 			// If LZ triggered,
@@ -238,7 +238,7 @@ int ImageRGBAReader::readPixels(ImageReader &reader) {
 
 				// Reverse spatial filter
 				const u8 *pred = FPT;
-				filter->sf.safe(p, &pred, x, y, width);
+				filter->sf.safe(p, &pred, x, y, size_x);
 				p[0] += pred[0];
 				p[1] += pred[1];
 				p[2] += pred[2];
@@ -268,7 +268,7 @@ int ImageRGBAReader::readPixels(ImageReader &reader) {
 
 
 	// For each scanline,
-	for (int y = 1; y < _height; ++y) {
+	for (int y = 1; y < _size_y; ++y) {
 		// If LZ triggered,
 		if (y == _lz->getTriggerY()) {
 			_lz->triggerY();
@@ -343,7 +343,7 @@ int ImageRGBAReader::readPixels(ImageReader &reader) {
 
 				// Reverse spatial filter
 				const u8 *pred = FPT;
-				filter->sf.safe(p, &pred, x, y, width);
+				filter->sf.safe(p, &pred, x, y, size_x);
 				p[0] += pred[0];
 				p[1] += pred[1];
 				p[2] += pred[2];
@@ -371,7 +371,7 @@ int ImageRGBAReader::readPixels(ImageReader &reader) {
 
 
 		// For each pixel,
-		for (int x = 1, xend = width - 1; x < xend; ++x) {
+		for (int x = 1, xend = size_x - 1; x < xend; ++x) {
 			DESYNC(x, y);
 
 			// If LZ triggered,
@@ -425,7 +425,7 @@ int ImageRGBAReader::readPixels(ImageReader &reader) {
 
 				// Reverse spatial filter
 				const u8 *pred = FPT;
-				filter->sf.unsafe(p, &pred, x, y, width);
+				filter->sf.unsafe(p, &pred, x, y, size_x);
 				p[0] += pred[0];
 				p[1] += pred[1];
 				p[2] += pred[2];
@@ -452,9 +452,9 @@ int ImageRGBAReader::readPixels(ImageReader &reader) {
 		//// BIG INNER LOOP END ////
 
 
-		// For x = width-1,
+		// For x = size_x-1,
 		{
-			const int x = width - 1;
+			const int x = size_x - 1;
 			DESYNC(x, y);
 
 			// If LZ triggered,
@@ -507,7 +507,7 @@ int ImageRGBAReader::readPixels(ImageReader &reader) {
 
 				// Reverse (safe) spatial filter
 				const u8 *pred = FPT;
-				filter->sf.safe(p, &pred, x, y, width);
+				filter->sf.safe(p, &pred, x, y, size_x);
 				p[0] += pred[0];
 				p[1] += pred[1];
 				p[2] += pred[2];
@@ -601,8 +601,8 @@ bool ImageRGBAReader::dumpStats() {
 	CAT_INANE("stats") << "(RGBA Decode)      Decode Pixels : " << Stats.readPixelsUsec << " usec (" << Stats.readPixelsUsec * 100.f / Stats.overallUsec << " %total)";
 	CAT_INANE("stats") << "(RGBA Decode)            Overall : " << Stats.overallUsec << " usec";
 
-	CAT_INANE("stats") << "(RGBA Decode)         Throughput : " << (_width * _height * 4) / Stats.overallUsec << " MBPS (output bytes/time)";
-	CAT_INANE("stats") << "(RGBA Decode)   Image Dimensions : " << _width << " x " << _height << " pixels";
+	CAT_INANE("stats") << "(RGBA Decode)         Throughput : " << (_size_x * _size_y * 4) / Stats.overallUsec << " MBPS (output bytes/time)";
+	CAT_INANE("stats") << "(RGBA Decode)   Image Dimensions : " << _size_x << " x " << _size_y << " pixels";
 
 	return true;
 }

@@ -52,9 +52,9 @@ enum GCIFReaderErrors {
 
 	GCIF_RE_BAD_PAL,	// Bad data in Palette section
 
-	GCIF_RE_CM_CODES,	// CM codelen read failed
+	GCIF_RE_BAD_MONO,	// Bad data in Monochrome section
 
-	GCIF_RE_BAD_HASH,	// Image hash does not match
+	GCIF_RE_BAD_RGBA,	// Bad data in RGBA section
 };
 
 // Returns a string representation of the above error codes
