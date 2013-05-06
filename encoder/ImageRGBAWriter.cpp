@@ -95,6 +95,7 @@ void ImageRGBAWriter::designFilters() {
 	awards.init(SF_COUNT);
 	awards.reset();
 	u8 FPT[3];
+	int rgba_count = 0;
 
 	CAT_INANE("RGBA") << "Designing spatial filters...";
 
@@ -140,6 +141,8 @@ void ImageRGBAWriter::designFilters() {
 
 							scores.add(f, score);
 						}
+
+						++rgba_count;
 					}
 					++px;
 					data += 4;
@@ -169,7 +172,7 @@ void ImageRGBAWriter::designFilters() {
 	FilterScorer::Score *top = awards.getTop(count, true);
 
 	// Initialize coverage
-	const int coverage_thresh = _tiles_x * _tiles_y;
+	const int coverage_thresh = rgba_count;
 	int coverage = 0;
 	int sf_count = SF_FIXED;
 
