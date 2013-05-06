@@ -266,7 +266,7 @@ void MonoWriter::designFilters() {
 			}
 
 			// Sort top few filters for awards
-			FilterScorer::Score *top = scores.getTop(_params.award_count, true);
+			FilterScorer::Score *top = scores.getLow(_params.award_count, true);
 			for (int ii = offset; ii < _params.award_count; ++ii) {
 				awards.add(top[ii - offset].index, _params.AWARDS[ii]);
 			}
@@ -297,7 +297,7 @@ void MonoWriter::designFilters() {
 	// Choose remaining filters until coverage is acceptable
 	int normal_f = SF_FIXED; // Next normal filter index
 	int filters_set = SF_FIXED; // Total filters
-	FilterScorer::Score *top = awards.getTop(count, true);
+	FilterScorer::Score *top = awards.getHigh(count, true);
 
 	u8 palette[MAX_PALETTE];
 

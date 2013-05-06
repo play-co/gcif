@@ -53,8 +53,11 @@ protected:
 		_list[b] = temp;
 	}
 
-	int partitionTop(int left, int right, int pivotIndex);
-	void quickSort(int left, int right);
+	int partitionHigh(int left, int right, int pivotIndex);
+	void quickSortHigh(int left, int right);
+
+	int partitionLow(int left, int right, int pivotIndex);
+	void quickSortLow(int left, int right);
 
 public:
 	void init(int count);
@@ -67,7 +70,8 @@ public:
 
 	Score *getLowest();
 
-	Score *getTop(int k, bool sorted);
+	Score *getHigh(int k, bool sorted);
+	Score *getLow(int k, bool sorted);
 };
 
 

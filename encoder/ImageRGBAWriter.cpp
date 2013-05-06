@@ -132,13 +132,9 @@ void ImageRGBAWriter::designFilters() {
 						for (int f = 0; f < SF_COUNT; ++f) {
 							const u8 *pred = RGBA_FILTERS[f].safe(data, FPT, px, py, size_x);
 
-							u8 rr = r - pred[0];
-							u8 rg = g - pred[1];
-							u8 rb = b - pred[2];
-
-							int score = RGBChaos::ResidualScore(rr);
-							score += RGBChaos::ResidualScore(rg);
-							score += RGBChaos::ResidualScore(rb);
+							int score = RGBChaos::ResidualScore(r - pred[0]);
+							score += RGBChaos::ResidualScore(g - pred[1]);
+							score += RGBChaos::ResidualScore(b - pred[2]);
 
 							scores.add(f, score);
 						}
@@ -152,7 +148,7 @@ void ImageRGBAWriter::designFilters() {
 				row += size_x * 4;
 			}
 
-			FilterScorer::Score *top = scores.getTop(4, true);
+			FilterScorer::Score *top = scores.getLow(4, true);
 			awards.add(top[0].index, 5);
 			awards.add(top[1].index, 3);
 			awards.add(top[2].index, 1);
@@ -170,7 +166,7 @@ void ImageRGBAWriter::designFilters() {
 
 	// Sort the best awards
 	int count = MAX_FILTERS - SF_FIXED;
-	FilterScorer::Score *top = awards.getTop(count, true);
+	FilterScorer::Score *top = awards.getHigh(count, true);
 
 	// Initialize coverage
 	const int coverage_thresh = rgba_count;
@@ -192,6 +188,8 @@ void ImageRGBAWriter::designFilters() {
 			_sf_indices[sf_count] = index;
 			_sf[sf_count] = RGBA_FILTERS[index];
 			++sf_count;
+
+			CAT_INANE("RGBA") << " - Added filter " << index << " with score " << score;
 		}
 
 		// Stop when coverage achieved

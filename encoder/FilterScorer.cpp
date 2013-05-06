@@ -33,7 +33,40 @@ using namespace cat;
 
 //// FilterScorer
 
-int FilterScorer::partitionTop(int left, int right, int pivotIndex) {
+int FilterScorer::partitionHigh(int left, int right, int pivotIndex) {
+	CAT_DEBUG_ENFORCE(left >= 0 && right >= 0 && left <= right);
+
+	int pivotValue = _list[pivotIndex].score;
+
+	// Move pivot to end
+	swap(pivotIndex, right);
+
+	int storeIndex = left;
+
+	for (int ii = left; ii < right; ++ii) {
+		if (_list[ii].score > pivotValue) {
+			swap(storeIndex, ii);
+
+			++storeIndex;
+		}
+	}
+
+	// Move pivot to its final place
+	swap(right, storeIndex);
+
+	return storeIndex;
+}
+
+void FilterScorer::quickSortHigh(int left, int right) {
+	if (left < right) {
+		int pivotIndex = left + (right - left) / 2;
+		int pivotNewIndex = partitionHigh(left, right, pivotIndex);
+		quickSortHigh(left, pivotNewIndex - 1);
+		quickSortHigh(pivotNewIndex + 1, right);
+	}
+}
+
+int FilterScorer::partitionLow(int left, int right, int pivotIndex) {
 	CAT_DEBUG_ENFORCE(left >= 0 && right >= 0 && left <= right);
 
 	int pivotValue = _list[pivotIndex].score;
@@ -57,12 +90,12 @@ int FilterScorer::partitionTop(int left, int right, int pivotIndex) {
 	return storeIndex;
 }
 
-void FilterScorer::quickSort(int left, int right) {
+void FilterScorer::quickSortLow(int left, int right) {
 	if (left < right) {
 		int pivotIndex = left + (right - left) / 2;
-		int pivotNewIndex = partitionTop(left, right, pivotIndex);
-		quickSort(left, pivotNewIndex - 1);
-		quickSort(pivotNewIndex + 1, right);
+		int pivotNewIndex = partitionLow(left, right, pivotIndex);
+		quickSortLow(left, pivotNewIndex - 1);
+		quickSortLow(pivotNewIndex + 1, right);
 	}
 }
 
@@ -95,7 +128,7 @@ FilterScorer::Score *FilterScorer::getLowest() {
 	return lowest;
 }
 
-FilterScorer::Score *FilterScorer::getTop(int k, bool sorted) {
+FilterScorer::Score *FilterScorer::getHigh(int k, bool sorted) {
 	CAT_DEBUG_ENFORCE(k >= 1);
 
 	if (k >= _list.size()) {
@@ -108,13 +141,48 @@ FilterScorer::Score *FilterScorer::getTop(int k, bool sorted) {
 	int pivotIndex = 0;
 
 	for (;;) {
-		int pivotNewIndex = partitionTop(left, right, pivotIndex);
+		int pivotNewIndex = partitionHigh(left, right, pivotIndex);
 
 		int pivotDist = pivotNewIndex - left + 1;
 		if (pivotDist == k) {
 			// Sort the list we are returning
 			if (sorted) {
-				quickSort(0, listSize - 1);
+				quickSortHigh(0, listSize - 1);
+			}
+
+			return _list.get();
+		} else if (k < pivotDist) {
+			right = pivotNewIndex - 1;
+		} else {
+			k -= pivotDist;
+			left = pivotNewIndex + 1;
+		}
+	}
+
+	CAT_DEBUG_EXCEPTION();
+	return 0;
+}
+
+FilterScorer::Score *FilterScorer::getLow(int k, bool sorted) {
+	CAT_DEBUG_ENFORCE(k >= 1);
+
+	if (k >= _list.size()) {
+		k = _list.size();
+	}
+
+	const int listSize = k;
+	int left = 0;
+	int right = _list.size() - 1;
+	int pivotIndex = 0;
+
+	for (;;) {
+		int pivotNewIndex = partitionLow(left, right, pivotIndex);
+
+		int pivotDist = pivotNewIndex - left + 1;
+		if (pivotDist == k) {
+			// Sort the list we are returning
+			if (sorted) {
+				quickSortLow(0, listSize - 1);
 			}
 
 			return _list.get();
