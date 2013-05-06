@@ -125,7 +125,7 @@ void ImageRGBAWriter::designFilters() {
 						const u8 b = data[2];
 
 						for (int f = 0; f < SF_COUNT; ++f) {
-							const u8 *pred = RGBA_FILTERS[f].safe(data, FPT, x, y, size_x);
+							const u8 *pred = RGBA_FILTERS[f].safe(data, FPT, px, py, size_x);
 
 							u8 rr = r - pred[0];
 							u8 rg = g - pred[1];

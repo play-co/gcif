@@ -219,7 +219,7 @@ void MonoWriter::designFilters() {
 						}
 
 						for (int f = 0; f < SF_COUNT; ++f) {
-							u8 prediction = MONO_FILTERS[f].safe(data, num_syms - 1, x, y, size_x);
+							u8 prediction = MONO_FILTERS[f].safe(data, num_syms - 1, px, py, size_x);
 							int residual = value + num_syms - prediction;
 							if (residual >= num_syms) {
 								residual -= num_syms;
@@ -442,7 +442,7 @@ void MonoWriter::designTiles() {
 								if (!_params.mask(px, py)) {
 									const u8 value = *data;
 
-									u8 prediction = _filters[old_filter].safe(data, num_syms - 1, x, y, size_x);
+									u8 prediction = _filters[old_filter].safe(data, num_syms - 1, px, py, size_x);
 									int residual = value + num_syms - prediction;
 									if (residual >= num_syms) {
 										residual -= num_syms;
@@ -475,7 +475,7 @@ void MonoWriter::designTiles() {
 
 							u8 *dest = codes + code_count;
 							for (int f = 0; f < _filter_count; ++f) {
-								u8 prediction = _filters[f].safe(data, num_syms - 1, x, y, size_x);
+								u8 prediction = _filters[f].safe(data, num_syms - 1, px, py, size_x);
 								int residual = value + num_syms - prediction;
 								if (residual >= num_syms) {
 									residual -= num_syms;
@@ -588,7 +588,7 @@ void MonoWriter::computeResiduals() {
 					if (!_params.mask(px, py)) {
 						const u8 value = *data;
 
-						u8 prediction = _filters[f].safe(data, num_syms - 1, x, y, size_x);
+						u8 prediction = _filters[f].safe(data, num_syms - 1, px, py, size_x);
 						int residual = value + num_syms - prediction;
 						if (residual >= num_syms) {
 							residual -= num_syms;
