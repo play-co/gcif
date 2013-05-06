@@ -305,10 +305,16 @@ void ImagePaletteWriter::writeTable(ImageWriter &writer) {
 			}
 		}
 
-		CAT_DEBUG_ENFORCE(CF_COUNT <= 16);
+		CAT_DEBUG_ENFORCE(CF_COUNT == 17);
 
-		writer.writeBits(bestCF, 4);
-		bits += 4;
+		if (bestCF >= 15) {
+			writer.writeBits(15, 4);
+			writer.writeBit(bestCF - 15);
+			bits += 5;
+		} else {
+			writer.writeBits(bestCF, 4);
+			bits += 4;
+		}
 
 		RGB2YUVFilterFunction bestFilter = RGB2YUV_FILTERS[bestCF];
 

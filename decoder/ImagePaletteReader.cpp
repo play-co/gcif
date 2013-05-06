@@ -70,9 +70,14 @@ int ImagePaletteReader::readPalette(ImageReader &reader) {
 
 	// If using compressed palette,
 	if (reader.readBit()) {
+		CAT_DEBUG_ENFORCE(CF_COUNT == 17);
+
 		// Read color filter
 		u32 cf = reader.readBits(4);
-		CAT_DEBUG_ENFORCE(CF_COUNT == 16);
+		if (cf >= 15) {
+			cf += reader.readBit();
+		}
+
 		YUV2RGBFilterFunction filter = YUV2RGB_FILTERS[cf];
 
 		// Initialize the decoder

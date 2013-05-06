@@ -103,8 +103,10 @@ void ImageRGBAWriter::designFilters() {
 
 	u8 *sf = _sf_tiles.get();
 	u8 *cf = _cf_tiles.get();
-	const u8 *topleft = _rgba;
+	const u8 *topleft_row = _rgba;
 	for (int y = 0; y < _size_y; y += _tile_size_y) {
+		const u8 *topleft = topleft_row;
+
 		for (int x = 0; x < _size_x; x += _tile_size_x, ++sf, ++cf, topleft += _tile_size_x * 4) {
 			if (*sf == MASK_TILE) {
 				continue;
@@ -152,6 +154,8 @@ void ImageRGBAWriter::designFilters() {
 			awards.add(top[2].index, 1);
 			awards.add(top[3].index, 1);
 		}
+
+		topleft_row += _size_x * 4 * _tile_size_y;
 	}
 
 	// Copy fixed functions
@@ -226,9 +230,10 @@ void ImageRGBAWriter::designTiles() {
 	u8 *cf = _cf_tiles.get();
 	while (passes < MAX_PASSES) {
 		// For each tile,
-		const u8 *topleft = _rgba;
+		const u8 *topleft_row = _rgba;
 		int ty = 0;
 		for (u16 y = 0; y < size_y; y += tile_size_y, ++ty) {
+			const u8 *topleft = topleft_row;
 			int tx = 0;
 			for (u16 x = 0; x < size_x; x += tile_size_x, ++sf, ++cf, topleft += tile_size_x * 4, ++tx) {
 				u8 osf = *sf;
@@ -361,6 +366,8 @@ void ImageRGBAWriter::designTiles() {
 				*sf = best_sf;
 				*cf = best_cf;
 			}
+
+			topleft_row += _size_x * 4 * _tile_size_y;
 		}
 
 		CAT_INANE("RGBA") << "Revisiting filter selections from the top... " << revisitCount << " left";
@@ -418,9 +425,11 @@ void ImageRGBAWriter::computeResiduals() {
 	_residuals.resize(_size_x * _size_y * 4);
 
 	// For each tile,
-	const u8 *topleft = _rgba;
-	size_t residual_delta = (size_t)(_residuals.get() - topleft);
+	const u8 *topleft_row = _rgba;
+	size_t residual_delta = (size_t)(_residuals.get() - topleft_row);
 	for (u16 y = 0; y < size_y; y += tile_size_y) {
+		const u8 *topleft = topleft_row;
+
 		for (u16 x = 0; x < size_x; x += tile_size_x, ++sf, ++cf, topleft += tile_size_x*4) {
 			const u8 sfi = *sf;
 
@@ -462,6 +471,8 @@ void ImageRGBAWriter::computeResiduals() {
 				row += size_x*4;
 			}
 		}
+
+		topleft_row += _size_x * 4 * _tile_size_y;
 	}
 }
 

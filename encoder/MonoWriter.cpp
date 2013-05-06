@@ -94,12 +94,14 @@ void MonoWriter::designPaletteFilters() {
 	const u16 tile_size_x = _tile_size_x, tile_size_y = _tile_size_y;
 	const u16 size_x = _params.size_x, size_y = _params.size_y;
 	u8 *p = _tiles.get();
-	const u8 *topleft = _params.data;
 
 	u32 hist[MAX_SYMS] = { 0 };
 
 	// For each tile,
+	const u8 *topleft_row = _params.data;
 	for (u16 y = 0; y < size_y; y += tile_size_y) {
+		const u8 *topleft = topleft_row;
+
 		for (u16 x = 0; x < size_x; x += tile_size_x, ++p, topleft += tile_size_x) {
 			// If tile is masked,
 			if (*p == MASK_TILE) {
@@ -142,6 +144,8 @@ void MonoWriter::designPaletteFilters() {
 				hist[uniform_value]++;
 			}
 		}
+
+		topleft_row += _params.size_x * 4 * _tile_size_y;
 	}
 
 	// Determine threshold
@@ -181,7 +185,6 @@ void MonoWriter::designFilters() {
 	const u16 size_x = _params.size_x, size_y = _params.size_y;
 	const u16 num_syms = _params.num_syms;
 	u8 *p = _tiles.get();
-	const u8 *topleft = _params.data;
 
 	FilterScorer scores, awards;
 	scores.init(SF_COUNT + _sympal_filter_count);
@@ -189,7 +192,10 @@ void MonoWriter::designFilters() {
 	awards.reset();
 
 	// For each tile,
+	const u8 *topleft_row = _params.data;
 	for (u16 y = 0; y < size_y; y += tile_size_y) {
+		const u8 *topleft = topleft_row;
+
 		for (u16 x = 0; x < size_x; x += tile_size_x, ++p, topleft += tile_size_x) {
 			// If tile is masked,
 			if (*p == MASK_TILE) {
@@ -261,6 +267,8 @@ void MonoWriter::designFilters() {
 				awards.add(top[ii - offset].index, _params.AWARDS[ii]);
 			}
 		}
+
+		topleft_row += _params.size_x * 4 * _tile_size_y;
 	}
 
 	// Copy the first SF_FIXED filters
@@ -359,10 +367,12 @@ void MonoWriter::designPaletteTiles() {
 	const u16 tile_size_x = _tile_size_x, tile_size_y = _tile_size_y;
 	const u16 size_x = _params.size_x, size_y = _params.size_y;
 	u8 *p = _tiles.get();
-	const u8 *topleft = _params.data;
 
 	// For each tile,
+	const u8 *topleft_row = _params.data;
 	for (u16 y = 0; y < size_y; y += tile_size_y) {
+		const u8 *topleft = topleft_row;
+
 		for (u16 x = 0; x < size_x; x += tile_size_x, ++p, topleft += tile_size_x) {
 			const u8 value = *p;
 
@@ -386,6 +396,8 @@ void MonoWriter::designPaletteTiles() {
 				}
 			}
 		}
+
+		topleft_row += _params.size_x * 4 * _tile_size_y;
 	}
 }
 
@@ -410,10 +422,13 @@ void MonoWriter::designTiles() {
 	int revisitCount = _params.knobs->mono_revisitCount;
 	while (passes < MAX_PASSES) {
 		// For each tile,
-		const u8 *topleft = _params.data;
+		const u8 *topleft_row = _params.data;
 		int ty = 0;
+
 		for (u16 y = 0; y < size_y; y += tile_size_y, ++ty) {
+			const u8 *topleft = topleft_row;
 			int tx = 0;
+
 			for (u16 x = 0; x < size_x; x += tile_size_x, ++p, topleft += tile_size_x, ++tx) {
 				// If tile is masked or sympal,
 				if (*p >= _normal_filter_count) {
@@ -556,6 +571,8 @@ void MonoWriter::designTiles() {
 
 				*p = (u8)bestFilterIndex;
 			}
+
+			topleft_row += _params.size_x * 4 * _tile_size_y;
 		}
 
 		CAT_INANE("2D") << "Revisiting filter selections from the top... " << revisitCount << " left";
@@ -571,9 +588,11 @@ void MonoWriter::computeResiduals() {
 	const u8 *p = _tiles.get();
 
 	// For each tile,
-	const u8 *topleft = _params.data;
-	size_t residual_delta = (size_t)(_residuals.get() - topleft);
+	const u8 *topleft_row = _params.data;
+	size_t residual_delta = (size_t)(_residuals.get() - topleft_row);
 	for (u16 y = 0; y < size_y; y += tile_size_y) {
+		const u8 *topleft = topleft_row;
+
 		for (u16 x = 0; x < size_x; x += tile_size_x, ++p, topleft += tile_size_x) {
 			const u8 f = *p;
 
@@ -612,6 +631,8 @@ void MonoWriter::computeResiduals() {
 				row += size_x;
 			}
 		}
+
+		topleft_row += _params.size_x * 4 * _tile_size_y;
 	}
 }
 
