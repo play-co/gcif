@@ -440,7 +440,6 @@ void MonoWriter::designTiles() {
 					// If just finished revisiting old zones,
 					if (--revisitCount < 0) {
 						// Done!
-						delete []codes;
 						return;
 					}
 
