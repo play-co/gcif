@@ -175,7 +175,8 @@ u32 EntropyEstimator::entropyOverall() {
 	const u32 total = _hist_total;
 
 	if (total > 0) {
-		for (u32 sym = 0; sym < NUM_SYMS; ++sym) {
+		// Count zeroes as free, so skip 0
+		for (u32 sym = 1; sym < NUM_SYMS; ++sym) {
 			u32 inst = _hist[sym];
 
 			if (inst > 0) {

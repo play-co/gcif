@@ -68,7 +68,7 @@ public:
 
 	void init();
 
-	// Calculate entropy of given symbols (lower = better)
+	// Calculate entropy of given symbols, counting zeroes as free
 	u32 entropy(const u8 *symbols, int count);
 
 	// Add symbols to running histogram
@@ -82,7 +82,7 @@ public:
 	void addSingle(const u8 symbol, int count = 1);
 	void subtractSingle(const u8 symbol, int count = 1);
 
-	// Overall entropy
+	// Overall entropy, counting zeroes as free
 	u32 entropyOverall();
 };
 
