@@ -105,6 +105,7 @@ void ImageRGBAWriter::designFilters() {
 	u8 *sf = _sf_tiles.get();
 	u8 *cf = _cf_tiles.get();
 	const u8 *topleft_row = _rgba;
+
 	for (int y = 0; y < _size_y; y += _tile_size_y) {
 		const u8 *topleft = topleft_row;
 
@@ -177,7 +178,7 @@ void ImageRGBAWriter::designFilters() {
 	int sf_count = SF_FIXED;
 
 	// Design remaining filter functions
-	while (count-- ) {
+	while (count-- > 0) {
 		int index = top->index;
 		int score = top->score;
 		++top;
@@ -349,6 +350,9 @@ void ImageRGBAWriter::designTiles() {
 				u8 *src_v = codes[2];
 				int lowest_entropy = 0x7fffffff;
 				int best_sf = 0, best_cf = 0;
+				u8 *src_best_y = src_y;
+				u8 *src_best_u = src_u;
+				u8 *src_best_v = src_v;
 
 				for (int sfi = 0, sfi_end = _sf_count; sfi < sfi_end; ++sfi) {
 					for (int cfi = 0; cfi < CF_COUNT; ++cfi) {
@@ -360,6 +364,9 @@ void ImageRGBAWriter::designTiles() {
 							lowest_entropy = entropy;
 							best_sf = sfi;
 							best_cf = cfi;
+							src_best_y = src_y;
+							src_best_u = src_u;
+							src_best_v = src_v;
 						}
 
 						src_y += code_stride;
@@ -367,6 +374,11 @@ void ImageRGBAWriter::designTiles() {
 						src_v += code_stride;
 					}
 				}
+
+				// Update entropy histogram
+				ee[0].add(src_best_y, code_count);
+				ee[1].add(src_best_u, code_count);
+				ee[2].add(src_best_v, code_count);
 
 				*sf = best_sf;
 				*cf = best_cf;
