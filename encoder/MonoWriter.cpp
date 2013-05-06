@@ -319,13 +319,14 @@ void MonoWriter::designFilters() {
 				palette[sympal_f] = index;
 				++sympal_f;
 
-				CAT_INANE("2D") << " - Added palette filter " << sympal_f << " for palette index " << sympal_filter;
+				CAT_INANE("2D") << " - Added palette filter " << sympal_f << " for palette index " << sympal_filter << " - Coverage " << coverage * 100.f / _tiles_count;
 			} else {
 				_filters[normal_f] = MONO_FILTERS[index];
 				_filter_indices[normal_f] = index;
 				++normal_f;
 
-				CAT_INANE("2D") << " - Added filter " << normal_f << " for filter index " << index;
+				CAT_INANE("2D") << " - Added filter " << normal_f << " for filter index " << index << " - Coverage " << coverage * 100.f / _tiles_count;
+
 			}
 
 			++filters_set;
@@ -1219,64 +1220,64 @@ int MonoWriter::write(u16 x, u16 y, ImageWriter &writer) {
 	// If this pixel is masked,
 	if (_params.mask(x, y)) {
 		_chaos.zero();
-	}
+	} else {
+		// Calculate tile coordinates
+		u16 tx = x >> _tile_bits_x;
 
-	// Calculate tile coordinates
-	u16 tx = x >> _tile_bits_x;
+		// If tile not seen yet,
+		if (!_tile_seen[tx]) {
+			_tile_seen[tx] = true;
 
-	// If tile not seen yet,
-	if (!_tile_seen[tx]) {
-		_tile_seen[tx] = true;
+			// Get tile
+			u16 ty = y >> _tile_bits_y;
+			u8 *tile = _tiles.get() + tx + ty * _tiles_x;
+			u8 f = tile[0];
+			_write_filter = f;
 
-		// Get tile
-		u16 ty = y >> _tile_bits_y;
-		u8 *tile = _tiles.get() + tx + ty * _tiles_x;
-		u8 f = tile[0];
-		_write_filter = f;
+			// If tile is not masked,
+			if (f != MASK_TILE) {
+				// If recursive filter encoded,
+				if (_filter_encoder) {
+					// Pass filter write down the tree
+					overhead_bits += _filter_encoder->write(tx, ty, writer);
+				} else {
+					// Calculate row filter residual for filter data (filter of filters at tree leaf)
+					u8 rf = f;
 
-		// If tile is not masked,
-		if (f != MASK_TILE) {
-			// If recursive filter encoded,
-			if (_filter_encoder) {
-				// Pass filter write down the tree
-				overhead_bits += _filter_encoder->write(tx, ty, writer);
-			} else {
-				// Calculate row filter residual for filter data (filter of filters at tree leaf)
-				u8 rf = f;
-
-				if (_tile_row_filters[ty] == MonoReader::RF_PREV) {
-					rf += _filter_count - _prev_filter;
-					if (rf >= _filter_count) {
-						rf -= _filter_count;
+					if (_tile_row_filters[ty] == MonoReader::RF_PREV) {
+						rf += _filter_count - _prev_filter;
+						if (rf >= _filter_count) {
+							rf -= _filter_count;
+						}
+						_prev_filter = f;
 					}
-					_prev_filter = f;
+
+					overhead_bits += _row_filter_encoder.write(rf, writer);
 				}
 
-				overhead_bits += _row_filter_encoder.write(rf, writer);
+				Stats.filter_overhead_bits += overhead_bits;
 			}
 
-			Stats.filter_overhead_bits += overhead_bits;
+			DESYNC(x, y);
 		}
 
-		DESYNC(x, y);
-	}
+		// If using sympal,
+		u8 f = _write_filter;
+		if (f >= _normal_filter_count) {
+			_chaos.zero();
+		} else {
+			// Look up residual sym
+			u8 residual = _residuals[x + y * _params.size_x];
 
-	// If filter is masked,
-	u8 f = _write_filter;
-	if (f >= _normal_filter_count) {
-		_chaos.zero();
-	} else {
-		// Look up residual sym
-		u8 residual = _residuals[x + y * _params.size_x];
+			// Calculate local chaos
+			int chaos = _chaos.get();
+			_chaos.store(residual, _params.num_syms);
 
-		// Calculate local chaos
-		int chaos = _chaos.get();
-		_chaos.store(residual, _params.num_syms);
+			// Write the residual value
+			data_bits += _encoder[chaos].write(residual, writer);
 
-		// Write the residual value
-		data_bits += _encoder[chaos].write(residual, writer);
-
-		Stats.data_bits += data_bits;
+			Stats.data_bits += data_bits;
+		}
 	}
 
 	DESYNC(x, y);
