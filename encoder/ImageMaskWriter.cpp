@@ -51,9 +51,9 @@ using namespace std;
 void Masker::applyFilter() {
 	// Walk backwards from the end
 	const int stride = _stride;
-	u32 *lagger = _mask + _size - stride;
-	u32 *writer = _filtered + _size - stride;
-	int hctr = _height;
+	u32 *lagger = _mask.get() + _size - stride;
+	u32 *writer = _filtered.get() + _size - stride;
+	int hctr = _size_y;
 	while (--hctr) {
 		u32 cb = 0; // assume no delta from row above
 
@@ -81,62 +81,39 @@ void Masker::applyFilter() {
 	}
 }
 
-void Masker::clear() {
-	if (_mask) {
-		delete []_mask;
-		_mask = 0;
-	}
-	if (_filtered) {
-		delete []_filtered;
-		_filtered = 0;
-	}
-}
-
-int Masker::initFromRGBA(const u8 *rgba, u32 color, u32 color_mask, int width, int height, const GCIFKnobs *knobs, int min_ratio) {
+int Masker::init(const u8 *rgba, u32 color, u32 color_mask, int size_x, int size_y, const GCIFKnobs *knobs, int min_ratio) {
 	_knobs = knobs;
 	_rgba = rgba;
-	_width = width;
-	_height = height;
+	_size_x = size_x;
+	_size_y = size_y;
 	_color = color;
 	_color_mask = color_mask;
 	_min_ratio = min_ratio;
-	_stride = (width + 31) >> 5;
-	_size = height * _stride;
+	_stride = (size_x + 31) >> 5;
+	_size = size_y * _stride;
 
 	// If image is too small,
-	if (width < MIN_SIZE && height < MIN_SIZE) {
+	if (size_x < MIN_SIZE && size_y < MIN_SIZE) {
 		// Do not use mask
 		_enabled = false;
 		return GCIF_WE_OK;
 	}
 	_enabled = true;
 
-	if (!_mask || _size > _mask_alloc) {
-		if (_mask) {
-			delete []_mask;
-		}
-		_mask = new u32[_size];
-		_mask_alloc = _size;
-	}
-	if (!_filtered || _size > _filtered_alloc) {
-		if (_filtered) {
-			delete []_filtered;
-		}
-		_filtered = new u32[_size];
-		_filtered_alloc = _size;
-	}
+	_mask.resize(_size);
+	_filtered.resize(_size);
 
 	// Fill in bitmask
 	int covered = 0;
 	const u32 *pixel = reinterpret_cast<const u32 *>( _rgba );
-	u32 *writer = _mask;
+	u32 *writer = _mask.get();
 
 	// For each scanline,
-	for (int y = 0; y < _height; ++y) {
+	for (int y = 0; y < _size_y; ++y) {
 		u32 bits = 0, seen = 0;
 
 		// For each pixel,
-		for (int x = 0, xend = _width; x < xend; ++x) {
+		for (int x = 0, xend = _size_x; x < xend; ++x) {
 			bits <<= 1;
 
 			if ((*pixel & color_mask) == color) {
@@ -178,12 +155,12 @@ static CAT_INLINE void byteEncode(vector<u8> &bytes, u32 data) {
 }
 
 void Masker::performRLE() {
-	u32 *lagger = _filtered;
+	u32 *lagger = _filtered.get();
 	const int stride = _stride;
 
 	vector<int> deltas;
 
-	for (int ii = 0, iilen = _height; ii < iilen; ++ii) {
+	for (int ii = 0, iilen = _size_y; ii < iilen; ++ii) {
 		// for xdelta:
 		int zeroes = 0;
 
@@ -422,7 +399,7 @@ bool Masker::dumpStats() {
 		CAT_INANE("stats") << "(Mask Encoding) Compression ratio : " << Stats.compressionRatio << ":1 (" << Stats.compressedDataBits/8 << " bytes used overall)";
 	}
 
-	CAT_INANE("stats") << "(Mask Encoding) Pixels covered : " << Stats.covered << " (" << Stats.covered * 100. / (_width * _height) << " %total)";
+	CAT_INANE("stats") << "(Mask Encoding) Pixels covered : " << Stats.covered << " (" << Stats.covered * 100. / (_size_x * _size_y) << " %total)";
 
 	return true;
 }
@@ -438,7 +415,7 @@ u32 ImageMaskWriter::dominantColor() {
 
 	// Histogram all image colors
 	const u32 *pixel = reinterpret_cast<const u32 *>( _rgba );
-	int count = _width * _height;
+	int count = _size_x * _size_y;
 	u32 zeroes = 0;
 	while (count--) {
 		u32 p = *pixel++;
@@ -461,18 +438,18 @@ u32 ImageMaskWriter::dominantColor() {
 	return domColor;
 }
 
-int ImageMaskWriter::initFromRGBA(const u8 *rgba, int width, int height, const GCIFKnobs *knobs) {
+int ImageMaskWriter::init(const u8 *rgba, int size_x, int size_y, const GCIFKnobs *knobs) {
 	_knobs = knobs;
 	_rgba = rgba;
-	_width = width;
-	_height = height;
+	_size_x = size_x;
+	_size_y = size_y;
 
 	int err;
 
 	u32 domColor = dominantColor();
 	const u32 COLOR_MASK = 0xffffffff;
 
-	if ((err = _color.initFromRGBA(rgba, domColor, COLOR_MASK, width, height, knobs, _knobs->mask_minColorRat))) {
+	if ((err = _color.init(rgba, domColor, COLOR_MASK, size_x, size_y, knobs, _knobs->mask_minColorRat))) {
 		return err;
 	}
 

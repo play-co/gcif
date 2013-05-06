@@ -213,6 +213,7 @@ public:
 		_residuals = 0;
 		_tile_seen = 0;
 		_best_writer = 0;
+		_ecodes = 0;
 	}
 	CAT_INLINE virtual ~MonoWriter() {
 		cleanup();

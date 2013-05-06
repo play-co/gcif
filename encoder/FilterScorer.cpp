@@ -66,44 +66,29 @@ void FilterScorer::quickSort(int left, int right) {
 	}
 }
 
-void FilterScorer::clear() {
-	if (_list) {
-		delete []_list;
-		_list = 0;
-	}
-}
-
 void FilterScorer::init(int count) {
 	CAT_DEBUG_ENFORCE(count > 0);
 
-	if (!_list || count > _list_alloc) {
-		if (_list) {
-			delete []_list;
-		}
-		_list = new Score[count];
-		_list_alloc = count;
-	}
-
-	_count = count;
+	_list.resize(count);
 }
 
 void FilterScorer::reset() {
-	for (int ii = 0, count = _count; ii < count; ++ii) {
+	for (int ii = 0, iiend = _list.size(); ii < iiend; ++ii) {
 		_list[ii].score = 0;
 		_list[ii].index = ii;
 	}
 }
 
 FilterScorer::Score *FilterScorer::getLowest() {
-	Score *lowest = _list;
+	Score *lowest = _list.get();
 	int lowestScore = lowest->score;
 
-	for (int ii = 1; ii < _count; ++ii) {
+	for (int ii = 1, iiend = _list.size(); ii < iiend; ++ii) {
 		int score = _list[ii].score;
 
 		if (lowestScore > score) {
 			lowestScore = score;
-			lowest = _list + ii;
+			lowest = _list.get() + ii;
 		}
 	}
 
@@ -113,13 +98,13 @@ FilterScorer::Score *FilterScorer::getLowest() {
 FilterScorer::Score *FilterScorer::getTop(int k, bool sorted) {
 	CAT_DEBUG_ENFORCE(k >= 1);
 
-	if (k >= _count) {
-		k = _count;
+	if (k >= _list.size()) {
+		k = _list.size();
 	}
 
 	const int listSize = k;
 	int left = 0;
-	int right = _count - 1;
+	int right = _list.size() - 1;
 	int pivotIndex = 0;
 
 	for (;;) {
@@ -132,7 +117,7 @@ FilterScorer::Score *FilterScorer::getTop(int k, bool sorted) {
 				quickSort(0, listSize - 1);
 			}
 
-			return _list;
+			return _list.get();
 		} else if (k < pivotDist) {
 			right = pivotNewIndex - 1;
 		} else {
@@ -140,5 +125,8 @@ FilterScorer::Score *FilterScorer::getTop(int k, bool sorted) {
 			left = pivotNewIndex + 1;
 		}
 	}
+
+	CAT_DEBUG_EXCEPTION();
+	return 0;
 }
 

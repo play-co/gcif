@@ -70,12 +70,13 @@ namespace cat {
 class ImageRGBAWriter {
 protected:
 	static const int CHAOS_LEVELS_MAX = ImageRGBAReader::CHAOS_LEVELS_MAX;
-	static const int COLOR_PLANES = ImageRGBAReader::COLOR_PLANES;
 	static const int ZRLE_SYMS_Y = ImageRGBAReader::ZRLE_SYMS_Y;
 	static const int ZRLE_SYMS_U = ImageRGBAReader::ZRLE_SYMS_U;
 	static const int ZRLE_SYMS_V = ImageRGBAReader::ZRLE_SYMS_V;
 	static const int ZRLE_SYMS_A = ImageRGBAReader::ZRLE_SYMS_A;
 	static const int MAX_FILTERS = 32;
+	static const int MAX_PASSES = 4;
+	static const int MAX_SYMS = 256;
 
 	static const u8 MASK_TILE = 255;
 	static const u8 TODO_TILE = 0;
@@ -95,9 +96,7 @@ protected:
 	u16 _tile_bits_x, _tile_bits_y;
 	u16 _tile_size_x, _tile_size_y;
 	u16 _tiles_x, _tiles_y;
-	u8 *_sf_tiles;
-	u8 *_cf_tiles;
-	int _tiles_alloc;
+	SmartArray<u8> _sf_tiles, _cf_tiles, _ecodes[3];
 
 	// Chosen spatial filter set
 	RGBAFilterFuncs _sf[MAX_FILTERS];
@@ -105,26 +104,28 @@ protected:
 	int _sf_count;
 
 	// Write state
-	u8 *_seen_filter;
-	int _seen_filter_alloc;
+	SmartArray<u8> _seen_filter;
 	RGBAChaos _chaos;
 
 	// Color channel encoders
-	EntropyEncoder<256, ZRLE_SYMS_Y> _y_encoder[CHAOS_LEVELS_MAX];
-	EntropyEncoder<256, ZRLE_SYMS_U> _u_encoder[CHAOS_LEVELS_MAX];
-	EntropyEncoder<256, ZRLE_SYMS_V> _v_encoder[CHAOS_LEVELS_MAX];
-	EntropyEncoder<256, ZRLE_SYMS_A> _a_encoder[CHAOS_LEVELS_MAX];
+	EntropyEncoder<MAX_SYMS, ZRLE_SYMS_Y> _y_encoder[CHAOS_LEVELS_MAX];
+	EntropyEncoder<MAX_SYMS, ZRLE_SYMS_U> _u_encoder[CHAOS_LEVELS_MAX];
+	EntropyEncoder<MAX_SYMS, ZRLE_SYMS_V> _v_encoder[CHAOS_LEVELS_MAX];
+	EntropyEncoder<MAX_SYMS, ZRLE_SYMS_A> _a_encoder[CHAOS_LEVELS_MAX];
 
 	MonoWriter _sf_encoder;
 	MonoWriter _cf_encoder;
 
-	void clear();
+	// Alpha channel encoder
+	SmartArray<u8> _alpha;
+	MonoWriter _af_encoder;
 
 	bool IsMasked(u16 x, u16 y);
 
 	void maskTiles();
 	void designFilters();
 	void designTiles();
+	void compressAlpha();
 	void compressFilters();
 	void initializeEncoders();
 
@@ -155,12 +156,8 @@ public:
 
 public:
 	CAT_INLINE ImageRGBAWriter() {
-		_sf_tiles = 0;
-		_cf_tiles = 0;
-		_seen_filter = 0;
 	}
 	CAT_INLINE virtual ~ImageRGBAWriter() {
-		clear();
 	}
 
 	int init(const u8 *rgba, int size_x, int size_y, ImageMaskWriter &mask, ImageLZWriter &lz, const GCIFKnobs *knobs);

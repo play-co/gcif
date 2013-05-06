@@ -39,20 +39,13 @@ using namespace cat;
 
 //// ImagePaletteWriter
 
-void ImagePaletteWriter::clear() {
-	if (_image) {
-		delete []_image;
-		_image = 0;
-	}
-}
-
 bool ImagePaletteWriter::generatePalette() {
 	const u32 *color = reinterpret_cast<const u32 *>( _rgba );
 
 	int colorIndex = 0;
 
-	for (int y = 0; y < _height; ++y) {
-		for (int x = 0, xend = _width; x < xend; ++x) {
+	for (int y = 0; y < _size_y; ++y) {
+		for (int x = 0, xend = _size_x; x < xend; ++x) {
 			u32 c = *color++;
 
 			if (_mask->masked(x, y) || _lz->visited(x, y)) {
@@ -125,18 +118,11 @@ void ImagePaletteWriter::sortPalette() {
 }
 
 void ImagePaletteWriter::generateImage() {
-	const int image_size = _width * _height;
-	if (!_image || _image_alloc < image_size) {
-		if (_image) {
-			delete []_image;
-		}
-
-		_image = new u8[image_size];
-		_image_alloc = image_size;
-	}
+	const int image_size = _size_x * _size_y;
+	_image.resize(image_size);
 
 	const u32 *color = reinterpret_cast<const u32 *>( _rgba );
-	u8 *image = _image;
+	u8 *image = _image.get();
 
 	u16 masked_palette = 0;
 	if (_mask->enabled()) {
@@ -147,8 +133,8 @@ void ImagePaletteWriter::generateImage() {
 		}
 	}
 
-	for (int y = 0; y < _height; ++y) {
-		for (int x = 0, xend = _width; x < xend; ++x) {
+	for (int y = 0; y < _size_y; ++y) {
+		for (int x = 0, xend = _size_x; x < xend; ++x) {
 			u32 c = *color++;
 
 			if (_mask->masked(x, y)) {
@@ -166,10 +152,10 @@ void ImagePaletteWriter::generateMonoWriter() {
 	MonoWriter::Parameters params;
 
 	params.knobs = _knobs;
-	params.data = _image;
+	params.data = _image.get();
 	params.num_syms = (u16)_palette.size();
-	params.size_x = _width;
-	params.size_y = _height;
+	params.size_x = _size_x;
+	params.size_y = _size_y;
 	params.max_filters = 32;
 	params.min_bits = 2;
 	params.max_bits = 5;
@@ -182,15 +168,14 @@ void ImagePaletteWriter::generateMonoWriter() {
 	params.AWARDS[3] = 1;
 	params.award_count = 4;
 
-	MonoWriterFactory factory;
-	_mono_writer = factory.generate(params);
+	_mono_writer.init(params);
 }
 
-int ImagePaletteWriter::initFromRGBA(const u8 *rgba, int width, int height, const GCIFKnobs *knobs, ImageMaskWriter &mask, ImageLZWriter &lz) {
+int ImagePaletteWriter::init(const u8 *rgba, int size_x, int size_y, const GCIFKnobs *knobs, ImageMaskWriter &mask, ImageLZWriter &lz) {
 	_knobs = knobs;
 	_rgba = rgba;
-	_width = width;
-	_height = height;
+	_size_x = size_x;
+	_size_y = size_y;
 	_mask = &mask;
 	_lz = &lz;
 
@@ -211,139 +196,158 @@ bool ImagePaletteWriter::IsMasked(u16 x, u16 y) {
 }
 
 void ImagePaletteWriter::write(ImageWriter &writer) {
-	int bits = 1;
 	writer.writeBit(_enabled);
 
 	if (_enabled) {
-		CAT_DEBUG_ENFORCE(PALETTE_MAX <= 256);
+		writeTable(writer);
+		writePixels(writer);
+	}
+}
 
-		const int palette_size = (int)_palette.size();
-		writer.writeBits(palette_size - 1, 8);
-		bits += 8;
+void ImagePaletteWriter::writePixels(ImageWriter &writer) {
+	for (int y = 0; y < _size_y; ++y) {
+		_mono_writer.writeRowHeader(y, writer);
 
-		// Write palette index for mask
-		writer.writeBits(_masked_palette, 8);
-		bits += 8;
-
-		// If palette is small,
-		if (palette_size < 40) {
-			writer.writeBit(0);
-			++bits;
-
-			for (int ii = 0; ii < palette_size; ++ii) {
-				u32 color = getLE(_palette[ii]);
-
-				writer.writeWord(color);
-				bits += 32;
-			}
-		} else {
-			writer.writeBit(1);
-			++bits;
-
-			// Find best color filter
-			int bestCF = 0;
-			u32 bestScore = 0x7fffffff;
-
-			for (int cf = 0; cf < CF_COUNT; ++cf) {
-				RGB2YUVFilterFunction filter = RGB2YUV_FILTERS[cf];
-
-				EntropyEstimator ee;
-				ee.init();
-
-				for (int ii = 0; ii < palette_size; ++ii) {
-					u32 color = getLE(_palette[ii]);
-
-					u8 rgb[3] = {
-						(u8)color,
-						(u8)(color >> 8),
-						(u8)(color >> 16)
-					};
-
-					u8 yuva[4];
-					filter(rgb, yuva);
-					yuva[3] = (u8)(color >> 24);
-
-					ee.add(yuva, 4);
-				}
-
-				int entropy = 0;
-
-				for (int ii = 0; ii < palette_size; ++ii) {
-					u32 color = getLE(_palette[ii]);
-
-					u8 rgb[3] = {
-						(u8)color,
-						(u8)(color >> 8),
-						(u8)(color >> 16)
-					};
-
-					u8 yuva[4];
-					filter(rgb, yuva);
-					yuva[3] = (u8)(color >> 24);
-
-					entropy += ee.entropy(yuva, 4);
-				}
-
-				if (entropy < bestScore) {
-					bestCF = cf;
-					bestScore = entropy;
-				}
-			}
-
-			CAT_DEBUG_ENFORCE(CF_COUNT <= 16);
-
-			writer.writeBits(bestCF, 4);
-			bits += 4;
-
-			RGB2YUVFilterFunction bestFilter = RGB2YUV_FILTERS[bestCF];
-
-			EntropyEncoder<PALETTE_MAX, ENCODER_ZRLE_SYMS> encoder;
-
-			// Train
-			for (int ii = 0; ii < palette_size; ++ii) {
-				u32 color = getLE(_palette[ii]);
-
-				u8 rgb[3] = {
-					(u8)color,
-					(u8)(color >> 8),
-					(u8)(color >> 16)
-				};
-
-				u8 yuva[4];
-				bestFilter(rgb, yuva);
-				yuva[3] = (u8)(color >> 24);
-
-				encoder.add(yuva[0]);
-				encoder.add(yuva[1]);
-				encoder.add(yuva[2]);
-				encoder.add(yuva[3]);
-			}
-
-			encoder.finalize();
-
-			bits += encoder.writeTables(writer);
-
-			// Fire
-			for (int ii = 0; ii < palette_size; ++ii) {
-				u32 color = getLE(_palette[ii]);
-
-				u8 rgb[3] = {
-					(u8)color,
-					(u8)(color >> 8),
-					(u8)(color >> 16)
-				};
-
-				u8 yuva[4];
-				bestFilter(rgb, yuva);
-				yuva[3] = (u8)(color >> 24);
-
-				bits += encoder.write(yuva[0], writer);
-				bits += encoder.write(yuva[1], writer);
-				bits += encoder.write(yuva[2], writer);
-				bits += encoder.write(yuva[3], writer);
-			}
+		for (int x = 0; x < _size_x; ++x) {
+			_mono_writer.write(x, y, writer);
 		}
 	}
+}
+
+void ImagePaletteWriter::writeTable(ImageWriter &writer) {
+	int bits = 1;
+
+	CAT_DEBUG_ENFORCE(PALETTE_MAX <= 256);
+
+	const int palette_size = (int)_palette.size();
+	writer.writeBits(palette_size - 1, 8);
+	bits += 8;
+
+	// Write palette index for mask
+	writer.writeBits(_masked_palette, 8);
+	bits += 8;
+
+	// If palette is small,
+	if (palette_size < 40) {
+		writer.writeBit(0);
+		++bits;
+
+		for (int ii = 0; ii < palette_size; ++ii) {
+			u32 color = getLE(_palette[ii]);
+
+			writer.writeWord(color);
+			bits += 32;
+		}
+	} else {
+		writer.writeBit(1);
+		++bits;
+
+		// Find best color filter
+		int bestCF = 0;
+		u32 bestScore = 0x7fffffff;
+
+		for (int cf = 0; cf < CF_COUNT; ++cf) {
+			RGB2YUVFilterFunction filter = RGB2YUV_FILTERS[cf];
+
+			EntropyEstimator ee;
+			ee.init();
+
+			for (int ii = 0; ii < palette_size; ++ii) {
+				u32 color = getLE(_palette[ii]);
+
+				u8 rgb[3] = {
+					(u8)color,
+					(u8)(color >> 8),
+					(u8)(color >> 16)
+				};
+
+				u8 yuva[4];
+				filter(rgb, yuva);
+				yuva[3] = (u8)(color >> 24);
+
+				ee.add(yuva, 4);
+			}
+
+			int entropy = 0;
+
+			for (int ii = 0; ii < palette_size; ++ii) {
+				u32 color = getLE(_palette[ii]);
+
+				u8 rgb[3] = {
+					(u8)color,
+					(u8)(color >> 8),
+					(u8)(color >> 16)
+				};
+
+				u8 yuva[4];
+				filter(rgb, yuva);
+				yuva[3] = (u8)(color >> 24);
+
+				entropy += ee.entropy(yuva, 4);
+			}
+
+			if (entropy < bestScore) {
+				bestCF = cf;
+				bestScore = entropy;
+			}
+		}
+
+		CAT_DEBUG_ENFORCE(CF_COUNT <= 16);
+
+		writer.writeBits(bestCF, 4);
+		bits += 4;
+
+		RGB2YUVFilterFunction bestFilter = RGB2YUV_FILTERS[bestCF];
+
+		EntropyEncoder<PALETTE_MAX, ENCODER_ZRLE_SYMS> encoder;
+
+		// Train
+		for (int ii = 0; ii < palette_size; ++ii) {
+			u32 color = getLE(_palette[ii]);
+
+			u8 rgb[3] = {
+				(u8)color,
+				(u8)(color >> 8),
+				(u8)(color >> 16)
+			};
+
+			u8 yuva[4];
+			bestFilter(rgb, yuva);
+			yuva[3] = (u8)(color >> 24);
+
+			encoder.add(yuva[0]);
+			encoder.add(yuva[1]);
+			encoder.add(yuva[2]);
+			encoder.add(yuva[3]);
+		}
+
+		encoder.finalize();
+
+		bits += encoder.writeTables(writer);
+
+		// Fire
+		for (int ii = 0; ii < palette_size; ++ii) {
+			u32 color = getLE(_palette[ii]);
+
+			u8 rgb[3] = {
+				(u8)color,
+				(u8)(color >> 8),
+				(u8)(color >> 16)
+			};
+
+			u8 yuva[4];
+			bestFilter(rgb, yuva);
+			yuva[3] = (u8)(color >> 24);
+
+			bits += encoder.write(yuva[0], writer);
+			bits += encoder.write(yuva[1], writer);
+			bits += encoder.write(yuva[2], writer);
+			bits += encoder.write(yuva[3], writer);
+		}
+	}
+
+	// Write monochrome tables
+	bits += _mono_writer.writeTables(writer);
 
 #ifdef CAT_COLLECT_STATS
 	Stats.palette_size = (int)_palette.size();

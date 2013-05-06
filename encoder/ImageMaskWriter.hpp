@@ -35,6 +35,7 @@
 #include "../decoder/Filters.hpp"
 #include "HuffmanEncoder.hpp"
 #include "GCIFWriter.h"
+#include "../decoder/SmartArray.hpp"
 
 #include <vector>
 
@@ -76,12 +77,9 @@ class Masker {
 
 	bool _enabled;			// Is this mask layer enabled?
 
-	u32 *_mask;				// The pre-filtered mask
-	int _mask_alloc;
-	u32 *_filtered;			// The post-filtered mask
-	int _filtered_alloc;
+	SmartArray<u32> _mask, _filtered;
 	const u8 *_rgba;		// Original pixel data
-	int _size, _stride, _width, _height;
+	int _size, _stride, _size_x, _size_y;
 	u32 _covered;			// Number of pixels covered
 
 	bool _using_encoder;	// Above threshold for encodering?
@@ -92,8 +90,6 @@ class Masker {
 
 	std::vector<u8> _lz, _rle;
 	HuffmanEncoder<256> _encoder;
-
-	void clear();
 
 	void applyFilter();
 	void performRLE();
@@ -116,14 +112,6 @@ public:
 #endif // CAT_COLLECT_STATS
 
 public:
-	CAT_INLINE Masker() {
-		_mask = 0;
-		_filtered = 0;
-	}
-	CAT_INLINE virtual ~Masker() {
-		clear();
-	}
-
 	CAT_INLINE bool enabled() {
 		return _enabled;
 	}
@@ -133,7 +121,7 @@ public:
 	}
 
 	// Create mask
-	int initFromRGBA(const u8 *rgba, u32 color, u32 color_mask, int width, int height, const GCIFKnobs *knobs, int min_ratio);
+	int init(const u8 *rgba, u32 color, u32 color_mask, int size_x, int size_y, const GCIFKnobs *knobs, int min_ratio);
 
 	// Evaluate compression ratio
 	bool evaluate();
@@ -168,7 +156,7 @@ class ImageMaskWriter {
 	const GCIFKnobs *_knobs;
 
 	const u8 *_rgba;
-	int _width, _height;
+	int _size_x, _size_y;
 
 	Masker _color;
 
@@ -183,10 +171,9 @@ public:
 #endif // CAT_COLLECT_STATS
 
 public:
-	CAT_INLINE ImageMaskWriter() {
-	}
-	CAT_INLINE virtual ~ImageMaskWriter() {
-	}
+	int init(const u8 *rgba, int size_x, int size_y, const GCIFKnobs *knobs);
+
+	void write(ImageWriter &writer);
 
 	CAT_INLINE bool enabled() {
 		return _color.enabled();
@@ -195,10 +182,6 @@ public:
 	CAT_INLINE u32 getColor() {
 		return _color.getColor();
 	}
-
-	int initFromRGBA(const u8 *rgba, int width, int height, const GCIFKnobs *knobs);
-
-	void write(ImageWriter &writer);
 
 	CAT_INLINE bool masked(int x, int y) {
 		return _color.masked(x, y);

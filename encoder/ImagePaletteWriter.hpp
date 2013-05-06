@@ -36,6 +36,7 @@
 #include "ImageMaskWriter.hpp"
 #include "../decoder/ImagePaletteReader.hpp"
 #include "MonoWriter.hpp"
+#include "../decoder/SmartArray.hpp"
 
 #include <vector>
 #include <map>
@@ -56,9 +57,8 @@ class ImagePaletteWriter {
 	const GCIFKnobs *_knobs;
 
 	const u8 *_rgba;		// Original image
-	u8 *_image;				// Palette-encoded image
-	int _image_alloc;
-	int _width, _height;	// In pixels
+	SmartArray<u8> _image;				// Palette-encoded image
+	int _size_x, _size_y;	// In pixels
 	u16 _masked_palette;		// Palette index for the mask
 
 	ImageMaskWriter *_mask;
@@ -68,15 +68,17 @@ class ImagePaletteWriter {
 	std::map<u32, u16> _map;
 	bool _enabled;
 
-	MonoWriter *_mono_writer;
+	MonoWriter _mono_writer;
 
 	bool IsMasked(u16 x, u16 y);
 
-	void clear();
 	bool generatePalette();
 	void sortPalette();
 	void generateImage();
 	void generateMonoWriter();
+
+	void writeTable(ImageWriter &writer);
+	void writePixels(ImageWriter &writer);
 
 #ifdef CAT_COLLECT_STATS
 public:
@@ -87,14 +89,7 @@ public:
 #endif
 
 public:
-	CAT_INLINE ImagePaletteWriter() {
-		_image = 0;
-	}
-	virtual CAT_INLINE ~ImagePaletteWriter() {
-		clear();
-	}
-
-	int initFromRGBA(const u8 *rgba, int width, int height, const GCIFKnobs *knobs, ImageMaskWriter &mask, ImageLZWriter &lz);
+	int init(const u8 *rgba, int size_x, int size_y, const GCIFKnobs *knobs, ImageMaskWriter &mask, ImageLZWriter &lz);
 
 	CAT_INLINE bool enabled() {
 		return _enabled;
@@ -113,7 +108,7 @@ public:
 	}
 
 	CAT_INLINE u8 *get(int x, int y) {
-		return _image + x + y * _width;
+		return _image + x + y * _size_x;
 	}
 
 	void write(ImageWriter &writer);

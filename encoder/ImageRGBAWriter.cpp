@@ -44,30 +44,17 @@ using namespace std;
 #include "lodepng.h"
 
 #ifdef CAT_DESYNCH_CHECKS
+#define DESYNC_TABLE() writer.writeBits(1234567);
 #define DESYNC(x, y) writer.writeBits(x ^ 12345, 16); writer.writeBits(y ^ 54321, 16);
 #define DESYNC_FILTER(x, y) writer.writeBits(x ^ 31337, 16); writer.writeBits(y ^ 31415, 16);
 #else
+#define DESYNC_TABLE()
 #define DESYNC(x, y)
 #define DESYNC_FILTER(x, y)
 #endif
 
 
 //// ImageRGBAWriter
-
-void ImageRGBAWriter::clear() {
-	if (_sf_tiles) {
-		delete []_sf_tiles;
-		_sf_tiles = 0;
-	}
-	if (_cf_tiles) {
-		delete []_cf_tiles;
-		_cf_tiles = 0;
-	}
-	if (_seen_filter) {
-		delete []_seen_filter;
-		_seen_filter = 0;
-	}
-}
 
 void ImageRGBAWriter::maskTiles() {
 	const u16 tile_size_x = _tile_size_x, tile_size_y = _tile_size_y;
@@ -104,25 +91,13 @@ next_tile:;
 }
 
 void ImageRGBAWriter::designFilters() {
-	// If disabled,
-	if (!_knobs->cm_designFilters) {
-		CAT_INANE("CM") << "Skipping filter design";
-		return;
-	}
-
-	/* Inputs: A, B, C, D same as described in Filters.hpp
-	 *
-	 * PRED = (a*A + b*B + c*C + d*D) / 2
-	 * a,b,c,d = {-4, -3, -2, -1, 0, 1, 2, 3, 4}
-	 */
-
-	FilterScorer scores;
+	FilterScorer scores, awards;
 	scores.init(SF_COUNT);
-
-	int hist[SF_COUNT] = {0};
+	awards.init(SF_COUNT);
+	awards.reset();
 	u8 FPT[3];
 
-	CAT_INANE("CM") << "Designing filters...";
+	CAT_INANE("CM") << "Designing spatial filters...";
 
 	const u16 tile_size_x = _tile_size_x, tile_size_y = _tile_size_y;
 	const u16 size_x = _size_x, size_y = _size_y;
@@ -172,10 +147,10 @@ void ImageRGBAWriter::designFilters() {
 			}
 
 			FilterScorer::Score *top = scores.getTop(4, true);
-			hist[top[0].index] += 5;
-			hist[top[1].index] += 3;
-			hist[top[2].index] += 1;
-			hist[top[3].index] += 1;
+			awards.add(top[0].index, 5);
+			awards.add(top[1].index, 3);
+			awards.add(top[2].index, 1);
+			awards.add(top[3].index, 1);
 		}
 	}
 
@@ -185,91 +160,97 @@ void ImageRGBAWriter::designFilters() {
 		_sf[jj] = RGBA_FILTERS[jj];
 	}
 
-	// Replace filters
-	for (int jj = 0; jj < SF_COUNT; ++jj) {
-		// Find worst default filter
-		int lowest_sf = 0x7fffffffUL, lowest_index = 0;
+	// Sort the best awards
+	int count = MAX_FILTERS - SF_FIXED;
+	FilterScorer::Score *top = awards.getTop(count, true);
 
-		for (int ii = 0; ii < SF_COUNT; ++ii) {
-			if (hist[ii] < lowest_sf) {
-				lowest_sf = hist[ii];
-				lowest_index = ii;
-			}
+	// Initialize coverage
+	const int coverage_thresh = _tiles_x * _tiles_y;
+	int coverage = 0;
+	int sf_count = SF_FIXED;
+
+	// Design remaining filter functions
+	while (count-- ) {
+		int index = top->index;
+		int score = top->score;
+		++top;
+
+		// Accumulate coverage
+		int covered = score / 5;
+		coverage += covered;
+
+		// If this filter is not already added,
+		if (index >= SF_FIXED) {
+			_sf_indices[sf_count] = index;
+			_sf[sf_count] = RGBA_FILTERS[index];
+			++sf_count;
 		}
 
-		// Find best custom filter
-		int best_tap = -1, highest_index = -1;
-
-		for (int ii = 0; ii < TAPPED_COUNT; ++ii) {
-			int score = bestHist[ii + SF_COUNT];
-
-			if (score > best_tap) {
-				best_tap = score;
-				highest_index = ii;
-			}
-		}
-
-		// If it not an improvement,
-		if (best_tap <= lowest_sf) {
+		// Stop when coverage achieved
+		if (coverage >= coverage_thresh) {
 			break;
 		}
-
-		// Verify it is good enough to bother with
-		double ratio = best_tap / (double)lowest_sf;
-		if (ratio < _knobs->cm_minTapQuality) {
-			break;
-		}
-
-		// Insert it at this location
-		const int a = SpatialFilterSet::FILTER_TAPS[highest_index][0];
-		const int b = SpatialFilterSet::FILTER_TAPS[highest_index][1];
-		const int c = SpatialFilterSet::FILTER_TAPS[highest_index][2];
-		const int d = SpatialFilterSet::FILTER_TAPS[highest_index][3];
-
-		CAT_INANE("CM") << "Replacing default filter " << lowest_index << " with tapped filter " << highest_index << " that is " << ratio << "x more preferable : PRED = (" << a << "A + " << b << "B + " << c << "C + " << d << "D) / 2";
-
-		_filter_replacements.push_back((lowest_index << 16) | highest_index);
-
-		_sf_set.replace(lowest_index, highest_index);
-
-		// Install grave markers
-		bestHist[lowest_index] = 0x7fffffffUL;
-		bestHist[highest_index + SF_COUNT] = 0;
 	}
+
+	_sf_count = sf_count;
 }
 
-void ImageRGBAWriter::decideFilters() {
+void ImageRGBAWriter::designTiles() {
+	CAT_INANE("2D") << "Designing RGBA SF/CF tiles for " << _tiles_x << "x" << _tiles_y << "...";
+
+	const u16 tile_size_x = _tile_size_x, tile_size_y = _tile_size_y;
+	const u16 size_x = _size_x, size_y = _size_y;
+	u8 FPT[3];
+
 	EntropyEstimator ee[3];
 	ee[0].init();
 	ee[1].init();
 	ee[2].init();
 
-	FilterScorer scores;
-	scores.init(SF_COUNT * CF_COUNT);
-
-	const int width = _width;
-
-	if (!_knobs->cm_disableEntropy) {
-		CAT_INANE("CM") << "Scoring filters using " << _knobs->cm_filterSelectFuzz << " entropy-based trials...";
-	} else {
-		CAT_INANE("CM") << "Scoring filters using L1-norm...";
+	// Allocate temporary space for entropy analysis
+	const u32 code_stride = _tile_size_x * _tile_size_y;
+	const u32 codes_size = code_stride * _sf_count * CF_COUNT;
+	if (!_ecodes[0] || codes_size > _ecodes_alloc) {
+		if (_ecodes[0]) {
+			delete []_ecodes[0];
+		}
+		_ecodes[0] = new u8[codes_size];
+		if (_ecodes[1]) {
+			delete []_ecodes[1];
+		}
+		_ecodes[1] = new u8[codes_size];
+		if (_ecodes[2]) {
+			delete []_ecodes[2];
+		}
+		_ecodes[2] = new u8[codes_size];
+		_ecodes_alloc = codes_size;
 	}
+	u8 *codes[3] = {
+		_ecodes[0],
+		_ecodes[1],
+		_ecodes[2]
+	};
 
+	// Until revisits are done,
 	int passes = 0;
 	int revisitCount = _knobs->cm_revisitCount;
-	u8 FPT[3];
+	u8 *sf = _sf_tiles;
+	u8 *cf = _cf_tiles;
+	while (passes < MAX_PASSES) {
+		// For each tile,
+		const u8 *topleft = _rgba;
+		int ty = 0;
+		for (u16 y = 0; y < size_y; y += tile_size_y, ++ty) {
+			int tx = 0;
+			for (u16 x = 0; x < size_x; x += tile_size_x, ++sf, ++cf, topleft += tile_size_x * 4, ++tx) {
+				u8 osf = *sf;
 
-	for (;;) {
-		for (int y = 0; y < _height; y += FILTER_ZONE_SIZE_H) {
-			for (int x = 0; x < width; x += FILTER_ZONE_SIZE_W) {
-				// If this zone is skipped,
-				const u16 filter = getSpatialFilter(x, y);
-				if (filter == UNUSED_FILTER) {
+				// If tile is masked,
+				if (osf == MASK_TILE) {
 					continue;
 				}
 
-				// Determine best filter combination to use
-				int bestSF = 0, bestCF = 0;
+				u8 ocf = *cf;
 
 				// If we are on the second or later pass,
 				if (passes > 0) {
@@ -279,221 +260,133 @@ void ImageRGBAWriter::decideFilters() {
 						return;
 					}
 
-					bestSF = (u8)(filter >> 8);
-					bestCF = (u8)filter;
+					int code_count = 0;
 
-					u8 codes[3][FILTER_ZONE_SIZE_W*FILTER_ZONE_SIZE_H];
-					int count = 0;
-
-					// For each pixel in the zone,
-					for (int yy = 0; yy < FILTER_ZONE_SIZE_H; ++yy) {
-						for (int xx = 0; xx < FILTER_ZONE_SIZE_W; ++xx) {
-							int px = x + xx, py = y + yy;
-							if (px >= _width || py >= _height) {
-								continue;
-							}
-							if (_mask->masked(px, py)) {
-								continue;
-							}
-							if (_lz->visited(px, py)) {
-								continue;
-							}
-
-							const u8 *p = _rgba + (px + py * width) * 4;
-
-							const u8 *pred = FPT;
-							_sf_set.get(bestSF).safe(p, &pred, px, py, width);
-							u8 temp[3];
-							for (int jj = 0; jj < 3; ++jj) {
-								temp[jj] = p[jj] - pred[jj];
-							}
-
-							u8 yuv[3];
-							RGB2YUV_FILTERS[bestCF](temp, yuv);
-
-							codes[0][count] = yuv[0];
-							codes[1][count] = yuv[1];
-							codes[2][count] = yuv[2];
-							++count;
-						}
-					}
-
-					// Subtract old choice back out
-					ee[0].subtract(codes[0], count);
-					ee[1].subtract(codes[1], count);
-					ee[2].subtract(codes[2], count);
-				}
-
-				scores.reset();
-
-				// For each pixel in the zone,
-				for (int yy = 0; yy < FILTER_ZONE_SIZE_H; ++yy) {
-					for (int xx = 0; xx < FILTER_ZONE_SIZE_W; ++xx) {
-						int px = x + xx, py = y + yy;
-						if (px >= _width || py >= _height) {
-							continue;
-						}
-						if (_mask->masked(px, py)) {
-							continue;
-						}
-						if (_lz->visited(px, py)) {
-							continue;
-						}
-
-						const u8 *p = _rgba + (px + py * width) * 4;
-
-						for (int ii = 0; ii < SF_COUNT; ++ii) {
-							const u8 *pred = FPT;
-							_sf_set.get(ii).safe(p, &pred, px, py, width);
-							u8 temp[3];
-							for (int jj = 0; jj < 3; ++jj) {
-								temp[jj] = p[jj] - pred[jj];
-							}
-
-							for (int jj = 0; jj < CF_COUNT; ++jj) {
-								u8 yuv[3];
-								RGB2YUV_FILTERS[jj](temp, yuv);
-
-								int error = scoreYUV(yuv);
-
-								scores.add(ii + SF_COUNT*jj, error);
-							}
-						}
-					}
-				}
-
-				FilterScorer::Score *lowest = scores.getLowest();
-
-				if (_knobs->cm_disableEntropy ||
-						lowest->score <= _knobs->cm_maxEntropySkip) {
-					bestSF = lowest->index % SF_COUNT;
-					bestCF = lowest->index / SF_COUNT;
-
-					if (!_knobs->cm_disableEntropy) {
-						u8 codes[3][FILTER_ZONE_SIZE_W*FILTER_ZONE_SIZE_H];
-						int count = 0;
-
-						// Record this choice
-						for (int yy = 0; yy < FILTER_ZONE_SIZE_H; ++yy) {
-							for (int xx = 0; xx < FILTER_ZONE_SIZE_W; ++xx) {
-								int px = x + xx, py = y + yy;
-								if (px >= _width || py >= _height) {
-									continue;
-								}
-								if (_mask->masked(px, py)) {
-									continue;
-								}
-								if (_lz->visited(px, py)) {
-									continue;
-								}
-
-								const u8 *p = _rgba + (px + py * width) * 4;
-								const u8 *pred = FPT;
-								_sf_set.get(bestSF).safe(p, &pred, px, py, width);
-								u8 temp[3];
-								for (int jj = 0; jj < 3; ++jj) {
-									temp[jj] = p[jj] - pred[jj];
-								}
+					// For each element in the tile,
+					const u8 *row = topleft;
+					u16 py = y, cy = tile_size_y;
+					while (cy-- > 0 && py < size_y) {
+						const u8 *data = row;
+						u16 px = x, cx = tile_size_x;
+						while (cx-- > 0 && px < size_x) {
+							// If element is not masked,
+							if (!IsMasked(px, py)) {
+								const u8 *pred = _sf[osf].safe(data, FPT, px, py, size_x);
+								u8 residual_rgb[3] = {
+									data[0] - pred[0],
+									data[1] - pred[1],
+									data[2] - pred[2]
+								};
 
 								u8 yuv[3];
-								RGB2YUV_FILTERS[bestCF](temp, yuv);
+								RGB2YUV_FILTERS[ocf](residual_rgb, yuv);
 
-								codes[0][count] = yuv[0];
-								codes[1][count] = yuv[1];
-								codes[2][count] = yuv[2];
-								++count;
+								codes[0][code_count] = yuv[0];
+								codes[1][code_count] = yuv[1];
+								codes[2][code_count] = yuv[2];
+								++code_count;
 							}
+							data += 4;
 						}
-
-						ee[0].add(codes[0], count);
-						ee[1].add(codes[1], count);
-						ee[2].add(codes[2], count);
-					}
-				} else {
-					int TOP_COUNT = _knobs->cm_filterSelectFuzz;
-					if (TOP_COUNT > SF_COUNT*CF_COUNT) {
-						TOP_COUNT = SF_COUNT*CF_COUNT;
+						++py;
+						row += size_x * 4;
 					}
 
-					FilterScorer::Score *top = scores.getTop(TOP_COUNT, _knobs->cm_sortFilters);
-
-					u32 best_entropy = 0x7fffffff; // lower = better
-					u8 best_codes[3][FILTER_ZONE_SIZE_W * FILTER_ZONE_SIZE_H];
-					int best_count;
-
-					for (int ii = 0; ii < TOP_COUNT; ++ii) {
-						const int index = top[ii].index;
-						u8 sf = index % SF_COUNT;
-						u8 cf = index / SF_COUNT;
-
-						u8 codes[3][FILTER_ZONE_SIZE_W*FILTER_ZONE_SIZE_H];
-						int count = 0;
-
-						for (int yy = 0; yy < FILTER_ZONE_SIZE_H; ++yy) {
-							for (int xx = 0; xx < FILTER_ZONE_SIZE_W; ++xx) {
-								int px = x + xx, py = y + yy;
-								if (px >= _width || py >= _height) {
-									continue;
-								}
-								if (_mask->masked(px, py)) {
-									continue;
-								}
-								if (_lz->visited(px, py)) {
-									continue;
-								}
-
-								const u8 *p = _rgba + (px + py * width) * 4;
-								const u8 *pred = FPT;
-								_sf_set.get(sf).safe(p, &pred, px, py, width);
-								u8 temp[3];
-								for (int jj = 0; jj < 3; ++jj) {
-									temp[jj] = p[jj] - pred[jj];
-								}
-
-								u8 yuv[3];
-								RGB2YUV_FILTERS[cf](temp, yuv);
-
-								codes[0][count] = yuv[0];
-								codes[1][count] = yuv[1];
-								codes[2][count] = yuv[2];
-								++count;
-							}
-						}
-
-						u32 entropy = ee[0].entropy(codes[0], count)
-							+ ee[1].entropy(codes[1], count)
-							+ ee[2].entropy(codes[2], count);
-
-						if (best_entropy > entropy) {
-							best_entropy = entropy;
-							memcpy(best_codes, codes, sizeof(best_codes));
-							best_count = count;
-
-							bestSF = sf;
-							bestCF = cf;
-						}
-					}
-
-					ee[0].add(best_codes[0], best_count);
-					ee[1].add(best_codes[1], best_count);
-					ee[2].add(best_codes[2], best_count);
+					ee[0].subtract(codes[0], code_count);
+					ee[1].subtract(codes[1], code_count);
+					ee[2].subtract(codes[2], code_count);
 				}
 
-				// Set filter for this zone
-				setSpatialFilter(x, y, ((u16)bestSF << 8) | bestCF);
+				int code_count = 0;
+
+				// For each element in the tile,
+				const u8 *row = topleft;
+				u16 py = y, cy = tile_size_y;
+				while (cy-- > 0 && py < size_y) {
+					const u8 *data = row;
+					u16 px = x, cx = tile_size_x;
+					while (cx-- > 0 && px < size_x) {
+						// If element is not masked,
+						if (!IsMasked(px, py)) {
+							u8 *dest_y = codes[0] + code_count;
+							u8 *dest_u = codes[1] + code_count;
+							u8 *dest_v = codes[2] + code_count;
+
+							// For each spatial filter,
+							for (int sfi = 0, sfi_end = _sf_count; sfi < sfi_end; ++sfi) {
+								const u8 *pred = _sf[sfi].safe(data, FPT, px, py, size_x);
+								u8 residual_rgb[3] = {
+									data[0] - pred[0],
+									data[1] - pred[1],
+									data[2] - pred[2]
+								};
+
+								// For each color filter,
+								for (int cfi = 0; cfi < CF_COUNT; ++cfi) {
+									u8 yuv[3];
+									RGB2YUV_FILTERS[cfi](residual_rgb, yuv);
+
+									*dest_y = yuv[0];
+									*dest_u = yuv[1];
+									*dest_v = yuv[2];
+									dest_y += code_stride;
+									dest_u += code_stride;
+									dest_v += code_stride;
+								}
+							}
+
+							++code_count;
+						}
+						++data;
+					}
+					++py;
+					row += size_x;
+				}
+
+				// Evaluate entropy of codes
+				u8 *src_y = codes[0];
+				u8 *src_u = codes[1];
+				u8 *src_v = codes[2];
+				int lowest_entropy = 0x7fffffff;
+				int best_sf = 0, best_cf = 0;
+
+				for (int sfi = 0, sfi_end = _sf_count; sfi < sfi_end; ++sfi) {
+					for (int cfi = 0; cfi < CF_COUNT; ++cfi) {
+						int entropy = ee[0].entropy(src_y, code_count);
+						entropy += ee[1].entropy(src_u, code_count);
+						entropy += ee[2].entropy(src_v, code_count);
+
+						if (lowest_entropy > entropy) {
+							lowest_entropy = entropy;
+							best_sf = sfi;
+							best_cf = cfi;
+						}
+
+						src_y += code_stride;
+						src_u += code_stride;
+						src_v += code_stride;
+					}
+				}
+
+				*sf = best_sf;
+				*cf = best_cf;
 			}
 		}
 
-		// After good statistics are collected, revisit the first few zones
-		if (revisitCount <= 0) {
-			// Exit now!
-			return;
-		}
+		CAT_INANE("2D") << "Revisiting filter selections from the top... " << revisitCount << " left";
+	}
+}
 
-		if (passes < 4) {
-			CAT_INANE("CM") << "Revisiting filter selections from the top... " << revisitCount << " left";
+void ImageRGBAWriter::compressAlpha() {
+	CAT_INANE("2D") << "Compressing alpha channel...";
+
+	const int alpha_size = _size_x * _size_y;
+	if (!_alpha || _alpha_alloc < alpha_size) {
+		if (_alpha) {
+			delete []_alpha;
 		}
-		++passes;
+		_alpha = new u8[alpha_size];
+		_alpha_alloc = alpha_size;
 	}
 }
 
@@ -607,8 +500,6 @@ bool ImageRGBAWriter::IsMasked(u16 x, u16 y) {
 }
 
 int ImageRGBAWriter::init(const u8 *rgba, int size_x, int size_y, ImageMaskWriter &mask, ImageLZWriter &lz, const GCIFKnobs *knobs) {
-	int err;
-
 	_knobs = knobs;
 	_rgba = rgba;
 	_mask = &mask;
@@ -633,6 +524,7 @@ int ImageRGBAWriter::init(const u8 *rgba, int size_x, int size_y, ImageMaskWrite
 	_tiles_x = (_size_x + _tile_size_x - 1) >> _tile_bits_x;
 	_tiles_y = (_size_y + _tile_size_y - 1) >> _tile_bits_y;
 
+	// Allocate tiles
 	const int tiles_size = _tiles_x * _tiles_y;
 	if (!_sf_tiles || tiles_size > _tiles_alloc) {
 		if (_sf_tiles) {
@@ -649,6 +541,7 @@ int ImageRGBAWriter::init(const u8 *rgba, int size_x, int size_y, ImageMaskWrite
 		_tiles_alloc = tiles_size;
 	}
 
+	// Allocate write objects
 	if (!_seen_filter || _tiles_x > _seen_filter_alloc) {
 		if (!_seen_filter) {
 			delete []_seen_filter;
@@ -658,9 +551,10 @@ int ImageRGBAWriter::init(const u8 *rgba, int size_x, int size_y, ImageMaskWrite
 	}
 
 	// Process
-	maskFilters();
+	maskTiles();
 	designFilters();
 	designTiles();
+	compressAlpha();
 	compressFilters();
 	initializeEncoders();
 

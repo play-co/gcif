@@ -36,21 +36,6 @@ using namespace cat;
 #include <algorithm> // std::sort
 
 
-//// ImageLZWriter
-
-void ImageLZWriter::clear() {
-	if (_table) {
-		delete []_table;
-		_table = 0;
-	}
-	if (_visited) {
-		delete []_visited;
-		_visited = 0;
-	}
-
-	_rgba = 0;
-}
-
 static CAT_INLINE u32 hashPixel(u32 key) {
 	swapLE(key);
 	//key <<= 8; // Remove alpha
@@ -67,11 +52,14 @@ static CAT_INLINE u32 hashPixel(u32 key) {
 	return key;
 }
 
-int ImageLZWriter::initFromRGBA(const u8 *rgba, int width, int height, const GCIFKnobs *knobs) {
+
+//// ImageLZWriter
+
+int ImageLZWriter::init(const u8 *rgba, int size_x, int size_y, const GCIFKnobs *knobs) {
 	_knobs = knobs;
 	_rgba = rgba;
-	_width = width;
-	_height = height;
+	_size_x = size_x;
+	_size_y = size_y;
 
 	if (knobs->lz_tableBits < 0 || knobs->lz_tableBits > 24 ||
 		knobs->lz_nonzeroCoeff <= 0) {
@@ -81,27 +69,15 @@ int ImageLZWriter::initFromRGBA(const u8 *rgba, int width, int height, const GCI
 	_table_size = 1 << knobs->lz_tableBits;
 	_table_mask = _table_size - 1;
 
-	if (!_table || _table_size > _table_alloc) {
-		if (_table) {
-			delete []_table;
-		}
-		_table = new u32[_table_size];
-		_table_alloc = _table_size;
-	}
-	memset(_table, 0xff, _table_size * sizeof(u32));
+	_table.resize(_table_size);
+	_table.fill_ff();
 
-	const int visited_size = (width * height + 31) / 32;
-	if (!_visited || visited_size > _visited_alloc) {
-		if (_visited) {
-			delete []_visited;
-		}
-		_visited = new u32[visited_size];
-		_visited_alloc = visited_size;
-	}
-	memset(_visited, 0, visited_size * sizeof(u32));
+	const int visited_size = (size_x * size_y + 31) / 32;
+	_table.resize(visited_size);
+	_table.fill_00();
 
 	// If image is too small for processing,
-	if (width < ZONEW || height < ZONEH) {
+	if (size_x < ZONEW || size_y < ZONEH) {
 		// Do not try to match on it
 		return GCIF_WE_OK;
 	}
@@ -111,7 +87,7 @@ int ImageLZWriter::initFromRGBA(const u8 *rgba, int width, int height, const GCI
 
 bool ImageLZWriter::checkMatch(u16 x, u16 y, u16 mx, u16 my) {
 	const u8 *rgba = _rgba;
-	const int width = _width;
+	const int size_x = _size_x;
 #ifdef IGNORE_ALL_ZERO_MATCHES
 	u32 nonzero = 0;
 #endif
@@ -122,8 +98,8 @@ bool ImageLZWriter::checkMatch(u16 x, u16 y, u16 mx, u16 my) {
 				return false;
 			}
 
-			u32 *p = (u32*)&rgba[((x + ii) + (y + jj) * width)*4];
-			u32 *mp = (u32*)&rgba[((mx + ii) + (my + jj) * width)*4];
+			u32 *p = (u32*)&rgba[((x + ii) + (y + jj) * size_x)*4];
+			u32 *mp = (u32*)&rgba[((mx + ii) + (my + jj) * size_x)*4];
 
 			if (getLE(*p) ^ getLE(*mp)) {
 				return false;
@@ -144,12 +120,12 @@ bool ImageLZWriter::checkMatch(u16 x, u16 y, u16 mx, u16 my) {
 
 bool ImageLZWriter::expandMatch(u16 &sx, u16 &sy, u16 &dx, u16 &dy, u16 &w, u16 &h) {
 	const u8 *rgba = _rgba;
-	const int width = _width;
-	const int height = _height;
+	const int size_x = _size_x;
+	const int size_y = _size_y;
 
 	// Try expanding to the right
 	int trailing_alpha_only = 0;
-	while (w + 1 <= MAXW && sx + w < width && dx + w < width) {
+	while (w + 1 <= MAXW && sx + w < size_x && dx + w < size_x) {
 		bool alpha_only = true;
 
 		for (int jj = 0; jj < h; ++jj) {
@@ -157,8 +133,8 @@ bool ImageLZWriter::expandMatch(u16 &sx, u16 &sy, u16 &dx, u16 &dy, u16 &w, u16 
 				goto try_down;
 			}
 
-			u32 *sp = (u32*)&rgba[((sx + w) + (sy + jj) * width)*4];
-			u32 *dp = (u32*)&rgba[((dx + w) + (dy + jj) * width)*4];
+			u32 *sp = (u32*)&rgba[((sx + w) + (sy + jj) * size_x)*4];
+			u32 *dp = (u32*)&rgba[((dx + w) + (dy + jj) * size_x)*4];
 
 			if (getLE(*sp) ^ getLE(*dp)) {
 				goto try_down;
@@ -175,7 +151,7 @@ bool ImageLZWriter::expandMatch(u16 &sx, u16 &sy, u16 &dx, u16 &dy, u16 &w, u16 
 			trailing_alpha_only = 0;
 		}
 
-		// Widen width
+		// Widen size_x
 		++w;
 	}
 
@@ -186,7 +162,7 @@ try_down:
 
 	// Try expanding down
 	trailing_alpha_only = 0;
-	while (h + 1 <= MAXH && sy + h < height && dy + h < height) {
+	while (h + 1 <= MAXH && sy + h < size_y && dy + h < size_y) {
 		bool alpha_only = true;
 
 		for (int jj = 0; jj < w; ++jj) {
@@ -194,8 +170,8 @@ try_down:
 				goto try_left;
 			}
 
-			u32 *sp = (u32*)&rgba[((sx + jj) + (sy + h) * width)*4];
-			u32 *dp = (u32*)&rgba[((dx + jj) + (dy + h) * width)*4];
+			u32 *sp = (u32*)&rgba[((sx + jj) + (sy + h) * size_x)*4];
+			u32 *dp = (u32*)&rgba[((dx + jj) + (dy + h) * size_x)*4];
 
 			if (getLE(*sp) ^ getLE(*dp)) {
 				goto try_left;
@@ -212,7 +188,7 @@ try_down:
 			trailing_alpha_only = 0;
 		}
 
-		// Heighten height
+		// Heighten size_y
 		++h;
 	}
 
@@ -231,8 +207,8 @@ try_left:
 				goto try_up;
 			}
 
-			u32 *sp = (u32*)&rgba[((sx - 1) + (sy + jj) * width)*4];
-			u32 *dp = (u32*)&rgba[((dx - 1) + (dy + jj) * width)*4];
+			u32 *sp = (u32*)&rgba[((sx - 1) + (sy + jj) * size_x)*4];
+			u32 *dp = (u32*)&rgba[((dx - 1) + (dy + jj) * size_x)*4];
 
 			if (getLE(*sp) ^ getLE(*dp)) {
 				goto try_up;
@@ -249,7 +225,7 @@ try_left:
 			trailing_alpha_only = 0;
 		}
 
-		// Widen width
+		// Widen size_x
 		sx--;
 		dx--;
 		++w;	
@@ -272,8 +248,8 @@ try_up:
 				goto done;
 			}
 
-			u32 *sp = (u32*)&rgba[((sx + jj) + (sy - 1) * width)*4];
-			u32 *dp = (u32*)&rgba[((dx + jj) + (dy - 1) * width)*4];
+			u32 *sp = (u32*)&rgba[((sx + jj) + (sy - 1) * size_x)*4];
+			u32 *dp = (u32*)&rgba[((dx + jj) + (dy - 1) * size_x)*4];
 
 			if (getLE(*sp) ^ getLE(*dp)) {
 				goto done;
@@ -290,7 +266,7 @@ try_up:
 			trailing_alpha_only = 0;
 		}
 
-		// Widen width
+		// Widen size_x
 		sy--;
 		dy--;
 		++h;	
@@ -314,7 +290,7 @@ u32 ImageLZWriter::score(int x, int y, int w, int h) {
 			if (visited(x + ii, y + jj)) {
 				return 0;
 			}
-			u32 *p = (u32*)&_rgba[((x + ii) + (y + jj) * _width)*4];
+			u32 *p = (u32*)&_rgba[((x + ii) + (y + jj) * _size_x)*4];
 			u32 pv = getLE(*p);
 
 #ifdef IGNORE_ALL_ZERO_MATCHES
@@ -362,7 +338,7 @@ int ImageLZWriter::match() {
 	CAT_INANE("LZ") << "Searching for matches with " << _table_size << "-entry hash table...";
 
 	const u8 *rgba = _rgba;
-	const int width = _width;
+	const int size_x = _size_x;
 
 #ifdef CAT_COLLECT_STATS
 	Stats.collisions = 0;
@@ -371,18 +347,18 @@ int ImageLZWriter::match() {
 #endif
 
 	// For each raster,
-	for (u16 y = 0, yend = _height - ZONEH; y <= yend; ++y) {
+	for (u16 y = 0, yend = _size_y - ZONEH; y <= yend; ++y) {
 		// Initialize a full hash block in the upper left of this row
 		u32 hash = 0;
 		for (int ii = 0; ii < ZONEW; ++ii) {
 			for (int jj = 0; jj < ZONEH; ++jj) {
-				u32 *p = (u32*)&rgba[(ii + jj * width)*4];
+				u32 *p = (u32*)&rgba[(ii + jj * size_x)*4];
 				hash += hashPixel(*p);
 			}
 		}
 
 		// For each column,
-		u16 x = 0, xend = width - ZONEW;
+		u16 x = 0, xend = size_x - ZONEW;
 		for (;;) {
 			// If a previous zone had this hash,
 			u32 match = _table[hash & _table_mask];
@@ -429,9 +405,9 @@ int ImageLZWriter::match() {
 
 			// Roll the hash to the next zone one pixel over
 			for (int jj = 0; jj < ZONEH; ++jj) {
-				u32 *lp = (u32*)&rgba[(x + (y + jj) * width)*4];
+				u32 *lp = (u32*)&rgba[(x + (y + jj) * size_x)*4];
 				hash -= hashPixel(*lp);
-				u32 *rp = (u32*)&rgba[((x + ZONEW) + (y + jj) * width)*4];
+				u32 *rp = (u32*)&rgba[((x + ZONEW) + (y + jj) * size_x)*4];
 				hash += hashPixel(*rp);
 			}
 		}
@@ -505,7 +481,7 @@ void ImageLZWriter::write(ImageWriter &writer) {
 		}
 #ifdef CAT_COLLECT_STATS
 		Stats.huff_bits = bits + 1 + 16;
-		Stats.covered_percent = Stats.covered * 100. / (double)(_width * _height);
+		Stats.covered_percent = Stats.covered * 100. / (double)(_size_x * _size_y);
 		Stats.bytes_saved = Stats.covered * 4;
 		Stats.bytes_overhead = Stats.huff_bits / 8;
 		Stats.compression_ratio = Stats.bytes_saved / (double)Stats.bytes_overhead;
@@ -593,7 +569,7 @@ void ImageLZWriter::write(ImageWriter &writer) {
 
 #ifdef CAT_COLLECT_STATS
 	Stats.huff_bits = bits;
-	Stats.covered_percent = Stats.covered * 100. / (double)(_width * _height);
+	Stats.covered_percent = Stats.covered * 100. / (double)(_size_x * _size_y);
 	Stats.bytes_saved = Stats.covered * 4;
 	Stats.bytes_overhead = bits / 8;
 	Stats.compression_ratio = Stats.bytes_saved / (double)Stats.bytes_overhead;
@@ -621,7 +597,7 @@ bool ImageLZWriter::findExtent(int x, int y, int &w, int &h) {
 bool ImageLZWriter::dumpStats() {
 	CAT_INANE("stats") << "(LZ Compress) Initial collisions : " << Stats.collisions;
 	CAT_INANE("stats") << "(LZ Compress) Initial matches : " << Stats.initial_matches << " used " << Stats.match_count;
-	CAT_INANE("stats") << "(LZ Compress) Matched amount : " << Stats.covered_percent << "% of file is redundant (" << Stats.covered << " of " << _width * _height << " pixels)";
+	CAT_INANE("stats") << "(LZ Compress) Matched amount : " << Stats.covered_percent << "% of file is redundant (" << Stats.covered << " of " << _size_x * _size_y << " pixels)";
 	CAT_INANE("stats") << "(LZ Compress) Bytes saved : " << Stats.bytes_saved << " bytes";
 	CAT_INANE("stats") << "(LZ Compress) Compressed overhead : " << Stats.bytes_overhead << " bytes to transmit";
 	CAT_INANE("stats") << "(LZ Compress) Compression ratio : " << Stats.compression_ratio << ":1";

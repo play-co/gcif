@@ -33,6 +33,7 @@
 #include "ImageWriter.hpp"
 #include "../decoder/ImageLZReader.hpp"
 #include "GCIFWriter.h"
+#include "../decoder/SmartArray.hpp"
 
 #include <vector>
 
@@ -90,18 +91,12 @@ class ImageLZWriter {
 
 	const GCIFKnobs *_knobs;
 	const u8 *_rgba;
-	int _width, _height;
+	int _size_x, _size_y;
 
-	// Value is 16-bit x, y coordinates
-	u32 *_table;
-	int _table_alloc;
-
-	// Visited bitmask
-	u32 *_visited;
-	int _visited_alloc;
+	SmartArray<u32> _table, _visited;
 
 	CAT_INLINE void visit(int x, int y) {
-		int off = x + y * _width;
+		const int off = x + y * _size_x;
 		_visited[off >> 5] |= 1 << (off & 31);
 	}
 
@@ -115,7 +110,6 @@ class ImageLZWriter {
 
 	std::vector<Match> _exact_matches;
 
-	void clear();
 	bool checkMatch(u16 x, u16 y, u16 mx, u16 my);	
 	bool expandMatch(u16 &sx, u16 &sy, u16 &dx, u16 &dy, u16 &w, u16 &h);
 	u32 score(int x, int y, int w, int h);
@@ -137,19 +131,10 @@ public:
 #endif
 
 public:
-	CAT_INLINE ImageLZWriter() {
-		_rgba = 0;
-		_table = 0;
-		_visited = 0;
-	}
-	virtual CAT_INLINE ~ImageLZWriter() {
-		clear();
-	}
-
-	int initFromRGBA(const u8 *rgba, int width, int height, const GCIFKnobs *knobs);
+	int init(const u8 *rgba, int size_x, int size_y, const GCIFKnobs *knobs);
 
 	CAT_INLINE u32 visited(int x, int y) {
-		int off = x + y * _width;
+		const int off = x + y * _size_x;
 		return (_visited[off >> 5] >> (off & 31)) & 1;
 	}
 

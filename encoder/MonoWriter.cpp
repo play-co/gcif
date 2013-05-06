@@ -72,6 +72,10 @@ void MonoWriter::cleanup() {
 		delete []_tile_seen;
 		_tile_seen = 0;
 	}
+	if (_ecodes) {
+		delete []_ecodes;
+		_ecodes = 0;
+	}
 }
 
 void MonoWriter::maskTiles() {
@@ -278,9 +282,6 @@ void MonoWriter::designFilters() {
 		}
 	}
 
-	EntropyEstimator ee;
-	ee.init();
-
 	// Copy the first SF_FIXED filters
 	for (int f = 0; f < SF_FIXED; ++f) {
 		_filters[f] = MONO_FILTERS[f];
@@ -294,7 +295,7 @@ void MonoWriter::designFilters() {
 	}
 
 	// Calculate min coverage threshold
-	int filter_thresh = _params.filter_thresh * _tiles_count;
+	int coverage_thresh = _params.filter_thresh * _tiles_count;
 	int coverage = 0;
 
 	// Prepare to reduce the sympal set size
@@ -317,12 +318,6 @@ void MonoWriter::designFilters() {
 
 		// NOTE: Interesting interaction with fixed filters that are not chosen
 		coverage += covered;
-
-		// If coverage is satisifed,
-		if (coverage >= filter_thresh) {
-			// We're done here
-			break;
-		}
 
 		// If filter is not fixed,
 		if (index >= SF_FIXED) {
@@ -348,6 +343,12 @@ void MonoWriter::designFilters() {
 			if (filters_set >= MAX_FILTERS) {
 				break;
 			}
+		}
+
+		// If coverage is satisifed,
+		if (coverage >= coverage_thresh) {
+			// We're done here
+			break;
 		}
 	}
 

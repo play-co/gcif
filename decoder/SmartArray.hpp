@@ -26,52 +26,90 @@
 	POSSIBILITY OF SUCH DAMAGE.
 */
 
-#ifndef FILTER_SCORER_HPP
-#define FILTER_SCORER_HPP
+#ifndef SMART_ARRAY_HPP
+#define SMART_ARRAY_HPP
 
-#include "../decoder/Platform.hpp"
-#include "../decoder/SmartArray.hpp"
+#include "Platform.hpp"
+#include "Enforcer.hpp"
 
 namespace cat {
 
 
-//// FilterScorer
+//// SmartArray
 
-class FilterScorer {
-public:
-	struct Score {
-		int score;
-		int index;
-	};
+template<class T> class SmartArray {
+	T *_data;
+	int _alloc;
+	int _size;
 
 protected:
-	SmartArray<Score> _list;		// List of scores
-
-	CAT_INLINE void swap(int a, int b) {
-		Score temp = _list[a];
-		_list[a] = _list[b];
-		_list[b] = temp;
+	void alloc(int size) {
+		_data = new T[size];
+		_alloc = _size = size;
 	}
 
-	int partitionTop(int left, int right, int pivotIndex);
-	void quickSort(int left, int right);
+	void grow(int size) {
+		if (_data) {
+			delete []_data;
+		}
+		alloc(size);
+	}
+
+	void cleanup() {
+		if (_data) {
+			delete []_data;
+			_data = 0;
+		}
+	}
 
 public:
-	void init(int count);
-
-	void reset();
-
-	CAT_INLINE void add(int index, int error) {
-		_list[index].score += error;
+	CAT_INLINE SmartArray() {
+		_data = 0;
+	}
+	CAT_INLINE virtual ~SmartArray() {
+		cleanup();
 	}
 
-	Score *getLowest();
+	CAT_INLINE void resize(int size) {
+		if (!_data) {
+			alloc(size);
+		} else if (size > _alloc) {
+			grow(size);
+		}
+	}
 
-	Score *getTop(int k, bool sorted);
+	CAT_INLINE void fill_00() {
+		CAT_DEBUG_ENFORCE(_data);
+
+		memset(_data, 0x00, _size * sizeof(T));
+	}
+
+	CAT_INLINE void fill_ff() {
+		CAT_DEBUG_ENFORCE(_data);
+
+		memset(_data, 0xff, _size * sizeof(T));
+	}
+
+	CAT_INLINE int size() {
+		return _size;
+	}
+
+	CAT_INLINE T *get() {
+		CAT_DEBUG_ENFORCE(_data);
+
+		return _data;
+	}
+
+	CAT_INLINE T &operator[](int index) {
+		CAT_DEBUG_ENFORCE(_data);
+		CAT_DEBUG_ENFORCE(index < _size);
+
+		return _data[index];
+	}
 };
 
 
 } // namespace cat
 
-#endif // FILTER_SCORER_HPP
+#endif // SMART_ARRAY_HPP
 
