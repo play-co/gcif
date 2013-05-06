@@ -191,6 +191,8 @@ void MonoWriter::designFilters() {
 	awards.init(SF_COUNT + _sympal_filter_count);
 	awards.reset();
 
+	int rgba_count = 0;
+
 	// For each tile,
 	const u8 *topleft_row = _params.data;
 	for (u16 y = 0; y < size_y; y += tile_size_y) {
@@ -236,6 +238,8 @@ void MonoWriter::designFilters() {
 
 							scores.add(f, score);
 						}
+
+						++rgba_count;
 					}
 					++px;
 					++data;
@@ -284,7 +288,7 @@ void MonoWriter::designFilters() {
 	}
 
 	// Calculate min coverage threshold
-	int coverage_thresh = _params.filter_thresh * _tiles_count;
+	int coverage_thresh = _params.filter_thresh * rgba_count;
 	int coverage = 0;
 
 	// Prepare to reduce the sympal set size
@@ -319,13 +323,13 @@ void MonoWriter::designFilters() {
 				palette[sympal_f] = index;
 				++sympal_f;
 
-				CAT_INANE("2D") << " - Added palette filter " << sympal_f << " for palette index " << sympal_filter << " - Coverage " << coverage * 100.f / _tiles_count;
+				CAT_INANE("2D") << " - Added palette filter " << sympal_f << " for palette index " << sympal_filter << " - Coverage " << coverage * 100.f / rgba_count;
 			} else {
 				_filters[normal_f] = MONO_FILTERS[index];
 				_filter_indices[normal_f] = index;
 				++normal_f;
 
-				CAT_INANE("2D") << " - Added filter " << normal_f << " for filter index " << index << " - Coverage " << coverage * 100.f / _tiles_count;
+				CAT_INANE("2D") << " - Added filter " << normal_f << " for filter index " << index << " - Coverage " << coverage * 100.f / rgba_count;
 
 			}
 
