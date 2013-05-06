@@ -73,8 +73,8 @@ int ImageLZWriter::init(const u8 *rgba, int size_x, int size_y, const GCIFKnobs 
 	_table.fill_ff();
 
 	const int visited_size = (size_x * size_y + 31) / 32;
-	_table.resize(visited_size);
-	_table.fill_00();
+	_visited.resize(visited_size);
+	_visited.fill_00();
 
 	// If image is too small for processing,
 	if (size_x < ZONEW || size_y < ZONEH) {
