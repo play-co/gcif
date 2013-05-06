@@ -642,7 +642,6 @@ void MonoWriter::designRowFilters() {
 
 	const int tiles_x = _tiles_x, tiles_y = _tiles_y;
 	const u16 num_filters = _filter_count;
-	u8 *p = _tiles.get();
 
 	EntropyEstimator ee;
 	ee.init();
@@ -658,6 +657,7 @@ void MonoWriter::designRowFilters() {
 	int passes = 0;
 	while (passes < MAX_ROW_PASSES) {
 		total_entropy = 0;
+		u8 *p = _tiles.get();
 
 		// For each tile,
 		for (int ty = 0; ty < tiles_y; ++ty) {
@@ -676,6 +676,9 @@ void MonoWriter::designRowFilters() {
 					if (fprev >= num_filters) {
 						fprev -= num_filters;
 					}
+
+					CAT_DEBUG_ENFORCE(fprev < _filter_count);
+
 					codes[tx + tiles_x] = fprev;
 				}
 
@@ -878,6 +881,8 @@ void MonoWriter::initializeEncoders() {
 						}
 						prev = f;
 					}
+
+					CAT_DEBUG_ENFORCE(rf < _filter_count);
 
 					_row_filter_encoder.add(rf);
 				}
