@@ -57,7 +57,7 @@ bool ImagePaletteWriter::generatePalette() {
 		for (int x = 0, xend = _size_x; x < xend; ++x) {
 			u32 c = *color++;
 
-			if (_mask->masked(x, y) || _lz->visited(x, y)) {
+			if (IsMasked(x, y)) {
 				continue;
 			}
 

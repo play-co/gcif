@@ -155,7 +155,7 @@ int ImagePaletteReader::readPixels(ImageReader &reader) {
 	const u32 MASK_COLOR = _mask->getColor();
 	const u8 MASK_PAL = _mask_palette;
 
-	u8 *p = _rgba;
+	u32 *rgba = reinterpret_cast<u32 *>( _rgba );
 
 	u16 trigger_x_lz = _lz->getTriggerX();
 
@@ -179,7 +179,9 @@ int ImagePaletteReader::readPixels(ImageReader &reader) {
 
 			// If LZ triggered,
 			if (x == trigger_x_lz) {
-				lz_skip = _lz->triggerX(p);
+				u8 *p = _image.get() + x + y * _size_x;
+
+				lz_skip = _lz->triggerXPal(p, rgba);
 				trigger_x_lz = _lz->getTriggerX();
 			}
 
@@ -191,20 +193,20 @@ int ImagePaletteReader::readPixels(ImageReader &reader) {
 
 			if (lz_skip > 0) {
 				--lz_skip;
-				_mono_decoder.maskedWrite(MASK_PAL);
+				_mono_decoder.maskedSkip();
 			} else if ((s32)mask < 0) {
-				*reinterpret_cast<u32 *>( p ) = MASK_COLOR;
+				*rgba = MASK_COLOR;
 				_mono_decoder.maskedWrite(MASK_PAL);
 			} else {
 				// TODO: Unroll to use unsafe version
-				u8 p = _mono_decoder.read(x, y, reader);
+				u8 index = _mono_decoder.read(x, y, reader);
 
-				CAT_DEBUG_ENFORCE(p < _palette_size);
+				CAT_DEBUG_ENFORCE(index < _palette_size);
 
-				*reinterpret_cast<u32 *>( p ) = _palette[p];
+				*rgba = _palette[index];
 			}
 
-			p += 4;
+			++rgba;
 			mask <<= 1;
 		}
 	}

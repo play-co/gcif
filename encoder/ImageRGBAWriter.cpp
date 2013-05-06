@@ -658,7 +658,7 @@ void ImageRGBAWriter::initializeEncoders() {
 }
 
 bool ImageRGBAWriter::IsMasked(u16 x, u16 y) {
-	return _mask->masked(x, y) && _lz->visited(x, y);
+	return _mask->masked(x, y) || _lz->visited(x, y);
 }
 
 int ImageRGBAWriter::init(const u8 *rgba, int size_x, int size_y, ImageMaskWriter &mask, ImageLZWriter &lz, const GCIFKnobs *knobs) {
