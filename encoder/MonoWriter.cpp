@@ -48,40 +48,20 @@ using namespace cat;
 //// MonoWriter
 
 void MonoWriter::cleanup() {
-	if (_tiles) {
-		delete []_tiles;
-		_tiles = 0;
-	}
-	if (_tile_row_filters) {
-		delete []_tile_row_filters;
-		_tile_row_filters = 0;
-	}
 	if (_filter_encoder) {
 		delete _filter_encoder;
 		_filter_encoder = 0;
 	}
-	if (_residuals) {
-		delete []_residuals;
-		_residuals = 0;
-	}
 	if (_best_writer) {
 		delete _best_writer;
 		_best_writer = 0;
-	}
-	if (_tile_seen) {
-		delete []_tile_seen;
-		_tile_seen = 0;
-	}
-	if (_ecodes) {
-		delete []_ecodes;
-		_ecodes = 0;
 	}
 }
 
 void MonoWriter::maskTiles() {
 	const u16 tile_size_x = _tile_size_x, tile_size_y = _tile_size_y;
 	const u16 size_x = _params.size_x, size_y = _params.size_y;
-	u8 *p = _tiles;
+	u8 *p = _tiles.get();
 
 	// For each tile,
 	for (u16 y = 0; y < size_y; y += tile_size_y) {
@@ -114,7 +94,7 @@ void MonoWriter::designPaletteFilters() {
 
 	const u16 tile_size_x = _tile_size_x, tile_size_y = _tile_size_y;
 	const u16 size_x = _params.size_x, size_y = _params.size_y;
-	u8 *p = _tiles;
+	u8 *p = _tiles.get();
 	const u8 *topleft = _params.data;
 
 	u32 hist[MAX_SYMS] = { 0 };
@@ -200,7 +180,7 @@ void MonoWriter::designFilters() {
 	const u16 tile_size_x = _tile_size_x, tile_size_y = _tile_size_y;
 	const u16 size_x = _params.size_x, size_y = _params.size_y;
 	const u16 num_syms = _params.num_syms;
-	u8 *p = _tiles;
+	u8 *p = _tiles.get();
 	const u8 *topleft = _params.data;
 
 	FilterScorer scores, awards;
@@ -377,7 +357,7 @@ void MonoWriter::designPaletteTiles() {
 
 	const u16 tile_size_x = _tile_size_x, tile_size_y = _tile_size_y;
 	const u16 size_x = _params.size_x, size_y = _params.size_y;
-	u8 *p = _tiles;
+	u8 *p = _tiles.get();
 	const u8 *topleft = _params.data;
 
 	// For each tile,
@@ -414,21 +394,15 @@ void MonoWriter::designTiles() {
 	const u16 tile_size_x = _tile_size_x, tile_size_y = _tile_size_y;
 	const u16 size_x = _params.size_x, size_y = _params.size_y;
 	const u16 num_syms = _params.num_syms;
-	u8 *p = _tiles;
+	u8 *p = _tiles.get();
 
 	EntropyEstimator ee;
 	ee.init();
 
 	const u32 code_stride = _tile_size_x * _tile_size_y;
 	const u32 codes_size = code_stride * _filter_count;
-	if (!_ecodes || codes_size > _ecodes_alloc) {
-		if (_ecodes) {
-			delete []_ecodes;
-		}
-		_ecodes = new u8[codes_size];
-		_ecodes_alloc = codes_size;
-	}
-	u8 *codes = _ecodes;
+	_ecodes.resize(codes_size);
+	u8 *codes = _ecodes.get();
 
 	// Until revisits are done,
 	int passes = 0;
@@ -591,11 +565,11 @@ void MonoWriter::computeResiduals() {
 	const u16 tile_size_x = _tile_size_x, tile_size_y = _tile_size_y;
 	const u16 size_x = _params.size_x, size_y = _params.size_y;
 	const u16 num_syms = _params.num_syms;
-	const u8 *p = _tiles;
+	const u8 *p = _tiles.get();
 
 	// For each tile,
 	const u8 *topleft = _params.data;
-	size_t residual_delta = (size_t)(_residuals - topleft);
+	size_t residual_delta = (size_t)(_residuals.get() - topleft);
 	for (u16 y = 0; y < size_y; y += tile_size_y) {
 		for (u16 x = 0; x < size_x; x += tile_size_x, ++p, topleft += tile_size_x) {
 			const u8 f = *p;
@@ -642,7 +616,7 @@ void MonoWriter::designRowFilters() {
 
 	const int tiles_x = _tiles_x, tiles_y = _tiles_y;
 	const u16 num_filters = _filter_count;
-	u8 *p = _tiles;
+	u8 *p = _tiles.get();
 
 	EntropyEstimator ee;
 	ee.init();
@@ -651,14 +625,8 @@ void MonoWriter::designRowFilters() {
 
 	// Allocate temporary workspace
 	const u32 codes_size = MonoReader::RF_COUNT * tiles_x;
-	if (!_ecodes || _ecodes_alloc < codes_size) {
-		if (_ecodes) {
-			delete []_ecodes;
-		}
-		_ecodes = new u8[codes_size];
-		_ecodes_alloc = codes_size;
-	}
-	u8 *codes = _ecodes;
+	_ecodes.resize(codes_size);
+	u8 *codes = _ecodes.get();
 
 	// For each pass through,
 	int passes = 0;
@@ -756,7 +724,7 @@ void MonoWriter::recurseCompress() {
 		_filter_encoder = new MonoWriter;
 
 		Parameters params = _params;
-		params.data = _tiles;
+		params.data = _tiles.get();
 		params.num_syms = _filter_count;
 		params.size_x = _tiles_x;
 		params.size_y = _tiles_y;
@@ -799,7 +767,7 @@ void MonoWriter::designChaos() {
 		_chaos.start();
 
 		// For each row,
-		const u8 *residuals = _residuals;
+		const u8 *residuals = _residuals.get();
 		for (int y = 0; y < _params.size_y; ++y) {
 			_chaos.startRow();
 
@@ -851,7 +819,7 @@ void MonoWriter::initializeEncoders() {
 	_chaos.start();
 
 	// For each row,
-	const u8 *residuals = _residuals;
+	const u8 *residuals = _residuals.get();
 	for (int y = 0; y < _params.size_y; ++y) {
 		_chaos.startRow();
 
@@ -886,7 +854,7 @@ void MonoWriter::initializeEncoders() {
 	// If using row encoders for filters,
 	if (!_filter_encoder) {
 		// For each filter row,
-		const u8 *tile = _tiles;
+		const u8 *tile = _tiles.get();
 		for (int ty = 0; ty < _tiles_y; ++ty) {
 			int tile_row_filter = _tile_row_filters[ty];
 
@@ -966,7 +934,7 @@ u32 MonoWriter::simulate() {
 		bits += _filter_encoder->simulate();
 	} else {
 		// For each filter row,
-		const u8 *tile = _tiles;
+		const u8 *tile = _tiles.get();
 		for (int ty = 0; ty < _tiles_y; ++ty) {
 			int tile_row_filter = _tile_row_filters[ty];
 
@@ -1022,7 +990,7 @@ u32 MonoWriter::simulate() {
 	_chaos.start();
 
 	// For each row,
-	const u8 *residuals = _residuals;
+	const u8 *residuals = _residuals.get();
 	for (int y = 0; y < _params.size_y; ++y) {
 		_chaos.startRow();
 
@@ -1087,30 +1055,12 @@ u32 MonoWriter::process(const Parameters &params) {
 
 		// Allocate tile memory
 		_tiles_count = _tiles_x * _tiles_y;
-		if (!_tiles || _tiles_alloc < _tiles_count) {
-			if (_tiles) {
-				delete []_tiles;
-			}
-			_tiles = new u8[_tiles_count];
-			_tiles_alloc = _tiles_count;
-		}
-		if (!_tile_row_filters || _tile_row_filters_alloc < _tiles_y) {
-			if (_tile_row_filters) {
-				delete []_tile_row_filters;
-			}
-			_tile_row_filters = new u8[_tiles_y];
-			_tile_row_filters_alloc = _tiles_y;
-		}
+		_tiles.resize(_tiles_count);
+		_tile_row_filters.resize(_tiles_y);
 
 		// Allocate residual memory
 		const u32 residuals_memory = _params.size_x * _params.size_y;
-		if (!_residuals || residuals_memory > _residuals_alloc) {
-			if (_residuals) {
-				delete []_residuals;
-			}
-			_residuals = new u8[residuals_memory];
-			_residuals_alloc = residuals_memory;
-		}
+		_residuals.resize(residuals_memory);
 
 		// Process
 		maskTiles();
@@ -1241,23 +1191,14 @@ int MonoWriter::writeTables(ImageWriter &writer) {
 }
 
 void MonoWriter::initializeWriter() {
-	// Initialize writer
-	if (!_tile_seen || _tile_seen_alloc < _tiles_x) {
-		if (_tile_seen) {
-			delete []_tile_seen;
-		}
-		_tile_seen = new u8[_tiles_x];
-		_tile_seen_alloc = _tiles_x;
-	}
+	_tile_seen.resize(_tiles_x);
 
 	_chaos.start();
 
-	// Reset filter encoder
 	if (!_filter_encoder) {
 		_row_filter_encoder.reset();
 	}
 
-	// Reset encoders
 	for (int ii = 0, iiend = _chaos.getBinCount(); ii < iiend; ++ii) {
 		_encoder[ii].reset();
 	}
@@ -1266,27 +1207,30 @@ void MonoWriter::initializeWriter() {
 int MonoWriter::writeRowHeader(u16 y, ImageWriter &writer) {
 	CAT_DEBUG_ENFORCE(y < _size_y);
 
-	// Calculate tile y-coordinate
-	u16 ty = y >> _tile_bits_y;
-
-	// Reset seen bitmask
-	CAT_CLR(_tile_seen, _tiles_x * sizeof(*_tile_seen));
+	int bits = 0;
 
 	// Reset chaos bin subsystem
 	_chaos.startRow();
 
-	int bits;
+	// If at the start of a tile row,
+	if ((y & (_tile_size_y - 1)) == 0) {
+		// Clear tile seen
+		_tile_seen.fill_00();
 
-	// If filter encoder is used instead of row filters,
-	if (_filter_encoder) {
-		// Recurse start row (they all start at 0)
-		bits = _filter_encoder->writeRowHeader(ty, writer);
-	} else {
-		CAT_DEBUG_ENFORCE(RF_COUNT <= 4);
+		// Calculate tile y-coordinate
+		u16 ty = y >> _tile_bits_y;
 
-		// Write out chosen row filter
-		writer.writeBits(_tile_row_filters[ty], 2);
-		bits = 2;
+		// If filter encoder is used instead of row filters,
+		if (_filter_encoder) {
+			// Recurse start row (they all start at 0)
+			bits += _filter_encoder->writeRowHeader(ty, writer);
+		} else {
+			CAT_DEBUG_ENFORCE(RF_COUNT <= 4);
+
+			// Write out chosen row filter
+			writer.writeBits(_tile_row_filters[ty], 2);
+			bits += 2;
+		}
 	}
 
 	DESYNC_FILTER(0, y);
@@ -1301,7 +1245,7 @@ int MonoWriter::write(u16 x, u16 y, ImageWriter &writer) {
 	CAT_DEBUG_ENFORCE(x < _size_x && y < _size_y);
 
 	// Calculate tile coordinates
-	u16 tx = x >> _tile_bits_y;
+	u16 tx = x >> _tile_bits_x;
 
 	// If tile not seen yet,
 	if (!_tile_seen[tx]) {
@@ -1309,7 +1253,7 @@ int MonoWriter::write(u16 x, u16 y, ImageWriter &writer) {
 
 		// Get tile
 		u16 ty = y >> _tile_bits_y;
-		u8 *tile = _tiles + tx + ty * _tiles_x;
+		u8 *tile = _tiles.get() + tx + ty * _tiles_x;
 		u8 f = tile[0];
 		_write_filter = f;
 

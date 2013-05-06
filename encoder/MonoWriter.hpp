@@ -36,6 +36,7 @@
 #include "EntropyEncoder.hpp"
 #include "GCIFWriter.h"
 #include "../decoder/Delegates.hpp"
+#include "../decoder/SmartArray.hpp"
 
 #include <vector>
 
@@ -105,19 +106,16 @@ protected:
 	Parameters _params;						// Input parameters
 
 	// Generated filter tiles
-	u8 *_tiles;								// Filter tiles
-	int _tiles_alloc;
+	SmartArray<u8> _tiles;
 	u32 _tiles_count;						// Number of tiles
 	int _tiles_x, _tiles_y;					// Tiles in x,y
 	int _tile_bits_field_bc;
 	u16 _tile_bits_x, _tile_bits_y;			// Number of bits in size
 	u16 _tile_size_x, _tile_size_y;			// Size of tile
-	u8 *_ecodes;							// Codes used during entropy estimation
-	int _ecodes_alloc;
+	SmartArray<u8> _ecodes;
 
 	// Residuals
-	u8 *_residuals;							// Residual data after applying filters
-	int _residuals_alloc;
+	SmartArray<u8> _residuals;
 	u32 _residual_entropy;					// Calculated entropy of residuals
 
 	// Filter choices
@@ -133,8 +131,7 @@ protected:
 
 	// Filter encoder
 	MonoWriter *_filter_encoder;			// Child instance
-	u8 *_tile_row_filters;					// One for each tile row
-	int _tile_row_filters_alloc;
+	SmartArray<u8> _tile_row_filters;
 	u32 _row_filter_entropy;				// Calculated entropy from using row filters
 
 	// Filter encoder for row mode
@@ -146,8 +143,7 @@ protected:
 
 	// Write state
 	u8 _write_filter;						// Current filter
-	u8 *_tile_seen;							// Boolean array: Seen tile yet while writing?
-	int _tile_seen_alloc;
+	SmartArray<u8> _tile_seen;
 
 	// Data encoders
 	EntropyEncoder<MAX_SYMS, ZRLE_SYMS> _encoder[MAX_CHAOS_LEVELS];
@@ -207,13 +203,8 @@ protected:
 
 public:
 	CAT_INLINE MonoWriter() {
-		_tiles = 0;
 		_filter_encoder = 0;
-		_tile_row_filters = 0;
-		_residuals = 0;
-		_tile_seen = 0;
 		_best_writer = 0;
-		_ecodes = 0;
 	}
 	CAT_INLINE virtual ~MonoWriter() {
 		cleanup();

@@ -59,8 +59,8 @@ using namespace std;
 void ImageRGBAWriter::maskTiles() {
 	const u16 tile_size_x = _tile_size_x, tile_size_y = _tile_size_y;
 	const u16 size_x = _size_x, size_y = _size_y;
-	u8 *sf = _sf_tiles;
-	u8 *cf = _cf_tiles;
+	u8 *sf = _sf_tiles.get();
+	u8 *cf = _cf_tiles.get();
 
 	// For each tile,
 	for (u16 y = 0; y < size_y; y += tile_size_y) {
@@ -97,13 +97,13 @@ void ImageRGBAWriter::designFilters() {
 	awards.reset();
 	u8 FPT[3];
 
-	CAT_INANE("CM") << "Designing spatial filters...";
+	CAT_INANE("RGBA") << "Designing spatial filters...";
 
 	const u16 tile_size_x = _tile_size_x, tile_size_y = _tile_size_y;
 	const u16 size_x = _size_x, size_y = _size_y;
 
-	u8 *sf = _sf_tiles;
-	u8 *cf = _cf_tiles;
+	u8 *sf = _sf_tiles.get();
+	u8 *cf = _cf_tiles.get();
 	const u8 *topleft = _rgba;
 	for (int y = 0; y < _size_y; y += _tile_size_y) {
 		for (int x = 0; x < _size_x; x += _tile_size_x, ++sf, ++cf, topleft += _tile_size_x * 4) {
@@ -196,7 +196,7 @@ void ImageRGBAWriter::designFilters() {
 }
 
 void ImageRGBAWriter::designTiles() {
-	CAT_INANE("2D") << "Designing RGBA SF/CF tiles for " << _tiles_x << "x" << _tiles_y << "...";
+	CAT_INANE("RGBA") << "Designing SF/CF tiles for " << _tiles_x << "x" << _tiles_y << "...";
 
 	const u16 tile_size_x = _tile_size_x, tile_size_y = _tile_size_y;
 	const u16 size_x = _size_x, size_y = _size_y;
@@ -210,32 +210,20 @@ void ImageRGBAWriter::designTiles() {
 	// Allocate temporary space for entropy analysis
 	const u32 code_stride = _tile_size_x * _tile_size_y;
 	const u32 codes_size = code_stride * _sf_count * CF_COUNT;
-	if (!_ecodes[0] || codes_size > _ecodes_alloc) {
-		if (_ecodes[0]) {
-			delete []_ecodes[0];
-		}
-		_ecodes[0] = new u8[codes_size];
-		if (_ecodes[1]) {
-			delete []_ecodes[1];
-		}
-		_ecodes[1] = new u8[codes_size];
-		if (_ecodes[2]) {
-			delete []_ecodes[2];
-		}
-		_ecodes[2] = new u8[codes_size];
-		_ecodes_alloc = codes_size;
-	}
+	_ecodes[0].resize(codes_size);
+	_ecodes[1].resize(codes_size);
+	_ecodes[2].resize(codes_size);
 	u8 *codes[3] = {
-		_ecodes[0],
-		_ecodes[1],
-		_ecodes[2]
+		_ecodes[0].get(),
+		_ecodes[1].get(),
+		_ecodes[2].get()
 	};
 
 	// Until revisits are done,
 	int passes = 0;
 	int revisitCount = _knobs->cm_revisitCount;
-	u8 *sf = _sf_tiles;
-	u8 *cf = _cf_tiles;
+	u8 *sf = _sf_tiles.get();
+	u8 *cf = _cf_tiles.get();
 	while (passes < MAX_PASSES) {
 		// For each tile,
 		const u8 *topleft = _rgba;
@@ -373,125 +361,266 @@ void ImageRGBAWriter::designTiles() {
 			}
 		}
 
-		CAT_INANE("2D") << "Revisiting filter selections from the top... " << revisitCount << " left";
+		CAT_INANE("RGBA") << "Revisiting filter selections from the top... " << revisitCount << " left";
 	}
 }
 
-void ImageRGBAWriter::compressAlpha() {
-	CAT_INANE("2D") << "Compressing alpha channel...";
+bool ImageRGBAWriter::compressAlpha() {
+	CAT_INANE("RGBA") << "Compressing alpha channel...";
 
+	// Generate alpha matrix
 	const int alpha_size = _size_x * _size_y;
-	if (!_alpha || _alpha_alloc < alpha_size) {
-		if (_alpha) {
-			delete []_alpha;
+	_alpha.resize(alpha_size);
+
+	u8 *a = _alpha.get();
+	const u8 *rgba = _rgba;
+	for (int y = 0; y < _size_y; ++y) {
+		for (int x = 0; x < _size_x; ++x) {
+			*a++ = rgba[3];
+			rgba += 4;
 		}
-		_alpha = new u8[alpha_size];
-		_alpha_alloc = alpha_size;
 	}
+
+	MonoWriter::Parameters params;
+
+	params.knobs = _knobs;
+	params.data = _alpha.get();
+	params.num_syms = 256;
+	params.size_x = _size_x;
+	params.size_y = _size_y;
+	params.max_filters = 32;
+	params.min_bits = 2;
+	params.max_bits = 5;
+	params.sympal_thresh = 0.9;
+	params.filter_thresh = 0.9;
+	params.mask.SetMember<ImageRGBAWriter, &ImageRGBAWriter::IsMasked>(this);
+	params.AWARDS[0] = 5;
+	params.AWARDS[1] = 3;
+	params.AWARDS[2] = 1;
+	params.AWARDS[3] = 1;
+	params.award_count = 4;
+
+	return _a_encoder.init(params);
+}
+
+void ImageRGBAWriter::computeResiduals() {
+	CAT_INANE("RGBA") << "Executing tiles to generate residual matrix...";
+
+	const u16 tile_size_x = _tile_size_x, tile_size_y = _tile_size_y;
+	const u16 size_x = _size_x, size_y = _size_y;
+	u8 FPT[3];
+
+	const u8 *sf = _sf_tiles.get();
+	const u8 *cf = _cf_tiles.get();
+
+	_residuals.resize(_size_x * _size_y * 4);
+
+	// For each tile,
+	const u8 *topleft = _rgba;
+	size_t residual_delta = (size_t)(_residuals.get() - topleft);
+	for (u16 y = 0; y < size_y; y += tile_size_y) {
+		for (u16 x = 0; x < size_x; x += tile_size_x, ++sf, ++cf, topleft += tile_size_x*4) {
+			const u8 sfi = *sf;
+
+			if (sfi == MASK_TILE) {
+				continue;
+			}
+
+			const u8 cfi = *cf;
+
+			// For each element in the tile,
+			const u8 *row = topleft;
+			u16 py = y, cy = tile_size_y;
+			while (cy-- > 0 && py < size_y) {
+				const u8 *data = row;
+				u16 px = x, cx = tile_size_x;
+				while (cx-- > 0 && px < size_x) {
+					// If element is not masked,
+					if (!IsMasked(px, py)) {
+						const u8 *pred = _sf[sfi].safe(data, FPT, px, py, size_x);
+						u8 residual_rgb[3] = {
+							data[0] - pred[0],
+							data[1] - pred[1],
+							data[2] - pred[2]
+						};
+
+						u8 yuv[3];
+						RGB2YUV_FILTERS[cfi](residual_rgb, yuv);
+
+						u8 *residual_data = (u8*)data + residual_delta;
+
+						residual_data[0] = yuv[0];
+						residual_data[1] = yuv[1];
+						residual_data[2] = yuv[2];
+					}
+					data += 4;
+				}
+				++py;
+				row += size_x*4;
+			}
+		}
+	}
+}
+
+void ImageRGBAWriter::designChaos() {
+	CAT_INANE("RGBA") << "Designing chaos...";
+
+	EntropyEstimator ee[MAX_CHAOS_LEVELS];
+
+	u32 best_entropy = 0x7fffffff;
+	int best_chaos_levels = 1;
+
+	// For each chaos level,
+	for (int chaos_levels = 1; chaos_levels < MAX_CHAOS_LEVELS; ++chaos_levels) {
+		_chaos.init(chaos_levels, _size_x);
+
+		// Reset entropy estimator
+		for (int ii = 0; ii < chaos_levels; ++ii) {
+			ee[ii].init();
+		}
+
+		_chaos.start();
+
+		// For each row,
+		const u8 *residuals = _residuals.get();
+		for (int y = 0; y < _size_y; ++y) {
+			_chaos.startRow();
+
+			// For each column,
+			for (int x = 0; x < _size_x; ++x) {
+				// If masked,
+				if (IsMasked(x, y)) {
+					_chaos.zero();
+				} else {
+					// Get chaos bin
+					const u8 chaos_y = _chaos.getChaosY();
+					const u8 chaos_u = _chaos.getChaosU();
+					const u8 chaos_v = _chaos.getChaosV();
+
+					// Update chaos
+					_chaos.store(residuals[0], residuals[1], residuals[2], 0);
+
+					// Add to histogram for this chaos bin
+					ee[chaos_y].addSingle(residuals[0]);
+					ee[chaos_u].addSingle(residuals[1]);
+					ee[chaos_v].addSingle(residuals[2]);
+				}
+
+				residuals += 4;
+			}
+		}
+
+		// For each chaos level,
+		u32 entropy = 0;
+		for (int ii = 0; ii < chaos_levels; ++ii) {
+			entropy += ee[ii].entropyOverall();
+
+			// Approximate cost of adding an entropy level
+			entropy += 3 * 5 * 256;
+		}
+
+		// If this is the best chaos levels so far,
+		if (best_entropy > entropy) {
+			best_entropy = entropy;
+			best_chaos_levels = chaos_levels;
+		}
+	}
+
+	// Record the best option found
+	_chaos.init(best_chaos_levels, _size_x);
+}
+
+bool ImageRGBAWriter::compressSF() {
+	MonoWriter::Parameters params;
+
+	params.knobs = _knobs;
+	params.data = _sf_tiles.get();
+	params.num_syms = _sf_count;
+	params.size_x = _tiles_x;
+	params.size_y = _tiles_y;
+	params.max_filters = 32;
+	params.min_bits = 2;
+	params.max_bits = 5;
+	params.sympal_thresh = 0.9;
+	params.filter_thresh = 0.9;
+	params.mask.SetMember<ImageRGBAWriter, &ImageRGBAWriter::IsMasked>(this);
+	params.AWARDS[0] = 5;
+	params.AWARDS[1] = 3;
+	params.AWARDS[2] = 1;
+	params.AWARDS[3] = 1;
+	params.award_count = 4;
+
+	return _sf_encoder.init(params);
+}
+
+bool ImageRGBAWriter::compressCF() {
+	MonoWriter::Parameters params;
+
+	params.knobs = _knobs;
+	params.data = _cf_tiles.get();
+	params.num_syms = CF_COUNT;
+	params.size_x = _tiles_x;
+	params.size_y = _tiles_y;
+	params.max_filters = 32;
+	params.min_bits = 2;
+	params.max_bits = 5;
+	params.sympal_thresh = 0.9;
+	params.filter_thresh = 0.9;
+	params.mask.SetMember<ImageRGBAWriter, &ImageRGBAWriter::IsMasked>(this);
+	params.AWARDS[0] = 5;
+	params.AWARDS[1] = 3;
+	params.AWARDS[2] = 1;
+	params.AWARDS[3] = 1;
+	params.award_count = 4;
+
+	return _cf_encoder.init(params);
 }
 
 void ImageRGBAWriter::initializeEncoders() {
-	// Find number of pixels to encode
+	_chaos.start();
 	int chaos_count = 0;
+
+	// For each row,
+	const u8 *residuals = _residuals.get();
 	for (int y = 0; y < _size_y; ++y) {
+		_chaos.startRow();
+
+		// For each column,
 		for (int x = 0; x < _size_x; ++x) {
-			if (!_lz->visited(x, y) && !_mask->masked(x, y)) {
+			// If masked,
+			if (IsMasked(x, y)) {
+				_chaos.zero();
+			} else {
+				// Get chaos bin
+				const u8 chaos_y = _chaos.getChaosY();
+				const u8 chaos_u = _chaos.getChaosU();
+				const u8 chaos_v = _chaos.getChaosV();
+
+				// Update chaos
+				_chaos.store(residuals[0], residuals[1], residuals[2], 0);
+
+				// Add to histogram for this chaos bin
+				_y_encoder[chaos_y].add(residuals[0]);
+				_u_encoder[chaos_u].add(residuals[1]);
+				_v_encoder[chaos_v].add(residuals[2]);
+
 				++chaos_count;
 			}
+
+			residuals += 4;
 		}
 	}
 
 #ifdef CAT_COLLECT_STATS
 	Stats.chaos_count = chaos_count;
+	Stats.chaos_bins = _chaos.getBinCount();
 #endif
 
-	// If it is above a threshold,
-	if (chaos_count >= _knobs->cm_chaosThresh) {
-		CAT_DEBUG_ENFORCE(CHAOS_LEVELS_MAX == 8);
-
-		// Use more chaos levels for better compression
-		_chaos_levels = CHAOS_LEVELS_MAX;
-		_chaos_table = CHAOS_TABLE_8;
-	} else {
-		_chaos_levels = 1;
-		_chaos_table = CHAOS_TABLE_1;
-	}
-
-	const int size_x = _size_x;
-
-	// For each scanline,
-	const u8 *p = _rgba;
-	u8 *lastStart = _chaos + COLOR_PLANES;
-	CAT_CLR(_chaos, _chaos_size);
-
-	const u8 *CHAOS_TABLE = _chaos_table;
-	u8 FPT[3];
-
-	for (int y = 0; y < _size_y; ++y) {
-		u8 *last = lastStart;
-
-		// Zero left
-		last[0 - 4] = 0;
-		last[1 - 4] = 0;
-		last[2 - 4] = 0;
-		last[3 - 4] = 0;
-
-		// For each pixel,
-		for (int x = 0; x < size_x; ++x) {
-			// If not masked out,
-			if (!_lz->visited(x, y) && !_mask->masked(x, y)) {
-				// Get filter for this pixel
-				const u16 filter = getSpatialFilter(x, y);
-				const u8 cf = (u8)filter;
-				const u8 sf = (u8)(filter >> 8);
-
-				// Apply spatial filter
-				const u8 *pred = FPT;
-				_sf_set.get(sf).safe(p, &pred, x, y, size_x);
-				u8 temp[3];
-				for (int jj = 0; jj < 3; ++jj) {
-					temp[jj] = p[jj] - pred[jj];
-				}
-
-				// Apply color filter
-				u8 yuv[COLOR_PLANES];
-				RGB2YUV_FILTERS[cf](temp, yuv);
-				if (x > 0) {
-					yuv[3] = p[-1] - p[3];
-				} else {
-					yuv[3] = 255 - p[3];
-				}
-
-				u8 chaos = CHAOS_TABLE[CHAOS_SCORE[last[0 - 4]] + CHAOS_SCORE[last[0]]];
-				_y_encoder[chaos].add(yuv[0]);
-				chaos = CHAOS_TABLE[CHAOS_SCORE[last[1 - 4]] + CHAOS_SCORE[last[1]]];
-				_u_encoder[chaos].add(yuv[1]);
-				chaos = CHAOS_TABLE[CHAOS_SCORE[last[2 - 4]] + CHAOS_SCORE[last[2]]];
-				_v_encoder[chaos].add(yuv[2]);
-				chaos = CHAOS_TABLE[CHAOS_SCORE[last[3 - 4]] + CHAOS_SCORE[last[3]]];
-				_a_encoder[chaos].add(yuv[3]);
-
-				for (int c = 0; c < COLOR_PLANES; ++c) {
-					last[c] = yuv[c];
-				}
-			} else {
-				for (int c = 0; c < COLOR_PLANES; ++c) {
-					last[c] = 0;
-				}
-			}
-
-			// Next pixel
-			last += COLOR_PLANES;
-			p += 4;
-		}
-	}
-
-	// Finalize
-	for (int jj = 0; jj < _chaos.getBinCount(); ++jj) {
-		_y_encoder[jj].finalize();
-		_u_encoder[jj].finalize();
-		_v_encoder[jj].finalize();
-		_a_encoder[jj].finalize();
+	// For each chaos level,
+	for (int ii = 0, iiend = _chaos.getBinCount(); ii < iiend; ++ii) {
+		_y_encoder[ii].finalize();
+		_u_encoder[ii].finalize();
+		_v_encoder[ii].finalize();
 	}
 }
 
@@ -524,224 +653,160 @@ int ImageRGBAWriter::init(const u8 *rgba, int size_x, int size_y, ImageMaskWrite
 	_tiles_x = (_size_x + _tile_size_x - 1) >> _tile_bits_x;
 	_tiles_y = (_size_y + _tile_size_y - 1) >> _tile_bits_y;
 
-	// Allocate tiles
 	const int tiles_size = _tiles_x * _tiles_y;
-	if (!_sf_tiles || tiles_size > _tiles_alloc) {
-		if (_sf_tiles) {
-			delete []_sf_tiles;
-		}
-		_sf_tiles = new u8[tiles_size];
-		_tiles_alloc = tiles_size;
-	}
-	if (!_cf_tiles || tiles_size > _tiles_alloc) {
-		if (_cf_tiles) {
-			delete []_cf_tiles;
-		}
-		_cf_tiles = new u8[tiles_size];
-		_tiles_alloc = tiles_size;
-	}
+	_sf_tiles.resize(tiles_size);
+	_cf_tiles.resize(tiles_size);
 
-	// Allocate write objects
-	if (!_seen_filter || _tiles_x > _seen_filter_alloc) {
-		if (!_seen_filter) {
-			delete []_seen_filter;
-		}
-		_seen_filter = new u8[_tiles_x];
-		_seen_filter_alloc = _tiles_x;
-	}
-
-	// Process
 	maskTiles();
 	designFilters();
 	designTiles();
+	computeResiduals();
 	compressAlpha();
-	compressFilters();
+	designChaos();
+	compressSF();
+	compressCF();
 	initializeEncoders();
 
 	return GCIF_WE_OK;
 }
 
-bool ImageRGBAWriter::writeFilters(ImageWriter &writer) {
-	const int rep_count = static_cast<int>( _filter_replacements.size() );
+bool ImageRGBAWriter::writeTables(ImageWriter &writer) {
+	CAT_DEBUG_ENFORCE(MAX_FILTERS <= 32);
+	CAT_DEBUG_ENFORCE(SF_COUNT <= 128);
 
-	CAT_DEBUG_ENFORCE(SF_COUNT < 32);
-	CAT_DEBUG_ENFORCE(SpatialFilterSet::TAPPED_COUNT < 128);
+	writer.writeBits(_tile_bits_x, 3);
+	int basic_bits = 3;
 
-	writer.writeBits(rep_count, 5);
-	int bits = 5;
+	DESYNC_TABLE();
 
-	for (int ii = 0; ii < rep_count; ++ii) {
-		u32 filter = _filter_replacements[ii];
+	// Write filter choices
+	writer.writeBits(_sf_count - SF_FIXED, 5);
+	int choice_bits = 5;
 
-		u16 def = (u16)(filter >> 16);
-		u16 cust = (u16)filter;
+	for (int ii = SF_FIXED; ii < _sf_count; ++ii) {
+		u16 sf = _sf_indices[ii];
 
-		writer.writeBits(def, 5);
-		writer.writeBits(cust, 7);
-		bits += 12;
+		writer.writeBits(sf, 7);
+		choice_bits += 7;
 	}
 
-	// Write out filter huffman tables
-	int cf_table_bits = _cf_encoder.writeTable(writer);
-	int sf_table_bits = _sf_encoder.writeTable(writer);
+	DESYNC_TABLE();
+
+	int sf_table_bits = _sf_encoder.writeTables(writer);
+
+	DESYNC_TABLE();
+
+	int cf_table_bits = _cf_encoder.writeTables(writer);
+
+	DESYNC_TABLE();
+
+	int af_table_bits = _af_encoder.writeTables(writer);
+
+	DESYNC_TABLE();
 
 #ifdef CAT_COLLECT_STATS
-	Stats.filter_table_bits[0] = sf_table_bits + bits;
-	Stats.filter_table_bits[1] = cf_table_bits;
+	Stats.y_table_bits = 0;
+	Stats.u_table_bits = 0;
+	Stats.v_table_bits = 0;
+#endif // CAT_COLLECT_STATS
+
+	writer.writeBits(_chaos.getBinCount() - 1, 4);
+	basic_bits += 4;
+
+	for (int jj = 0; jj < _chaos.getBinCount(); ++jj) {
+		int y_table_bits = _y_encoder[jj].writeTables(writer);
+		DESYNC_TABLE();
+		int u_table_bits = _u_encoder[jj].writeTables(writer);
+		DESYNC_TABLE();
+		int v_table_bits = _v_encoder[jj].writeTables(writer);
+		DESYNC_TABLE();
+
+#ifdef CAT_COLLECT_STATS
+		Stats.y_table_bits += y_table_bits;
+		Stats.u_table_bits += u_table_bits;
+		Stats.v_table_bits += v_table_bits;
+#endif // CAT_COLLECT_STATS
+	}
+
+#ifdef CAT_COLLECT_STATS
+	Stats.basic_overhead_bits = basic_bits;
+	Stats.sf_choice_bits = choice_bits;
+	Stats.sf_table_bits = sf_table_bits;
+	Stats.cf_table_bits = cf_table_bits;
+	Stats.af_table_bits = af_table_bits;
 #endif // CAT_COLLECT_STATS
 
 	return true;
 }
 
-bool ImageRGBAWriter::writeChaos(ImageWriter &writer) {
+bool ImageRGBAWriter::writePixels(ImageWriter &writer) {
 #ifdef CAT_COLLECT_STATS
-	int overhead_bits = 0;
-	int bitcount[COLOR_PLANES] = {0};
-	int filter_table_bits[2] = {0};
+	int sf_bits = 0, cf_bits = 0, y_bits = 0, u_bits = 0, v_bits = 0, a_bits = 0;
 #endif
 
-	CAT_DEBUG_ENFORCE(_chaos_levels <= 8);
+	_seen_filter.resize(_tiles_x);
 
-	writer.writeBits(_chaos_levels - 1, 3);
-
-	int bits = 3;
-
-	for (int jj = 0; jj < _chaos_levels; ++jj) {
-		bits += _y_encoder[jj].writeTables(writer);
-		bits += _u_encoder[jj].writeTables(writer);
-		bits += _v_encoder[jj].writeTables(writer);
-		bits += _a_encoder[jj].writeTables(writer);
-	}
-#ifdef CAT_COLLECT_STATS
-	overhead_bits += bits;
-#endif
-
-	const int size_x = _size_x;
+	_chaos.start();
 
 	// For each scanline,
-	const u8 *p = _rgba;
-	u8 *lastStart = _chaos + COLOR_PLANES;
-	CAT_CLR(_chaos, _chaos_size);
+	const u8 *residuals = _residuals.get();
+	const u16 tile_mask = _tile_size_y - 1;
+	for (u16 y = 0; y < _size_y; ++y) {
+		_chaos.startRow();
 
-	const u8 *CHAOS_TABLE = _chaos_table;
-	u8 FPT[3];
+		// If at the start of a tile row,
+		if ((y & tile_mask) == 0) {
+			_seen_filter.fill_00();
 
-	for (int y = 0; y < _size_y; ++y) {
-		u8 *last = lastStart;
-
-		// Zero left
-		last[0 - 4] = 0;
-		last[1 - 4] = 0;
-		last[2 - 4] = 0;
-		last[3 - 4] = 0;
-
-		// If it is time to clear the seen filters,
-		if ((y & FILTER_ZONE_SIZE_MASK_H) == 0) {
-			CAT_CLR(_seen_filter, _filter_stride);
+			_sf_encoder.writeRowHeader(y, writer);
+			_cf_encoder.writeRowHeader(y, writer);
+			_a_encoder.writeRowHeader(y, writer);
 		}
 
 		// For each pixel,
-		for (int x = 0; x < size_x; ++x) {
+		for (u16 x = 0; x < _size_x; ++x) {
 			DESYNC(x, y);
 
-			// If not masked out,
-			if (!_lz->visited(x, y) && !_mask->masked(x, y)) {
-				// Get filter for this pixel
-				u16 filter = getSpatialFilter(x, y);
-				CAT_DEBUG_ENFORCE(filter != UNUSED_FILTER);
-				u8 cf = (u8)filter;
-				u8 sf = (u8)(filter >> 8);
-
-				// If it is time to write out the filter information,
-				if (!_seen_filter[x >> FILTER_ZONE_SIZE_SHIFT_W]) {
-					_seen_filter[x >> FILTER_ZONE_SIZE_SHIFT_W] = true;
-
-					int cf_bits = _cf_encoder.writeSymbol(cf, writer);
-					DESYNC_FILTER(x, y);
-					int sf_bits = _sf_encoder.writeSymbol(sf, writer);
-					DESYNC_FILTER(x, y);
-
-#ifdef CAT_COLLECT_STATS
-					filter_table_bits[0] += sf_bits;
-					filter_table_bits[1] += cf_bits;
-#endif
-				}
-
-				// Apply spatial filter
-				const u8 *pred = FPT;
-				_sf_set.get(sf).safe(p, &pred, x, y, size_x);
-				u8 temp[3];
-				for (int jj = 0; jj < 3; ++jj) {
-					temp[jj] = p[jj] - pred[jj];
-				}
-
-				// Apply color filter
-				u8 YUVA[COLOR_PLANES];
-				RGB2YUV_FILTERS[cf](temp, YUVA);
-				if (x > 0) {
-					YUVA[3] = p[-1] - p[3];
-				} else {
-					YUVA[3] = 255 - p[3];
-				}
-
-				u8 chaos = CHAOS_TABLE[CHAOS_SCORE[last[0 - 4]] + CHAOS_SCORE[last[0]]];
-
-				int bits = _y_encoder[chaos].write(YUVA[0], writer);
-				DESYNC(x, y);
-#ifdef CAT_COLLECT_STATS
-				bitcount[0] += bits;
-#endif
-				chaos = CHAOS_TABLE[CHAOS_SCORE[last[1 - 4]] + CHAOS_SCORE[last[1]]];
-				bits = _u_encoder[chaos].write(YUVA[1], writer);
-				DESYNC(x, y);
-#ifdef CAT_COLLECT_STATS
-				bitcount[1] += bits;
-#endif
-				chaos = CHAOS_TABLE[CHAOS_SCORE[last[2 - 4]] + CHAOS_SCORE[last[2]]];
-				bits = _v_encoder[chaos].write(YUVA[2], writer);
-				DESYNC(x, y);
-#ifdef CAT_COLLECT_STATS
-				bitcount[2] += bits;
-#endif
-				chaos = CHAOS_TABLE[CHAOS_SCORE[last[3 - 4]] + CHAOS_SCORE[last[3]]];
-				bits = _a_encoder[chaos].write(YUVA[3], writer);
-				DESYNC(x, y);
-#ifdef CAT_COLLECT_STATS
-				bitcount[3] += bits;
-#endif
-
-				for (int c = 0; c < COLOR_PLANES; ++c) {
-					last[c] = YUVA[c];
-				}
+			// If masked,
+			if (IsMasked(x, y)) {
+				_chaos.zero();
 			} else {
-				for (int c = 0; c < COLOR_PLANES; ++c) {
-					last[c] = 0;
-				}
+				// Get chaos bin
+				const u8 chaos_y = _chaos.getChaosY();
+				const u8 chaos_u = _chaos.getChaosU();
+				const u8 chaos_v = _chaos.getChaosV();
+
+				// Update chaos
+				_chaos.store(residuals[0], residuals[1], residuals[2], 0);
+
+				// Add to histogram for this chaos bin
+				y_bits += _y_encoder[chaos_y].add(residuals[0]);
+				u_bits += _u_encoder[chaos_u].add(residuals[1]);
+				v_bits += _v_encoder[chaos_v].add(residuals[2]);
+				a_bits += _a_encoder.write(x, y, writer);
 			}
 
-			// Next pixel
-			last += COLOR_PLANES;
-			p += 4;
+			residuals += 4;
 		}
 	}
 
 #ifdef CAT_COLLECT_STATS
-	for (int ii = 0; ii < COLOR_PLANES; ++ii) {
-		Stats.rgb_bits[ii] = bitcount[ii];
-	}
-	Stats.chaos_overhead_bits = overhead_bits;
-	Stats.filter_compressed_bits[0] = filter_table_bits[0];
-	Stats.filter_compressed_bits[1] = filter_table_bits[1];
+	Stats.sf_bits = sf_bits;
+	Stats.cf_bits = cf_bits;
+	Stats.y_bits = y_bits;
+	Stats.u_bits = u_bits;
+	Stats.v_bits = v_bits;
+	Stats.a_bits = a_bits;
 #endif
 
 	return true;
 }
 
 void ImageRGBAWriter::write(ImageWriter &writer) {
-	CAT_INANE("CM") << "Writing encoded pixel data...";
+	CAT_INANE("RGBA") << "Writing encoded pixel data...";
 
-	writeFilters(writer);
-	writeChaos(writer);
+	writeTables(writer);
+	writePixels(writer);
 
 #ifdef CAT_COLLECT_STATS
 	int total = 0;
@@ -749,8 +814,8 @@ void ImageRGBAWriter::write(ImageWriter &writer) {
 		total += Stats.filter_table_bits[ii];
 		total += Stats.filter_compressed_bits[ii];
 	}
-	for (int ii = 0; ii < COLOR_PLANES; ++ii) {
-		total += Stats.rgb_bits[ii];
+	for (int ii = 0; ii < 4; ++ii) {
+		total += Stats.rgba_bits[ii];
 	}
 	total += Stats.chaos_overhead_bits;
 	Stats.chaos_bits = total;
@@ -760,7 +825,7 @@ void ImageRGBAWriter::write(ImageWriter &writer) {
 
 	Stats.overall_compression_ratio = _size_x * _size_y * 4 * 8 / (double)Stats.total_bits;
 
-	Stats.chaos_compression_ratio = Stats.chaos_count * COLOR_PLANES * 8 / (double)Stats.chaos_bits;
+	Stats.chaos_compression_ratio = Stats.chaos_count * 4 * 8 / (double)Stats.chaos_bits;
 #endif
 }
 

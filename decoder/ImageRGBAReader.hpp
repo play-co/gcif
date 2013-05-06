@@ -63,6 +63,7 @@ namespace cat {
 
 class ImageRGBAReader {
 public:
+	static const int MAX_CHAOS_LEVELS = 32;
 	static const int ZRLE_SYMS_Y = 128;
 	static const int ZRLE_SYMS_U = 128;
 	static const int ZRLE_SYMS_V = 128;
@@ -88,10 +89,10 @@ protected:
 	MonoReader _sf_decoder, _cf_decoder;
 
 	// Color plane decoders
-	EntropyDecoder<NUM_COLORS, ZRLE_SYMS_Y> _y_decoder[CHAOS_LEVELS_MAX];
-	EntropyDecoder<NUM_COLORS, ZRLE_SYMS_U> _u_decoder[CHAOS_LEVELS_MAX];
-	EntropyDecoder<NUM_COLORS, ZRLE_SYMS_V> _v_decoder[CHAOS_LEVELS_MAX];
-	EntropyDecoder<NUM_COLORS, ZRLE_SYMS_A> _a_decoder[CHAOS_LEVELS_MAX];
+	EntropyDecoder<NUM_COLORS, ZRLE_SYMS_Y> _y_decoder[MAX_CHAOS_LEVELS];
+	EntropyDecoder<NUM_COLORS, ZRLE_SYMS_U> _u_decoder[MAX_CHAOS_LEVELS];
+	EntropyDecoder<NUM_COLORS, ZRLE_SYMS_V> _v_decoder[MAX_CHAOS_LEVELS];
+	EntropyDecoder<NUM_COLORS, ZRLE_SYMS_A> _a_decoder[MAX_CHAOS_LEVELS];
 
 	int init(GCIFImage *image);
 	int readFilterTables(ImageReader &reader);

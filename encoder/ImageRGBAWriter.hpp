@@ -69,7 +69,7 @@ namespace cat {
 
 class ImageRGBAWriter {
 protected:
-	static const int CHAOS_LEVELS_MAX = ImageRGBAReader::CHAOS_LEVELS_MAX;
+	static const int MAX_CHAOS_LEVELS = ImageRGBAReader::MAX_CHAOS_LEVELS;
 	static const int ZRLE_SYMS_Y = ImageRGBAReader::ZRLE_SYMS_Y;
 	static const int ZRLE_SYMS_U = ImageRGBAReader::ZRLE_SYMS_U;
 	static const int ZRLE_SYMS_V = ImageRGBAReader::ZRLE_SYMS_V;
@@ -104,50 +104,44 @@ protected:
 	int _sf_count;
 
 	// Write state
-	SmartArray<u8> _seen_filter;
+	SmartArray<u8> _residuals, _seen_filter;
 	RGBAChaos _chaos;
 
 	// Color channel encoders
 	EntropyEncoder<MAX_SYMS, ZRLE_SYMS_Y> _y_encoder[CHAOS_LEVELS_MAX];
 	EntropyEncoder<MAX_SYMS, ZRLE_SYMS_U> _u_encoder[CHAOS_LEVELS_MAX];
 	EntropyEncoder<MAX_SYMS, ZRLE_SYMS_V> _v_encoder[CHAOS_LEVELS_MAX];
-	EntropyEncoder<MAX_SYMS, ZRLE_SYMS_A> _a_encoder[CHAOS_LEVELS_MAX];
 
 	MonoWriter _sf_encoder;
 	MonoWriter _cf_encoder;
 
 	// Alpha channel encoder
 	SmartArray<u8> _alpha;
-	MonoWriter _af_encoder;
+	MonoWriter _a_encoder;
 
 	bool IsMasked(u16 x, u16 y);
 
 	void maskTiles();
 	void designFilters();
 	void designTiles();
-	void compressAlpha();
-	void compressFilters();
+	void computeResiduals();
+	bool compressAlpha();
+	void designChaos();
+	bool compressSF();
+	bool compressCF();
 	void initializeEncoders();
 
-	bool writeFilters(ImageWriter &writer);
-	bool writeChaos(ImageWriter &writer);
+	bool writeTables(ImageWriter &writer);
+	bool writePixels(ImageWriter &writer);
 
 #ifdef CAT_COLLECT_STATS
 public:
 	struct _Stats {
-		// For these SF = 0, CF = 1
-		int filter_table_bits[2];
-		int filter_compressed_bits[2];
+		int basic_overhead_bits, sf_choice_bits;
+		int sf_table_bits, cf_table_bits, af_table_bits, y_table_bits, u_table_bits, v_table_bits;
+		int sf_bits, cf_bits, y_bits, u_bits, v_bits, a_bits;
 
-		int chaos_overhead_bits;
-
-		// RGB data
-		int rgb_bits[COLOR_PLANES];
-
-		int chaos_bits;
-		int total_bits;
-
-		u32 chaos_count;
+		u32 chaos_count, chaos_bins;
 		double chaos_compression_ratio;
 
 		double overall_compression_ratio;
@@ -155,11 +149,6 @@ public:
 #endif // CAT_COLLECT_STATS
 
 public:
-	CAT_INLINE ImageRGBAWriter() {
-	}
-	CAT_INLINE virtual ~ImageRGBAWriter() {
-	}
-
 	int init(const u8 *rgba, int size_x, int size_y, ImageMaskWriter &mask, ImageLZWriter &lz, const GCIFKnobs *knobs);
 
 	void write(ImageWriter &writer);
