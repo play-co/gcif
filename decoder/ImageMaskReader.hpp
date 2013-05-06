@@ -32,6 +32,7 @@
 #include "Platform.hpp"
 #include "ImageReader.hpp"
 #include "Filters.hpp"
+#include "SmartArray.hpp"
 
 /*
  * Game Closure Dominant Color Mask Decompression
@@ -43,19 +44,13 @@ namespace cat {
 //// ImageMaskReader
 
 class ImageMaskReader {
-	u32 *_mask;
-	int _mask_alloc;
+	SmartArray<u32> _mask;
 
-	int _width;
-	int _height;
-	int _stride;
+	int _size_x, _size_y, _stride;
 
 	bool _enabled;
 
-	u8 *_lz;
-	int _lz_alloc;
-	u8 *_rle;
-	int _rle_alloc;
+	SmartArray<u8> _lz, _rle;
 	int _rle_remaining;
 	const u8 *_rle_next;
 	int _scanline_y;
@@ -63,7 +58,6 @@ class ImageMaskReader {
 	u32 _color;
 
 	int decodeLZ(ImageReader &reader);
-	void clear();
 
 	int init(const ImageReader::Header *header);
 
@@ -77,15 +71,6 @@ public:
 #endif // CAT_COLLECT_STATS
 
 public:
-	ImageMaskReader() {
-		_mask = 0;
-		_lz = 0;
-		_rle = 0;
-	}
-	virtual ~ImageMaskReader() {
-		clear();
-	}
-
 	int read(ImageReader &reader);
 
 	// Returns bitmask for scanline, MSB = first pixel

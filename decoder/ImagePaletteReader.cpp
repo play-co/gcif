@@ -190,10 +190,10 @@ int ImagePaletteReader::readPixels(ImageReader &reader) {
 
 			if (lz_skip > 0) {
 				--lz_skip;
-				_mono_decoder.masked(MASK_PAL);
+				_mono_decoder.maskedWrite(MASK_PAL);
 			} else if ((s32)mask < 0) {
 				*reinterpret_cast<u32 *>( p ) = MASK_COLOR;
-				_mono_decoder.masked(MASK_PAL);
+				_mono_decoder.maskedWrite(MASK_PAL);
 			} else {
 				// TODO: Unroll to use unsafe version
 				u8 p = _mono_decoder.read(x, y, reader);

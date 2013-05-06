@@ -35,18 +35,6 @@ using namespace cat;
 
 //// HuffmanDecoder
 
-void HuffmanDecoder::clear() {
-	if (_sorted_symbol_order) {
-		delete []_sorted_symbol_order;
-		_sorted_symbol_order = 0;
-	}
-
-	if (_lookup) {
-		delete []_lookup;
-		_lookup = 0;
-	}
-}
-
 bool HuffmanDecoder::init(int count, const u8 *codelens, u32 table_bits) {
 	u32 min_codes[MAX_CODE_SIZE];
 
@@ -115,6 +103,7 @@ bool HuffmanDecoder::init(int count, const u8 *codelens, u32 table_bits) {
 	CAT_DEBUG_ENFORCE(total_used_syms > 1);
 
 	_total_used_syms = total_used_syms;
+	_cur_sorted_symbol_order_size = 0;
 
 	if (total_used_syms > _cur_sorted_symbol_order_size) {
 		_cur_sorted_symbol_order_size = total_used_syms;
@@ -125,13 +114,7 @@ bool HuffmanDecoder::init(int count, const u8 *codelens, u32 table_bits) {
 			_cur_sorted_symbol_order_size = count < nextPOT ? count : nextPOT;
 		}
 
-		if (!_sorted_symbol_order || _cur_sorted_symbol_order_size > _sorted_symbol_order_alloc) {
-			if (_sorted_symbol_order) {
-				delete []_sorted_symbol_order;
-			}
-			_sorted_symbol_order = new u16[_cur_sorted_symbol_order_size];
-			_sorted_symbol_order_alloc = _cur_sorted_symbol_order_size;
-		}
+		_sorted_symbol_order.resize(_cur_sorted_symbol_order_size);
 	}
 
 	_min_code_size = static_cast<u8>( min_code_size );
@@ -153,19 +136,11 @@ bool HuffmanDecoder::init(int count, const u8 *codelens, u32 table_bits) {
 
 	if (table_bits > 0) {
 		u32 table_size = 1 << table_bits;
-		if (_cur_lookup_size < table_size) {
-			_cur_lookup_size = table_size;
-
-			if (!_lookup || table_size > _lookup_alloc) {
-				if (_lookup) {
-					delete []_lookup;
-				}
-				_lookup = new u32[table_size];
-				_lookup_alloc = table_size;
-			}
+		if (_lookup.size() < table_size) {
+			_lookup.resize(table_size);
 		}
 
-		memset(_lookup, 0xFF, 4 << table_bits);
+		_lookup.fill_ff();
 
 		for (u32 codesize = 1; codesize <= table_bits; ++codesize) {
 			if (!num_codes[codesize]) {

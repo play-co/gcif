@@ -109,7 +109,7 @@ protected:
 	EntropyDecoder<NUM_COLORS, ZRLE_SYMS> _u_decoder[MAX_CHAOS_LEVELS];
 	EntropyDecoder<NUM_COLORS, ZRLE_SYMS> _v_decoder[MAX_CHAOS_LEVELS];
 
-	CAT_INLINE FilterSelection *readFilter(u16 x, ImageReader &reader) {
+	CAT_INLINE FilterSelection *readFilter(u16 x, u16 y, ImageReader &reader) {
 		FilterSelection *filter = &_filters[x >> _tile_bits_x];
 
 		if (!filter->ready()) {
@@ -123,7 +123,7 @@ protected:
 	u8 _FPT[3];
 
 	CAT_INLINE void readSafe(u16 x, u16 y, u8 *p, ImageReader &reader) {
-		FilterSelection *filter = readFilter(x, reader);
+		FilterSelection *filter = readFilter(x, y, reader);
 
 		// Calculate YUV chaos
 		const int chaos_y = _chaos.getY();
@@ -146,14 +146,14 @@ protected:
 		p[2] += pred[2];
 
 		// Read alpha pixel
-		u8 A = (u8)_a_decoder.read(x, y, reader);
+		p[3] = (u8)_a_decoder.read(x, y, reader);
 
 		_chaos.store(YUV);
 	}
 
 	// WARNING: Should be exactly the same as above, except call unsafe()
 	CAT_INLINE void readUnsafe(u16 x, u16 y, u8 *p, ImageReader &reader) {
-		FilterSelection *filter = readFilter(x, reader);
+		FilterSelection *filter = readFilter(x, y, reader);
 
 		// Calculate YUV chaos
 		const int chaos_y = _chaos.getY();
@@ -176,7 +176,7 @@ protected:
 		p[2] += pred[2];
 
 		// Read alpha pixel
-		u8 A = (u8)_a_decoder.read(x, y, reader);
+		p[3] = (u8)_a_decoder.read(x, y, reader);
 
 		_chaos.store(YUV);
 	}

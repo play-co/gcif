@@ -31,6 +31,7 @@
 
 #include "Platform.hpp"
 #include "ImageReader.hpp"
+#include "SmartArray.hpp"
 
 // See copyright notice at the top of HuffmanEncoder.hpp
 
@@ -52,17 +53,14 @@ protected:
 	int _val_ptrs[MAX_CODE_SIZE + 1];
 	u32 _total_used_syms;
 
-	u16 *_sorted_symbol_order;
-	u32 _sorted_symbol_order_alloc;
+	SmartArray<u32> _sorted_symbol_order;
 	u32 _cur_sorted_symbol_order_size;
 
 	u8 _min_code_size, _max_code_size;
 
 	u32 _table_bits;
 
-	u32 *_lookup;
-	u32 _lookup_alloc;
-	u32 _cur_lookup_size;
+	SmartArray<u32> _lookup;
 
 	u32 _table_max_code;
 	u32 _decode_start_code_size;
@@ -71,20 +69,7 @@ protected:
 
 	u32 _one_sym;
 
-	void clear();
-
 public:
-	CAT_INLINE HuffmanDecoder() {
-		_cur_sorted_symbol_order_size = 0;
-		_sorted_symbol_order = 0;
-
-		_lookup = 0;
-		_cur_lookup_size = 0;
-	}
-	CAT_INLINE virtual ~HuffmanDecoder() {
-		clear();
-	}
-
 	bool init(int num_syms, const u8 codelens[], u32 table_bits);
 	bool init(int num_syms, ImageReader &reader, u32 table_bits);
 

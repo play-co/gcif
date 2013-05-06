@@ -65,6 +65,7 @@ protected:
 public:
 	CAT_INLINE SmartArray() {
 		_data = 0;
+		_size = 0;
 	}
 	CAT_INLINE virtual ~SmartArray() {
 		cleanup();

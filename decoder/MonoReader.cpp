@@ -32,13 +32,6 @@
 #include "Filters.hpp"
 using namespace cat;
 
-#ifdef CAT_COLLECT_STATS
-#include "../encoder/Log.hpp"
-#include "../encoder/Clock.hpp"
-
-static cat::Clock *m_clock = 0;
-#endif // CAT_COLLECT_STATS
-
 #ifdef CAT_DESYNCH_CHECKS
 #define DESYNC_TABLE() writer.writeBits(1234567);
 #define DESYNC(x, y) writer.writeBits(x ^ 12345, 16); writer.writeBits(y ^ 54321, 16);

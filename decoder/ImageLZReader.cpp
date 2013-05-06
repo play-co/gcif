@@ -42,16 +42,9 @@ static cat::Clock *m_clock = 0;
 
 //// ImageLZReader
 
-void ImageLZReader::clear() {
-	if (_zones) {
-		delete []_zones;
-		_zones = 0;
-	}
-}
-
 int ImageLZReader::init(const ImageReader::Header *header) {
-	_width = header->width;
-	_height = header->height;
+	_size_x = header->size_x;
+	_size_y = header->size_y;
 
 	return GCIF_RE_OK;
 }
@@ -59,7 +52,6 @@ int ImageLZReader::init(const ImageReader::Header *header) {
 int ImageLZReader::readHuffmanTable(ImageReader &reader) {
 	// Read and validate match count
 	const u32 match_count = reader.readBits(16);
-	_zones_size = match_count;
 
 	// If we abort early, ensure that triggers are cleared
 	_zone_work_head = ZONE_NULL;
@@ -89,24 +81,18 @@ int ImageLZReader::readHuffmanTable(ImageReader &reader) {
 		}
 	}
 
+	// Allocate zone array
+	_zones.resize(match_count);
+
 	return GCIF_RE_OK;
 }
 
 int ImageLZReader::readZones(ImageReader &reader) {
-	const int match_count = _zones_size;
+	const int match_count = _zones.size();
 
 	// Skip if nothing to read
 	if (match_count == 0) {
 		return GCIF_RE_OK;
-	}
-
-	// Allocate space for zones
-	if (!_zones || match_count > _zones_alloc) {
-		if (!_zones) {
-			delete []_zones;
-		}
-		_zones = new Zone[match_count];
-		_zones_alloc = match_count;
 	}
 
 	if (!_using_decoder) {
@@ -141,14 +127,14 @@ int ImageLZReader::readZones(ImageReader &reader) {
 				return GCIF_RE_LZ_BAD;
 			}
 
-			if ((u32)sx + (u32)z->w > (u32)_width ||
-					(u32)sy + (u32)z->h > (u32)_height) {
+			if ((u32)sx + (u32)z->w > (u32)_size_x ||
+					(u32)sy + (u32)z->h > (u32)_size_y) {
 				CAT_DEBUG_EXCEPTION();
 				return GCIF_RE_LZ_BAD;
 			}
 
-			if ((u32)z->dx + (u32)z->w > (u32)_width ||
-					(u32)z->dy + (u32)z->h > (u32)_height) {
+			if ((u32)z->dx + (u32)z->w > (u32)_size_x ||
+					(u32)z->dy + (u32)z->h > (u32)_size_y) {
 				CAT_DEBUG_EXCEPTION();
 				return GCIF_RE_LZ_BAD;
 			}
@@ -159,7 +145,7 @@ int ImageLZReader::readZones(ImageReader &reader) {
 	} else {
 		// For each zone to read,
 		u16 last_dx = 0, last_dy = 0;
-		Zone *z = _zones;
+		Zone *z = _zones.get();
 		for (int ii = 0; ii < match_count; ++ii, ++z) {
 			u8 b0 = (u8)_decoder.next(reader);
 			u8 b1 = (u8)_decoder.next(reader);
@@ -200,14 +186,14 @@ int ImageLZReader::readZones(ImageReader &reader) {
 				return GCIF_RE_LZ_BAD;
 			}
 
-			if ((u32)sx + (u32)z->w > (u32)_width ||
-					(u32)sy + (u32)z->h > (u32)_height) {
+			if ((u32)sx + (u32)z->w > (u32)_size_x ||
+					(u32)sy + (u32)z->h > (u32)_size_y) {
 				CAT_DEBUG_EXCEPTION();
 				return GCIF_RE_LZ_BAD;
 			}
 
-			if ((u32)z->dx + (u32)z->w > (u32)_width ||
-					(u32)z->dy + (u32)z->h > (u32)_height) {
+			if ((u32)z->dx + (u32)z->w > (u32)_size_x ||
+					(u32)z->dy + (u32)z->h > (u32)_size_y) {
 				CAT_DEBUG_EXCEPTION();
 				return GCIF_RE_LZ_BAD;
 			}
@@ -237,7 +223,7 @@ int ImageLZReader::triggerX(u8 *p) {
 
 	// Copy scanline one at a time in case the pointers are aliased
 	u32 *dst = reinterpret_cast<u32 *>( p );
-	const u32 *src = dst + zi->sox + zi->soy * _width;
+	const u32 *src = dst + zi->sox + zi->soy * _size_x;
 	for (int jj = 0; jj < lz_left; ++jj) {
 		*dst = *src;
 		++src;
@@ -292,7 +278,7 @@ int ImageLZReader::triggerXPal(u8 *p, u32 *rgba) {
 	const int lz_left = zi->w;
 
 	// Copy scanline one at a time in case the pointers are aliased
-	int offset = zi->sox + zi->soy * _width;
+	int offset = zi->sox + zi->soy * _size_x;
 	const u32 *rgba_src = rgba + offset;
 	for (int jj = 0; jj < lz_left; ++jj) {
 		*rgba = *rgba_src;
@@ -379,7 +365,7 @@ void ImageLZReader::triggerY() {
 			}
 
 			// If out of zones,
-			if (++ii >= _zones_size) {
+			if (++ii >= _zones.size()) {
 				// Stop triggering y
 				_zone_trigger_y = ZONE_NULL;
 				_zone_next_y = ZONE_NULL;
@@ -418,7 +404,7 @@ void ImageLZReader::triggerY() {
 		jj = ii;
 
 		// If out of zones,
-		if (++ii >= _zones_size) {
+		if (++ii >= _zones.size()) {
 			// Stop triggering y
 			_zone_trigger_y = ZONE_NULL;
 			_zone_next_y = ZONE_NULL;
@@ -475,7 +461,7 @@ int ImageLZReader::read(ImageReader &reader) {
 	Stats.initUsec = t1 - t0;
 	Stats.readCodelensUsec = t2 - t1;
 	Stats.readZonesUsec = t3 - t2;
-	Stats.zoneCount = _zones_size;
+	Stats.zoneCount = _zones.size();
 	Stats.overallUsec = t3 - t0;
 #endif // CAT_COLLECT_STATS
 

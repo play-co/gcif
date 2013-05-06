@@ -31,6 +31,7 @@
 
 #include "ImageReader.hpp"
 #include "EntropyDecoder.hpp"
+#include "SmartArray.hpp"
 
 /*
  * Game Closure 2D LZ (GC-2D-LZ) Decompression
@@ -72,16 +73,15 @@ public:
 protected:
 	static const u16 ZONE_NULL = 0xffff;
 
-	int _width, _height;
+	int _size_x, _size_y;
 
 	struct Zone {
 		s16 sox, soy;		// Source read offset in x and y from dx,dy
 		u16 dx, dy;			// Destination for setting up triggers
 		u16 w, h;			// Width and height of zone, height decrements
 		u16 prev, next;		// Doubly-linked work list
-	} *_zones;			// Array of zones
-	u32 _zones_size;	// Size of array
-	int _zones_alloc;
+	};
+	SmartArray<Zone> _zones;
 
 	// Lists
 	u16 _zone_work_head;	// List of active work items sorted by x
@@ -92,8 +92,6 @@ protected:
 
 	EntropyDecoder<256, ENCODER_ZRLE_SYMS> _decoder;
 	bool _using_decoder;
-
-	void clear();
 
 	int init(const ImageReader::Header *header);
 	int readHuffmanTable(ImageReader &reader);
@@ -112,13 +110,6 @@ public:
 #endif
 
 public:
-	CAT_INLINE ImageLZReader() {
-		_zones = 0;
-	}
-	virtual CAT_INLINE ~ImageLZReader() {
-		clear();
-	}
-
 	int read(ImageReader &reader);
 
 	CAT_INLINE u16 getTriggerX() {
