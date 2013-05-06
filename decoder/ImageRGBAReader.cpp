@@ -39,7 +39,7 @@ static cat::Clock *m_clock = 0;
 
 #ifdef CAT_DESYNCH_CHECKS
 #define DESYNC_TABLE() \
-	CAT_ENFORCE(reader.readBits(16) == 1234567); \
+	CAT_ENFORCE(reader.readWord() == 1234567);
 #define DESYNC(x, y) \
 	CAT_ENFORCE(reader.readBits(16) == (x ^ 12345)); \
 	CAT_ENFORCE(reader.readBits(16) == (y ^ 54321));

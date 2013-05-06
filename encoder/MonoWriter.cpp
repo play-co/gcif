@@ -35,13 +35,11 @@ using namespace cat;
 
 
 #ifdef CAT_DESYNCH_CHECKS
-#define DESYNC_TABLE() writer.writeBits(1234567);
+#define DESYNC_TABLE() writer.writeWord(1234567);
 #define DESYNC(x, y) writer.writeBits(x ^ 12345, 16); writer.writeBits(y ^ 54321, 16);
-#define DESYNC_FILTER(x, y) writer.writeBits(x ^ 31337, 16); writer.writeBits(y ^ 31415, 16);
 #else
 #define DESYNC_TABLE()
 #define DESYNC(x, y)
-#define DESYNC_FILTER(x, y)
 #endif
 
 
@@ -1132,7 +1130,7 @@ void MonoWriter::initializeWriter() {
 }
 
 int MonoWriter::writeRowHeader(u16 y, ImageWriter &writer) {
-	CAT_DEBUG_ENFORCE(y < _size_y);
+	CAT_DEBUG_ENFORCE(y < _params.size_y);
 
 	int bits = 0;
 
@@ -1152,7 +1150,7 @@ int MonoWriter::writeRowHeader(u16 y, ImageWriter &writer) {
 			// Recurse start row (they all start at 0)
 			bits += _filter_encoder->writeRowHeader(ty, writer);
 		} else {
-			CAT_DEBUG_ENFORCE(RF_COUNT <= 2);
+			CAT_DEBUG_ENFORCE(MonoReader::RF_COUNT <= 2);
 			CAT_DEBUG_ENFORCE(_tile_row_filters[ty] < 2);
 
 			// Write out chosen row filter
@@ -1164,7 +1162,7 @@ int MonoWriter::writeRowHeader(u16 y, ImageWriter &writer) {
 		}
 	}
 
-	DESYNC_FILTER(0, y);
+	DESYNC(0, y);
 
 	Stats.filter_overhead_bits += bits;
 	return bits;
@@ -1173,7 +1171,7 @@ int MonoWriter::writeRowHeader(u16 y, ImageWriter &writer) {
 int MonoWriter::write(u16 x, u16 y, ImageWriter &writer) {
 	int overhead_bits = 0, data_bits = 0;
 
-	CAT_DEBUG_ENFORCE(x < _size_x && y < _size_y);
+	CAT_DEBUG_ENFORCE(x < _params.size_x && y < _params.size_y);
 
 	// If this pixel is masked,
 	if (_params.mask(x, y)) {
@@ -1217,7 +1215,7 @@ int MonoWriter::write(u16 x, u16 y, ImageWriter &writer) {
 			Stats.filter_overhead_bits += overhead_bits;
 		}
 
-		DESYNC_FILTER(x, y);
+		DESYNC(x, y);
 	}
 
 	// If filter is masked,

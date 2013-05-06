@@ -43,17 +43,13 @@ static cat::Clock *m_clock = 0;
 
 #ifdef CAT_DESYNCH_CHECKS
 #define DESYNC_TABLE() \
-	CAT_ENFORCE(reader.readBits(16) == 1234567); \
+	CAT_ENFORCE(reader.readWord() == 1234567);
 #define DESYNC(x, y) \
 	CAT_ENFORCE(reader.readBits(16) == (x ^ 12345)); \
 	CAT_ENFORCE(reader.readBits(16) == (y ^ 54321));
-#define DESYNC_FILTER(x, y) \
-	CAT_ENFORCE(reader.readBits(16) == (x ^ 31337)); \
-	CAT_ENFORCE(reader.readBits(16) == (y ^ 31415));
 #else
 #define DESYNC_TABLE()
 #define DESYNC(x, y)
-#define DESYNC_FILTER(x, y)
 #endif
 
 
@@ -160,7 +156,7 @@ int ImagePaletteReader::readPixels(ImageReader &reader) {
 
 	for (int y = 0; y < _size_y; ++y) {
 		_mono_decoder.readRowHeader(y, reader);
-		DESYNC_FILTER(x, y);
+		DESYNC(0, y);
 
 		if (y == _lz->getTriggerY()) {
 			_lz->triggerY();

@@ -33,13 +33,14 @@
 using namespace cat;
 
 #ifdef CAT_DESYNCH_CHECKS
-#define DESYNC_TABLE() writer.writeBits(1234567);
-#define DESYNC(x, y) writer.writeBits(x ^ 12345, 16); writer.writeBits(y ^ 54321, 16);
-#define DESYNC_FILTER(x, y) writer.writeBits(x ^ 31337, 16); writer.writeBits(y ^ 31415, 16);
+#define DESYNC_TABLE() \
+	CAT_ENFORCE(reader.readWord() == 1234567);
+#define DESYNC(x, y) \
+	CAT_ENFORCE(reader.readBits(16) == (x ^ 12345)); \
+	CAT_ENFORCE(reader.readBits(16) == (y ^ 54321));
 #else
 #define DESYNC_TABLE()
 #define DESYNC(x, y)
-#define DESYNC_FILTER(x, y)
 #endif
 
 
@@ -199,7 +200,7 @@ int MonoReader::readRowHeader(u16 y, ImageReader &reader) {
 		_tiles_row += _tiles_x;
 	}
 
-	DESYNC_FILTER(0, y);
+	DESYNC(0, y);
 
 	CAT_DEBUG_ENFORCE(!reader.eof());
 
@@ -207,7 +208,7 @@ int MonoReader::readRowHeader(u16 y, ImageReader &reader) {
 }
 
 u8 MonoReader::read(u16 x, u16 y, ImageReader &reader) {
-	CAT_DEBUG_ENFORCE(x < _size_x && y < _size_y);
+	CAT_DEBUG_ENFORCE(x < _params.size_x && y < _params.size_y);
 
 	// Check cached filter
 	const u16 tx = x >> _tile_bits_x;
@@ -288,7 +289,7 @@ u8 MonoReader::read(u16 x, u16 y, ImageReader &reader) {
  */
 
 u8 MonoReader::read_unsafe(u16 x, u16 y, ImageReader &reader) {
-	CAT_DEBUG_ENFORCE(x < _size_x && y < _size_y);
+	CAT_DEBUG_ENFORCE(x < _params.size_x && y < _params.size_y);
 
 	// Check cached filter
 	const u16 tx = x >> _tile_bits_x;
