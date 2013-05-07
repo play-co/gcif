@@ -199,6 +199,8 @@ void ImageRGBAWriter::designFilters() {
 	}
 
 	_sf_count = sf_count;
+
+	CAT_INANE("RGBA") << "Added " << sf_count << " filters with coverage " << coverage << " / " << rgba_count;
 }
 
 void ImageRGBAWriter::designTiles() {

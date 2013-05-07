@@ -50,8 +50,7 @@ using namespace cat;
 
 bool ImagePaletteWriter::generatePalette() {
 	const u32 *color = reinterpret_cast<const u32 *>( _rgba );
-
-	int colorIndex = 0;
+	int palette_size = 0;
 
 	for (int y = 0; y < _size_y; ++y) {
 		for (int x = 0, xend = _size_x; x < xend; ++x) {
@@ -61,79 +60,56 @@ bool ImagePaletteWriter::generatePalette() {
 				continue;
 			}
 
-			// If not seen,
+			// Determine palette index
+			int index;
 			if (_map.find(c) == _map.end()) {
 				// If ran out of palette slots,
-				if (colorIndex >= PALETTE_MAX) {
-					_enabled = false;
+				if (palette_size >= PALETTE_MAX) {
 					return false;
 				}
 
-				_map[c] = colorIndex++;
+				index = palette_size;
+				_map[c] = index;
 				_palette.push_back(c);
+
+				++palette_size;
+			} else {
+				index = _map[c];
 			}
+
+			// Record how often each palette index is used
+			_hist[index]++;
 		}
 	}
 
-	if (colorIndex == 0) {
-		_enabled = false;
+	// If palette size is degenerate,
+	if (palette_size <= 0) {
+		CAT_DEBUG_EXCEPTION();
 		return false;
 	}
 
-	_enabled = true;
+	// Store the palette size
+	_palette_size = palette_size;
+
+	// Record the most common color
+	int best_index = 0;
+	u32 best_count = 0;
+	for (int index = 0; index < palette_size; ++index) {
+		u32 count = _hist[index];
+
+		if (best_count < count) {
+			best_count = count;
+			best_index = index;
+		}
+	}
+	_most_common = (u8)best_index;
+
 	return true;
 }
 
-bool compareColors(u32 a, u32 b) {
-	swapLE(a);
-	swapLE(b);
-
-	u8 a_r = (u8)a;
-	u8 a_g = (u8)(a >> 8);
-	u8 a_b = (u8)(a >> 16);
-
-	u8 b_r = (u8)b;
-	u8 b_g = (u8)(b >> 8);
-	u8 b_b = (u8)(b >> 16);
-
-	// Sort by luminance
-	float y_a = (0.2126*a_r) + (0.7152*a_g) + (0.0722*a_b);
-	float y_b = (0.2126*b_r) + (0.7152*b_g) + (0.0722*b_b);
-
-	if (y_a < y_b) {
-		return true;
-	}
-
-	u8 a_a = (u8)(a >> 24);
-	u8 b_a = (u8)(b >> 24);
-
-	if (a_a < b_a) {
-		return true;
-	}
-
-	return false;
-}
-
-void ImagePaletteWriter::sortPalette() {
-	std::sort(_palette.begin(), _palette.end(), compareColors);
-
-	// Fix map
-	_map.clear();
-
-	for (int ii = 0, iiend = (int)_palette.size(); ii < iiend; ++ii) {
-		u32 color = _palette[ii];
-		_map[color] = (u8)ii;
-	}
-}
-
 void ImagePaletteWriter::generateImage() {
-	const int image_size = _size_x * _size_y;
-	_image.resize(image_size);
-
-	const u32 *color = reinterpret_cast<const u32 *>( _rgba );
-	u8 *image = _image.get();
-
-	u16 masked_palette = 0;
+	// Choose the most common color as the mask color, if it is not found
+	u16 masked_palette = _most_common;
 	if (_mask->enabled()) {
 		u32 maskColor = _mask->getColor();
 
@@ -141,6 +117,14 @@ void ImagePaletteWriter::generateImage() {
 			masked_palette = _map[maskColor];
 		}
 	}
+	_masked_palette = masked_palette;
+
+	// Generate the palettized image
+	const int image_size = _size_x * _size_y;
+	_image.resize(image_size);
+
+	const u32 *color = reinterpret_cast<const u32 *>( _rgba );
+	u8 *image = _image.get();
 
 	for (int y = 0; y < _size_y; ++y) {
 		for (int x = 0, xend = _size_x; x < xend; ++x) {
@@ -153,8 +137,60 @@ void ImagePaletteWriter::generateImage() {
 			}
 		}
 	}
+}
 
-	_masked_palette = masked_palette;
+/*
+ * Image Optimization: Palette Sorting
+ *
+ * Choosing the palette index for each of the <= 256 colors is essential for
+ * producing good compression results using a PNG-like filter-based approach.
+ *
+ * Palette index assignment does not affect LZ or mask results, nor any
+ * direct improvement in entropy encoding.
+ *
+ * However, when neighboring pixels have similar values, the filters are more
+ * effective at predicting them, which increases the number of post-filter zero
+ * pixels and reduces overall entropy.
+ *
+ * A simple approximation to good choices is to just sort by luminance, so the
+ * brighest pixels get the highest palette index.  However you can do better.
+ *
+ * Since this is designed to improve filter effectiveness, the criterion for a
+ * good palette selection is based on how close each pixel index is to its up,
+ * up-left, left, and up-right neighbor pixel indices.  Those positions are
+ * called the pixel's "filter zone."
+ *
+ * The algorithm is:
+ * (1) Assign each palette index by popularity, most popular gets index 0.
+ * (2) From palette index 1:
+ * *** (1) Score each color by how often palette index 0 appears in filter zone.
+ * *** (2) Add in how often the color appears in index 0's filter zone.
+ * *** (3) Choose the one that scores highest to be index 1.
+ * (3) For palette index 2+, score by filter zone closeness for index 0 and 1.
+ * (4) After index 8, it cares about closeness to the last 8 indices only.
+ *
+ * The closeness to the last index is more important than earlier indices, so
+ * those are scored higher.
+ */
+
+void ImagePaletteWriter::optimizeImage() {
+	// Find the most common palette index
+	u8 *image = _image.get();
+	u32 hist[256];
+
+	for (int y = 0; y < _size_y; ++y) {
+		for (int x = 0, xend = _size_x; x < xend; ++x) {
+			u8 p = *image++;
+		}
+	}
+
+	// Fix map
+	_map.clear();
+
+	for (int ii = 0, iiend = (int)_palette.size(); ii < iiend; ++ii) {
+		u32 color = _palette[ii];
+		_map[color] = (u8)ii;
+	}
 }
 
 void ImagePaletteWriter::generateMonoWriter() {
@@ -188,13 +224,16 @@ int ImagePaletteWriter::init(const u8 *rgba, int size_x, int size_y, const GCIFK
 	_mask = &mask;
 	_lz = &lz;
 
+	// Off by default
+	_palette_size = 0;
+
 	// If palette was generated,
 	if (generatePalette()) {
-		// Sort the palette to improve compression
-		sortPalette();
-
 		// Generate palette raster
 		generateImage();
+
+		// Optimize the palette selections to improve compression
+		optimizeImage();
 
 		// Generate mono writer
 		generateMonoWriter();
@@ -208,11 +247,12 @@ bool ImagePaletteWriter::IsMasked(u16 x, u16 y) {
 }
 
 void ImagePaletteWriter::write(ImageWriter &writer) {
-	writer.writeBit(_enabled);
-
-	if (_enabled) {
+	if (enabled()) {
+		writer.writeBit(1);
 		writeTable(writer);
 		writePixels(writer);
+	} else {
+		writer.writeBit(0);
 	}
 }
 
@@ -385,7 +425,7 @@ void ImagePaletteWriter::writeTable(ImageWriter &writer) {
 #ifdef CAT_COLLECT_STATS
 
 bool ImagePaletteWriter::dumpStats() {
-	if (!_enabled) {
+	if (!enabled()) {
 		CAT_INANE("stats") << "(Palette)   Disabled.";
 	} else {
 		CAT_INANE("stats") << "(Palette)   Palette size : " << Stats.palette_size << " colors";

@@ -1025,7 +1025,7 @@ u32 MonoWriter::process(const Parameters &params) {
 		_tiles_x = (_params.size_x + _tile_size_x - 1) >> bits;
 		_tiles_y = (_params.size_y + _tile_size_y - 1) >> bits;
 
-		CAT_INANE("2D") << " - Trying " << _tile_size_x << "x" << _tile_size_y << " tile size, yielding a subresolution matrix " << _tiles_x << "x" << _tiles_y << " for input " << _params.size_x << "x" << _params.size_y << " data matrix";
+		CAT_INANE("2D") << " ! Trying " << _tile_size_x << "x" << _tile_size_y << " tile size, yielding a subresolution matrix " << _tiles_x << "x" << _tiles_y << " for input " << _params.size_x << "x" << _params.size_y << " data matrix";
 
 		// Allocate tile memory
 		_tiles_count = _tiles_x * _tiles_y;
@@ -1050,6 +1050,7 @@ u32 MonoWriter::process(const Parameters &params) {
 
 		// Calculate bits required to represent the data with this tile size
 		u32 entropy = simulate();
+
 		if (best_entropy > entropy) {
 			best_entropy = entropy;
 			best_bits = bits;

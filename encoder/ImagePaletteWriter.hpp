@@ -57,24 +57,26 @@ class ImagePaletteWriter {
 	const GCIFKnobs *_knobs;
 
 	const u8 *_rgba;		// Original image
-	SmartArray<u8> _image;				// Palette-encoded image
+	SmartArray<u8> _image;	// Palette-encoded image
 	int _size_x, _size_y;	// In pixels
-	u16 _masked_palette;		// Palette index for the mask
+	u32 _hist[PALETTE_MAX];	// Palette index histogram
+	u8 _most_common;		// Most common pre-optimized palette index
+	int _palette_size;		// Number of palette entries
+	u16 _masked_palette;	// Palette index for the mask
 
 	ImageMaskWriter *_mask;
 	ImageLZWriter *_lz;
 
 	std::vector<u32> _palette;
 	std::map<u32, u16> _map;
-	bool _enabled;
 
 	MonoWriter _mono_writer;
 
 	bool IsMasked(u16 x, u16 y);
 
 	bool generatePalette();
-	void sortPalette();
 	void generateImage();
+	void optimizeImage();
 	void generateMonoWriter();
 
 	void writeTable(ImageWriter &writer);
@@ -92,7 +94,7 @@ public:
 	int init(const u8 *rgba, int size_x, int size_y, const GCIFKnobs *knobs, ImageMaskWriter &mask, ImageLZWriter &lz);
 
 	CAT_INLINE bool enabled() {
-		return _enabled;
+		return _palette_size > 0;
 	}
 
 	CAT_INLINE u8 getPaletteFromColor(u32 color) {
