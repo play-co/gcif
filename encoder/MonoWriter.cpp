@@ -59,7 +59,7 @@ void MonoWriter::cleanup() {
 void MonoWriter::maskTiles() {
 	const u16 tile_size_x = _tile_size_x, tile_size_y = _tile_size_y;
 	const u16 size_x = _params.size_x, size_y = _params.size_y;
-	u8 *p = _tiles.get();
+	u8 *m = _mask.get();
 
 	// For each tile,
 	for (u16 y = 0; y < size_y; y += tile_size_y) {
@@ -73,7 +73,6 @@ void MonoWriter::maskTiles() {
 					// If it is not masked,
 					if (!_params.mask(px, py)) {
 						// We need to do this tile
-						*p++ = TODO_TILE;
 						goto next_tile;
 					}
 					++px;
@@ -82,7 +81,7 @@ void MonoWriter::maskTiles() {
 			}
 
 			// Tile is masked out entirely
-			*p++ = MASK_TILE;
+			*m++ = 1;
 next_tile:;
 		}
 	}
@@ -104,7 +103,7 @@ void MonoWriter::designPaletteFilters() {
 
 		for (u16 x = 0; x < size_x; x += tile_size_x, ++p, topleft += tile_size_x) {
 			// If tile is masked,
-			if (*p == MASK_TILE) {
+			if (IsMasked(x >> _tile_bits_x, y >> _tile_bits_y)) {
 				continue;
 			}
 
@@ -200,7 +199,7 @@ void MonoWriter::designFilters() {
 
 		for (u16 x = 0; x < size_x; x += tile_size_x, ++p, topleft += tile_size_x) {
 			// If tile is masked,
-			if (*p == MASK_TILE) {
+			if (IsMasked(x >> _tile_bits_x, y >> _tile_bits_y)) {
 				continue;
 			}
 
@@ -379,12 +378,12 @@ void MonoWriter::designPaletteTiles() {
 		const u8 *topleft = topleft_row;
 
 		for (u16 x = 0; x < size_x; x += tile_size_x, ++p, topleft += tile_size_x) {
-			const u8 value = *p;
-
 			// If tile is masked,
-			if (value == MASK_TILE) {
+			if (IsMasked(x >> _tile_bits_x, y >> _tile_bits_y)) {
 				continue;
 			}
+
+			const u8 value = *p;
 
 			// If this tile was initially paletted,
 			if (value >= SF_COUNT) {
@@ -397,7 +396,7 @@ void MonoWriter::designPaletteTiles() {
 					*p = _normal_filter_count + filter;
 				} else {
 					// Unlock it for use
-					*p = TODO_TILE;
+					*p = 0;
 				}
 			}
 		}
@@ -435,8 +434,15 @@ void MonoWriter::designTiles() {
 			int tx = 0;
 
 			for (u16 x = 0; x < size_x; x += tile_size_x, ++p, topleft += tile_size_x, ++tx) {
-				// If tile is masked or sympal,
-				if (*p >= _normal_filter_count) {
+				// If tile is masked,
+				if (IsMasked(tx, ty)) {
+					continue;
+				}
+
+				const u8 old_filter = *p;
+
+				// If tile is sympal,
+				if (old_filter >= _normal_filter_count) {
 					continue;
 				}
 
@@ -449,7 +455,6 @@ void MonoWriter::designTiles() {
 					}
 
 					int code_count = 0;
-					const int old_filter = *p;
 
 					// If old filter is not a sympal,
 					if (_filter_indices[old_filter] < SF_COUNT) {
@@ -518,10 +523,11 @@ void MonoWriter::designTiles() {
 				}
 
 				// Read neighbor tiles
-				int a = MASK_TILE; // left
-				int b = MASK_TILE; // up
-				int c = MASK_TILE; // up-left
-				int d = MASK_TILE; // up-right
+				const u8 INVALID_TILE = 255; // Filter index never goes this high
+				int a = INVALID_TILE; // left
+				int b = INVALID_TILE; // up
+				int c = INVALID_TILE; // up-left
+				int d = INVALID_TILE; // up-right
 
 				if (ty > 0) {
 					b = p[-_tiles_x];
@@ -604,10 +610,15 @@ void MonoWriter::computeResiduals() {
 		const u8 *topleft = topleft_row;
 
 		for (u16 x = 0; x < size_x; x += tile_size_x, ++p, topleft += tile_size_x) {
+			// If tile is masked,
+			if (IsMasked(x >> _tile_bits_x, y >> _tile_bits_y)) {
+				continue;
+			}
+
 			const u8 f = *p;
 
-			// If tile is masked or sympal,
-			if (*p >= _normal_filter_count) {
+			// If tile is sympal,
+			if (f >= _normal_filter_count) {
 				continue;
 			}
 
@@ -646,7 +657,9 @@ void MonoWriter::computeResiduals() {
 	}
 }
 
-void MonoWriter::sortFilters() {
+void MonoWriter::optimizeTiles() {
+	CAT_INANE("2D") << "Optimizing tiles for " << _tiles_x << "x" << _tiles_y << "...";
+
 	_optimizer.process(_tiles.get(), _tiles_x, _tiles_y, _filter_count);
 
 	// Overwrite original tiles with optimized tiles
@@ -672,6 +685,8 @@ void MonoWriter::designRowFilters() {
 
 	u32 total_entropy;
 
+	// TODO: Train with write order matrix
+
 	// Allocate temporary workspace
 	const u32 codes_size = MonoReader::RF_COUNT * tiles_x;
 	_ecodes.resize(codes_size);
@@ -692,7 +707,7 @@ void MonoWriter::designRowFilters() {
 				u8 f = p[0];
 
 				// If tile is not masked,
-				if (f != MASK_TILE) {
+				if (!IsMasked(tx, ty)) {
 					CAT_DEBUG_ENFORCE(f < _filter_count);
 
 					// RF_NOOP
@@ -709,6 +724,8 @@ void MonoWriter::designRowFilters() {
 					codes[code_count + tiles_x] = fprev;
 
 					++code_count;
+
+					prev = f;
 				}
 
 				++p;
@@ -747,7 +764,7 @@ void MonoWriter::designRowFilters() {
 }
 
 bool MonoWriter::IsMasked(u16 x, u16 y) {
-	return _tiles[x + y * _tiles_x] == MASK_TILE;
+	return _mask[x + y * _tiles_x] != 0;
 }
 
 void MonoWriter::recurseCompress() {
@@ -805,14 +822,17 @@ void MonoWriter::designChaos() {
 		const u8 *residuals = _residuals.get();
 		for (int y = 0; y < _params.size_y; ++y) {
 			_chaos.startRow();
+			// TODO: Train with write order matrix
 
 			// For each column,
 			for (int x = 0; x < _params.size_x; ++x) {
 				// If it is a palsym tile,
 				const u8 f = getTile(x, y);
 
+				CAT_DEBUG_ENFORCE(f < _filter_count);
+
 				// If masked,
-				if (f == MASK_TILE || _params.mask(x, y) || f >= _normal_filter_count) {
+				if (_params.mask(x, y) || f >= _normal_filter_count) {
 					_chaos.zero();
 				} else {
 					// Get residual symbol
@@ -858,14 +878,17 @@ void MonoWriter::initializeEncoders() {
 	const u8 *residuals = _residuals.get();
 	for (int y = 0; y < _params.size_y; ++y) {
 		_chaos.startRow();
+		// TODO: Train with write order matrix
 
 		// For each column,
 		for (int x = 0; x < _params.size_x; ++x) {
 			// If it is a palsym tile,
 			const u8 f = getTile(x, y);
 
+			CAT_DEBUG_ENFORCE(f < _filter_count);
+
 			// If masked,
-			if (f == MASK_TILE || _params.mask(x, y) || f >= _normal_filter_count) {
+			if (_params.mask(x, y) || f >= _normal_filter_count) {
 				_chaos.zero();
 			} else {
 				// Get residual symbol
@@ -890,6 +913,8 @@ void MonoWriter::initializeEncoders() {
 
 	// If using row encoders for filters,
 	if (!_filter_encoder) {
+		// TODO: Train with write order matrix
+
 		// For each filter row,
 		const u8 *tile = _tiles.get();
 		for (int ty = 0; ty < _tiles_y; ++ty) {
@@ -900,7 +925,7 @@ void MonoWriter::initializeEncoders() {
 			for (int tx = 0; tx < _tiles_x; ++tx) {
 				u8 f = *tile++;
 
-				if (f != MASK_TILE) {
+				if (!IsMasked(tx, ty)) {
 					u8 rf = f;
 
 					// If filtering this row,
@@ -947,6 +972,8 @@ u32 MonoWriter::simulate() {
 	if (_filter_encoder) {
 		bits += _filter_encoder->simulate();
 	} else {
+		// TODO: Train with write-order matrix
+
 		// For each filter row,
 		const u8 *tile = _tiles.get();
 		for (int ty = 0; ty < _tiles_y; ++ty) {
@@ -957,7 +984,7 @@ u32 MonoWriter::simulate() {
 			for (int tx = 0; tx < _tiles_x; ++tx) {
 				u8 f = *tile++;
 
-				if (f != MASK_TILE) {
+				if (!IsMasked(tx, ty)) {
 					u8 rf = f;
 
 					if (tile_row_filter == MonoReader::RF_PREV) {
@@ -981,6 +1008,7 @@ u32 MonoWriter::simulate() {
 	const u8 *residuals = _residuals.get();
 	for (int y = 0; y < _params.size_y; ++y) {
 		_chaos.startRow();
+		// TODO: Train with write order matrix
 
 		// For each column,
 		for (int x = 0; x < _params.size_x; ++x) {
@@ -988,7 +1016,7 @@ u32 MonoWriter::simulate() {
 			const u8 f = getTile(x, y);
 
 			// If masked,
-			if (f == MASK_TILE || _params.mask(x, y) || f >= _normal_filter_count) {
+			if (_params.mask(x, y) || f >= _normal_filter_count) {
 				_chaos.zero();
 			} else {
 				// Get residual symbol
@@ -1017,7 +1045,7 @@ u32 MonoWriter::process(const Parameters &params) {
 	_filter_encoder = 0;
 
 	// Calculate bits to represent tile bits field
-	u32 range = (_params.max_bits - _params.min_bits);
+	u32 range = _params.max_bits - _params.min_bits;
 	int bits_bc = 0;
 	if (range > 0) {
 		bits_bc = BSR32(range) + 1;
@@ -1045,7 +1073,12 @@ u32 MonoWriter::process(const Parameters &params) {
 		// Allocate tile memory
 		_tiles_count = _tiles_x * _tiles_y;
 		_tiles.resize(_tiles_count);
+		_tiles.fill_00();
 		_tile_row_filters.resize(_tiles_y);
+
+		// Initialize mask
+		_mask.resize(_tiles_count);
+		_mask.fill_00();
 
 		// Allocate residual memory
 		const u32 residuals_memory = _params.size_x * _params.size_y;
@@ -1058,7 +1091,7 @@ u32 MonoWriter::process(const Parameters &params) {
 		designPaletteTiles();
 		designTiles();
 		computeResiduals();
-		sortFilters();
+		optimizeTiles();
 		designRowFilters();
 		recurseCompress();
 		designChaos();
@@ -1249,6 +1282,8 @@ int MonoWriter::write(u16 x, u16 y, ImageWriter &writer) {
 		if (!_tile_seen[tx]) {
 			_tile_seen[tx] = true;
 
+			// TODO: Enforce that writes are in the order of the write order matrix
+
 			// Get tile
 			u16 ty = y >> _tile_bits_y;
 			u8 *tile = _tiles.get() + tx + ty * _tiles_x;
@@ -1256,7 +1291,7 @@ int MonoWriter::write(u16 x, u16 y, ImageWriter &writer) {
 			_write_filter = f;
 
 			// If tile is not masked,
-			if (f != MASK_TILE) {
+			if (!IsMasked(tx, ty)) {
 				// If recursive filter encoded,
 				if (_filter_encoder) {
 					// Pass filter write down the tree

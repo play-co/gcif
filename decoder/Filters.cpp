@@ -3065,7 +3065,7 @@ const u8 cat::RESIDUAL_SCORE_256[256] = {
 
 void MonoChaos::init(int chaos_levels, int size_x) {
 	// Allocate row space
-	_row.resize(1 + size_x);
+	_row.resize(size_x);
 
 	// If already set at this number of chaos levels
 	if (_chaos_levels != chaos_levels) {
@@ -3097,7 +3097,7 @@ void MonoChaos::init(int chaos_levels, int size_x) {
 
 void RGBChaos::init(int chaos_levels, int size_x) {
 	// Allocate row space
-	_row.resize((1 + size_x) * 3);
+	_row.resize(size_x * 4);
 
 	// If already set at this number of chaos levels
 	if (_chaos_levels != chaos_levels) {

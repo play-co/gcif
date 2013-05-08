@@ -84,6 +84,7 @@ public:
 		float filter_thresh;			// Normalized coverage to stop adding filters (1.0 = entire image)
 		u32 AWARDS[MAX_AWARDS];			// Awards to give for top N filters
 		int award_count;				// Number of awards to give out
+		// TODO: Add a write order matrix here from parent, or null for mask-based
 	};
 
 	struct _Stats {
@@ -98,16 +99,14 @@ protected:
 	static const int MAX_ROW_PASSES = 4;
 	static const int RECURSE_THRESH_COUNT = 256*256;
 
-	static const u8 MASK_TILE = 255;
-	static const u8 TODO_TILE = 0;
-
 	static const u8 UNUSED_SYMPAL = 255;
 
 	// Parameters
 	Parameters _params;						// Input parameters
 
 	// Generated filter tiles
-	SmartArray<u8> _tiles;
+	SmartArray<u8> _mask;					// Masked tile boolean matrix
+	SmartArray<u8> _tiles;					// Filter chosen per tile matrix
 	u32 _tiles_count;						// Number of tiles
 	int _tiles_x, _tiles_y;					// Tiles in x,y
 	int _tile_bits_field_bc;
@@ -136,6 +135,7 @@ protected:
 	SmartArray<u8> _tile_row_filters;
 	u32 _row_filter_entropy;				// Calculated entropy from using row filters
 	u8 _prev_filter;						// Previous filter for row encoding
+	// TODO: Add a write order matrix here for tiles
 
 	// Filter encoder for row mode
 	EntropyEncoder<MAX_FILTERS, ZRLE_SYMS> _row_filter_encoder;
@@ -147,6 +147,7 @@ protected:
 	// Write state
 	u8 _write_filter;						// Current filter
 	SmartArray<u8> _tile_seen;
+	// TODO: Keep track of chaos-last
 
 	// Data encoders
 	EntropyEncoder<MAX_SYMS, ZRLE_SYMS> _encoder[MAX_CHAOS_LEVELS];
@@ -184,7 +185,7 @@ protected:
 	void computeResiduals();
 
 	// Optimize the spatial filter sorting
-	void sortFilters();
+	void optimizeTiles();
 
 	// Simple predictive row filter for tiles
 	void designRowFilters();
