@@ -32,9 +32,11 @@
 #include "../decoder/Filters.hpp"
 #include "EntropyEstimator.hpp"
 #include "EntropyEncoder.hpp"
+#include "PaletteOptimizer.hpp"
 using namespace cat;
 
 #include <algorithm> // std::sort
+using namespace std;
 
 
 #ifdef CAT_DESYNCH_CHECKS
@@ -49,6 +51,8 @@ using namespace cat;
 //// ImagePaletteWriter
 
 bool ImagePaletteWriter::generatePalette() {
+	u32 hist[PALETTE_MAX] = {0};
+
 	const u32 *color = reinterpret_cast<const u32 *>( _rgba );
 	int palette_size = 0;
 
@@ -78,7 +82,7 @@ bool ImagePaletteWriter::generatePalette() {
 			}
 
 			// Record how often each palette index is used
-			_hist[index]++;
+			hist[index]++;
 		}
 	}
 
@@ -95,7 +99,7 @@ bool ImagePaletteWriter::generatePalette() {
 	int best_index = 0;
 	u32 best_count = 0;
 	for (int index = 0; index < palette_size; ++index) {
-		u32 count = _hist[index];
+		u32 count = hist[index];
 
 		if (best_count < count) {
 			best_count = count;
@@ -139,50 +143,25 @@ void ImagePaletteWriter::generateImage() {
 	}
 }
 
-/*
- * Image Optimization: Palette Sorting
- *
- * Choosing the palette index for each of the <= 256 colors is essential for
- * producing good compression results using a PNG-like filter-based approach.
- *
- * Palette index assignment does not affect LZ or mask results, nor any
- * direct improvement in entropy encoding.
- *
- * However, when neighboring pixels have similar values, the filters are more
- * effective at predicting them, which increases the number of post-filter zero
- * pixels and reduces overall entropy.
- *
- * A simple approximation to good choices is to just sort by luminance, so the
- * brighest pixels get the highest palette index.  However you can do better.
- *
- * Since this is designed to improve filter effectiveness, the criterion for a
- * good palette selection is based on how close each pixel index is to its up,
- * up-left, left, and up-right neighbor pixel indices.  Those positions are
- * called the pixel's "filter zone."
- *
- * The algorithm is:
- * (1) Assign each palette index by popularity, most popular gets index 0.
- * (2) From palette index 1:
- * *** (1) Score each color by how often palette index 0 appears in filter zone.
- * *** (2) Add in how often the color appears in index 0's filter zone.
- * *** (3) Choose the one that scores highest to be index 1.
- * (3) For palette index 2+, score by filter zone closeness for index 0 and 1.
- * (4) After index 8, it cares about closeness to the last 8 indices only.
- *
- * The closeness to the last index is more important than earlier indices, so
- * those are scored higher.
- */
-
 void ImagePaletteWriter::optimizeImage() {
-	// Find the most common palette index
-	u8 *image = _image.get();
-	u32 hist[256];
+	PaletteOptimizer opt;
 
-	for (int y = 0; y < _size_y; ++y) {
-		for (int x = 0, xend = _size_x; x < xend; ++x) {
-			u8 p = *image++;
-		}
+	opt.process(_image.get(), _size_x, _size_y, _palette_size);
+
+	// Replace palette image
+	const u8 *src = opt.getOptimizedImage();
+	memcpy(_image.get(), src, _size_x * _size_y);
+
+	// Fix color array
+	vector<u32> better_palette;
+	better_palette.resize(_palette_size);
+
+	for (int ii = 0; ii < _palette_size; ++ii) {
+		int dest = opt.forward(ii);
+
+		better_palette[dest] = _palette[ii];
 	}
+	_palette = better_palette;
 
 	// Fix map
 	_map.clear();
@@ -302,12 +281,16 @@ void ImagePaletteWriter::writeTable(ImageWriter &writer) {
 		int bestCF = 0;
 		u32 bestScore = 0x7fffffff;
 
+		EntropyEstimator ee;
+		ee.init();
+
+		SmartArray<u8> edata;
+		edata.resize(palette_size * 4);
+
 		for (int cf = 0; cf < CF_COUNT; ++cf) {
 			RGB2YUVFilterFunction filter = RGB2YUV_FILTERS[cf];
 
-			EntropyEstimator ee;
-			ee.init();
-
+			u8 *write = edata.get();
 			for (int ii = 0; ii < palette_size; ++ii) {
 				u32 color = getLE(_palette[ii]);
 
@@ -317,34 +300,15 @@ void ImagePaletteWriter::writeTable(ImageWriter &writer) {
 					(u8)(color >> 16)
 				};
 
-				u8 yuva[4];
-				filter(rgb, yuva);
-				yuva[3] = (u8)(color >> 24);
-
-				ee.add(yuva, 4);
+				filter(rgb, write);
+				write[3] = (u8)(color >> 24);
+				write += 4;
 			}
 
-			int entropy = 0;
-
-			for (int ii = 0; ii < palette_size; ++ii) {
-				u32 color = getLE(_palette[ii]);
-
-				u8 rgb[3] = {
-					(u8)color,
-					(u8)(color >> 8),
-					(u8)(color >> 16)
-				};
-
-				u8 yuva[4];
-				filter(rgb, yuva);
-				yuva[3] = (u8)(color >> 24);
-
-				entropy += ee.entropy(yuva, 4);
-			}
-
-			if (entropy < bestScore) {
-				bestCF = cf;
+			u32 entropy = ee.entropy(edata.get(), edata.size());
+			if (bestScore > entropy) {
 				bestScore = entropy;
+				bestCF = cf;
 			}
 		}
 

@@ -59,9 +59,8 @@ class ImagePaletteWriter {
 	const u8 *_rgba;		// Original image
 	SmartArray<u8> _image;	// Palette-encoded image
 	int _size_x, _size_y;	// In pixels
-	u32 _hist[PALETTE_MAX];	// Palette index histogram
-	u8 _most_common;		// Most common pre-optimized palette index
 	int _palette_size;		// Number of palette entries
+	u8 _most_common;
 	u16 _masked_palette;	// Palette index for the mask
 
 	ImageMaskWriter *_mask;
