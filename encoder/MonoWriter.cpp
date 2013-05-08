@@ -589,6 +589,30 @@ void MonoWriter::designTiles() {
 	}
 }
 
+void MonoWriter::sortFilters() {
+	_optimizer.process(_tiles.get(), _tiles_x, _tiles_y, _filter_count);
+
+	// Overwrite original tiles with optimized tiles
+	const u8 *src = _optimizer.getOptimizedImage();
+	memcpy(_tiles.get(), src, _tiles_count);
+
+	// Update filter indices
+	int filter_indices[MAX_FILTERS];
+	for (int ii = 0; ii < _filter_count; ++ii) {
+		filter_indices[_optimizer.forward(ii)] = _filter_indices[ii];
+	}
+	memcpy(_filter_indices, filter_indices, sizeof(_filter_indices));
+
+	// Update filter functions
+	for (int ii = 0; ii < _filter_count; ++ii) {
+		int f = filter_indices[ii];
+
+		if (f < SF_COUNT) {
+			_filters[ii] = MONO_FILTERS[f];
+		}
+	}
+}
+
 void MonoWriter::computeResiduals() {
 	CAT_INANE("2D") << "Executing tiles to generate residual matrix...";
 
@@ -1042,6 +1066,7 @@ u32 MonoWriter::process(const Parameters &params) {
 		designFilters();
 		designPaletteTiles();
 		designTiles();
+		sortFilters();
 		computeResiduals();
 		designRowFilters();
 		recurseCompress();
@@ -1113,8 +1138,8 @@ int MonoWriter::writeTables(ImageWriter &writer) {
 		CAT_DEBUG_ENFORCE(MAX_FILTERS <= 32);
 		CAT_DEBUG_ENFORCE(SF_COUNT + MAX_PALETTE <= 128);
 
-		writer.writeBits(_normal_filter_count - SF_FIXED, 5);
-		for (int f = SF_FIXED; f < _normal_filter_count; ++f) {
+		writer.writeBits(_filter_count - SF_FIXED, 5);
+		for (int f = SF_FIXED; f < _filter_count; ++f) {
 			writer.writeBits(_filter_indices[f], 7);
 			Stats.basic_overhead_bits += 7;
 		}

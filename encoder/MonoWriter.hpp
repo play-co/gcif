@@ -37,6 +37,7 @@
 #include "GCIFWriter.h"
 #include "../decoder/Delegates.hpp"
 #include "../decoder/SmartArray.hpp"
+#include "PaletteOptimizer.hpp"
 
 #include <vector>
 
@@ -123,6 +124,7 @@ protected:
 	MonoFilterFuncs _filters[MAX_FILTERS];	// Chosen filters
 	int _normal_filter_count;				// Number of normal filters
 	int _filter_count;						// Total filters chosen
+	PaletteOptimizer _optimizer;			// Optimizer for filter indices
 
 	// Palette filters
 	u8 _sympal[MAX_PALETTE];				// Palette filter values
@@ -177,6 +179,9 @@ protected:
 
 	// Choose which filters to use which tiles
 	void designTiles();
+
+	// Optimize the spatial filter sorting
+	void sortFilters();
 
 	// Run filters to generate residual data (optimization)
 	void computeResiduals();

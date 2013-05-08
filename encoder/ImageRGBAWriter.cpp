@@ -798,8 +798,8 @@ bool ImageRGBAWriter::writePixels(ImageWriter &writer) {
 
 			_seen_filter.fill_00();
 
-			_sf_encoder.writeRowHeader(ty, writer);
-			_cf_encoder.writeRowHeader(ty, writer);
+			sf_bits += _sf_encoder.writeRowHeader(ty, writer);
+			cf_bits += _cf_encoder.writeRowHeader(ty, writer);
 		}
 
 		_a_encoder.writeRowHeader(y, writer);
@@ -819,8 +819,8 @@ bool ImageRGBAWriter::writePixels(ImageWriter &writer) {
 					u16 ty = y >> _tile_bits_y;
 
 					_seen_filter[tx] = true;
-					_sf_encoder.write(tx, ty, writer);
-					_cf_encoder.write(tx, ty, writer);
+					sf_bits += _sf_encoder.write(tx, ty, writer);
+					cf_bits += _cf_encoder.write(tx, ty, writer);
 				}
 
 				// Get chaos bin
@@ -897,6 +897,8 @@ bool ImageRGBAWriter::dumpStats() {
 	CAT_INANE("stats") << "(RGBA Compress)   U Table Overhead : " <<  Stats.u_table_bits << " bits (" << Stats.u_table_bits/8 << " bytes, " << Stats.u_table_bits * 100.f / Stats.rgba_bits << "% of RGBA)";
 	CAT_INANE("stats") << "(RGBA Compress)   V Table Overhead : " <<  Stats.v_table_bits << " bits (" << Stats.v_table_bits/8 << " bytes, " << Stats.v_table_bits * 100.f / Stats.rgba_bits << "% of RGBA)";
 	CAT_INANE("stats") << "(RGBA Compress)   A Table Overhead : " <<  Stats.a_table_bits << " bits (" << Stats.a_table_bits/8 << " bytes, " << Stats.a_table_bits * 100.f / Stats.rgba_bits << "% of RGBA)";
+	CAT_INANE("stats") << "(RGBA Compress)      SF Compressed : " <<  Stats.sf_bits << " bits (" << Stats.sf_bits/8 << " bytes, " << Stats.sf_bits * 100.f / Stats.rgba_bits << "% of RGBA)";
+	CAT_INANE("stats") << "(RGBA Compress)      CF Compressed : " <<  Stats.cf_bits << " bits (" << Stats.cf_bits/8 << " bytes, " << Stats.cf_bits * 100.f / Stats.rgba_bits << "% of RGBA)";
 	CAT_INANE("stats") << "(RGBA Compress)       Y Compressed : " <<  Stats.y_bits << " bits (" << Stats.y_bits/8 << " bytes, " << Stats.y_bits * 100.f / Stats.rgba_bits << "% of RGBA)";
 	CAT_INANE("stats") << "(RGBA Compress)       U Compressed : " <<  Stats.u_bits << " bits (" << Stats.u_bits/8 << " bytes, " << Stats.u_bits * 100.f / Stats.rgba_bits << "% of RGBA)";
 	CAT_INANE("stats") << "(RGBA Compress)       V Compressed : " <<  Stats.v_bits << " bits (" << Stats.v_bits/8 << " bytes, " << Stats.v_bits * 100.f / Stats.rgba_bits << "% of RGBA)";
