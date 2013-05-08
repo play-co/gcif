@@ -589,30 +589,6 @@ void MonoWriter::designTiles() {
 	}
 }
 
-void MonoWriter::sortFilters() {
-	_optimizer.process(_tiles.get(), _tiles_x, _tiles_y, _filter_count);
-
-	// Overwrite original tiles with optimized tiles
-	const u8 *src = _optimizer.getOptimizedImage();
-	memcpy(_tiles.get(), src, _tiles_count);
-
-	// Update filter indices
-	int filter_indices[MAX_FILTERS];
-	for (int ii = 0; ii < _filter_count; ++ii) {
-		filter_indices[_optimizer.forward(ii)] = _filter_indices[ii];
-	}
-	memcpy(_filter_indices, filter_indices, sizeof(_filter_indices));
-
-	// Update filter functions
-	for (int ii = 0; ii < _filter_count; ++ii) {
-		int f = filter_indices[ii];
-
-		if (f < SF_COUNT) {
-			_filters[ii] = MONO_FILTERS[f];
-		}
-	}
-}
-
 void MonoWriter::computeResiduals() {
 	CAT_INANE("2D") << "Executing tiles to generate residual matrix...";
 
@@ -668,6 +644,22 @@ void MonoWriter::computeResiduals() {
 
 		topleft_row += _params.size_x * _tile_size_y;
 	}
+}
+
+void MonoWriter::sortFilters() {
+	_optimizer.process(_tiles.get(), _tiles_x, _tiles_y, _filter_count,
+			PaletteOptimizer::MaskDelegate::FromMember<MonoWriter, &MonoWriter::IsMasked>(this));
+
+	// Overwrite original tiles with optimized tiles
+	const u8 *src = _optimizer.getOptimizedImage();
+	memcpy(_tiles.get(), src, _tiles_count);
+
+	// Update filter indices
+	int filter_indices[MAX_FILTERS];
+	for (int ii = 0; ii < _filter_count; ++ii) {
+		filter_indices[_optimizer.forward(ii)] = _filter_indices[ii];
+	}
+	memcpy(_filter_indices, filter_indices, sizeof(_filter_indices));
 }
 
 void MonoWriter::designRowFilters() {
@@ -1066,8 +1058,8 @@ u32 MonoWriter::process(const Parameters &params) {
 		designFilters();
 		designPaletteTiles();
 		designTiles();
-		sortFilters();
 		computeResiduals();
+		sortFilters();
 		designRowFilters();
 		recurseCompress();
 		designChaos();

@@ -38,9 +38,11 @@ void PaletteOptimizer::histogramImage() {
 	const u8 *image = _image;
 	for (int y = 0, yend = _size_y; y < yend; ++y) {
 		for (int x = 0, xend = _size_x; x < xend; ++x, ++image) {
-			u8 p = *image;
+			if (!_mask(x, y)) {
+				u8 p = *image;
 
-			_hist[p]++;
+				_hist[p]++;
+			}
 		}
 	}
 
@@ -80,6 +82,10 @@ void PaletteOptimizer::sortPalette() {
 		const int cutoff = index - THRESH;
 		for (int y = 0, yend = _size_y - 1; y <= yend; ++y) {
 			for (int x = 0, xend = _size_x - 1; x <= xend; ++x, ++prev, ++image) {
+				if (_mask(x, y)) {
+					continue;
+				}
+
 				u8 p = *prev;
 
 				p = (u8)((int)p - cutoff);
@@ -146,6 +152,12 @@ void PaletteOptimizer::sortPalette() {
 		image = _image;
 		for (int y = 0, yend = _size_y; y < yend; ++y) {
 			for (int x = 0, xend = _size_x; x < xend; ++x, ++prev, ++image) {
+				if (_mask(x, y)) {
+					// Insert original image data here
+					*prev = *image;
+					continue;
+				}
+
 				// If original image used this one,
 				if (*image == best_ii) {
 					*prev = index;
@@ -155,11 +167,12 @@ void PaletteOptimizer::sortPalette() {
 	}
 }
 
-void PaletteOptimizer::process(const u8 *image, int size_x, int size_y, int palette_size) {
+void PaletteOptimizer::process(const u8 *image, int size_x, int size_y, int palette_size, MaskDelegate mask) {
 	_image = image;
 	_size_x = size_x;
 	_size_y = size_y;
 	_palette_size = palette_size;
+	_mask = mask;
 
 	histogramImage();
 	sortPalette();

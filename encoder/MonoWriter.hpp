@@ -180,11 +180,11 @@ protected:
 	// Choose which filters to use which tiles
 	void designTiles();
 
-	// Optimize the spatial filter sorting
-	void sortFilters();
-
 	// Run filters to generate residual data (optimization)
 	void computeResiduals();
+
+	// Optimize the spatial filter sorting
+	void sortFilters();
 
 	// Simple predictive row filter for tiles
 	void designRowFilters();
