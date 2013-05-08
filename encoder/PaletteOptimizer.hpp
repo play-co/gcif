@@ -77,14 +77,11 @@ class PaletteOptimizer {
 public:
 	static const int PALETTE_MAX = 256;
 
-	typedef Delegate2<bool, u16, u16> MaskDelegate;
-
 protected:
 	// Input
 	int _palette_size;
 	const u8 *_image;			// Indexed image
 	int _size_x, _size_y;		// Image size in pixels
-	MaskDelegate _mask;			// Mask function
 
 	// Working state
 	u32 _hist[PALETTE_MAX];		// Image histogram
@@ -98,7 +95,8 @@ protected:
 	void sortPalette();
 
 public:
-	void process(const u8 *_image, int size_x, int size_y, int palette_size, MaskDelegate mask);
+	// Assumes image data is entirely in 0..palette_size-1 range
+	void process(const u8 *_image, int size_x, int size_y, int palette_size);
 
 	CAT_INLINE const u8 *getOptimizedImage() {
 		return _result.get();

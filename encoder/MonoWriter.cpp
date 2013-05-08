@@ -647,8 +647,7 @@ void MonoWriter::computeResiduals() {
 }
 
 void MonoWriter::sortFilters() {
-	_optimizer.process(_tiles.get(), _tiles_x, _tiles_y, _filter_count,
-			PaletteOptimizer::MaskDelegate::FromMember<MonoWriter, &MonoWriter::IsMasked>(this));
+	_optimizer.process(_tiles.get(), _tiles_x, _tiles_y, _filter_count);
 
 	// Overwrite original tiles with optimized tiles
 	const u8 *src = _optimizer.getOptimizedImage();

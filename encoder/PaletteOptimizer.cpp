@@ -38,11 +38,7 @@ void PaletteOptimizer::histogramImage() {
 	const u8 *image = _image;
 	for (int y = 0, yend = _size_y; y < yend; ++y) {
 		for (int x = 0, xend = _size_x; x < xend; ++x, ++image) {
-			if (!_mask(x, y)) {
-				u8 p = *image;
-
-				_hist[p]++;
-			}
+			_hist[*image]++;
 		}
 	}
 
@@ -75,19 +71,14 @@ void PaletteOptimizer::sortPalette() {
 	// For each remaining index,
 	for (int index = 1; index < _palette_size; ++index) {
 		// Score each of the remaining palette indices
-		u8 *prev = _result.get();
+		u8 *result = _result.get();
 		const u8 *image = _image;
 		u32 scores[PALETTE_MAX] = {0};
 		static const int THRESH = 8;
 		const int cutoff = index - THRESH;
 		for (int y = 0, yend = _size_y - 1; y <= yend; ++y) {
-			for (int x = 0, xend = _size_x - 1; x <= xend; ++x, ++prev, ++image) {
-				if (_mask(x, y)) {
-					continue;
-				}
-
-				u8 p = *prev;
-
+			for (int x = 0, xend = _size_x - 1; x <= xend; ++x, ++result, ++image) {
+				u8 p = *result;
 				p = (u8)((int)p - cutoff);
 
 				if (p < THRESH) {
@@ -148,31 +139,54 @@ void PaletteOptimizer::sortPalette() {
 		_forward[best_ii] = (u8)index;
 
 		// Fill in score matrix
-		prev = _result.get();
+		result = _result.get();
 		image = _image;
 		for (int y = 0, yend = _size_y; y < yend; ++y) {
-			for (int x = 0, xend = _size_x; x < xend; ++x, ++prev, ++image) {
-				if (_mask(x, y)) {
-					// Insert original image data here
-					*prev = *image;
-					continue;
-				}
-
+			for (int x = 0, xend = _size_x; x < xend; ++x, ++result, ++image) {
 				// If original image used this one,
 				if (*image == best_ii) {
-					*prev = index;
+					*result = index;
 				}
 			}
 		}
 	}
+
+#ifdef CAT_DEBUG
+	// Sanity check
+	const u8 *result = _result.get();
+	for (int y = 0, yend = _size_y; y < yend; ++y) {
+		for (int x = 0, xend = _size_x; x < xend; ++x, ++result) {
+			CAT_DEBUG_ENFORCE(*result < _palette_size);
+		}
+	}
+#endif
 }
 
-void PaletteOptimizer::process(const u8 *image, int size_x, int size_y, int palette_size, MaskDelegate mask) {
+	/*
+	 * TODO
+	 *
+	 * For Palette input, the LZ data should be same as original, and the
+	 * masked data should be set to same as original unless the palette index
+	 * does not exist, in which case the most common value should be used.
+	 * In this case the data does not need a mask function since all input will
+	 * be inside the palette space.
+	 *
+	 * For MonoWriter output, it is 0..n-1 or 255 for masked out.  This is bad
+	 * for recursive compression.  Instead of emitting 255 we should emit same
+	 * as left value, defaulting to most common; will be zero after this code.
+	 *
+	 * For SF/CF matrices, it is also set to 255 for masked out.  We should do
+	 * the same and use same-as-left.
+	 *
+	 * After changing these things, the Palette Optimizer will not need a mask
+	 * and all the input will be in the palette space.
+	 */
+
+void PaletteOptimizer::process(const u8 *image, int size_x, int size_y, int palette_size) {
 	_image = image;
 	_size_x = size_x;
 	_size_y = size_y;
 	_palette_size = palette_size;
-	_mask = mask;
 
 	histogramImage();
 	sortPalette();
