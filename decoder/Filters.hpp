@@ -125,7 +125,7 @@ static const int SF_COUNT = SF_BASIC_COUNT + DIV2_TAPPED_COUNT;
  *
  * Returns filter prediction in pred.
  */
-typedef const u8 *(*RGBAFilterFunc)(const u8 *p, u8 *temp, int x, int y, int width);
+typedef const u8 *(*RGBAFilterFunc)(const u8 * CAT_RESTRICT p, u8 * CAT_RESTRICT temp, int x, int y, int width);
 
 struct RGBAFilterFuncs {
 	// Safe for any input that is actually on the image
@@ -147,7 +147,7 @@ extern const RGBAFilterFuncs RGBA_FILTERS[SF_COUNT];
  *
  * Returns filter prediction.
  */
-typedef u8 (*MonoFilterFunc)(const u8 *p, u8 clamp_max, int x, int y, int width);
+typedef u8 (*MonoFilterFunc)(const u8 * CAT_RESTRICT p, u8 clamp_max, int x, int y, int width);
 
 struct MonoFilterFuncs {
 	// Safe for any input that is actually on the image
@@ -193,8 +193,8 @@ enum ColorFilters {
 	CF_COUNT,
 };
 
-typedef void (*RGB2YUVFilterFunction)(const u8 rgb_in[3], u8 yuv_out[3]);
-typedef void (*YUV2RGBFilterFunction)(const u8 yuv_in[3], u8 rgb_out[3]);
+typedef void (*RGB2YUVFilterFunction)(const u8 * CAT_RESTRICT rgb_in, u8 * CAT_RESTRICT yuv_out);
+typedef void (*YUV2RGBFilterFunction)(const u8 * CAT_RESTRICT yuv_in, u8 * CAT_RESTRICT rgb_out);
 
 extern const RGB2YUVFilterFunction RGB2YUV_FILTERS[];
 extern const YUV2RGBFilterFunction YUV2RGB_FILTERS[];
@@ -212,6 +212,8 @@ extern const u8 RESIDUAL_SCORE_256[256];
  * Monochrome residuals -> Chaos bin
  */
 class MonoChaos {
+	static const int TABLE_SIZE = 511; // 0..510: Max sum of two numbers 0..255
+
 public:
 	// Residual 0..255 value -> Score
 	static CAT_INLINE u8 ResidualScore256(u8 residual) {
@@ -242,7 +244,7 @@ public:
 protected:
 	// Chaos Lookup Table: residual score -> chaos bin index
 	int _chaos_levels;
-	u8 _table[512];
+	u8 _table[TABLE_SIZE];
 
 	SmartArray<u8> _row;	// Residual scores from last row
 	u8 _prev;				// Last residual score
@@ -289,6 +291,8 @@ public:
  * RGB Residuals -> Chaos bins
  */
 class RGBChaos {
+	static const int TABLE_SIZE = 511; // 0..510: Max sum of two numbers 0..255
+
 public:
 	// Residual 0..255 value -> Score
 	static CAT_INLINE u8 ResidualScore(u8 residual) {
@@ -309,7 +313,7 @@ public:
 protected:
 	// Chaos Lookup Table: residual score -> chaos bin index
 	int _chaos_levels;
-	u8 _table[512];
+	u8 _table[TABLE_SIZE];
 
 	SmartArray<u8> _row;	// Residual scores from last row
 	u8 _prev[4];			// Last residual score
@@ -338,18 +342,18 @@ public:
 		*(u32*)_prev = 0;
 	}
 
-	CAT_INLINE void getY(u16 x, u8 &y, u8 &u, u8 &v) {
+	CAT_INLINE void getY(u16 x, u8 & CAT_RESTRICT y, u8 & CAT_RESTRICT u, u8 & CAT_RESTRICT v) {
 		u8 *row = &_row[x << 2];
 		y = _table[_prev[0] + (u16)*row];
 		u = _table[_prev[1] + (u16)row[1]];
 		v = _table[_prev[2] + (u16)row[2]];
 	}
 
-	CAT_INLINE void store(u16 x, const u8 YUV[3]) {
+	CAT_INLINE void store(u16 x, const u8 * CAT_RESTRICT yuv) {
 		u8 *row = &_row[x << 2];
-		row[0] = _prev[0] = ResidualScore(YUV[0]);
-		row[1] = _prev[1] = ResidualScore(YUV[1]);
-		row[2] = _prev[2] = ResidualScore(YUV[2]);
+		row[0] = _prev[0] = ResidualScore(yuv[0]);
+		row[1] = _prev[1] = ResidualScore(yuv[1]);
+		row[2] = _prev[2] = ResidualScore(yuv[2]);
 	}
 };
 

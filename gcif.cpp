@@ -85,7 +85,7 @@ static int decompress(const char *filename, const char *outfile) {
 
 	lodepng_encode_file(outfile, (const unsigned char*)image.rgba, image.size_x, image.size_y, LCT_RGBA, 8);
 
-	gcif_free_image(image.rgba);
+	free(image.rgba);
 
 	return GCIF_RE_OK;
 }
@@ -125,22 +125,22 @@ static int benchfile(BenchStats &stats, string filename) {
 	}
 
 	double t2 = Clock::ref()->usec();
-/*
+
 	GCIFImage outimage;
 	if ((err = gcif_read_file(cbenchfile, &outimage))) {
 		CAT_WARN("main") << "Error while decompressing the image: " << gcif_read_errstr(err) << " for " << filename;
 		return err;
 	}
-*/
+
 	double t3 = Clock::ref()->usec();
-/*
+
 	for (u32 ii = 0; ii < size_x * size_y * 4; ++ii) {
 		if (outimage.rgba[ii] != image[ii]) {
 			CAT_WARN("main") << "Output image does not match input image for " << filename << " at " << ii;
 			break;
 		}
 	}
-*/
+
 	struct stat png, gci;
 	stat(filename.c_str(), &png);
 	stat(cbenchfile, &gci);
@@ -155,7 +155,7 @@ static int benchfile(BenchStats &stats, string filename) {
 
 	CAT_WARN("main") << filename << " => " << gcipngrat << "x smaller than PNG and decompresses " << gcipngtime << "x faster";
 
-//	gcif_free_image(outimage.rgba);
+	free(outimage.rgba);
 
 	return GCIF_RE_OK;
 }
@@ -367,7 +367,7 @@ static int replacefile(string filename) {
 		unlink(cbenchfile);
 	}
 
-	gcif_free_image(outimage.rgba);
+	free(outimage.rgba);
 
 	return GCIF_RE_OK;
 }
@@ -499,7 +499,7 @@ static int profileit(const char *filename) {
 			return err;
 		}
 
-		gcif_free_image(image.rgba);
+		free(image.rgba);
 	}
 
 	return GCIF_RE_OK;
