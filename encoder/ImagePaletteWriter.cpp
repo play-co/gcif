@@ -177,7 +177,7 @@ void ImagePaletteWriter::generateMonoWriter() {
 
 	params.knobs = _knobs;
 	params.data = _image.get();
-	params.num_syms = (u16)_palette.size();
+	params.num_syms = _palette_size;
 	params.size_x = _size_x;
 	params.size_y = _size_y;
 	params.max_filters = 32;
@@ -254,8 +254,7 @@ void ImagePaletteWriter::writeTable(ImageWriter &writer) {
 
 	CAT_DEBUG_ENFORCE(PALETTE_MAX <= 256);
 
-	const int palette_size = (int)_palette.size();
-	writer.writeBits(palette_size - 1, 8);
+	writer.writeBits(_palette_size - 1, 8);
 	bits += 8;
 
 	// Write palette index for mask
@@ -263,11 +262,11 @@ void ImagePaletteWriter::writeTable(ImageWriter &writer) {
 	bits += 8;
 
 	// If palette is small,
-	if (palette_size < 40) {
+	if (_palette_size < 40) {
 		writer.writeBit(0);
 		++bits;
 
-		for (int ii = 0; ii < palette_size; ++ii) {
+		for (int ii = 0; ii < _palette_size; ++ii) {
 			u32 color = getLE(_palette[ii]);
 
 			writer.writeWord(color);
@@ -285,13 +284,13 @@ void ImagePaletteWriter::writeTable(ImageWriter &writer) {
 		ee.init();
 
 		SmartArray<u8> edata;
-		edata.resize(palette_size * 4);
+		edata.resize(_palette_size * 4);
 
 		for (int cf = 0; cf < CF_COUNT; ++cf) {
 			RGB2YUVFilterFunction filter = RGB2YUV_FILTERS[cf];
 
 			u8 *write = edata.get();
-			for (int ii = 0; ii < palette_size; ++ii) {
+			for (int ii = 0; ii < _palette_size; ++ii) {
 				u32 color = getLE(_palette[ii]);
 
 				u8 rgb[3] = {
@@ -352,7 +351,7 @@ void ImagePaletteWriter::writeTable(ImageWriter &writer) {
 		bits += encoder.writeTables(writer);
 
 		// Fire
-		for (int ii = 0; ii < palette_size; ++ii) {
+		for (int ii = 0; ii < _palette_size; ++ii) {
 			u32 color = getLE(_palette[ii]);
 
 			u8 rgb[3] = {
@@ -380,7 +379,7 @@ void ImagePaletteWriter::writeTable(ImageWriter &writer) {
 	DESYNC_TABLE();
 
 #ifdef CAT_COLLECT_STATS
-	Stats.palette_size = (int)_palette.size();
+	Stats.palette_size = _palette_size;
 	Stats.overhead_bits = bits;
 #endif
 }

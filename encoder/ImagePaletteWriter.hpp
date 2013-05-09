@@ -105,7 +105,7 @@ public:
 	}
 
 	CAT_INLINE int getPaletteSize() {
-		return (int)_palette.size();
+		return _palette_size;
 	}
 
 	CAT_INLINE u8 *get(int x, int y) {

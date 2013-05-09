@@ -171,10 +171,6 @@ void PaletteOptimizer::sortPalette() {
 	 * In this case the data does not need a mask function since all input will
 	 * be inside the palette space.
 	 *
-	 * For MonoWriter output, it is 0..n-1 or 255 for masked out.  This is bad
-	 * for recursive compression.  Instead of emitting 255 we should emit same
-	 * as left value, defaulting to most common; will be zero after this code.
-	 *
 	 * For SF/CF matrices, it is also set to 255 for masked out.  We should do
 	 * the same and use same-as-left.
 	 *
