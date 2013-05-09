@@ -55,19 +55,19 @@ protected:
 	int _palette_size;
 	u8 _mask_palette;	// Masked palette index
 
-	ImageMaskReader *_mask;
-	ImageLZReader *_lz;
+	ImageMaskReader * CAT_RESTRICT _mask;
+	ImageLZReader * CAT_RESTRICT _lz;
 
-	u8 *_rgba;
+	u8 * CAT_RESTRICT _rgba;
 	u16 _size_x, _size_y;
 
 	SmartArray<u8> _image;
 
 	MonoReader _mono_decoder;
 
-	int readPalette(ImageReader &reader);
-	int readTables(ImageReader &reader);
-	int readPixels(ImageReader &reader);
+	int readPalette(ImageReader & CAT_RESTRICT reader);
+	int readTables(ImageReader & CAT_RESTRICT reader);
+	int readPixels(ImageReader & CAT_RESTRICT reader);
 
 #ifdef CAT_COLLECT_STATS
 public:
@@ -85,7 +85,7 @@ public:
 		return _palette_size > 0;
 	}
 
-	int read(ImageReader &reader, ImageMaskReader &mask, ImageLZReader &lz, GCIFImage *image);
+	int read(ImageReader & CAT_RESTRICT reader, ImageMaskReader & CAT_RESTRICT mask, ImageLZReader & CAT_RESTRICT lz, GCIFImage * CAT_RESTRICT image);
 
 #ifdef CAT_COLLECT_STATS
 	bool dumpStats();

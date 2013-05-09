@@ -72,11 +72,11 @@ public:
 protected:
 	static const int NUM_COLORS = 256;
 
-	ImageMaskReader *_mask;
-	ImageLZReader *_lz;
+	ImageMaskReader * CAT_RESTRICT _mask;
+	ImageLZReader * CAT_RESTRICT _lz;
 
 	// RGBA output data
-	u8 *_rgba;
+	u8 * CAT_RESTRICT _rgba;
 	u16 _size_x, _size_y;
 
 	// Tiles
@@ -109,8 +109,8 @@ protected:
 	EntropyDecoder<NUM_COLORS, ZRLE_SYMS> _u_decoder[MAX_CHAOS_LEVELS];
 	EntropyDecoder<NUM_COLORS, ZRLE_SYMS> _v_decoder[MAX_CHAOS_LEVELS];
 
-	CAT_INLINE FilterSelection *readFilter(u16 x, u16 y, ImageReader &reader) {
-		FilterSelection *filter = &_filters[x >> _tile_bits_x];
+	CAT_INLINE FilterSelection *readFilter(u16 x, u16 y, ImageReader & CAT_RESTRICT reader) {
+		FilterSelection * CAT_RESTRICT filter = &_filters[x >> _tile_bits_x];
 
 		if (!filter->ready()) {
 			filter->cf = YUV2RGB_FILTERS[_cf_decoder.read(x, y, reader)];
@@ -122,25 +122,24 @@ protected:
 
 	u8 _FPT[3];
 
-	CAT_INLINE void readSafe(u16 x, u16 y, u8 *p, ImageReader &reader) {
+	CAT_INLINE void readSafe(u16 x, u16 y, u8 * CAT_RESTRICT p, ImageReader & CAT_RESTRICT reader) {
 		FilterSelection *filter = readFilter(x, y, reader);
 
 		// Calculate YUV chaos
-		const int chaos_y = _chaos.getY();
-		const int chaos_u = _chaos.getU();
-		const int chaos_v = _chaos.getV();
+		u8 cy, cu, cv;
+		_chaos.get(x, cy, cu, cv);
 
 		// Read YUV filtered pixel
 		u8 YUV[3];
-		YUV[0] = (u8)_y_decoder[chaos_y].next(reader);
-		YUV[1] = (u8)_u_decoder[chaos_u].next(reader);
-		YUV[2] = (u8)_v_decoder[chaos_v].next(reader);
+		YUV[0] = (u8)_y_decoder[cy].next(reader);
+		YUV[1] = (u8)_u_decoder[cu].next(reader);
+		YUV[2] = (u8)_v_decoder[cv].next(reader);
 
 		// Reverse color filter
 		filter->cf(YUV, p);
 
 		// Reverse spatial filter
-		const u8 *pred = filter->sf.safe(p, _FPT, x, y, _size_x);
+		const u8 * CAT_RESTRICT pred = filter->sf.safe(p, _FPT, x, y, _size_x);
 		p[0] += pred[0];
 		p[1] += pred[1];
 		p[2] += pred[2];
@@ -148,23 +147,22 @@ protected:
 		// Read alpha pixel
 		p[3] = (u8)_a_decoder.read(x, y, reader);
 
-		_chaos.store(YUV);
+		_chaos.store(x, YUV);
 	}
 
 	// WARNING: Should be exactly the same as above, except call unsafe()
-	CAT_INLINE void readUnsafe(u16 x, u16 y, u8 *p, ImageReader &reader) {
+	CAT_INLINE void readUnsafe(u16 x, u16 y, u8 * CAT_RESTRICT p, ImageReader & CAT_RESTRICT reader) {
 		FilterSelection *filter = readFilter(x, y, reader);
 
 		// Calculate YUV chaos
-		const int chaos_y = _chaos.getY();
-		const int chaos_u = _chaos.getU();
-		const int chaos_v = _chaos.getV();
+		u8 cy, cu, cv;
+		_chaos.get(x, cy, cu, cv);
 
 		// Read YUV filtered pixel
 		u8 YUV[3];
-		YUV[0] = (u8)_y_decoder[chaos_y].next(reader);
-		YUV[1] = (u8)_u_decoder[chaos_u].next(reader);
-		YUV[2] = (u8)_v_decoder[chaos_v].next(reader);
+		YUV[0] = (u8)_y_decoder[cy].next(reader);
+		YUV[1] = (u8)_u_decoder[cu].next(reader);
+		YUV[2] = (u8)_v_decoder[cv].next(reader);
 
 		// Reverse color filter
 		filter->cf(YUV, p);
@@ -178,12 +176,12 @@ protected:
 		// Read alpha pixel
 		p[3] = (u8)_a_decoder.read(x, y, reader);
 
-		_chaos.store(YUV);
+		_chaos.store(x, YUV);
 	}
 
-	int readFilterTables(ImageReader &reader);
-	int readRGBATables(ImageReader &reader);
-	int readPixels(ImageReader &reader);
+	int readFilterTables(ImageReader & CAT_RESTRICT reader);
+	int readRGBATables(ImageReader & CAT_RESTRICT reader);
+	int readPixels(ImageReader & CAT_RESTRICT reader);
 
 #ifdef CAT_COLLECT_STATS
 public:
@@ -194,7 +192,7 @@ public:
 #endif
 
 public:
-	int read(ImageReader &reader, ImageMaskReader &maskReader, ImageLZReader &lzReader, GCIFImage *image);
+	int read(ImageReader & CAT_RESTRICT reader, ImageMaskReader & CAT_RESTRICT maskReader, ImageLZReader & CAT_RESTRICT lzReader, GCIFImage * CAT_RESTRICT image);
 
 #ifdef CAT_COLLECT_STATS
 	bool dumpStats();

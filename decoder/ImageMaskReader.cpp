@@ -50,7 +50,7 @@ using namespace cat;
 
 //// ImageMaskReader
 
-int ImageMaskReader::decodeLZ(ImageReader &reader) {
+int ImageMaskReader::decodeLZ(ImageReader & CAT_RESTRICT reader) {
 	int rleSize = reader.read9();
 	int lzSize = reader.read9();
 
@@ -101,7 +101,7 @@ int ImageMaskReader::decodeLZ(ImageReader &reader) {
 	return GCIF_RE_OK;
 }
 
-int ImageMaskReader::init(const ImageReader::Header *header) {
+int ImageMaskReader::init(const ImageReader::Header * CAT_RESTRICT header) {
 	const int maskWidth = header->size_x;
 	const int maskHeight = header->size_y;
 
@@ -115,7 +115,7 @@ int ImageMaskReader::init(const ImageReader::Header *header) {
 	return GCIF_RE_OK;
 }
 
-int ImageMaskReader::read(ImageReader &reader) {
+int ImageMaskReader::read(ImageReader & CAT_RESTRICT reader) {
 #ifdef CAT_COLLECT_STATS
 	m_clock = Clock::ref();
 
@@ -162,7 +162,7 @@ const u32 *ImageMaskReader::nextScanline() {
 
 	// Read RLE symbol count
 	int sym_count = 0;
-	const u8 *rle = _rle_next;
+	const u8 * CAT_RESTRICT rle = _rle_next;
 	int rle_remaining = _rle_remaining;
 
 	while (rle_remaining-- > 0) {	
@@ -175,7 +175,7 @@ const u32 *ImageMaskReader::nextScanline() {
 	}
 
 	const int stride = _stride;
-	u32 *row = _mask.get();
+	u32 * CAT_RESTRICT row = _mask.get();
 
 	// If no symbols on this row,
 	if (sym_count == 0) {

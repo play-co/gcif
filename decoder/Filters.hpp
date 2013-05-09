@@ -342,15 +342,15 @@ public:
 		*(u32*)_prev = 0;
 	}
 
-	CAT_INLINE void getY(u16 x, u8 & CAT_RESTRICT y, u8 & CAT_RESTRICT u, u8 & CAT_RESTRICT v) {
-		u8 *row = &_row[x << 2];
+	CAT_INLINE void get(u16 x, u8 & CAT_RESTRICT y, u8 & CAT_RESTRICT u, u8 & CAT_RESTRICT v) {
+		u8 * CAT_RESTRICT row = &_row[x << 2];
 		y = _table[_prev[0] + (u16)*row];
 		u = _table[_prev[1] + (u16)row[1]];
 		v = _table[_prev[2] + (u16)row[2]];
 	}
 
 	CAT_INLINE void store(u16 x, const u8 * CAT_RESTRICT yuv) {
-		u8 *row = &_row[x << 2];
+		u8 * CAT_RESTRICT row = &_row[x << 2];
 		row[0] = _prev[0] = ResidualScore(yuv[0]);
 		row[1] = _prev[1] = ResidualScore(yuv[1]);
 		row[2] = _prev[2] = ResidualScore(yuv[2]);

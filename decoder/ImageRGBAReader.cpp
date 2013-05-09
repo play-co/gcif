@@ -51,7 +51,7 @@ static cat::Clock *m_clock = 0;
 
 //// ImageRGBAReader
 
-int ImageRGBAReader::readFilterTables(ImageReader &reader) {
+int ImageRGBAReader::readFilterTables(ImageReader & CAT_RESTRICT reader) {
 	int err;
 
 	// Read tile bits
@@ -121,7 +121,7 @@ int ImageRGBAReader::readFilterTables(ImageReader &reader) {
 	return GCIF_RE_OK;
 }
 
-int ImageRGBAReader::readRGBATables(ImageReader &reader) {
+int ImageRGBAReader::readRGBATables(ImageReader & CAT_RESTRICT reader) {
 	int err;
 
 	// Read alpha decoder
@@ -165,7 +165,7 @@ int ImageRGBAReader::readRGBATables(ImageReader &reader) {
 	return GCIF_RE_OK;
 }
 
-int ImageRGBAReader::readPixels(ImageReader &reader) {
+int ImageRGBAReader::readPixels(ImageReader & CAT_RESTRICT reader) {
 	const int size_x = _size_x;
 	const u32 MASK_COLOR = _mask->getColor();
 
@@ -173,7 +173,7 @@ int ImageRGBAReader::readPixels(ImageReader &reader) {
 	u16 trigger_x_lz = _lz->getTriggerX();
 
 	// Start from upper-left of image
-	u8 *p = _rgba;
+	u8 * CAT_RESTRICT p = _rgba;
 
 	_chaos.start();
 
@@ -197,7 +197,7 @@ int ImageRGBAReader::readPixels(ImageReader &reader) {
 		_a_decoder.readRowHeader(y, reader);
 
 		// Read mask scanline
-		const u32 *mask_next = _mask->nextScanline();
+		const u32 * CAT_RESTRICT mask_next = _mask->nextScanline();
 		int mask_left = 0;
 		u32 mask;
 
@@ -222,11 +222,11 @@ int ImageRGBAReader::readPixels(ImageReader &reader) {
 
 			if (lz_skip > 0) {
 				--lz_skip;
-				_chaos.zero();
+				_chaos.zero(x);
 				_a_decoder.maskedSkip();
 			} else if ((s32)mask < 0) {
 				*reinterpret_cast<u32 *>( p ) = MASK_COLOR;
-				_chaos.zero();
+				_chaos.zero(x);
 				_a_decoder.maskedSkip();
 			} else {
 				readSafe(x, y, p, reader);
@@ -262,7 +262,7 @@ int ImageRGBAReader::readPixels(ImageReader &reader) {
 		_a_decoder.readRowHeader(y, reader);
 
 		// Read mask scanline
-		const u32 *mask_next = _mask->nextScanline();
+		const u32 * CAT_RESTRICT mask_next = _mask->nextScanline();
 		int mask_left = 0;
 		u32 mask;
 
@@ -287,11 +287,11 @@ int ImageRGBAReader::readPixels(ImageReader &reader) {
 			// If pixel was copied with LZ subsystem,
 			if (lz_skip > 0) {
 				--lz_skip;
-				_chaos.zero();
+				_chaos.zero(x);
 				_a_decoder.maskedSkip();
 			} else if ((s32)mask < 0) {
 				*reinterpret_cast<u32 *>( p ) = MASK_COLOR;
-				_chaos.zero();
+				_chaos.zero(x);
 				_a_decoder.maskedSkip();
 			} else {
 				readSafe(x, y, p, reader);
@@ -327,11 +327,11 @@ int ImageRGBAReader::readPixels(ImageReader &reader) {
 			// If pixel was copied with LZ subsystem,
 			if (lz_skip > 0) {
 				--lz_skip;
-				_chaos.zero();
+				_chaos.zero(x);
 				_a_decoder.maskedSkip();
 			} else if ((s32)mask < 0) {
 				*reinterpret_cast<u32 *>( p ) = MASK_COLOR;
-				_chaos.zero();
+				_chaos.zero(x);
 				_a_decoder.maskedSkip();
 			} else {
 				// Note: Reading with unsafe spatial filter
@@ -368,11 +368,11 @@ int ImageRGBAReader::readPixels(ImageReader &reader) {
 			// If pixel was copied with LZ subsystem,
 			if (lz_skip > 0) {
 				--lz_skip;
-				_chaos.zero();
+				_chaos.zero(x);
 				_a_decoder.maskedSkip();
 			} else if ((s32)mask < 0) {
 				*reinterpret_cast<u32 *>( p ) = MASK_COLOR;
-				_chaos.zero();
+				_chaos.zero(x);
 				_a_decoder.maskedSkip();
 			} else {
 				readSafe(x, y, p, reader);
@@ -388,7 +388,7 @@ int ImageRGBAReader::readPixels(ImageReader &reader) {
 	return GCIF_RE_OK;
 }
 
-int ImageRGBAReader::read(ImageReader &reader, ImageMaskReader &maskReader, ImageLZReader &lzReader, GCIFImage *image) {
+int ImageRGBAReader::read(ImageReader & CAT_RESTRICT reader, ImageMaskReader & CAT_RESTRICT maskReader, ImageLZReader & CAT_RESTRICT lzReader, GCIFImage * CAT_RESTRICT image) {
 #ifdef CAT_COLLECT_STATS
 	m_clock = Clock::ref();
 

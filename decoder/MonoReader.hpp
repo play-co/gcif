@@ -81,7 +81,7 @@ public:
 	typedef Delegate2<bool, u16, u16> MaskDelegate;
 
 	struct Parameters {
-		u8 *data;						// Output data
+		u8 * CAT_RESTRICT data;			// Output data
 		int data_step;					// Bytes between data write positions (for alpha)
 		u16 size_x, size_y;				// Data dimensions
 		u16 min_bits, max_bits;			// Tile size bit range to try

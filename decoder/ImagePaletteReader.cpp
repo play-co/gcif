@@ -55,7 +55,7 @@ static cat::Clock *m_clock = 0;
 
 //// ImagePaletteReader
 
-int ImagePaletteReader::readPalette(ImageReader &reader) {
+int ImagePaletteReader::readPalette(ImageReader & CAT_RESTRICT reader) {
 	// If disabled,
 	if (!reader.readBit()) {
 		_palette_size = 0;
@@ -127,8 +127,7 @@ int ImagePaletteReader::readPalette(ImageReader &reader) {
 	return GCIF_RE_OK;
 }
 
-int ImagePaletteReader::readTables(ImageReader &reader) {
-
+int ImagePaletteReader::readTables(ImageReader & CAT_RESTRICT reader) {
 	_image.resize(_size_x * _size_y);
 
 	MonoReader::Parameters params;
@@ -151,15 +150,15 @@ int ImagePaletteReader::readTables(ImageReader &reader) {
 	return err;
 }
 
-int ImagePaletteReader::readPixels(ImageReader &reader) {
+int ImagePaletteReader::readPixels(ImageReader & CAT_RESTRICT reader) {
 	const u32 MASK_COLOR = _mask->getColor();
 	const u8 MASK_PAL = _mask_palette;
 
-	u32 *rgba = reinterpret_cast<u32 *>( _rgba );
+	u32 * CAT_RESTRICT rgba = reinterpret_cast<u32 *>( _rgba );
 
 	u16 trigger_x_lz = _lz->getTriggerX();
 
-	for (int y = 0; y < _size_y; ++y) {
+	for (int y = 0, yend = _size_y; y < yend; ++y) {
 		_mono_decoder.readRowHeader(y, reader);
 		DESYNC(0, y);
 
@@ -174,12 +173,12 @@ int ImagePaletteReader::readPixels(ImageReader &reader) {
 
 		int lz_skip = 0;
 
-		for (int x = 0; x < _size_x; ++x) {
+		for (int x = 0, xend = _size_x; x < xend; ++x) {
 			DESYNC(x, y);
 
 			// If LZ triggered,
 			if (x == trigger_x_lz) {
-				u8 *p = _image.get() + x + y * _size_x;
+				u8 * CAT_RESTRICT p = _image.get() + x + y * _size_x;
 
 				lz_skip = _lz->triggerXPal(p, rgba);
 				trigger_x_lz = _lz->getTriggerX();
@@ -213,7 +212,7 @@ int ImagePaletteReader::readPixels(ImageReader &reader) {
 	return GCIF_RE_OK;
 }
 
-int ImagePaletteReader::read(ImageReader &reader, ImageMaskReader &mask, ImageLZReader &lz, GCIFImage *image) {
+int ImagePaletteReader::read(ImageReader & CAT_RESTRICT reader, ImageMaskReader & CAT_RESTRICT mask, ImageLZReader & CAT_RESTRICT lz, GCIFImage * CAT_RESTRICT image) {
 #ifdef CAT_COLLECT_STATS
 	m_clock = Clock::ref();
 
