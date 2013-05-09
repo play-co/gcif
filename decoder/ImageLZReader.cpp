@@ -42,14 +42,7 @@ static cat::Clock *m_clock = 0;
 
 //// ImageLZReader
 
-int ImageLZReader::init(const ImageReader::Header *header) {
-	_size_x = header->size_x;
-	_size_y = header->size_y;
-
-	return GCIF_RE_OK;
-}
-
-int ImageLZReader::readHuffmanTable(ImageReader &reader) {
+int ImageLZReader::readHuffmanTable(ImageReader & CAT_RESTRICT reader) {
 	// Read and validate match count
 	const u32 match_count = reader.readBits(16);
 
@@ -87,7 +80,7 @@ int ImageLZReader::readHuffmanTable(ImageReader &reader) {
 	return GCIF_RE_OK;
 }
 
-int ImageLZReader::readZones(ImageReader &reader) {
+int ImageLZReader::readZones(ImageReader & CAT_RESTRICT reader) {
 	const int match_count = _zones.size();
 
 	// Skip if nothing to read
@@ -98,7 +91,7 @@ int ImageLZReader::readZones(ImageReader &reader) {
 	if (!_using_decoder) {
 		u16 last_dx = 0, last_dy = 0;
 		for (int ii = 0; ii < match_count; ++ii) {
-			Zone *z = &_zones[ii];
+			Zone * CAT_RESTRICT z = &_zones[ii];
 
 			u16 sx = reader.read9();
 			u16 sy = reader.read9();
@@ -145,7 +138,7 @@ int ImageLZReader::readZones(ImageReader &reader) {
 	} else {
 		// For each zone to read,
 		u16 last_dx = 0, last_dy = 0;
-		Zone *z = _zones.get();
+		Zone * CAT_RESTRICT z = _zones.get();
 		for (int ii = 0; ii < match_count; ++ii, ++z) {
 			u8 b0 = (u8)_decoder.next(reader);
 			u8 b1 = (u8)_decoder.next(reader);
@@ -215,15 +208,15 @@ int ImageLZReader::readZones(ImageReader &reader) {
 	return GCIF_RE_OK;
 }
 
-int ImageLZReader::triggerX(u8 *p) {
+int ImageLZReader::triggerX(u8 * CAT_RESTRICT p) {
 	// Just triggered a line from zi
 	u16 ii = _zone_next_x;
-	Zone *zi = &_zones[ii];
+	Zone * CAT_RESTRICT zi = &_zones[ii];
 	const int lz_left = zi->w;
 
 	// Copy scanline one at a time in case the pointers are aliased
 	u32 *dst = reinterpret_cast<u32 *>( p );
-	const u32 *src = dst + zi->sox + zi->soy * _size_x;
+	const volatile u32 *src = dst + zi->sox + zi->soy * _size_x;
 	for (int jj = 0; jj < lz_left; ++jj) {
 		*dst = *src;
 		++src;
@@ -271,15 +264,15 @@ int ImageLZReader::triggerX(u8 *p) {
 	return lz_left;
 }
 
-int ImageLZReader::triggerXPal(u8 *p, u32 *rgba) {
+int ImageLZReader::triggerXPal(u8 * CAT_RESTRICT p, u32 * CAT_RESTRICT rgba) {
 	// Just triggered a line from zi
 	u16 ii = _zone_next_x;
-	Zone *zi = &_zones[ii];
+	Zone * CAT_RESTRICT zi = &_zones[ii];
 	const int lz_left = zi->w;
 
 	// Copy scanline one at a time in case the pointers are aliased
 	int offset = zi->sox + zi->soy * _size_x;
-	const u32 *rgba_src = rgba + offset;
+	const volatile u32 *rgba_src = rgba + offset;
 	for (int jj = 0; jj < lz_left; ++jj) {
 		*rgba = *rgba_src;
 		++rgba_src;
@@ -287,7 +280,7 @@ int ImageLZReader::triggerXPal(u8 *p, u32 *rgba) {
 	}
 
 	// Copy scanline one at a time in case the pointers are aliased
-	const u8 *p_src = p + offset;
+	const volatile u8 *p_src = p + offset;
 	for (int jj = 0; jj < lz_left; ++jj) {
 		*p = *p_src;
 		++p_src;
@@ -339,7 +332,7 @@ void ImageLZReader::triggerY() {
 	// Merge y trigger zone and its same-y friends into the work list in order
 	const u16 same_dy = _zone_trigger_y;
 	u16 ii = _zone_next_y, jj = ZONE_NULL, jnext;
-	Zone *zi = &_zones[ii], *zj = 0;
+	Zone * CAT_RESTRICT zi = &_zones[ii], *zj = 0;
 
 	// Find insertion point for all same-y zones
 	for (jnext = _zone_work_head; jnext != ZONE_NULL; jnext = zj->next) {
@@ -427,6 +420,10 @@ setup_trigger_x:
 }
 
 int ImageLZReader::read(ImageReader &reader) {
+	const ImageReader::Header * CAT_RESTRICT header = reader.getHeader();
+	_size_x = header->size_x;
+	_size_y = header->size_y;
+
 #ifdef CAT_COLLECT_STATS
 	m_clock = Clock::ref();
 
@@ -435,7 +432,7 @@ int ImageLZReader::read(ImageReader &reader) {
 
 	int err;
 
-	if ((err = init(reader.getHeader()))) {
+	if ((err = readHuffmanTable(reader))) {
 		return err;
 	}
 
@@ -443,26 +440,17 @@ int ImageLZReader::read(ImageReader &reader) {
 	double t1 = m_clock->usec();
 #endif // CAT_COLLECT_STATS
 
-	if ((err = readHuffmanTable(reader))) {
-		return err;
-	}
-
-#ifdef CAT_COLLECT_STATS
-	double t2 = m_clock->usec();
-#endif // CAT_COLLECT_STATS
-
 	if ((err = readZones(reader))) {
 		return err;
 	}
 
 #ifdef CAT_COLLECT_STATS
-	double t3 = m_clock->usec();
+	double t2 = m_clock->usec();
 
-	Stats.initUsec = t1 - t0;
-	Stats.readCodelensUsec = t2 - t1;
-	Stats.readZonesUsec = t3 - t2;
+	Stats.readCodelensUsec = t1 - t0;
+	Stats.readZonesUsec = t2 - t1;
+	Stats.overallUsec = t2 - t0;
 	Stats.zoneCount = _zones.size();
-	Stats.overallUsec = t3 - t0;
 #endif // CAT_COLLECT_STATS
 
 	return GCIF_RE_OK;
@@ -471,7 +459,6 @@ int ImageLZReader::read(ImageReader &reader) {
 #ifdef CAT_COLLECT_STATS
 
 bool ImageLZReader::dumpStats() {
-	CAT_INANE("stats") << "(LZ Decode)     Initialization : " << Stats.initUsec << " usec (" << Stats.initUsec * 100.f / Stats.overallUsec << " %total)";
 	CAT_INANE("stats") << "(LZ Decode) Read Huffman Table : " << Stats.readCodelensUsec << " usec (" << Stats.readCodelensUsec * 100.f / Stats.overallUsec << " %total)";
 	CAT_INANE("stats") << "(LZ Decode)         Read Zones : " << Stats.readZonesUsec << " usec (" << Stats.readZonesUsec * 100.f / Stats.overallUsec << " %total)";
 	CAT_INANE("stats") << "(LZ Decode)            Overall : " << Stats.overallUsec << " usec";

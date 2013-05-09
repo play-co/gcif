@@ -93,14 +93,12 @@ protected:
 	EntropyDecoder<256, ENCODER_ZRLE_SYMS> _decoder;
 	bool _using_decoder;
 
-	int init(const ImageReader::Header *header);
-	int readHuffmanTable(ImageReader &reader);
-	int readZones(ImageReader &reader);
+	int readHuffmanTable(ImageReader & CAT_RESTRICT reader);
+	int readZones(ImageReader & CAT_RESTRICT reader);
 
 #ifdef CAT_COLLECT_STATS
 public:
 	struct _Stats {
-		double initUsec;
 		double readCodelensUsec;
 		double readZonesUsec;
 		double overallUsec;
@@ -110,7 +108,7 @@ public:
 #endif
 
 public:
-	int read(ImageReader &reader);
+	int read(ImageReader & CAT_RESTRICT reader);
 
 	CAT_INLINE u16 getTriggerX() {
 		return _zone_trigger_x;
@@ -123,8 +121,8 @@ public:
 	// Skip the number of pixels returned
 	// Returns pixel count which is always at least 1
 	// p: Pointer to first byte of current RGBA pixel
-	int triggerX(u8 *p);
-	int triggerXPal(u8 *p, u32 *rgba); // Palette version
+	int triggerX(u8 * CAT_RESTRICT p);
+	int triggerXPal(u8 * CAT_RESTRICT p, u32 * CAT_RESTRICT rgba); // Palette version
 
 	// Call when y reaches next trigger y before looping over x values
 	void triggerY();

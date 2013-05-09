@@ -70,8 +70,8 @@ protected:
 	u32 _one_sym;
 
 public:
-	bool init(int num_syms, const u8 codelens[], u32 table_bits);
-	bool init(int num_syms, ImageReader &reader, u32 table_bits);
+	bool init(int num_syms, const u8 * CAT_RESTRICT codelens, u32 table_bits);
+	bool init(int num_syms, ImageReader & CAT_RESTRICT reader, u32 table_bits);
 
 	u32 next(ImageReader &reader);
 };

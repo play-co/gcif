@@ -35,7 +35,7 @@ using namespace cat;
 
 //// HuffmanDecoder
 
-bool HuffmanDecoder::init(int count, const u8 *codelens, u32 table_bits) {
+bool HuffmanDecoder::init(int count, const u8 * CAT_RESTRICT codelens, u32 table_bits) {
 	u32 min_codes[MAX_CODE_SIZE];
 
 	if (count <= 0 || (table_bits > MAX_TABLE_BITS)) {
@@ -208,7 +208,7 @@ bool HuffmanDecoder::init(int count, const u8 *codelens, u32 table_bits) {
 	return true;
 }
 
-bool HuffmanDecoder::init(int num_syms_orig, ImageReader &reader, u32 table_bits) {
+bool HuffmanDecoder::init(int num_syms_orig, ImageReader & CAT_RESTRICT reader, u32 table_bits) {
 	static const int HUFF_SYMS = MAX_CODE_SIZE + 1;
 	u8 codelens[MAX_SYMS];
 
@@ -319,7 +319,7 @@ bool HuffmanDecoder::init(int num_syms_orig, ImageReader &reader, u32 table_bits
 	return init(num_syms_orig, codelens, table_bits);
 }
 
-u32 HuffmanDecoder::next(ImageReader &reader) {
+u32 HuffmanDecoder::next(ImageReader & CAT_RESTRICT reader) {
 	// If only one symbol,
 	const u32 one_sym = _one_sym;
 	if (one_sym) {
@@ -345,7 +345,7 @@ u32 HuffmanDecoder::next(ImageReader &reader) {
 		len = _decode_start_code_size;
 		CAT_DEBUG_ENFORCE(len <= 16);
 
-		const u32 *max_codes = _max_codes;
+		const u32 * CAT_RESTRICT max_codes = _max_codes;
 
 		for (;;) {
 			if (k <= max_codes[len - 1])
@@ -372,7 +372,7 @@ u32 HuffmanDecoder::next(ImageReader &reader) {
 
 //// HuffmanTableDecoder
 
-bool HuffmanTableDecoder::init(ImageReader &reader) {
+bool HuffmanTableDecoder::init(ImageReader & CAT_RESTRICT reader) {
 	// Read the table decoder codelens
 	u8 table_codelens[NUM_SYMS];
 	int last_nzt;
@@ -397,7 +397,7 @@ bool HuffmanTableDecoder::init(ImageReader &reader) {
 	return _decoder.init(NUM_SYMS, table_codelens, 8);
 }
 
-u8 HuffmanTableDecoder::next(ImageReader &reader) {
+u8 HuffmanTableDecoder::next(ImageReader & CAT_RESTRICT reader) {
 	if (_zeroRun > 0) {
 		--_zeroRun;
 		return 0;
