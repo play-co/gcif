@@ -234,6 +234,12 @@ public:
 
 	// Write a symbol
 	int write(u16 x, u16 y, ImageWriter &writer); // Returns bits used
+
+	CAT_INLINE void dumpStats() {
+		if (_profile) {
+			_profile->dumpStats();
+		}
+	}
 };
 
 
@@ -247,6 +253,9 @@ class MonoWriterProfile {
 	static const int ZRLE_SYMS = MonoWriter::ZRLE_SYMS;
 	static const int MAX_SYMS = MonoWriter::MAX_SYMS;
 	static const int MAX_CHAOS_LEVELS = MonoWriter::MAX_CHAOS_LEVELS;
+
+	// Parameters
+	u16 size_x, size_y;						// Same as parameters
 
 	// Generated filter tiles
 	SmartArray<u8> mask;					// Masked tile boolean matrix
@@ -295,6 +304,8 @@ public:
 	}
 
 	void init(u16 size_x, u16 size_y, u16 bits);
+
+	void dumpStats();
 };
 
 
