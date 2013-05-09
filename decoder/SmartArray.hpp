@@ -109,15 +109,17 @@ public:
 	}
 
 	CAT_INLINE void fill_00() {
-		CAT_DEBUG_ENFORCE(_data);
+		CAT_DEBUG_ENFORCE(_data != 0);
 
-		memset(_data, 0x00, _size * sizeof(T));
+		void * CAT_RESTRICT data = _data;
+		memset(data, 0x00, _size * sizeof(T));
 	}
 
 	CAT_INLINE void fill_ff() {
-		CAT_DEBUG_ENFORCE(_data);
+		CAT_DEBUG_ENFORCE(_data != 0);
 
-		memset(_data, 0xff, _size * sizeof(T));
+		void * CAT_RESTRICT data = _data;
+		memset(data, 0xff, _size * sizeof(T));
 	}
 
 	CAT_INLINE int size() {
@@ -125,13 +127,13 @@ public:
 	}
 
 	CAT_INLINE T *get() {
-		CAT_DEBUG_ENFORCE(_data);
+		CAT_DEBUG_ENFORCE(_data != 0);
 
 		return _data;
 	}
 
 	CAT_INLINE T &operator[](int index) {
-		CAT_DEBUG_ENFORCE(_data);
+		CAT_DEBUG_ENFORCE(_data != 0);
 		CAT_DEBUG_ENFORCE(index < _size);
 
 		return _data[index];

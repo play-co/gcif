@@ -61,7 +61,7 @@ protected:
 
 	bool _eof;
 
-	const u32 *_words;
+	const u32 * CAT_RESTRICT _words;
 	int _wordCount;
 	int _wordsLeft;
 
@@ -89,9 +89,9 @@ public:
 
 	// Initialize with file or memory buffer
 #ifdef CAT_COMPILE_MMAP
-	int init(const char *path);
+	int init(const char * CAT_RESTRICT path);
 #endif // CAT_COMPILE_MMAP
-	int init(const void *buffer, long bytes);
+	int init(const void * CAT_RESTRICT buffer, long bytes);
 
 	CAT_INLINE Header *getHeader() {
 		return &_header;

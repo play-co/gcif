@@ -53,7 +53,7 @@ void MonoReader::cleanup() {
 	}
 }
 
-int MonoReader::readTables(const Parameters &params, ImageReader &reader) {
+int MonoReader::readTables(const Parameters & CAT_RESTRICT params, ImageReader & CAT_RESTRICT reader) {
 	_params = params;
 
 	// Calculate bits to represent tile bits field
@@ -179,7 +179,7 @@ int MonoReader::readTables(const Parameters &params, ImageReader &reader) {
 	return GCIF_RE_OK;
 }
 
-int MonoReader::readRowHeader(u16 y, ImageReader &reader) {
+int MonoReader::readRowHeader(u16 y, ImageReader & CAT_RESTRICT reader) {
 	_chaos.startRow();
 
 	// If at the start of a tile row,
@@ -207,12 +207,12 @@ int MonoReader::readRowHeader(u16 y, ImageReader &reader) {
 	return GCIF_RE_OK;
 }
 
-u8 MonoReader::read(u16 x, u16 y, ImageReader &reader) {
+u8 MonoReader::read(u16 x, u16 y, ImageReader & CAT_RESTRICT reader) {
 	CAT_DEBUG_ENFORCE(x < _params.size_x && y < _params.size_y);
 
 	// Check cached filter
 	const u16 tx = x >> _tile_bits_x;
-	u8 *tile = _tiles_row + tx;
+	u8 * CAT_RESTRICT tile = _tiles_row + tx;
 	u8 f = *tile;
 
 	// If now in a new filter tile,
@@ -250,17 +250,17 @@ u8 MonoReader::read(u16 x, u16 y, ImageReader &reader) {
 		// Set up so that this is always within array bounds at least
 		value = _palette[f];
 
-		_chaos.zero();
+		_chaos.zero(x);
 	} else {
 		// Get chaos bin
-		int chaos = _chaos.get();
+		int chaos = _chaos.get(x);
 
 		// Read residual from bitstream
 		u16 residual = _decoder[chaos].next(reader);
 
 		// Store for next chaos lookup
 		const u16 num_syms = _params.num_syms;
-		_chaos.store(residual, num_syms);
+		_chaos.store(x, residual, num_syms);
 
 		// Read filter result
 		u16 pred = _sf[f].safe(_current_data, num_syms - 1, x, y, _params.size_x);
@@ -288,12 +288,12 @@ u8 MonoReader::read(u16 x, u16 y, ImageReader &reader) {
  * The only change should be that unsafe() is used.
  */
 
-u8 MonoReader::read_unsafe(u16 x, u16 y, ImageReader &reader) {
+u8 MonoReader::read_unsafe(u16 x, u16 y, ImageReader & CAT_RESTRICT reader) {
 	CAT_DEBUG_ENFORCE(x < _params.size_x && y < _params.size_y);
 
 	// Check cached filter
 	const u16 tx = x >> _tile_bits_x;
-	u8 *tile = _tiles_row + tx;
+	u8 * CAT_RESTRICT tile = _tiles_row + tx;
 	u8 f = *tile;
 
 	// If now in a new filter tile,
@@ -331,17 +331,17 @@ u8 MonoReader::read_unsafe(u16 x, u16 y, ImageReader &reader) {
 		// Set up so that this is always within array bounds at least
 		value = _palette[f];
 
-		_chaos.zero();
+		_chaos.zero(x);
 	} else {
 		// Get chaos bin
-		int chaos = _chaos.get();
+		int chaos = _chaos.get(x);
 
 		// Read residual from bitstream
 		u16 residual = _decoder[chaos].next(reader);
 
 		// Store for next chaos lookup
 		const u16 num_syms = _params.num_syms;
-		_chaos.store(residual, num_syms);
+		_chaos.store(x, residual, num_syms);
 
 		// Read filter result
 		u16 pred = _sf[f].unsafe(_current_data, num_syms - 1, x, y, _params.size_x);

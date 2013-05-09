@@ -94,7 +94,7 @@ protected:
 	Parameters _params;
 
 	SmartArray<u8> _tiles;
-	u8 *_tiles_row;
+	u8 * CAT_RESTRICT _tiles_row;
 	u16 _tile_size_x, _tile_size_y;
 	u16 _tile_bits_x, _tile_bits_y;
 	u16 _tile_mask_x, _tile_mask_y;
@@ -104,7 +104,7 @@ protected:
 	MonoFilterFuncs _sf[MAX_FILTERS];
 	int _normal_filter_count, _sympal_filter_count, _filter_count;
 
-	MonoReader *_filter_decoder;
+	MonoReader * CAT_RESTRICT _filter_decoder;
 	u8 _row_filter, _prev_filter;
 	EntropyDecoder<MAX_FILTERS, ZRLE_SYMS> _row_filter_decoder;
 
@@ -122,9 +122,9 @@ public:
 		cleanup();
 	}
 
-	int readTables(const Parameters &params, ImageReader &reader);
+	int readTables(const Parameters & CAT_RESTRICT params, ImageReader & CAT_RESTRICT reader);
 
-	int readRowHeader(u16 y, ImageReader &reader);
+	int readRowHeader(u16 y, ImageReader & CAT_RESTRICT reader);
 
 	CAT_INLINE void maskedWrite(u8 value) {
 		_chaos.zero();
@@ -141,10 +141,10 @@ public:
 		_current_data += _params.data_step;
 	}
 
-	u8 read(u16 x, u16 y, ImageReader &reader);
+	u8 read(u16 x, u16 y, ImageReader & CAT_RESTRICT reader);
 
 	// Faster top-level version, when spatial filters can be unsafe
-	u8 read_unsafe(u16 x, u16 y, ImageReader &reader);
+	u8 read_unsafe(u16 x, u16 y, ImageReader & CAT_RESTRICT reader);
 };
 
 

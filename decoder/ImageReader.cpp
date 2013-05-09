@@ -65,7 +65,7 @@ u32 ImageReader::refill() {
 
 #ifdef CAT_COMPILE_MMAP
 
-int ImageReader::init(const char *path) {
+int ImageReader::init(const char * CAT_RESTRICT path) {
 
 	// Map file for reading
 
@@ -77,7 +77,7 @@ int ImageReader::init(const char *path) {
 		return GCIF_RE_FILE;
 	}
 
-	u8 *fileData = _fileView.MapView();
+	u8 * CAT_RESTRICT fileData = _fileView.MapView();
 	if CAT_UNLIKELY(!fileData) {
 		return GCIF_RE_FILE;
 	}
@@ -89,12 +89,12 @@ int ImageReader::init(const char *path) {
 
 #endif // CAT_COMPILE_MMAP
 
-int ImageReader::init(const void *buffer, long fileSize) {
+int ImageReader::init(const void * CAT_RESTRICT buffer, long fileSize) {
 	const int MIN_FILE_WORDS = 2; // Enough for header
 
 	clear();
 
-	const u32 *words = reinterpret_cast<const u32 *>( buffer );
+	const u32 * CAT_RESTRICT words = reinterpret_cast<const u32 *>( buffer );
 	const u32 fileWords = fileSize / sizeof(u32);
 
 	// Validate file length
