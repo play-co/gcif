@@ -31,14 +31,16 @@
 using namespace cat;
 
 
-void PaletteOptimizer::histogramImage() {
+void PaletteOptimizer::histogramImage(MaskDelegate &mask) {
 	CAT_OBJCLR(_hist);
 
 	// Histogram
 	const u8 *image = _image;
 	for (int y = 0, yend = _size_y; y < yend; ++y) {
 		for (int x = 0, xend = _size_x; x < xend; ++x, ++image) {
-			_hist[*image]++;
+			if (!mask(x, y)) {
+				_hist[*image]++;
+			}
 		}
 	}
 
@@ -48,17 +50,15 @@ void PaletteOptimizer::histogramImage() {
 	for (int ii = 0; ii < PALETTE_MAX; ++ii) {
 		u32 count = _hist[ii];
 
-		if (count > 0) {
-			if (best_count < count) {
-				best_count = count;
-				best_ii = ii;
-			}
+		if (best_count < count) {
+			best_count = count;
+			best_ii = ii;
 		}
 	}
 	_most_common = (u8)best_ii;
 }
 
-void PaletteOptimizer::sortPalette() {
+void PaletteOptimizer::sortPalette(MaskDelegate &mask) {
 	CAT_OBJCLR(_forward);
 
 	// Index 0 is the most common color
@@ -76,8 +76,8 @@ void PaletteOptimizer::sortPalette() {
 		u32 scores[PALETTE_MAX] = {0};
 		static const int THRESH = 8;
 		const int cutoff = index - THRESH;
-		for (int y = 0, yend = _size_y - 1; y <= yend; ++y) {
-			for (int x = 0, xend = _size_x - 1; x <= xend; ++x, ++result, ++image) {
+		for (int y = 0, size_y = _size_y; y < size_y; ++y) {
+			for (int x = 0, size_x = _size_x; x < size_x; ++x, ++result, ++image) {
 				u8 p = *result;
 				p = (u8)((int)p - cutoff);
 
@@ -89,32 +89,48 @@ void PaletteOptimizer::sortPalette() {
 					 * d b c
 					 */
 					if (x > 0) {
-						scores[image[-1]] += p; // A
+						if (!mask(x - 1, y)) {
+							scores[image[-1]] += p; // A
+						}
 
-						if (y < yend) {
-							scores[image[xend]] += p; // d
+						if (y < size_x-1) {
+							if (!mask(x - 1, y + 1)) {
+								scores[image[size_x - 1]] += p; // d
+							}
 						}
 
 						if (y > 0) {
-							scores[image[-xend - 2]] += p; // C
+							if (!mask(x - 1, y - 1)) {
+								scores[image[-size_x - 1]] += p; // C
+							}
 						}
 					}
-					if (x < xend) {
-						scores[image[1]] += p; // a
+					if (x < size_x-1) {
+						if (!mask(x + 1, y)) {
+							scores[image[1]] += p; // a
+						}
 
-						if (x < xend) {
-							scores[image[xend + 2]] += p; // c
+						if (y < size_y-1) {
+							if (!mask(x + 1, y + 1)) {
+								scores[image[size_x + 1]] += p; // c
+							}
 						}
 					}
 					if (y > 0) {
-						scores[image[-xend - 1]] += p; // B
+						if (!mask(x, y - 1)) {
+							scores[image[-size_x]] += p; // B
+						}
 
-						if (x < xend) {
-							scores[image[-xend]] += p; // D
+						if (x < size_x-1) {
+							if (!mask(x + 1, y - 1)) {
+								scores[image[-size_x + 1]] += p; // D
+							}
 						}
 					}
-					if (y < yend) {
-						scores[image[xend + 1]] += p; // b
+					if (y < size_y) {
+						if (!mask(x, y + 1)) {
+							scores[image[size_x]] += p; // b
+						}
 					}
 				}
 			}
@@ -151,6 +167,8 @@ void PaletteOptimizer::sortPalette() {
 		}
 	}
 
+	// Leaving masked result pixels as zero (same as most common -- seems wise)
+
 #ifdef CAT_DEBUG
 	// Sanity check
 	const u8 *result = _result.get();
@@ -162,29 +180,13 @@ void PaletteOptimizer::sortPalette() {
 #endif
 }
 
-	/*
-	 * TODO
-	 *
-	 * For Palette input, the LZ data should be same as original, and the
-	 * masked data should be set to same as original unless the palette index
-	 * does not exist, in which case the most common value should be used.
-	 * In this case the data does not need a mask function since all input will
-	 * be inside the palette space.
-	 *
-	 * For SF/CF matrices, it is also set to 255 for masked out.  We should do
-	 * the same and use same-as-left.
-	 *
-	 * After changing these things, the Palette Optimizer will not need a mask
-	 * and all the input will be in the palette space.
-	 */
-
-void PaletteOptimizer::process(const u8 *image, int size_x, int size_y, int palette_size) {
+void PaletteOptimizer::process(const u8 *image, int size_x, int size_y, int palette_size, MaskDelegate mask) {
 	_image = image;
 	_size_x = size_x;
 	_size_y = size_y;
 	_palette_size = palette_size;
 
-	histogramImage();
-	sortPalette();
+	histogramImage(mask);
+	sortPalette(mask);
 }
 

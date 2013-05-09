@@ -55,9 +55,11 @@ using namespace std;
 //// ImageRGBAWriter
 
 void ImageRGBAWriter::maskTiles() {
+	// SF tiles are filled with zeroes for masked tiles
+	_sf_tiles.fill_00();
+
 	const u16 tile_size_x = _tile_size_x, tile_size_y = _tile_size_y;
 	const u16 size_x = _size_x, size_y = _size_y;
-	u8 *sf = _sf_tiles.get();
 	u8 *cf = _cf_tiles.get();
 
 	// For each tile,
@@ -73,7 +75,6 @@ void ImageRGBAWriter::maskTiles() {
 					if (!IsMasked(px, py)) {
 						// We need to do this tile
 						*cf++ = TODO_TILE;
-						*sf++ = TODO_TILE;
 						goto next_tile;
 					}
 					++px;
@@ -83,7 +84,6 @@ void ImageRGBAWriter::maskTiles() {
 
 			// Tile is masked out entirely
 			*cf++ = MASK_TILE;
-			*sf++ = MASK_TILE;
 next_tile:;
 		}
 	}
@@ -110,7 +110,7 @@ void ImageRGBAWriter::designFilters() {
 		const u8 *topleft = topleft_row;
 
 		for (int x = 0; x < _size_x; x += _tile_size_x, ++sf, ++cf, topleft += _tile_size_x * 4) {
-			if (*sf == MASK_TILE) {
+			if (*cf == MASK_TILE) {
 				continue;
 			}
 
@@ -242,14 +242,14 @@ void ImageRGBAWriter::designTiles() {
 			int tx = 0;
 
 			for (u16 x = 0; x < size_x; x += tile_size_x, ++sf, ++cf, topleft += tile_size_x * 4, ++tx) {
-				u8 osf = *sf;
+				u8 ocf = *cf;
 
 				// If tile is masked,
-				if (osf == MASK_TILE) {
+				if (ocf == MASK_TILE) {
 					continue;
 				}
 
-				u8 ocf = *cf;
+				u8 osf = *sf;
 
 				// If we are on the second or later pass,
 				if (passes > 0) {
@@ -393,6 +393,29 @@ void ImageRGBAWriter::designTiles() {
 	}
 }
 
+void ImageRGBAWriter::sortFilters() {
+	CAT_INANE("RGBA") << "Sorting filters...";
+
+	_optimizer.process(_sf_tiles.get(), _tiles_x, _tiles_y, _sf_count,
+		PaletteOptimizer::MaskDelegate::FromMember<ImageRGBAWriter, &ImageRGBAWriter::IsSFMasked>(this));
+
+	// Overwrite original tiles with optimized tiles
+	const u8 *src = _optimizer.getOptimizedImage();
+	memcpy(_sf_tiles.get(), src, _tiles_x * _tiles_y);
+
+	// Update filter indices
+	u16 filter_indices[MAX_FILTERS];
+	for (int ii = 0, iiend = _sf_count; ii < iiend; ++ii) {
+		filter_indices[_optimizer.forward(ii)] = _sf_indices[ii];
+	}
+	memcpy(_sf_indices, filter_indices, sizeof(_sf_indices));
+
+	// Update filter functions
+	for (int ii = 0, iiend = _sf_count; ii < iiend; ++ii) {
+		_sf[ii] = RGBA_FILTERS[_sf_indices[ii]];
+	}
+}
+
 bool ImageRGBAWriter::compressAlpha() {
 	CAT_INANE("RGBA") << "Compressing alpha channel...";
 
@@ -450,13 +473,13 @@ void ImageRGBAWriter::computeResiduals() {
 		const u8 *topleft = topleft_row;
 
 		for (u16 x = 0; x < size_x; x += tile_size_x, ++sf, ++cf, topleft += tile_size_x*4) {
-			const u8 sfi = *sf;
+			const u8 cfi = *cf;
 
-			if (sfi == MASK_TILE) {
+			if (cfi == MASK_TILE) {
 				continue;
 			}
 
-			const u8 cfi = *cf;
+			const u8 sfi = *sf;
 
 			// For each element in the tile,
 			const u8 *row = topleft;
@@ -523,20 +546,19 @@ void ImageRGBAWriter::designChaos() {
 			for (int x = 0; x < _size_x; ++x) {
 				// If masked,
 				if (IsMasked(x, y)) {
-					_chaos.zero();
+					_chaos.zero(x);
 				} else {
 					// Get chaos bin
-					const u8 chaos_y = _chaos.getY();
-					const u8 chaos_u = _chaos.getU();
-					const u8 chaos_v = _chaos.getV();
+					u8 cy, cu, cv;
+					_chaos.get(x, cy, cu, cv);
 
 					// Update chaos
-					_chaos.store(residuals);
+					_chaos.store(x, residuals);
 
 					// Add to histogram for this chaos bin
-					ee[chaos_y].addSingle(residuals[0]);
-					ee[chaos_u].addSingle(residuals[1]);
-					ee[chaos_v].addSingle(residuals[2]);
+					ee[cy].addSingle(residuals[0]);
+					ee[cu].addSingle(residuals[1]);
+					ee[cv].addSingle(residuals[2]);
 				}
 
 				residuals += 4;
@@ -622,20 +644,19 @@ void ImageRGBAWriter::initializeEncoders() {
 		for (int x = 0; x < _size_x; ++x) {
 			// If masked,
 			if (IsMasked(x, y)) {
-				_chaos.zero();
+				_chaos.zero(x);
 			} else {
 				// Get chaos bin
-				const u8 chaos_y = _chaos.getY();
-				const u8 chaos_u = _chaos.getU();
-				const u8 chaos_v = _chaos.getV();
+				u8 cy, cu, cv;
+				_chaos.get(x, cy, cu, cv);
 
 				// Update chaos
-				_chaos.store(residuals);
+				_chaos.store(x, residuals);
 
 				// Add to histogram for this chaos bin
-				_y_encoder[chaos_y].add(residuals[0]);
-				_u_encoder[chaos_u].add(residuals[1]);
-				_v_encoder[chaos_v].add(residuals[2]);
+				_y_encoder[cy].add(residuals[0]);
+				_u_encoder[cu].add(residuals[1]);
+				_v_encoder[cv].add(residuals[2]);
 
 				++rgba_count;
 			}
@@ -659,6 +680,12 @@ void ImageRGBAWriter::initializeEncoders() {
 
 bool ImageRGBAWriter::IsMasked(u16 x, u16 y) {
 	return _mask->masked(x, y) || _lz->visited(x, y);
+}
+
+bool ImageRGBAWriter::IsSFMasked(u16 x, u16 y) {
+	x >>= _tile_bits_x;
+	y >>= _tile_bits_y;
+	return _cf_tiles[x + _tiles_x * y] == MASK_TILE;
 }
 
 int ImageRGBAWriter::init(const u8 *rgba, int size_x, int size_y, ImageMaskWriter &mask, ImageLZWriter &lz, const GCIFKnobs *knobs) {
@@ -810,7 +837,7 @@ bool ImageRGBAWriter::writePixels(ImageWriter &writer) {
 
 			// If masked,
 			if (IsMasked(x, y)) {
-				_chaos.zero();
+				_chaos.zero(x);
 			} else {
 				// Writer filters
 				u16 tx = x >> _tile_bits_x;
@@ -824,17 +851,16 @@ bool ImageRGBAWriter::writePixels(ImageWriter &writer) {
 				}
 
 				// Get chaos bin
-				const u8 chaos_y = _chaos.getY();
-				const u8 chaos_u = _chaos.getU();
-				const u8 chaos_v = _chaos.getV();
+				u8 cy, cu, cv;
+				_chaos.get(x, cy, cu, cv);
 
 				// Update chaos
-				_chaos.store(residuals);
+				_chaos.store(x, residuals);
 
 				// Add to histogram for this chaos bin
-				y_bits += _y_encoder[chaos_y].write(residuals[0], writer);
-				u_bits += _u_encoder[chaos_u].write(residuals[1], writer);
-				v_bits += _v_encoder[chaos_v].write(residuals[2], writer);
+				y_bits += _y_encoder[cy].write(residuals[0], writer);
+				u_bits += _u_encoder[cu].write(residuals[1], writer);
+				v_bits += _v_encoder[cv].write(residuals[2], writer);
 				a_bits += _a_encoder.write(x, y, writer);
 			}
 

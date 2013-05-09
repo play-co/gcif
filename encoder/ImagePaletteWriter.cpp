@@ -144,22 +144,19 @@ void ImagePaletteWriter::generateImage() {
 }
 
 void ImagePaletteWriter::optimizeImage() {
-	PaletteOptimizer opt;
-
-	opt.process(_image.get(), _size_x, _size_y, _palette_size);
+	_optimizer.process(_image.get(), _size_x, _size_y, _palette_size,
+		PaletteOptimizer::MaskDelegate::FromMember<ImagePaletteWriter, &ImagePaletteWriter::IsMasked>(this));
 
 	// Replace palette image
-	const u8 *src = opt.getOptimizedImage();
+	const u8 *src = _optimizer.getOptimizedImage();
 	memcpy(_image.get(), src, _size_x * _size_y);
 
-	// Fix color array
+	// Fix color palette array
 	vector<u32> better_palette;
 	better_palette.resize(_palette_size);
 
 	for (int ii = 0; ii < _palette_size; ++ii) {
-		int dest = opt.forward(ii);
-
-		better_palette[dest] = _palette[ii];
+		better_palette[_optimizer.forward(ii)] = _palette[ii];
 	}
 	_palette = better_palette;
 

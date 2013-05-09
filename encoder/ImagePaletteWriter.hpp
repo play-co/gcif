@@ -37,6 +37,7 @@
 #include "../decoder/ImagePaletteReader.hpp"
 #include "MonoWriter.hpp"
 #include "../decoder/SmartArray.hpp"
+#include "PaletteOptimizer.hpp"
 
 #include <vector>
 #include <map>
@@ -66,6 +67,7 @@ class ImagePaletteWriter {
 	ImageMaskWriter *_mask;
 	ImageLZWriter *_lz;
 
+	PaletteOptimizer _optimizer;
 	std::vector<u32> _palette;
 	std::map<u32, u16> _map;
 

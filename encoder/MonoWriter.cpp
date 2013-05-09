@@ -708,7 +708,8 @@ void MonoWriter::computeResiduals() {
 void MonoWriter::optimizeTiles() {
 	//CAT_INANE("2D") << "Optimizing tiles for " << _profile->tiles_x << "x" << _profile->tiles_y << "...";
 
-	_optimizer.process(_profile->tiles.get(), _profile->tiles_x, _profile->tiles_y, _profile->filter_count);
+	_optimizer.process(_profile->tiles.get(), _profile->tiles_x, _profile->tiles_y, _profile->filter_count,
+			PaletteOptimizer::MaskDelegate::FromMember<MonoWriter, &MonoWriter::IsMasked>(this));
 
 	// Overwrite original tiles with optimized tiles
 	const u8 *src = _optimizer.getOptimizedImage();

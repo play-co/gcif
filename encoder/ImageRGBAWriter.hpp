@@ -38,6 +38,7 @@
 #include "FilterScorer.hpp"
 #include "../decoder/Filters.hpp"
 #include "GCIFWriter.h"
+#include "PaletteOptimizer.hpp"
 
 #include <vector>
 
@@ -93,7 +94,9 @@ protected:
 	u16 _tile_bits_x, _tile_bits_y;
 	u16 _tile_size_x, _tile_size_y;
 	u16 _tiles_x, _tiles_y;
-	SmartArray<u8> _sf_tiles, _cf_tiles, _ecodes[3];
+	SmartArray<u8> _sf_tiles;	// Filled with 0 for fully-masked tiles
+	SmartArray<u8> _cf_tiles;	// Set to MASK_TILE for fully-masked tiles
+	SmartArray<u8> _ecodes[3];	// Entropy temp workspace
 
 	// Chosen spatial filter set
 	RGBAFilterFuncs _sf[MAX_FILTERS];
@@ -110,6 +113,7 @@ protected:
 	EntropyEncoder<MAX_SYMS, ZRLE_SYMS> _v_encoder[MAX_CHAOS_LEVELS];
 
 	// Filter encoders
+	PaletteOptimizer _optimizer;	// Optimizer for SF palette
 	MonoWriter _sf_encoder, _cf_encoder;
 
 	// Alpha channel encoder
@@ -117,10 +121,12 @@ protected:
 	MonoWriter _a_encoder;
 
 	bool IsMasked(u16 x, u16 y);
+	bool IsSFMasked(u16 x, u16 y);
 
 	void maskTiles();
 	void designFilters();
 	void designTiles();
+	void sortFilters();
 	void computeResiduals();
 	bool compressAlpha();
 	void designChaos();

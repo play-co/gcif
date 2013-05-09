@@ -77,6 +77,9 @@ class PaletteOptimizer {
 public:
 	static const int PALETTE_MAX = 256;
 
+	// bool IsMasked(u16 x, u16 y)
+	typedef Delegate2<bool, u16, u16> MaskDelegate;
+
 protected:
 	// Input
 	int _palette_size;
@@ -91,12 +94,12 @@ protected:
 	SmartArray<u8> _result;
 	u8 _forward[PALETTE_MAX];	// Map old index -> new index
 
-	void histogramImage();
-	void sortPalette();
+	void histogramImage(MaskDelegate &mask);
+	void sortPalette(MaskDelegate &mask);
 
 public:
 	// Assumes image data is entirely in 0..palette_size-1 range
-	void process(const u8 *_image, int size_x, int size_y, int palette_size);
+	void process(const u8 *_image, int size_x, int size_y, int palette_size, MaskDelegate mask);
 
 	CAT_INLINE const u8 *getOptimizedImage() {
 		return _result.get();
