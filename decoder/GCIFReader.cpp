@@ -33,6 +33,7 @@
 #include "ImagePaletteReader.hpp"
 #include "ImageRGBAReader.hpp"
 #include "EndianNeutral.hpp"
+#include <stdlib.h>
 using namespace cat;
 
 static int gcif_read(ImageReader &reader, GCIFImage *image) {
@@ -40,8 +41,31 @@ static int gcif_read(ImageReader &reader, GCIFImage *image) {
 
 	// Fill in image size_x and size_y
 	ImageReader::Header *header = reader.getHeader();
-	image->size_x = header->size_x;
-	image->size_y = header->size_y;
+
+	// Validate input buffer and sizes for direct-to-memory mode
+	if (image->size_x < 0 || image->size_y < 0) {
+		image->size_x = header->size_x;
+		image->size_y = header->size_y;
+	} else if (image->size_x != header->size_x
+			|| image->size_y != header->size_y
+			|| image->rgba == 0) {
+		return GCIF_RE_BAD_DIMS;
+	}
+
+	// If we need to allocate memory for this image,
+	if (!image->rgba) {
+		u64 size = image->size_x * (u64)image->size_y * 4;
+
+		void *output;
+#ifdef posix_memalign
+		posix_memalign(&output, 8, size);
+#elif defined(memalign)
+		output = memalign(8, size);
+#else
+		output = malloc(size);
+#endif
+		image->rgba = (u8 *)output;
+	}
 
 	// Color mask
 	ImageMaskReader maskReader;
@@ -92,14 +116,22 @@ extern "C" int gcif_read_file(const char *input_file_path_in, GCIFImage *image_o
 		return err;
 	}
 
-	return gcif_read(reader, image_out);
+	if ((err = gcif_read(reader, image_out))) {
+		if (image_out->rgba) {
+			free(image_out->rgba);
+			image_out->rgba = 0;
+		}
+		return err;
+	}
+
+	return GCIF_RE_OK;
 }
 
 #endif // CAT_COMPILE_MMAP
 
 extern "C" int gcif_get_size(const void *file_data_in, long file_size_bytes_in, int *size_x, int *size_y) {
 	// Validate length
-	if (file_size_bytes_in < 4) {
+	if (file_size_bytes_in < 8) {
 		return GCIF_RE_BAD_HEAD;
 	}
 
@@ -120,7 +152,7 @@ extern "C" int gcif_get_size(const void *file_data_in, long file_size_bytes_in, 
 
 extern "C" int gcif_sig_cmp(const void *file_data_in, long file_size_bytes_in) {
 	// Validate length
-	if (file_size_bytes_in < 4) {
+	if (file_size_bytes_in < 8) {
 		return GCIF_RE_BAD_HEAD;
 	}
 
@@ -148,15 +180,29 @@ extern "C" int gcif_read_memory(const void *file_data_in, long file_size_bytes_i
 		return err;
 	}
 
-	return gcif_read(reader, image_out);
+	if ((err = gcif_read(reader, image_out))) {
+		if (image_out->rgba) {
+			free(image_out->rgba);
+			image_out->rgba = 0;
+		}
+		return err;
+	}
+
+	return GCIF_RE_OK;
 }
 
-extern "C" void gcif_free_image(const void *rgba) {
-	// If image data was allocated,
-	if (rgba) {
-		// Free it
-		delete []reinterpret_cast<const u8 *>( rgba );
+extern "C" int gcif_read_memory_to_buffer(const void *file_data_in, long file_size_bytes_in, GCIFImage *image_out) {
+	int err;
+
+	// Initialize image reader
+	ImageReader reader;
+	if ((err = reader.init(file_data_in, file_size_bytes_in))) {
+		return err;
 	}
+
+	// Note: Allowing RGBA pointer to fall through and do not free it on error.
+
+	return gcif_read(reader, image_out);
 }
 
 extern "C" const char *gcif_read_errstr(int err) {

@@ -234,12 +234,11 @@ int ImagePaletteReader::read(ImageReader &reader, ImageMaskReader &mask, ImageLZ
 	double t1 = m_clock->usec();
 #endif // CAT_COLLECT_STATS
 
-	_mask = &mask;
-	_lz = &lz;
-
+	_rgba = image->rgba;
 	_size_x = image->size_x;
 	_size_y = image->size_y;
-	_rgba = image->rgba;
+	_mask = &mask;
+	_lz = &lz;
 
 	if ((err = readTables(reader))) {
 		return err;

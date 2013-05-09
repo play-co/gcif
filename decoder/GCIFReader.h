@@ -63,7 +63,7 @@ const char *gcif_read_errstr(int err);
 
 // Return data
 typedef struct _GCIFImage {
-	unsigned char *rgba;	// RGBA pixels; free with "delete []rgba" when done
+	unsigned char *rgba;	// RGBA pixels.  Free with free(i.rgba); when done.
 	int size_x, size_y;		// Dimensions in pixels
 } GCIFImage;
 
@@ -72,42 +72,52 @@ typedef struct _GCIFImage {
 #ifdef CAT_COMPILE_MMAP
 
 /*
-	gcif_read_file()
-
-	Read from the given file path using blocking memory-mapped file I/O.
-
-	This function is thread-safe, meaning you can read two images simultaneously.
-
-	On success it returns GCIF_RE_OK.  Otherwise it returns a failure code from
-	the table above.  A string version of the failure code can be retrieved by
-	calling gcif_read_errstr().
-
-	On failure, the GCIFImage output can be safely ignored.
-	On success, you are responsible for freeing the image memory by calling
-	the gcif_free_image() function below.
-*/
+ * gcif_read_file()
+ *
+ * Read from the given file path using blocking memory-mapped file I/O.
+ *
+ * This function is thread-safe, meaning you can read two images simultaneously.
+ *
+ * On success it returns GCIF_RE_OK.  Otherwise it returns a failure code from
+ * the table above.  A string version of the failure code can be retrieved by
+ * calling gcif_read_errstr().
+ *
+ * On failure, the GCIFImage output can be safely ignored.
+ * On success, you are responsible for freeing rgba pointer with free(i.rgba);
+ */
 int gcif_read_file(const char *input_file_path_in, GCIFImage *image_out);
 
 #endif // CAT_COMPILE_MMAP
 
 
 /*
-	gcif_read_memory()
-
-	Read the image from the given memory buffer.
-
-	See: gcif_read_file() above for more important usage information.
-*/
+ * gcif_read_memory()
+ *
+ * Read the image from the given memory buffer.
+ *
+ * On success it returns GCIF_RE_OK.  Otherwise it returns a failure code from
+ * the table above.  A string version of the failure code can be retrieved by
+ * calling gcif_read_errstr().
+ *
+ * On failure, the GCIFImage output can be safely ignored.
+ * On success, you are responsible for freeing rgba pointer with free(i.rgba);
+ */
 int gcif_read_memory(const void *file_data_in, long file_size_bytes_in, GCIFImage *image_out);
 
 /*
-	gcif_free_image
-
-	Frees memory associated with the given image file.
-
-	This is safe to call when the read function fails.
-*/
-void gcif_free_image(const void *rgba);
+ * gcif_read_memory_to_buffer()
+ *
+ * Read the image from a given memory buffer to a given memory buffer.
+ *
+ * Similar to functions except memory management is handled by the caller.
+ *
+ * If size_x, size_y do not match actual image dimensions, the function fails.
+ *
+ * On success it returns GCIF_RE_OK.  Otherwise it returns a failure code from
+ * the table above.  A string version of the failure code can be retrieved by
+ * calling gcif_read_errstr().
+ */
+int gcif_read_memory_to_buffer(const void *file_data_in, long file_size_bytes_in, GCIFImage *image_out);
 
 /*
  * gcif_get_size()

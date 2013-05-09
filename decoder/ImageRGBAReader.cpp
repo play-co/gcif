@@ -51,19 +51,6 @@ static cat::Clock *m_clock = 0;
 
 //// ImageRGBAReader
 
-int ImageRGBAReader::init(GCIFImage *image) {
-	_size_x = image->size_x;
-	_size_y = image->size_y;
-
-	// Always allocate new RGBA data
-	_rgba = new u8[_size_x * _size_y * 4];
-
-	// Fill in image pointer
-	image->rgba = _rgba;
-
-	return GCIF_RE_OK;
-}
-
 int ImageRGBAReader::readFilterTables(ImageReader &reader) {
 	int err;
 
@@ -413,14 +400,9 @@ int ImageRGBAReader::read(ImageReader &reader, ImageMaskReader &maskReader, Imag
 	_mask = &maskReader;
 	_lz = &lzReader;
 
-	// Initialize
-	if ((err = init(image))) {
-		return err;
-	}
-
-#ifdef CAT_COLLECT_STATS
-	double t1 = m_clock->usec();
-#endif	
+	_rgba = image->rgba;
+	_size_x = image->size_x;
+	_size_y = image->size_y;
 
 	// Read filter selection tables
 	if ((err = readFilterTables(reader))) {
@@ -428,7 +410,7 @@ int ImageRGBAReader::read(ImageReader &reader, ImageMaskReader &maskReader, Imag
 	}
 
 #ifdef CAT_COLLECT_STATS
-	double t2 = m_clock->usec();
+	double t1 = m_clock->usec();
 #endif	
 
 	// Read Huffman tables for each RGB channel and chaos level
@@ -437,7 +419,7 @@ int ImageRGBAReader::read(ImageReader &reader, ImageMaskReader &maskReader, Imag
 	}
 
 #ifdef CAT_COLLECT_STATS
-	double t3 = m_clock->usec();
+	double t2 = m_clock->usec();
 #endif	
 
 	// Read RGB data and decompress it
@@ -450,13 +432,12 @@ int ImageRGBAReader::read(ImageReader &reader, ImageMaskReader &maskReader, Imag
 
 
 #ifdef CAT_COLLECT_STATS
-	double t4 = m_clock->usec();
+	double t3 = m_clock->usec();
 
-	Stats.initUsec = t1 - t0;
-	Stats.readFilterTablesUsec = t2 - t1;
-	Stats.readChaosTablesUsec = t3 - t2;
-	Stats.readPixelsUsec = t4 - t3;
-	Stats.overallUsec = t4 - t0;
+	Stats.readFilterTablesUsec = t1 - t0;
+	Stats.readChaosTablesUsec = t2 - t1;
+	Stats.readPixelsUsec = t3 - t2;
+	Stats.overallUsec = t3 - t0;
 #endif	
 	return GCIF_RE_OK;
 }

@@ -31,6 +31,7 @@
 
 #include "Platform.hpp"
 #include "Enforcer.hpp"
+#include <stdlib.h>
 
 namespace cat {
 
@@ -38,28 +39,53 @@ namespace cat {
 //// SmartArray
 
 template<class T> class SmartArray {
+	static const int ALIGN = 8; // byte alignment
+
 	T *_data;
-	int _alloc;
-	int _size;
+	int _size, _alloc;
+
+	static T *aligned_malloc(int size) {
+		// Allocate memory
+		u8 *data = (u8 *)malloc(8 + sizeof(T) * size);
+
+		// Get pointer offset residual
+#ifdef CAT_WORD_64
+		int offset = (u32)(u64)data & 7;
+#else
+		int offset = (u32)data & 7;
+#endif
+
+		// Bump data pointer up to the next multiple of 8 bytes
+		data += 8 - offset;
+
+		// Record the offset right before start of data
+		data[-1] = offset;
+
+		return (T *)data;
+	}
+
+	static void aligned_free(void *data) {
+		u8 *orig = (u8 *)data;
+
+		CAT_DEBUG_ENFORCE(orig[-1] < 8);
+
+		orig -= 8 - orig[-1];
+
+		free(orig);
+	}
 
 protected:
 	void alloc(int size) {
-		_data = new T[size];
+		_data = aligned_malloc(size);
 		_alloc = _size = size;
 	}
 
 	void grow(int size) {
 		if (_data) {
-			delete []_data;
+			aligned_free(_data);
 		}
-		alloc(size);
-	}
 
-	void cleanup() {
-		if (_data) {
-			delete []_data;
-			_data = 0;
-		}
+		alloc(size);
 	}
 
 public:
@@ -68,7 +94,10 @@ public:
 		_size = 0;
 	}
 	CAT_INLINE virtual ~SmartArray() {
-		cleanup();
+		if (_data) {
+			aligned_free(_data);
+			_data = 0;
+		}
 	}
 
 	CAT_INLINE void resize(int size) {

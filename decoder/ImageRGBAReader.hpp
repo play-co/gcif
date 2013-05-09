@@ -181,7 +181,6 @@ protected:
 		_chaos.store(YUV);
 	}
 
-	int init(GCIFImage *image);
 	int readFilterTables(ImageReader &reader);
 	int readRGBATables(ImageReader &reader);
 	int readPixels(ImageReader &reader);
