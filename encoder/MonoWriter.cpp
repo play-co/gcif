@@ -43,16 +43,34 @@ using namespace cat;
 #endif
 
 
-//// MonoWriter
+//// MonoWriterProfile
 
-void MonoWriter::cleanup() {
+void MonoWriterProfile::cleanup() {
 	if (_filter_encoder) {
 		delete _filter_encoder;
 		_filter_encoder = 0;
 	}
-	if (_best_writer) {
-		delete _best_writer;
-		_best_writer = 0;
+}
+
+void MonoWriterProfile::init(u16 size_x, u16 size_y, u16 bits) {
+	// Init with bits
+	_tile_bits_x = bits;
+	_tile_bits_y = bits;
+	_tile_size_x = 1 << bits;
+	_tile_size_y = 1 << bits;
+	_tiles_x = (size_x + _tile_size_x - 1) >> bits;
+	_tiles_y = (size_y + _tile_size_y - 1) >> bits;
+
+	_filter_encoder = 0;
+}
+
+
+//// MonoWriter
+
+void MonoWriter::cleanup() {
+	if (_profile) {
+		delete _profile;
+		_profile = 0;
 	}
 }
 
@@ -1042,7 +1060,6 @@ u32 MonoWriter::process(const Parameters &params) {
 
 	// Initialize
 	_params = params;
-	_filter_encoder = 0;
 
 	// Calculate bits to represent tile bits field
 	u32 range = _params.max_bits - _params.min_bits;
@@ -1055,18 +1072,13 @@ u32 MonoWriter::process(const Parameters &params) {
 	// Determine best tile size to use
 	u32 best_entropy = 0x7fffffff;
 	int best_bits = params.max_bits;
+	WriteProfile *best_profile = 0;
 
 	CAT_INANE("2D") << "!! Monochrome filter processing started for " << _params.size_x << "x" << _params.size_y << " data matrix...";
 
 	// For each bit count to try,
 	for (int bits = params.min_bits; bits <= params.max_bits; ++bits) {
-		// Init with bits
-		_tile_bits_x = bits;
-		_tile_bits_y = bits;
-		_tile_size_x = 1 << bits;
-		_tile_size_y = 1 << bits;
-		_tiles_x = (_params.size_x + _tile_size_x - 1) >> bits;
-		_tiles_y = (_params.size_y + _tile_size_y - 1) >> bits;
+		WriteProfile *profile = new WriteProfile;
 
 		CAT_INANE("2D") << " ! Trying " << _tile_size_x << "x" << _tile_size_y << " tile size, yielding a subresolution matrix " << _tiles_x << "x" << _tiles_y << " for input " << _params.size_x << "x" << _params.size_y << " data matrix";
 
@@ -1104,17 +1116,14 @@ u32 MonoWriter::process(const Parameters &params) {
 			best_entropy = entropy;
 			best_bits = bits;
 
-			// Allocate a best writer if needed
-			if (!_best_writer) {
-				_best_writer = new MonoWriter;
-			}
-
 			// TODO: Store off the best option
 		} else {
 			// Stop trying options
 			break;
 		}
 	}
+
+	_profile = best_profile;
 
 	return best_entropy;
 }
