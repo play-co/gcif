@@ -153,6 +153,7 @@ protected:
 	MonoWriterProfile *_profile;
 
 	// Temporary workspace
+	int _tile_bits_field_bc;
 	u8 _sympal_filter_map[MAX_PALETTE];		// Filter index for this palette entry
 	u32 _chaos_entropy;						// Entropy after chaos applied
 	u8 _prev_filter;						// Previous filter for row encoding
@@ -248,47 +249,46 @@ class MonoWriterProfile {
 	static const int MAX_CHAOS_LEVELS = MonoWriter::MAX_CHAOS_LEVELS;
 
 	// Generated filter tiles
-	SmartArray<u8> _mask;					// Masked tile boolean matrix
-	SmartArray<u8> _tiles;					// Filter chosen per tile matrix
-	u32 _tiles_count;						// Number of tiles
-	int _tiles_x, _tiles_y;					// Tiles in x,y
-	int _tile_bits_field_bc;
-	u16 _tile_bits_x, _tile_bits_y;			// Number of bits in size
-	u16 _tile_size_x, _tile_size_y;			// Size of tile
+	SmartArray<u8> mask;					// Masked tile boolean matrix
+	SmartArray<u8> tiles;					// Filter chosen per tile matrix
+	u32 tiles_count;						// Number of tiles
+	int tiles_x, tiles_y;					// Tiles in x,y
+	u16 tile_bits_x, tile_bits_y;			// Number of bits in size
+	u16 tile_size_x, tile_size_y;			// Size of tile
 
 	// Residuals
-	SmartArray<u8> _residuals;
+	SmartArray<u8> residuals;
 
 	// Filter choices
-	int _filter_indices[MAX_FILTERS];		// First MF_FIXED are always the same
-	MonoFilterFuncs _filters[MAX_FILTERS];	// Chosen filters
-	int _normal_filter_count;				// Number of normal filters
-	int _filter_count;						// Total filters chosen
+	int filter_indices[MAX_FILTERS];		// First MF_FIXED are always the same
+	MonoFilterFuncs filters[MAX_FILTERS];	// Chosen filters
+	int normal_filter_count;				// Number of normal filters
+	int filter_count;						// Total filters chosen
 
 	// Palette filters
-	u8 _sympal[MAX_PALETTE];				// Palette filter values
-	int _sympal_filter_count;				// Number of palette filters
+	u8 sympal[MAX_PALETTE];					// Palette filter values
+	int sympal_filter_count;				// Number of palette filters
 
 	// Filter encoder
-	MonoWriter *_filter_encoder;			// Child instance
-	SmartArray<u8> _tile_row_filters;
-	u32 _row_filter_entropy;				// Calculated entropy from using row filters
+	MonoWriter *filter_encoder;				// Child instance
+	SmartArray<u8> tile_row_filters;
+	u32 row_filter_entropy;					// Calculated entropy from using row filters
 	// TODO: Add a write order matrix here for tiles
 
 	// Filter encoder for row mode
-	EntropyEncoder<MAX_FILTERS, ZRLE_SYMS> _row_filter_encoder;
+	EntropyEncoder<MAX_FILTERS, ZRLE_SYMS> row_filter_encoder;
 
 	// Chaos levels
-	MonoChaos _chaos;						// Chaos bin lookup table
+	MonoChaos chaos;						// Chaos bin lookup table
 
 	// Data encoders
-	EntropyEncoder<MAX_SYMS, ZRLE_SYMS> _encoder[MAX_CHAOS_LEVELS];
+	EntropyEncoder<MAX_SYMS, ZRLE_SYMS> encoder[MAX_CHAOS_LEVELS];
 
 	void cleanup();
 
 public:
 	CAT_INLINE MonoWriterProfile() {
-		_filter_encoder = 0;
+		filter_encoder = 0;
 	}
 	CAT_INLINE virtual ~MonoWriterProfile() {
 		cleanup();
