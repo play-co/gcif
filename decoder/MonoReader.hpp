@@ -39,7 +39,10 @@
 #include <vector>
 
 /*
- * Monochrome Decompression
+ * Game Closure Fractal Monochrome (GC-FM) Image Decompression
+ *
+ * Recursively decompresses filter decision tiles to recover the original
+ * filter set to decompress the original image data at the top level.
  */
 
 namespace cat {

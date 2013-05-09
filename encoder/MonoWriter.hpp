@@ -42,12 +42,54 @@
 #include <vector>
 
 /*
- * Monochrome Compression
+ * Game Closure Fractal Monochrome (GC-FM) Image Compression
  *
  * Used to compress any monochrome data that is generated during compression.
  *
  * Produces a subresolution filter matrix that is used to filter and reduce
- * entropy of the input matrix.  This matrix is recursively compressed.
+ * entropy of the input matrix.  This filter decision matrix is then
+ * recursively compressed.
+ *
+ * The algorithm is:
+ *
+ * (1) Determine which tiles are completely masked out so they can be ignored.
+ *
+ * (2) Design palette filters, which are filters that emit color data directly
+ * for blocks that are all the same color.  Especially useful for pixel alpha
+ * data, since most of the image is visible.
+ *
+ * (3) Decide the subset of spatial filters / palette filters to use.  The
+ * first SF_FIXED spatial filters are always used.  Up to 32 filters may be
+ * used in this step.
+ *
+ * (4) For palette filters that are used in step 3, fill in the tiles matrix
+ * with those decisions up front.
+ *
+ * (5) For tiles not masked in step 1 or 4, decide which spatial filters to use
+ * by comparing the resulting entropy for the encoded pixels.
+ *
+ * (6) Compute the residual data after applying filters to the entire image.
+ *
+ * (7) Optimize the indices of the spatial and palette filters so that the
+ * resulting tile matrix is more easily compressed.  This does not affect the
+ * residuals for the image matrix at all, but should improve the compression of
+ * the filter decision tiles matrix.
+ *
+ * (8) Design simple predictive row filters for the tiles matrix as a fall-back
+ * in case recursion is too expensive for compressing the tiles matrix.
+ *
+ * (9) Attempt to recurse by compressing the tiles matrix as a monochrome
+ * paletted "indexed" image.  If the simulated bits required to represent it
+ * using the recursive method fail to be less than the simple predictive row
+ * filters chosen in step 8, then do not use a recursive approach.  Will also
+ * not bother doing a recursive approach below a certain size.
+ *
+ * (10) Determine the number of chaos levels to use when encoding the image
+ * data, between 1 and 16.  More chaos levels means more overhead but likely
+ * also better compression of the image data.
+ *
+ * (11) Repeat it all again from step 1 for various tile sizes and pick the
+ * best tile size.
  */
 
 namespace cat {
@@ -166,7 +208,7 @@ protected:
 	// Mask function for child instance
 	bool IsMasked(u16 x, u16 y);
 
-	// Set tiles to MASK_TILE or TODO_TILE based on the provided mask (optimization)
+	// Initializes the _mask matrix to easily look up entirely masked out tiles
 	void maskTiles();
 
 	// Choose a number of palette filters to try in addition to the usual ones
