@@ -1039,6 +1039,9 @@ u32 MonoWriter::simulate() {
 	if (_profile->filter_encoder) {
 		bits += _profile->filter_encoder->simulate();
 	} else {
+		// Reset encoder for recursive simulation
+		_profile->row_filter_encoder.reset();
+
 		// TODO: Train with write-order matrix
 		const u16 filter_count = _profile->filter_count;
 
@@ -1071,6 +1074,11 @@ u32 MonoWriter::simulate() {
 
 	// Simulate residuals
 	_profile->chaos.start();
+
+	// Reset encoders for recursive simulation
+	for (int ii = 0, iiend = _profile->chaos.getBinCount(); ii < iiend; ++ii) {
+		_profile->encoder[ii].reset();
+	}
 
 	// For each row,
 	const u8 *residuals = _profile->residuals.get();
