@@ -185,7 +185,7 @@ void ImageRGBAWriter::designFilters() {
 			_sf[sf_count] = RGBA_FILTERS[index];
 			++sf_count;
 
-			CAT_INANE("RGBA") << " - Added filter " << index << " with score " << score;
+			//CAT_INANE("RGBA") << " - Added filter " << index << " with score " << score;
 		}
 
 		float coverage_ratio = coverage / (float)total_score;
