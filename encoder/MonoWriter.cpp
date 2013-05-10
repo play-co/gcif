@@ -81,6 +81,12 @@ void MonoWriterProfile::init(u16 size_x, u16 size_y, u16 bits) {
 	filter_encoder = 0;
 }
 
+void MonoWriter::dumpStats() {
+	if (_profile) {
+		_profile->dumpStats();
+	}
+}
+
 void MonoWriterProfile::dumpStats() {
 	CAT_INANE("2D") << "Designed monochrome writer using " << tiles_x << "x" << tiles_y << " tiles to express " << filter_count << "(" << sympal_filter_count << " palette) filters for " << size_x << "x" << size_y << " image";
 	if (filter_encoder) {
@@ -398,7 +404,7 @@ void MonoWriter::designFilters() {
 	_profile->sympal_filter_count = sympal_f;
 	_profile->filter_count = filters_set;
 
-	CAT_DEBUG_ENFORCE(_filter_count == _normal_filter_count + _sympal_filter_count);
+	CAT_DEBUG_ENFORCE(_profile->filter_count == _profile->normal_filter_count + _profile->sympal_filter_count);
 
 	//CAT_INANE("2D") << " + Chose " << _profile->filter_count << " filters : " << _profile->sympal_filter_count << " of which are palettes";
 }
@@ -454,7 +460,6 @@ void MonoWriter::designTiles() {
 
 	const u16 tile_size_x = _profile->tile_size_x, tile_size_y = _profile->tile_size_y;
 	const u16 size_x = _params.size_x, size_y = _params.size_y;
-	const u16 tile_bits_x = _profile->tile_bits_x, tile_bits_y = _profile->tile_bits_y;
 	const u16 num_syms = _params.num_syms;
 
 	EntropyEstimator ee;
@@ -757,7 +762,7 @@ void MonoWriter::designRowFilters() {
 
 				// If tile is not masked,
 				if (!IsMasked(tx, ty)) {
-					CAT_DEBUG_ENFORCE(f < _filter_count);
+					CAT_DEBUG_ENFORCE(f < filter_count);
 
 					// RF_NOOP
 					codes[code_count] = f;
@@ -768,7 +773,7 @@ void MonoWriter::designRowFilters() {
 						fprev -= filter_count;
 					}
 
-					CAT_DEBUG_ENFORCE(fprev < _filter_count);
+					CAT_DEBUG_ENFORCE(fprev < filter_count);
 
 					codes[code_count + tiles_x] = fprev;
 
@@ -878,9 +883,9 @@ void MonoWriter::designChaos() {
 			// For each column,
 			for (int x = 0; x < _params.size_x; ++x) {
 				// If it is a palsym tile,
-				const u8 f = getTile(x, y);
+				const u8 f = _profile->getTile(x, y);
 
-				CAT_DEBUG_ENFORCE(f < _filter_count);
+				CAT_DEBUG_ENFORCE(f < _profile->filter_count);
 
 				// If masked,
 				if (_params.mask(x, y) || f >= _profile->normal_filter_count) {
@@ -934,9 +939,9 @@ void MonoWriter::initializeEncoders() {
 		// For each column,
 		for (int x = 0; x < _params.size_x; ++x) {
 			// If it is a palsym tile,
-			const u8 f = getTile(x, y);
+			const u8 f = _profile->getTile(x, y);
 
-			CAT_DEBUG_ENFORCE(f < _filter_count);
+			CAT_DEBUG_ENFORCE(f < _profile->filter_count);
 
 			// If masked,
 			if (_params.mask(x, y) || f >= _profile->normal_filter_count) {
@@ -1063,7 +1068,7 @@ u32 MonoWriter::simulate() {
 		// For each column,
 		for (int x = 0; x < _params.size_x; ++x) {
 			// If it is a palsym tile,
-			const u8 f = getTile(x, y);
+			const u8 f = _profile->getTile(x, y);
 
 			// If masked,
 			if (_params.mask(x, y) || f >= _profile->normal_filter_count) {
@@ -1167,7 +1172,7 @@ int MonoWriter::writeTables(ImageWriter &writer) {
 
 	// Write tile size
 	{
-		CAT_DEBUG_ENFORCE(_tile_bits_x == _tile_bits_y);	// Square regions only for now
+		CAT_DEBUG_ENFORCE(_profile->tile_bits_x == _profile->tile_bits_y);	// Square regions only for now
 
 		if (_tile_bits_field_bc > 0) {
 			writer.writeBits(_profile->tile_bits_x - _params.min_bits, _tile_bits_field_bc);
@@ -1282,7 +1287,7 @@ int MonoWriter::writeRowHeader(u16 y, ImageWriter &writer) {
 			bits += _profile->filter_encoder->writeRowHeader(ty, writer);
 		} else {
 			CAT_DEBUG_ENFORCE(MonoReader::RF_COUNT <= 2);
-			CAT_DEBUG_ENFORCE(_tile_row_filters[ty] < 2);
+			CAT_DEBUG_ENFORCE(_profile->tile_row_filters[ty] < 2);
 
 			// Write out chosen row filter
 			writer.writeBit(_profile->tile_row_filters[ty]);
@@ -1311,18 +1316,16 @@ int MonoWriter::write(u16 x, u16 y, ImageWriter &writer) {
 		// Calculate tile coordinates
 		u16 tx = x >> _profile->tile_bits_x;
 
-		u8 f;
+		// Get tile
+		u16 ty = y >> _profile->tile_bits_y;
+		u8 *tile = _profile->tiles.get() + tx + ty * _profile->tiles_x;
+		u8 f = tile[0];
 
 		// If tile not seen yet,
 		if (!_tile_seen[tx]) {
 			_tile_seen[tx] = true;
 
 			// TODO: Enforce that writes are in the order of the write order matrix
-
-			// Get tile
-			u16 ty = y >> _profile->tile_bits_y;
-			u8 *tile = _profile->tiles.get() + tx + ty * _profile->tiles_x;
-			f = tile[0];
 
 			// If tile is not masked,
 			if (!IsMasked(tx, ty)) {

@@ -82,7 +82,7 @@ public:
 
 	struct Parameters {
 		u8 * CAT_RESTRICT data;			// Output data
-		int data_step;					// Bytes between data write positions (for alpha)
+		int data_step_shift;			// Bytes between data write positions (for alpha)
 		u16 size_x, size_y;				// Data dimensions
 		u16 min_bits, max_bits;			// Tile size bit range to try
 		u16 num_syms;					// Number of symbols in data [0..num_syms-1]
@@ -110,7 +110,7 @@ protected:
 
 	MonoChaos _chaos;
 	EntropyDecoder<MAX_SYMS, ZRLE_SYMS> _decoder[MAX_CHAOS_LEVELS];
-	u8 *_current_data;
+	u8 *_current_row;
 
 	void cleanup();
 
@@ -126,19 +126,14 @@ public:
 
 	int readRowHeader(u16 y, ImageReader & CAT_RESTRICT reader);
 
-	CAT_INLINE void maskedWrite(u8 value) {
-		_chaos.zero();
+	CAT_INLINE void maskedWrite(u16 x, u8 value) {
+		_chaos.zero(x);
 
-		// Fill in provided value
-		*_current_data = value;
-		_current_data += _params.data_step;
+		_current_row[x << _params.data_step_shift] = value;
 	}
 
-	CAT_INLINE void maskedSkip() {
-		_chaos.zero();
-
-		// Skip data
-		_current_data += _params.data_step;
+	CAT_INLINE void maskedSkip(u16 x) {
+		_chaos.zero(x);
 	}
 
 	u8 read(u16 x, u16 y, ImageReader & CAT_RESTRICT reader);

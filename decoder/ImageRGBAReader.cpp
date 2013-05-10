@@ -90,7 +90,7 @@ int ImageRGBAReader::readFilterTables(ImageReader & CAT_RESTRICT reader) {
 	{
 		MonoReader::Parameters params;
 		params.data = _sf_tiles.get();
-		params.data_step = 1;
+		params.data_step_shift = 0;
 		params.size_x = _tiles_x;
 		params.size_y = _tiles_y;
 		params.num_syms = _sf_count;
@@ -106,7 +106,7 @@ int ImageRGBAReader::readFilterTables(ImageReader & CAT_RESTRICT reader) {
 	{
 		MonoReader::Parameters params;
 		params.data = _cf_tiles.get();
-		params.data_step = 1;
+		params.data_step_shift = 0;
 		params.size_x = _tiles_x;
 		params.size_y = _tiles_y;
 		params.num_syms = CF_COUNT;
@@ -128,7 +128,7 @@ int ImageRGBAReader::readRGBATables(ImageReader & CAT_RESTRICT reader) {
 	{
 		MonoReader::Parameters params;
 		params.data = _rgba + 3;
-		params.data_step = 4;
+		params.data_step_shift = 2;
 		params.size_x = _size_x;
 		params.size_y = _size_y;
 		params.num_syms = 256;
@@ -223,11 +223,11 @@ int ImageRGBAReader::readPixels(ImageReader & CAT_RESTRICT reader) {
 			if (lz_skip > 0) {
 				--lz_skip;
 				_chaos.zero(x);
-				_a_decoder.maskedSkip();
+				_a_decoder.maskedSkip(x);
 			} else if ((s32)mask < 0) {
 				*reinterpret_cast<u32 *>( p ) = MASK_COLOR;
 				_chaos.zero(x);
-				_a_decoder.maskedSkip();
+				_a_decoder.maskedSkip(x);
 			} else {
 				readSafe(x, y, p, reader);
 
@@ -288,11 +288,11 @@ int ImageRGBAReader::readPixels(ImageReader & CAT_RESTRICT reader) {
 			if (lz_skip > 0) {
 				--lz_skip;
 				_chaos.zero(x);
-				_a_decoder.maskedSkip();
+				_a_decoder.maskedSkip(x);
 			} else if ((s32)mask < 0) {
 				*reinterpret_cast<u32 *>( p ) = MASK_COLOR;
 				_chaos.zero(x);
-				_a_decoder.maskedSkip();
+				_a_decoder.maskedSkip(x);
 			} else {
 				readSafe(x, y, p, reader);
 
@@ -328,11 +328,11 @@ int ImageRGBAReader::readPixels(ImageReader & CAT_RESTRICT reader) {
 			if (lz_skip > 0) {
 				--lz_skip;
 				_chaos.zero(x);
-				_a_decoder.maskedSkip();
+				_a_decoder.maskedSkip(x);
 			} else if ((s32)mask < 0) {
 				*reinterpret_cast<u32 *>( p ) = MASK_COLOR;
 				_chaos.zero(x);
-				_a_decoder.maskedSkip();
+				_a_decoder.maskedSkip(x);
 			} else {
 				// Note: Reading with unsafe spatial filter
 				readUnsafe(x, y, p, reader);
@@ -369,11 +369,11 @@ int ImageRGBAReader::readPixels(ImageReader & CAT_RESTRICT reader) {
 			if (lz_skip > 0) {
 				--lz_skip;
 				_chaos.zero(x);
-				_a_decoder.maskedSkip();
+				_a_decoder.maskedSkip(x);
 			} else if ((s32)mask < 0) {
 				*reinterpret_cast<u32 *>( p ) = MASK_COLOR;
 				_chaos.zero(x);
-				_a_decoder.maskedSkip();
+				_a_decoder.maskedSkip(x);
 			} else {
 				readSafe(x, y, p, reader);
 

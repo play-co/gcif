@@ -324,7 +324,7 @@ void ImagePaletteWriter::writeTable(ImageWriter &writer) {
 		EntropyEncoder<PALETTE_MAX, ENCODER_ZRLE_SYMS> encoder;
 
 		// Train
-		for (int ii = 0; ii < palette_size; ++ii) {
+		for (int ii = 0; ii < _palette_size; ++ii) {
 			u32 color = getLE(_palette[ii]);
 
 			u8 rgb[3] = {

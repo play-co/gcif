@@ -1994,7 +1994,7 @@ static u8 MFF_AVG_ACD(const u8 * CAT_RESTRICT p, u8 clamp_max, int x, int y, int
 			return a[0];
 		}
 	} else if (y > 0) {
-		const u8 * CAT_RESTRICT src = p - size_x*4; // B
+		const u8 * CAT_RESTRICT src = p - size_x; // B
 		if CAT_LIKELY(x < size_x-1) {
 			src++; // D
 		}

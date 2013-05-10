@@ -68,11 +68,23 @@ void PaletteOptimizer::sortPalette(MaskDelegate &mask) {
 	_result.resize(_size_x * _size_y);
 	_result.fill_ff();
 
+	// Fill in score matrix for most common color
+	u8 *result = _result.get();
+	const u8 *image = _image;
+	for (int y = 0, yend = _size_y; y < yend; ++y) {
+		for (int x = 0, xend = _size_x; x < xend; ++x, ++result, ++image) {
+			// If original image used this one,
+			if (*image == _most_common) {
+				*result = 0;
+			}
+		}
+	}
+
 	// For each remaining index,
 	for (int index = 1; index < _palette_size; ++index) {
 		// Score each of the remaining palette indices
-		u8 *result = _result.get();
-		const u8 *image = _image;
+		result = _result.get();
+		image = _image;
 		u32 scores[PALETTE_MAX] = {0};
 		static const int THRESH = 8;
 		const int cutoff = index - THRESH;
@@ -127,7 +139,7 @@ void PaletteOptimizer::sortPalette(MaskDelegate &mask) {
 							}
 						}
 					}
-					if (y < size_y) {
+					if (y < size_y-1) {
 						if (!mask(x, y + 1)) {
 							scores[image[size_x]] += p; // b
 						}
@@ -171,7 +183,7 @@ void PaletteOptimizer::sortPalette(MaskDelegate &mask) {
 
 #ifdef CAT_DEBUG
 	// Sanity check
-	const u8 *result = _result.get();
+	result = _result.get();
 	for (int y = 0, yend = _size_y; y < yend; ++y) {
 		for (int x = 0, xend = _size_x; x < xend; ++x, ++result) {
 			CAT_DEBUG_ENFORCE(*result < _palette_size);

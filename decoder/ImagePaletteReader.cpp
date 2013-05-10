@@ -132,7 +132,7 @@ int ImagePaletteReader::readTables(ImageReader & CAT_RESTRICT reader) {
 
 	MonoReader::Parameters params;
 	params.data = _image.get();
-	params.data_step = 1;
+	params.data_step_shift = 0;
 	params.size_x = _size_x;
 	params.size_y = _size_y;
 	params.min_bits = 2;
@@ -192,10 +192,10 @@ int ImagePaletteReader::readPixels(ImageReader & CAT_RESTRICT reader) {
 
 			if (lz_skip > 0) {
 				--lz_skip;
-				_mono_decoder.maskedSkip();
+				_mono_decoder.maskedSkip(x);
 			} else if ((s32)mask < 0) {
 				*rgba = MASK_COLOR;
-				_mono_decoder.maskedWrite(MASK_PAL);
+				_mono_decoder.maskedWrite(x, MASK_PAL);
 			} else {
 				// TODO: Unroll to use unsafe version
 				u8 index = _mono_decoder.read(x, y, reader);

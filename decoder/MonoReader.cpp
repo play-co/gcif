@@ -146,7 +146,7 @@ int MonoReader::readTables(const Parameters & CAT_RESTRICT params, ImageReader &
 
 		Parameters params;
 		params.data = _tiles.get();
-		params.data_step = 1;
+		params.data_step_shift = 0;
 		params.size_x = _tiles_x;
 		params.size_y = _tiles_y;
 		params.min_bits = _params.min_bits;
@@ -173,8 +173,8 @@ int MonoReader::readTables(const Parameters & CAT_RESTRICT params, ImageReader &
 
 	CAT_DEBUG_ENFORCE(!reader.eof());
 
-	_current_data = _params.data;
 	_tiles_row = _tiles.get() - _tiles_x; // Offset for first increment
+	_current_row = _params.data;
 
 	return GCIF_RE_OK;
 }
@@ -199,6 +199,8 @@ int MonoReader::readRowHeader(u16 y, ImageReader & CAT_RESTRICT reader) {
 		// Increment to next row
 		_tiles_row += _tiles_x;
 	}
+
+	_current_row += _tiles_x << _params.data_step_shift;
 
 	DESYNC(0, y);
 
@@ -240,6 +242,8 @@ u8 MonoReader::read(u16 x, u16 y, ImageReader & CAT_RESTRICT reader) {
 		}
 	}
 
+	u8 *data = _current_row + (x << _params.data_step_shift);
+
 	// If the filter is a palette symbol,
 	u16 value;
 	if (f >= _normal_filter_count) {
@@ -263,7 +267,7 @@ u8 MonoReader::read(u16 x, u16 y, ImageReader & CAT_RESTRICT reader) {
 		_chaos.store(x, residual, num_syms);
 
 		// Read filter result
-		u16 pred = _sf[f].safe(_current_data, num_syms - 1, x, y, _params.size_x);
+		u16 pred = _sf[f].safe(data, num_syms - 1, x, y, _params.size_x);
 
 		// Defilter value
 		value = residual + pred;
@@ -276,8 +280,7 @@ u8 MonoReader::read(u16 x, u16 y, ImageReader & CAT_RESTRICT reader) {
 
 	CAT_DEBUG_ENFORCE(!reader.eof());
 
-	*_current_data = (u8)value;
-	_current_data += _params.data_step;
+	*data = (u8)value;
 	return value;
 }
 
@@ -321,6 +324,8 @@ u8 MonoReader::read_unsafe(u16 x, u16 y, ImageReader & CAT_RESTRICT reader) {
 		}
 	}
 
+	u8 *data = _current_row + (x << _params.data_step_shift);
+
 	// If the filter is a palette symbol,
 	u16 value;
 	if (f >= _normal_filter_count) {
@@ -344,7 +349,7 @@ u8 MonoReader::read_unsafe(u16 x, u16 y, ImageReader & CAT_RESTRICT reader) {
 		_chaos.store(x, residual, num_syms);
 
 		// Read filter result
-		u16 pred = _sf[f].unsafe(_current_data, num_syms - 1, x, y, _params.size_x);
+		u16 pred = _sf[f].unsafe(data, num_syms - 1, x, y, _params.size_x);
 
 		// Defilter value
 		value = residual + pred;
@@ -357,8 +362,7 @@ u8 MonoReader::read_unsafe(u16 x, u16 y, ImageReader & CAT_RESTRICT reader) {
 
 	CAT_DEBUG_ENFORCE(!reader.eof());
 
-	*_current_data = (u8)value;
-	_current_data += _params.data_step;
+	*data = (u8)value;
 	return value;
 }
 

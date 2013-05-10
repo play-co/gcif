@@ -162,12 +162,6 @@ protected:
 	SmartArray<u8> _ecodes;
 	SmartArray<u8> _tile_seen;
 
-	CAT_INLINE u8 getTile(u16 x, u16 y) {
-		x >>= _tile_bits_x;
-		y >>= _tile_bits_y;
-		return _tiles[x + y * _tiles_x];
-	}
-
 	// Mask function for child instance
 	bool IsMasked(u16 x, u16 y);
 
@@ -235,11 +229,7 @@ public:
 	// Write a symbol
 	int write(u16 x, u16 y, ImageWriter &writer); // Returns bits used
 
-	CAT_INLINE void dumpStats() {
-		if (_profile) {
-			_profile->dumpStats();
-		}
-	}
+	void dumpStats();
 };
 
 
@@ -264,6 +254,12 @@ class MonoWriterProfile {
 	int tiles_x, tiles_y;					// Tiles in x,y
 	u16 tile_bits_x, tile_bits_y;			// Number of bits in size
 	u16 tile_size_x, tile_size_y;			// Size of tile
+
+	CAT_INLINE u8 getTile(u16 x, u16 y) {
+		x >>= tile_bits_x;
+		y >>= tile_bits_y;
+		return tiles[x + y * tiles_x];
+	}
 
 	// Residuals
 	SmartArray<u8> residuals;
