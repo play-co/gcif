@@ -315,8 +315,12 @@ void MonoWriter::designFilters() {
 			// Sort top few filters for awards
 			FilterScorer::Score *top = scores.getLow(_params.award_count, true);
 			for (int ii = offset; ii < _params.award_count; ++ii) {
-				awards.add(top[ii - offset].index, _params.AWARDS[ii]);
-				total_score += _params.AWARDS[ii];
+				int index = top[ii - offset].index;
+				awards.add(index, _params.AWARDS[ii]);
+
+				if (index < SF_COUNT) {
+					total_score += _params.AWARDS[ii];
+				}
 			}
 		}
 
@@ -346,9 +350,9 @@ void MonoWriter::designFilters() {
 	u8 palette[MAX_PALETTE];
 
 	int max_filters = _params.max_filters;
-	int limit = _profile->tiles_x * _profile->tiles_y;
-	if (max_filters > limit) {
-		max_filters = limit;
+	const int filter_limit = _profile->tiles_x * _profile->tiles_y;
+	if (max_filters > filter_limit) {
+		max_filters = filter_limit;
 	}
 
 	// For each of the sorted filter scores,
@@ -368,26 +372,30 @@ void MonoWriter::designFilters() {
 				palette[sympal_f] = index;
 				++sympal_f;
 
-				//CAT_INANE("2D") << " - Added palette filter " << sympal_f << " for palette index " << sympal_filter << " Score " << score;
+				//CAT_INANE("2D") << " + Added palette filter " << sympal_f << " for palette index " << sympal_filter << " Score " << score;
 			} else {
 				_profile->filters[normal_f] = MONO_FILTERS[index];
 				_profile->filter_indices[normal_f] = index;
 				++normal_f;
 
-				//CAT_INANE("2D") << " - Added filter " << normal_f << " for filter index " << index << " Score " << score;
+				coverage += score;
+
+				//CAT_INANE("2D") << " - Added filter " << normal_f << " for filter index " << index << " Score " << score << " Coverage " << coverage;
 			}
 
 			++filters_set;
 			if (filters_set >= max_filters) {
 				break;
 			}
-		//} else {
+		} else {
 			//CAT_INANE("2D") << " - Added fixed filter " << normal_f << " for filter index " << index << " Score " << score;
+			coverage += score;
 		}
 
+		float coverage_ratio = coverage / (float)total_score;
+
 		// If coverage is sufficient,
-		coverage += score;
-		if (coverage / (float)total_score >= _params.filter_cover_thresh) {
+		if (coverage_ratio >= _params.filter_cover_thresh) {
 			if (score / (float)total_score < _params.filter_inc_thresh) {
 				break;
 			}
