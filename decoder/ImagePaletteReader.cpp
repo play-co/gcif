@@ -93,14 +93,14 @@ int ImagePaletteReader::readPalette(ImageReader & CAT_RESTRICT reader) {
 			yuv[0] = decoder.next(reader);
 			yuv[1] = decoder.next(reader);
 			yuv[2] = decoder.next(reader);
-			u8 a = decoder.next(reader);
+			u8 a = 255 - decoder.next(reader);
 
 			// Unfilter
 			u8 rgb[3];
 			filter(yuv, rgb);
 
 			// Rebuild
-			u32 color = ~a;
+			u32 color = a;
 			color <<= 8;
 			color |= rgb[2];
 			color <<= 8;

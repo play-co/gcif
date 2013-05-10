@@ -442,8 +442,9 @@ bool ImageRGBAWriter::compressAlpha() {
 	params.max_filters = 32;
 	params.min_bits = 2;
 	params.max_bits = 5;
-	params.sympal_thresh = 0.9;
-	params.filter_thresh = 0.9;
+	params.sympal_thresh = 0.1;
+	params.filter_cover_thresh = 0.6;
+	params.filter_inc_thresh = 0.05;
 	params.mask.SetMember<ImageRGBAWriter, &ImageRGBAWriter::IsMasked>(this);
 	params.AWARDS[0] = 5;
 	params.AWARDS[1] = 3;
@@ -596,8 +597,9 @@ bool ImageRGBAWriter::compressSF() {
 	params.max_filters = 32;
 	params.min_bits = 2;
 	params.max_bits = 5;
-	params.sympal_thresh = 0.9;
-	params.filter_thresh = 0.9;
+	params.sympal_thresh = 0.1;
+	params.filter_cover_thresh = 0.6;
+	params.filter_inc_thresh = 0.05;
 	params.mask.SetMember<ImageRGBAWriter, &ImageRGBAWriter::IsMasked>(this);
 	params.AWARDS[0] = 5;
 	params.AWARDS[1] = 3;
@@ -619,8 +621,9 @@ bool ImageRGBAWriter::compressCF() {
 	params.max_filters = 32;
 	params.min_bits = 2;
 	params.max_bits = 5;
-	params.sympal_thresh = 0.9;
-	params.filter_thresh = 0.9;
+	params.sympal_thresh = 0.1;
+	params.filter_cover_thresh = 0.6;
+	params.filter_inc_thresh = 0.05;
 	params.mask.SetMember<ImageRGBAWriter, &ImageRGBAWriter::IsMasked>(this);
 	params.AWARDS[0] = 5;
 	params.AWARDS[1] = 3;

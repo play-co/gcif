@@ -126,7 +126,8 @@ public:
 		const u8 *data;					// Input data
 		u16 max_filters;				// Maximum number of filters to use
 		float sympal_thresh;			// Normalized coverage to add a symbol palette filter (1.0 = entire image)
-		float filter_thresh;			// Normalized coverage to stop adding filters (1.0 = entire image)
+		float filter_cover_thresh;		// 0.6 Normalized coverage to stop adding filters (1.0 = entire image)
+		float filter_inc_thresh;		// 0.05 Normalized coverage increment to stop adding filters
 		u32 AWARDS[MAX_AWARDS];			// Awards to give for top N filters
 		int award_count;				// Number of awards to give out
 		// TODO: Add a write order matrix here from parent, or null for mask-based

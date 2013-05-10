@@ -105,7 +105,7 @@ void PaletteOptimizer::sortPalette(MaskDelegate &mask) {
 							scores[image[-1]] += p; // A
 						}
 
-						if (y < size_x-1) {
+						if (y < size_y-1) {
 							if (!mask(x - 1, y + 1)) {
 								scores[image[size_x - 1]] += p; // d
 							}

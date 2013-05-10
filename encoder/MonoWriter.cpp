@@ -207,7 +207,7 @@ void MonoWriter::designPaletteFilters() {
 		u32 coverage = hist[sym];
 
 		// If filter is worth adding,
-		if (coverage > sympal_thresh) {
+		if (coverage >= sympal_thresh) {
 			// Add it
 			_profile->sympal[sympal_count++] = (u8)sym;
 
@@ -240,7 +240,7 @@ void MonoWriter::designFilters() {
 	awards.init(SF_COUNT + _profile->sympal_filter_count);
 	awards.reset();
 
-	int rgba_count = 0;
+	u32 total_score = 0;
 
 	// For each tile,
 	const u8 *topleft_row = _params.data;
@@ -287,8 +287,6 @@ void MonoWriter::designFilters() {
 
 							scores.add(f, score);
 						}
-
-						++rgba_count;
 					}
 					++px;
 					++data;
@@ -318,6 +316,7 @@ void MonoWriter::designFilters() {
 			FilterScorer::Score *top = scores.getLow(_params.award_count, true);
 			for (int ii = offset; ii < _params.award_count; ++ii) {
 				awards.add(top[ii - offset].index, _params.AWARDS[ii]);
+				total_score += _params.AWARDS[ii];
 			}
 		}
 
@@ -346,8 +345,6 @@ void MonoWriter::designFilters() {
 
 	u8 palette[MAX_PALETTE];
 
-	int top_score = top[0].score;
-
 	int max_filters = _params.max_filters;
 	int limit = _profile->tiles_x * _profile->tiles_y;
 	if (max_filters > limit) {
@@ -355,15 +352,10 @@ void MonoWriter::designFilters() {
 	}
 
 	// For each of the sorted filter scores,
+	u32 coverage = 0;
 	for (int ii = 0; ii < count; ++ii) {
 		int index = top[ii].index;
 		int score = top[ii].score;
-
-		// If we stopped getting interesting scores,
-		if (top_score / score > 2) {
-			// Stop here
-			break;
-		}
 
 		// If filter is not fixed,
 		if (index >= SF_FIXED) {
@@ -389,8 +381,16 @@ void MonoWriter::designFilters() {
 			if (filters_set >= max_filters) {
 				break;
 			}
-		} else {
+		//} else {
 			//CAT_INANE("2D") << " - Added fixed filter " << normal_f << " for filter index " << index << " Score " << score;
+		}
+
+		// If coverage is sufficient,
+		coverage += score;
+		if (coverage / (float)total_score >= _params.filter_cover_thresh) {
+			if (score / (float)total_score < _params.filter_inc_thresh) {
+				break;
+			}
 		}
 	}
 
@@ -553,13 +553,16 @@ void MonoWriter::designTiles() {
 
 							u8 *dest = codes + code_count;
 							for (int f = 0, f_end = _profile->filter_count; f < f_end; ++f) {
-								u8 prediction = _profile->filters[f].safe(data, num_syms - 1, px, py, size_x);
-								int residual = value + num_syms - prediction;
-								if (residual >= num_syms) {
-									residual -= num_syms;
+								if (_profile->filter_indices[f] < SF_COUNT) {
+									u8 prediction = _profile->filters[f].safe(data, num_syms - 1, px, py, size_x);
+									int residual = value + num_syms - prediction;
+									if (residual >= num_syms) {
+										residual -= num_syms;
+									}
+
+									*dest = residual;
 								}
 
-								*dest = residual;
 								dest += code_stride;
 							}
 
@@ -605,29 +608,31 @@ void MonoWriter::designTiles() {
 
 				const int NEIGHBOR_REWARD = 1;
 				for (int f = 0, f_end = _profile->filter_count; f < f_end; ++f) {
-					int entropy = ee.entropy(src, code_count);
+					if (_profile->filter_indices[f] < SF_COUNT) {
+						int entropy = ee.entropy(src, code_count);
 
-					// Nudge scoring based on neighbors
-					if (entropy == 0) {
-						entropy -= NEIGHBOR_REWARD;
-					}
-					if (f == a) {
-						entropy -= NEIGHBOR_REWARD;
-					}
-					if (f == b) {
-						entropy -= NEIGHBOR_REWARD;
-					}
-					if (f == c) {
-						entropy -= NEIGHBOR_REWARD;
-					}
-					if (f == d) {
-						entropy -= NEIGHBOR_REWARD;
-					}
+						// Nudge scoring based on neighbors
+						if (entropy == 0) {
+							entropy -= NEIGHBOR_REWARD;
+						}
+						if (f == a) {
+							entropy -= NEIGHBOR_REWARD;
+						}
+						if (f == b) {
+							entropy -= NEIGHBOR_REWARD;
+						}
+						if (f == c) {
+							entropy -= NEIGHBOR_REWARD;
+						}
+						if (f == d) {
+							entropy -= NEIGHBOR_REWARD;
+						}
 
-					if (lowest_entropy > entropy) {
-						lowest_entropy = entropy;
-						bestFilterIndex = f;
-						best_src = src;
+						if (lowest_entropy > entropy) {
+							lowest_entropy = entropy;
+							bestFilterIndex = f;
+							best_src = src;
+						}
 					}
 
 					src += code_stride;

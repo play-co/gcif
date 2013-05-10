@@ -34,8 +34,6 @@
 #include "EntropyEncoder.hpp"
 #include "PaletteOptimizer.hpp"
 using namespace cat;
-
-#include <algorithm> // std::sort
 using namespace std;
 
 
@@ -180,8 +178,9 @@ void ImagePaletteWriter::generateMonoWriter() {
 	params.max_filters = 32;
 	params.min_bits = 2;
 	params.max_bits = 5;
-	params.sympal_thresh = 0.9;
-	params.filter_thresh = 0.9;
+	params.sympal_thresh = 0.1;
+	params.filter_cover_thresh = 0.6;
+	params.filter_inc_thresh = 0.05;
 	params.mask.SetMember<ImagePaletteWriter, &ImagePaletteWriter::IsMasked>(this);
 
 	if (_size_x * _size_y < 256*256) {
@@ -303,7 +302,7 @@ void ImagePaletteWriter::writeTable(ImageWriter &writer) {
 				};
 
 				filter(rgb, write);
-				write[3] = ~(u8)(color >> 24);
+				write[3] = 255 - (u8)(color >> 24);
 				write += 4;
 			}
 
@@ -341,7 +340,7 @@ void ImagePaletteWriter::writeTable(ImageWriter &writer) {
 
 			u8 yuva[4];
 			bestFilter(rgb, yuva);
-			yuva[3] = ~(u8)(color >> 24);
+			yuva[3] = 255 - (u8)(color >> 24);
 
 			encoder.add(yuva[0]);
 			encoder.add(yuva[1]);
@@ -365,7 +364,7 @@ void ImagePaletteWriter::writeTable(ImageWriter &writer) {
 
 			u8 yuva[4];
 			bestFilter(rgb, yuva);
-			yuva[3] = ~(u8)(color >> 24);
+			yuva[3] = 255 - (u8)(color >> 24);
 
 			bits += encoder.write(yuva[0], writer);
 			bits += encoder.write(yuva[1], writer);
