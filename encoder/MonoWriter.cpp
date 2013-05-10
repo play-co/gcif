@@ -1103,6 +1103,13 @@ u32 MonoWriter::process(const Parameters &params) {
 	// Initialize
 	_params = params;
 
+	CAT_DEBUG_ENFORCE(params.num_syms > 0);
+
+	// Calculate bits to encode without any overhead
+	u32 untouched_field_bits = BSR32(params.num_syms) + 1;
+	u32 untouched_entropy = params.size_x * params.size_y * untouched_bits;
+	_untouched_bits = untouched_field_bits;
+
 	// Calculate bits to represent tile bits field
 	u32 range = _params.max_bits - _params.min_bits;
 	int bits_bc = 0;
@@ -1156,6 +1163,11 @@ u32 MonoWriter::process(const Parameters &params) {
 	}
 
 	_profile = best_profile;
+
+	// If the best we could do was worse than no overhead,
+	if (best_entropy > no_encoding_entropy) {
+		_disable_encoding = true;
+	}
 
 	best_profile->dumpStats();
 
