@@ -95,7 +95,7 @@ void ImageRGBAWriter::designFilters() {
 	awards.init(SF_COUNT);
 	awards.reset();
 	u8 FPT[3];
-	int rgba_count = 0;
+	u32 total_score = 0;
 
 	CAT_INANE("RGBA") << "Designing spatial filters...";
 
@@ -138,8 +138,6 @@ void ImageRGBAWriter::designFilters() {
 
 							scores.add(f, score);
 						}
-
-						++rgba_count;
 					}
 					++px;
 					data += 4;
@@ -149,6 +147,7 @@ void ImageRGBAWriter::designFilters() {
 			}
 
 			FilterScorer::Score *top = scores.getLow(4, true);
+			total_score += 5 + 3 + 1 + 1;
 			awards.add(top[0].index, 5);
 			awards.add(top[1].index, 3);
 			awards.add(top[2].index, 1);
@@ -169,19 +168,16 @@ void ImageRGBAWriter::designFilters() {
 	FilterScorer::Score *top = awards.getHigh(count, true);
 
 	// Initialize coverage
-	const int coverage_thresh = rgba_count;
-	int coverage = 0;
 	int sf_count = SF_FIXED;
 
 	// Design remaining filter functions
+	u32 coverage = 0;
 	while (count-- > 0) {
 		int index = top->index;
 		int score = top->score;
 		++top;
 
-		// Accumulate coverage
-		int covered = score / 5;
-		coverage += covered;
+		coverage += score;
 
 		// If this filter is not already added,
 		if (index >= SF_FIXED) {
@@ -192,15 +188,17 @@ void ImageRGBAWriter::designFilters() {
 			CAT_INANE("RGBA") << " - Added filter " << index << " with score " << score;
 		}
 
-		// Stop when coverage achieved
-		if (coverage >= coverage_thresh) {
-			break;
+		float coverage_ratio = coverage / (float)total_score;
+
+		// If coverage is sufficient,
+		if (coverage_ratio >= 0.6) {
+			if (score / (float)total_score < 0.05) {
+				break;
+			}
 		}
 	}
 
 	_sf_count = sf_count;
-
-	CAT_INANE("RGBA") << "Added " << sf_count << " filters with coverage " << coverage << " / " << rgba_count;
 }
 
 void ImageRGBAWriter::designTiles() {
