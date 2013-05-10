@@ -376,13 +376,13 @@ void MonoWriter::designFilters() {
 				palette[sympal_f] = index;
 				++sympal_f;
 
-				CAT_INANE("2D") << " - Added palette filter " << sympal_f << " for palette index " << sympal_filter << " Score " << score;
+				//CAT_INANE("2D") << " - Added palette filter " << sympal_f << " for palette index " << sympal_filter << " Score " << score;
 			} else {
 				_profile->filters[normal_f] = MONO_FILTERS[index];
 				_profile->filter_indices[normal_f] = index;
 				++normal_f;
 
-				CAT_INANE("2D") << " - Added filter " << normal_f << " for filter index " << index << " Score " << score;
+				//CAT_INANE("2D") << " - Added filter " << normal_f << " for filter index " << index << " Score " << score;
 			}
 
 			++filters_set;
@@ -390,7 +390,7 @@ void MonoWriter::designFilters() {
 				break;
 			}
 		} else {
-			CAT_INANE("2D") << " - Added fixed filter " << normal_f << " for filter index " << index << " Score " << score;
+			//CAT_INANE("2D") << " - Added fixed filter " << normal_f << " for filter index " << index << " Score " << score;
 		}
 	}
 
@@ -406,7 +406,7 @@ void MonoWriter::designFilters() {
 
 	CAT_DEBUG_ENFORCE(_profile->filter_count == _profile->normal_filter_count + _profile->sympal_filter_count);
 
-	CAT_INANE("2D") << " + Chose " << _profile->filter_count << " filters : " << _profile->sympal_filter_count << " of which are palettes";
+	//CAT_INANE("2D") << " + Chose " << _profile->filter_count << " filters : " << _profile->sympal_filter_count << " of which are palettes";
 }
 
 void MonoWriter::designPaletteTiles() {
@@ -1184,10 +1184,6 @@ int MonoWriter::writeTables(ImageWriter &writer) {
 	// If not using write profile,
 	if (_untouched_bits) {
 		writer.writeBit(0);
-
-		CAT_DEBUG_ENFORCE(_params.num_syms <= 256);
-
-		writer.writeBits(_params.num_syms - 1, 8);
 
 		return GCIF_RE_OK;
 	}

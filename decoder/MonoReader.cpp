@@ -56,6 +56,16 @@ void MonoReader::cleanup() {
 int MonoReader::readTables(const Parameters & CAT_RESTRICT params, ImageReader & CAT_RESTRICT reader) {
 	_params = params;
 
+	// If decoder is disabled,
+	if CAT_UNLIKELY(reader.readBit() == 0) {
+		_untouched_bits = BSR32(params.num_syms) + 1;
+
+		return GCIF_RE_OK;
+	}
+
+	// Enable decoder
+	_untouched_bits = 0;
+
 	// Calculate bits to represent tile bits field
 	u32 range = (_params.max_bits - _params.min_bits);
 	int bits_bc = 0;
@@ -180,6 +190,10 @@ int MonoReader::readTables(const Parameters & CAT_RESTRICT params, ImageReader &
 }
 
 int MonoReader::readRowHeader(u16 y, ImageReader & CAT_RESTRICT reader) {
+	if CAT_UNLIKELY(_untouched_bits) {
+		return GCIF_RE_OK;
+	}
+
 	_chaos.startRow();
 
 	// If at the start of a tile row,
@@ -212,6 +226,20 @@ int MonoReader::readRowHeader(u16 y, ImageReader & CAT_RESTRICT reader) {
 u8 MonoReader::read(u16 x, u16 y, ImageReader & CAT_RESTRICT reader) {
 	CAT_DEBUG_ENFORCE(x < _params.size_x && y < _params.size_y);
 
+	u8 *data = _current_row + (x << _params.data_step_shift);
+
+	// If decoder is disabled,
+	if CAT_UNLIKELY(_untouched_bits) {
+		u8 value = reader.readBits(_untouched_bits);
+
+		if CAT_UNLIKELY(value >= _params.num_syms) {
+			value = 0;
+		}
+
+		*data = value;
+		return value;
+	}
+
 	// Check cached filter
 	const u16 tx = x >> _tile_bits_x;
 	u8 * CAT_RESTRICT tile = _tiles_row + tx;
@@ -241,8 +269,6 @@ u8 MonoReader::read(u16 x, u16 y, ImageReader & CAT_RESTRICT reader) {
 			*tile = f;
 		}
 	}
-
-	u8 *data = _current_row + (x << _params.data_step_shift);
 
 	// If the filter is a palette symbol,
 	u16 value;
@@ -294,6 +320,20 @@ u8 MonoReader::read(u16 x, u16 y, ImageReader & CAT_RESTRICT reader) {
 u8 MonoReader::read_unsafe(u16 x, u16 y, ImageReader & CAT_RESTRICT reader) {
 	CAT_DEBUG_ENFORCE(x < _params.size_x && y < _params.size_y);
 
+	u8 *data = _current_row + (x << _params.data_step_shift);
+
+	// If decoder is disabled,
+	if CAT_UNLIKELY(_untouched_bits) {
+		u8 value = reader.readBits(_untouched_bits);
+
+		if CAT_UNLIKELY(value >= _params.num_syms) {
+			value = 0;
+		}
+
+		*data = value;
+		return value;
+	}
+
 	// Check cached filter
 	const u16 tx = x >> _tile_bits_x;
 	u8 * CAT_RESTRICT tile = _tiles_row + tx;
@@ -323,8 +363,6 @@ u8 MonoReader::read_unsafe(u16 x, u16 y, ImageReader & CAT_RESTRICT reader) {
 			*tile = f;
 		}
 	}
-
-	u8 *data = _current_row + (x << _params.data_step_shift);
 
 	// If the filter is a palette symbol,
 	u16 value;

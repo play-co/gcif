@@ -93,6 +93,8 @@ protected:
 
 	Parameters _params;
 
+	u32 _untouched_bits;				// Bits per pixel when skipping decoder
+
 	SmartArray<u8> _tiles;
 	u8 * CAT_RESTRICT _tiles_row;
 	u16 _tile_size_x, _tile_size_y;
