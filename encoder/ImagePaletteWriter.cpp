@@ -189,6 +189,8 @@ void ImagePaletteWriter::generateMonoWriter() {
 	params.award_count = 4;
 
 	_mono_writer.init(params);
+
+	_mono_writer.dumpStats();
 }
 
 int ImagePaletteWriter::init(const u8 *rgba, int size_x, int size_y, const GCIFKnobs *knobs, ImageMaskWriter &mask, ImageLZWriter &lz) {

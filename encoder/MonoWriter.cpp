@@ -1184,8 +1184,6 @@ u32 MonoWriter::process(const Parameters &params) {
 		_untouched_bits = 0;
 	}
 
-	best_profile->dumpStats();
-
 	return best_entropy;
 }
 

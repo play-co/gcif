@@ -450,7 +450,13 @@ bool ImageRGBAWriter::compressAlpha() {
 	params.AWARDS[3] = 1;
 	params.award_count = 4;
 
-	return _a_encoder.init(params);
+	if (!_a_encoder.init(params)) {
+		return false;
+	}
+
+	_a_encoder.dumpStats();
+
+	return true;
 }
 
 void ImageRGBAWriter::computeResiduals() {
@@ -605,7 +611,14 @@ bool ImageRGBAWriter::compressSF() {
 	params.AWARDS[3] = 1;
 	params.award_count = 4;
 
-	return _sf_encoder.init(params);
+	CAT_INANE("RGBA") << "Compressing spatial filter matrix...";
+	if (!_sf_encoder.init(params)) {
+		return false;
+	}
+
+	_sf_encoder.dumpStats();
+
+	return true;
 }
 
 bool ImageRGBAWriter::compressCF() {
@@ -629,7 +642,14 @@ bool ImageRGBAWriter::compressCF() {
 	params.AWARDS[3] = 1;
 	params.award_count = 4;
 
-	return _cf_encoder.init(params);
+	CAT_INANE("RGBA") << "Compressing color filter matrix...";
+	if (!_cf_encoder.init(params)) {
+		return false;
+	}
+
+	_cf_encoder.dumpStats();
+
+	return true;
 }
 
 void ImageRGBAWriter::initializeEncoders() {
