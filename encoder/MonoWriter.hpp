@@ -161,7 +161,7 @@ protected:
 	u32 _residual_entropy;					// Calculated entropy of residuals
 	SmartArray<u8> _ecodes;
 	SmartArray<u8> _tile_seen;
-	int _no_encoding_bits;					// Encoding entirely disabled > 0
+	int _untouched_bits;					// Encoding entirely disabled > 0
 
 	// Mask function for child instance
 	bool IsMasked(u16 x, u16 y);

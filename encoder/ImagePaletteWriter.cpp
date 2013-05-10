@@ -177,17 +177,23 @@ void ImagePaletteWriter::generateMonoWriter() {
 	params.num_syms = _palette_size;
 	params.size_x = _size_x;
 	params.size_y = _size_y;
-	params.max_filters = 16;
+	params.max_filters = 32;
 	params.min_bits = 2;
 	params.max_bits = 5;
 	params.sympal_thresh = 0.9;
 	params.filter_thresh = 0.9;
 	params.mask.SetMember<ImagePaletteWriter, &ImagePaletteWriter::IsMasked>(this);
-	params.AWARDS[0] = 5;
-	params.AWARDS[1] = 3;
-	params.AWARDS[2] = 1;
-	params.AWARDS[3] = 1;
-	params.award_count = 4;
+
+	if (_size_x * _size_y < 256*256) {
+		params.AWARDS[0] = 1;
+		params.award_count = 1;
+	} else {
+		params.AWARDS[0] = 5;
+		params.AWARDS[1] = 3;
+		params.AWARDS[2] = 1;
+		params.AWARDS[3] = 1;
+		params.award_count = 4;
+	}
 
 	_mono_writer.init(params);
 }

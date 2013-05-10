@@ -336,10 +336,6 @@ void MonoWriter::designFilters() {
 		count = SF_COUNT;
 	}
 
-	// Calculate min coverage threshold
-	int coverage_thresh = _params.filter_thresh * rgba_count;
-	int coverage = 0;
-
 	// Prepare to reduce the sympal set size
 	int sympal_f = 0;
 
@@ -350,18 +346,24 @@ void MonoWriter::designFilters() {
 
 	u8 palette[MAX_PALETTE];
 
-	int score_thresh = top[0].score / 4;
+	int top_score = top[0].score;
+
+	int max_filters = _params.max_filters;
+	int limit = _profile->tiles_x * _profile->tiles_y;
+	if (max_filters > limit) {
+		max_filters = limit;
+	}
 
 	// For each of the sorted filter scores,
 	for (int ii = 0; ii < count; ++ii) {
 		int index = top[ii].index;
 		int score = top[ii].score;
 
-		// Calculate approximate bytes covered
-		int covered = score / _params.AWARDS[0];
-
-		// NOTE: Interesting interaction with fixed filters that are not chosen
-		coverage += covered;
+		// If we stopped getting interesting scores,
+		if (top_score / score > 2) {
+			// Stop here
+			break;
+		}
 
 		// If filter is not fixed,
 		if (index >= SF_FIXED) {
@@ -374,28 +376,21 @@ void MonoWriter::designFilters() {
 				palette[sympal_f] = index;
 				++sympal_f;
 
-				CAT_INANE("2D") << " - Added palette filter " << sympal_f << " for palette index " << sympal_filter << " Score " << score << " - Coverage " << coverage * 100.f / rgba_count;
+				CAT_INANE("2D") << " - Added palette filter " << sympal_f << " for palette index " << sympal_filter << " Score " << score;
 			} else {
 				_profile->filters[normal_f] = MONO_FILTERS[index];
 				_profile->filter_indices[normal_f] = index;
 				++normal_f;
 
-				CAT_INANE("2D") << " - Added filter " << normal_f << " for filter index " << index << " Score " << score << " - Coverage " << coverage * 100.f / rgba_count;
+				CAT_INANE("2D") << " - Added filter " << normal_f << " for filter index " << index << " Score " << score;
 			}
 
 			++filters_set;
-			if (filters_set >= _params.max_filters) {
+			if (filters_set >= max_filters) {
 				break;
 			}
 		} else {
-			CAT_INANE("2D") << " - Added fixed filter " << normal_f << " for filter index " << index << " Score " << score << " - Coverage " << coverage * 100.f / rgba_count;
-		}
-
-		// If coverage is satisifed,
-		if (coverage >= coverage_thresh ||
-			score < score_thresh) {
-			// We're done here
-			break;
+			CAT_INANE("2D") << " - Added fixed filter " << normal_f << " for filter index " << index << " Score " << score;
 		}
 	}
 
@@ -411,7 +406,7 @@ void MonoWriter::designFilters() {
 
 	CAT_DEBUG_ENFORCE(_profile->filter_count == _profile->normal_filter_count + _profile->sympal_filter_count);
 
-	//CAT_INANE("2D") << " + Chose " << _profile->filter_count << " filters : " << _profile->sympal_filter_count << " of which are palettes";
+	CAT_INANE("2D") << " + Chose " << _profile->filter_count << " filters : " << _profile->sympal_filter_count << " of which are palettes";
 }
 
 void MonoWriter::designPaletteTiles() {
@@ -1105,11 +1100,6 @@ u32 MonoWriter::process(const Parameters &params) {
 
 	CAT_DEBUG_ENFORCE(params.num_syms > 0);
 
-	// Calculate bits to encode without any overhead
-	u32 untouched_field_bits = BSR32(params.num_syms) + 1;
-	u32 untouched_entropy = params.size_x * params.size_y * untouched_bits;
-	_untouched_bits = untouched_field_bits;
-
 	// Calculate bits to represent tile bits field
 	u32 range = _params.max_bits - _params.min_bits;
 	int bits_bc = 0;
@@ -1164,9 +1154,13 @@ u32 MonoWriter::process(const Parameters &params) {
 
 	_profile = best_profile;
 
-	// If the best we could do was worse than no overhead,
-	if (best_entropy > no_encoding_entropy) {
-		_disable_encoding = true;
+	// Calculate bits to encode without any overhead
+	_untouched_bits = BSR32(params.num_syms) + 1;
+	u32 untouched_entropy = 8 + _params.size_x * _params.size_y * _untouched_bits;
+
+	// If the best profile is better than doing nothing at all,
+	if (best_entropy < untouched_entropy) {
+		_untouched_bits = 0;
 	}
 
 	best_profile->dumpStats();
@@ -1186,6 +1180,20 @@ int MonoWriter::writeTables(ImageWriter &writer) {
 	Stats.encoder_overhead_bits = 0;
 	Stats.filter_overhead_bits = 1;
 	Stats.data_bits = 0;
+
+	// If not using write profile,
+	if (_untouched_bits) {
+		writer.writeBit(0);
+
+		CAT_DEBUG_ENFORCE(_params.num_syms <= 256);
+
+		writer.writeBits(_params.num_syms - 1, 8);
+
+		return GCIF_RE_OK;
+	}
+
+	// Enable encoders
+	writer.writeBit(1);
 
 	// Write tile size
 	{
@@ -1269,6 +1277,8 @@ int MonoWriter::writeTables(ImageWriter &writer) {
 }
 
 void MonoWriter::initializeWriter() {
+	// Note: Not called if encoders are disabled
+
 	_tile_seen.resize(_profile->tiles_x);
 
 	_profile->chaos.start();
@@ -1283,6 +1293,11 @@ void MonoWriter::initializeWriter() {
 }
 
 int MonoWriter::writeRowHeader(u16 y, ImageWriter &writer) {
+	// If skipping encoder,
+	if (_untouched_bits > 0) {
+		return 0;
+	}
+
 	CAT_DEBUG_ENFORCE(y < _params.size_y);
 
 	int bits = 0;
@@ -1322,6 +1337,12 @@ int MonoWriter::writeRowHeader(u16 y, ImageWriter &writer) {
 }
 
 int MonoWriter::write(u16 x, u16 y, ImageWriter &writer) {
+	// If skipping encoder,
+	if (_untouched_bits > 0) {
+		writer.writeBits(_params.data[x + y * _params.size_x], _untouched_bits);
+		return _untouched_bits;
+	}
+
 	int overhead_bits = 0, data_bits = 0;
 
 	CAT_DEBUG_ENFORCE(x < _params.size_x && y < _params.size_y);
