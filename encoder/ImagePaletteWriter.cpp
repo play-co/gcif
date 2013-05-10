@@ -297,7 +297,7 @@ void ImagePaletteWriter::writeTable(ImageWriter &writer) {
 				};
 
 				filter(rgb, write);
-				write[3] = (u8)(color >> 24);
+				write[3] = ~(u8)(color >> 24);
 				write += 4;
 			}
 
@@ -335,7 +335,7 @@ void ImagePaletteWriter::writeTable(ImageWriter &writer) {
 
 			u8 yuva[4];
 			bestFilter(rgb, yuva);
-			yuva[3] = (u8)(color >> 24);
+			yuva[3] = ~(u8)(color >> 24);
 
 			encoder.add(yuva[0]);
 			encoder.add(yuva[1]);
@@ -359,7 +359,7 @@ void ImagePaletteWriter::writeTable(ImageWriter &writer) {
 
 			u8 yuva[4];
 			bestFilter(rgb, yuva);
-			yuva[3] = (u8)(color >> 24);
+			yuva[3] = ~(u8)(color >> 24);
 
 			bits += encoder.write(yuva[0], writer);
 			bits += encoder.write(yuva[1], writer);

@@ -100,7 +100,7 @@ int ImagePaletteReader::readPalette(ImageReader & CAT_RESTRICT reader) {
 			filter(yuv, rgb);
 
 			// Rebuild
-			u32 color = a;
+			u32 color = ~a;
 			color <<= 8;
 			color |= rgb[2];
 			color <<= 8;
