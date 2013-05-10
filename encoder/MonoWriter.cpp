@@ -88,7 +88,7 @@ void MonoWriter::dumpStats() {
 }
 
 void MonoWriterProfile::dumpStats() {
-	CAT_INANE("2D") << "Designed monochrome writer using " << tiles_x << "x" << tiles_y << " tiles to express " << filter_count << "(" << sympal_filter_count << " palette) filters for " << size_x << "x" << size_y << " image";
+	CAT_INANE("2D") << "Designed monochrome writer using " << tiles_x << "x" << tiles_y << " tiles to express " << filter_count << " (" << sympal_filter_count << " palette) filters for " << size_x << "x" << size_y << " image";
 	if (filter_encoder) {
 		CAT_INANE("2D") << " - Recursively using filter encoder:";
 		filter_encoder->dumpStats();
@@ -350,6 +350,8 @@ void MonoWriter::designFilters() {
 
 	u8 palette[MAX_PALETTE];
 
+	int score_thresh = top[0].score / 4;
+
 	// For each of the sorted filter scores,
 	for (int ii = 0; ii < count; ++ii) {
 		int index = top[ii].index;
@@ -372,23 +374,26 @@ void MonoWriter::designFilters() {
 				palette[sympal_f] = index;
 				++sympal_f;
 
-				//CAT_INANE("2D") << " - Added palette filter " << sympal_f << " for palette index " << sympal_filter << " - Coverage " << coverage * 100.f / rgba_count;
+				CAT_INANE("2D") << " - Added palette filter " << sympal_f << " for palette index " << sympal_filter << " Score " << score << " - Coverage " << coverage * 100.f / rgba_count;
 			} else {
 				_profile->filters[normal_f] = MONO_FILTERS[index];
 				_profile->filter_indices[normal_f] = index;
 				++normal_f;
 
-				//CAT_INANE("2D") << " - Added filter " << normal_f << " for filter index " << index << " - Coverage " << coverage * 100.f / rgba_count;
+				CAT_INANE("2D") << " - Added filter " << normal_f << " for filter index " << index << " Score " << score << " - Coverage " << coverage * 100.f / rgba_count;
 			}
 
 			++filters_set;
-			if (filters_set >= MAX_FILTERS) {
+			if (filters_set >= _params.max_filters) {
 				break;
 			}
+		} else {
+			CAT_INANE("2D") << " - Added fixed filter " << normal_f << " for filter index " << index << " Score " << score << " - Coverage " << coverage * 100.f / rgba_count;
 		}
 
 		// If coverage is satisifed,
-		if (coverage >= coverage_thresh) {
+		if (coverage >= coverage_thresh ||
+			score < score_thresh) {
 			// We're done here
 			break;
 		}

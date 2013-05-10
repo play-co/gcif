@@ -177,7 +177,7 @@ void ImagePaletteWriter::generateMonoWriter() {
 	params.num_syms = _palette_size;
 	params.size_x = _size_x;
 	params.size_y = _size_y;
-	params.max_filters = 32;
+	params.max_filters = MAX_FILTERS;
 	params.min_bits = 2;
 	params.max_bits = 5;
 	params.sympal_thresh = 0.9;
