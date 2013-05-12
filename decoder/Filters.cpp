@@ -2471,7 +2471,14 @@ static u8 MFF_ED_GRAD(const u8 * CAT_RESTRICT p, u8 clamp_max, int x, int y, int
 		const u8 * CAT_RESTRICT d = p + 1 - size_x;
 		const u8 * CAT_RESTRICT e = d + 1 - size_x;
 
-		return (d[0] * 2 - e[0]) % clamp_max;
+		int v = (int)d[0] * 2 - e[0];
+		if (v <= 0) {
+			v = 0;
+		} else if (v > clamp_max) {
+			v--;
+			v -= clamp_max;
+		}
+		return (u8)v;
 	} else if (x > 0) {
 		return p[-1]; // A
 	} else if (y > 0) {
@@ -2486,7 +2493,14 @@ static u8 MFFU_ED_GRAD(const u8 * CAT_RESTRICT p, u8 clamp_max, int x, int y, in
 		const u8 * CAT_RESTRICT d = p + 1 - size_x;
 		const u8 * CAT_RESTRICT e = d + 1 - size_x;
 
-		return (d[0] * 2 - e[0]) % clamp_max;
+		int v = (int)d[0] * 2 - e[0];
+		if (v <= 0) {
+			v = 0;
+		} else if (v > clamp_max) {
+			v--;
+			v -= clamp_max;
+		}
+		return (u8)v;
 	}
 
 	return p[-1]; // A
