@@ -130,7 +130,6 @@ public:
 		float filter_inc_thresh;		// 0.05 Normalized coverage increment to stop adding filters
 		u32 AWARDS[MAX_AWARDS];			// Awards to give for top N filters
 		int award_count;				// Number of awards to give out
-		// TODO: Add a write order matrix here from parent, or null for mask-based
 	};
 
 	struct _Stats {
@@ -146,9 +145,12 @@ protected:
 	static const int RECURSE_THRESH_COUNT = 256*256;
 
 	static const u8 UNUSED_SYMPAL = 255;
+	static const int ORDER_SENTINEL = 0xffff;
 
 	// Parameters
 	Parameters _params;						// Input parameters
+	const u16 *_writeOrder;
+	std::vector<u16> _tile_write_order;
 
 	// Selected write profile
 	MonoWriterProfile *_profile;
@@ -182,6 +184,9 @@ protected:
 	// Choose which filters to use which tiles
 	void designTiles();
 
+	// Generate write order matrix for filter data
+	void generateWriteOrder();
+
 	// Run filters to generate residual data (optimization)
 	void computeResiduals();
 
@@ -204,7 +209,7 @@ protected:
 	u32 simulate();
 
 	// Process parameters and come up with an encoding scheme
-	u32 process(const Parameters &params);
+	u32 process(const Parameters &params, const u16 *writeOrder = 0);
 
 	// Initialize the write engine
 	void initializeWriter();

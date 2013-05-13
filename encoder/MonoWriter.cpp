@@ -834,6 +834,60 @@ bool MonoWriter::IsMasked(u16 x, u16 y) {
 	return _profile->mask[x + y * _profile->tiles_x] != 0;
 }
 
+void MonoWriter::generateWriteOrder() {
+	// Initialize tile seen array
+	_tile_seen.resize(_profile->tiles_x);
+
+	// Generate write order data for recursive operation
+	const u16 tile_bits_x = _profile->tile_bits_x;
+	const u16 tile_mask_y = _profile->tile_size_y - 1;
+	const u16 *order = _writeOrder;
+
+	// For each pixel row,
+	for (u16 y = 0; y < _params.size_y; ++y) {
+		// If starting a tile row,
+		if ((y & tile_mask_y) == 0) {
+			_tile_seen.fill_00();
+
+			// After the first tile row,
+			if (y > 0) {
+				_tile_write_order.push_back(ORDER_SENTINEL);
+			}
+		}
+
+		// If write order was specified by caller,
+		if (order) {
+			// For each x,
+			u16 x;
+			while ((x = *order++) != ORDER_SENTINEL) {
+				// If tile seen for the first time,
+				u16 tx = x >> tile_bits_x;
+				if (_tile_seen[tx] == 0) {
+					_tile_seen[tx] = 1;
+
+					_tile_write_order.push_back(tx);
+				}
+			}
+		} else {
+			// For each pixel,
+			for (u16 x = 0, size_x = _params.size_x; x < size_x; ++x) {
+				// If pixel is not masked out,
+				if (!_params.mask(x, y)) {
+					// If tile seen for the first time,
+					u16 tx = x >> tile_bits_x;
+					if (_tile_seen[tx] == 0) {
+						_tile_seen[tx] = 1;
+
+						_tile_write_order.push_back(tx);
+					}
+				}
+			}
+		}
+	}
+
+	_tile_write_order.push_back(ORDER_SENTINEL);
+}
+
 void MonoWriter::recurseCompress() {
 	const u16 tiles_x = _profile->tiles_x, tiles_y = _profile->tiles_y;
 
@@ -854,7 +908,7 @@ void MonoWriter::recurseCompress() {
 		params.mask.SetMember<MonoWriter, &MonoWriter::IsMasked>(this);
 
 		// Recurse!
-		u32 recurse_entropy = _profile->filter_encoder->process(params);
+		u32 recurse_entropy = _profile->filter_encoder->process(params, &_tile_write_order[0]);
 
 		// If it does not win over row filters,
 		if (recurse_entropy > _profile->row_filter_entropy) {
@@ -1113,11 +1167,12 @@ u32 MonoWriter::simulate() {
 	return bits;
 }
 
-u32 MonoWriter::process(const Parameters &params) {
+u32 MonoWriter::process(const Parameters &params, const u16 *writeOrder) {
 	cleanup();
 
 	// Initialize
 	_params = params;
+	_writeOrder = writeOrder;
 
 	CAT_DEBUG_ENFORCE(params.num_syms > 0);
 
@@ -1151,6 +1206,7 @@ u32 MonoWriter::process(const Parameters &params) {
 		computeResiduals();
 		optimizeTiles();
 		designRowFilters();
+		generateWriteOrder();
 		recurseCompress();
 		designChaos();
 		initializeEncoders();
@@ -1293,8 +1349,6 @@ int MonoWriter::writeTables(ImageWriter &writer) {
 
 void MonoWriter::initializeWriter() {
 	// Note: Not called if encoders are disabled
-
-	_tile_seen.resize(_profile->tiles_x);
 
 	_profile->chaos.start();
 
