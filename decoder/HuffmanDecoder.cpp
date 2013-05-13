@@ -315,7 +315,6 @@ bool HuffmanDecoder::init(int num_syms_orig, ImageReader & CAT_RESTRICT reader, 
 		break;
 	}
 
-	// If only one symbol,
 	return init(num_syms_orig, codelens, table_bits);
 }
 

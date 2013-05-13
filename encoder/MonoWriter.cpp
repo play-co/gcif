@@ -1548,11 +1548,11 @@ int MonoWriter::write(u16 x, u16 y, ImageWriter &writer) {
 		u8 *tile = _profile->tiles.get() + tx + ty * _profile->tiles_x;
 		u8 f = tile[0];
 
+		CAT_DEBUG_ENFORCE(!IsMasked(tx, ty));
+
 		// If tile not seen yet,
 		if (!_tile_seen[tx]) {
 			_tile_seen[tx] = true;
-
-			CAT_DEBUG_ENFORCE(!IsMasked(tx, ty));
 
 			CAT_DEBUG_ENFORCE(*_next_write_tile_order++ == tx);
 

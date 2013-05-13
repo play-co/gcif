@@ -599,8 +599,7 @@ bool ImageLZWriter::dumpStats() {
 	CAT_INANE("stats") << "(LZ Compress) Initial matches : " << Stats.initial_matches << " used " << Stats.match_count;
 	CAT_INANE("stats") << "(LZ Compress) Matched amount : " << Stats.covered_percent << "% of file is redundant (" << Stats.covered << " of " << _size_x * _size_y << " pixels)";
 	CAT_INANE("stats") << "(LZ Compress) Bytes saved : " << Stats.bytes_saved << " bytes";
-	CAT_INANE("stats") << "(LZ Compress) Compressed overhead : " << Stats.bytes_overhead << " bytes to transmit";
-	CAT_INANE("stats") << "(LZ Compress) Compression ratio : " << Stats.compression_ratio << ":1";
+	CAT_INANE("stats") << "(LZ Compress) Compression ratio : " << Stats.compression_ratio << ":1 (" << Stats.bytes_overhead << " bytes to transmit)";
 
 	return true;
 }
