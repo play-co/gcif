@@ -861,9 +861,8 @@ bool ImageRGBAWriter::writePixels(ImageWriter &writer) {
 			if (IsMasked(x, y)) {
 				_chaos.zero(x);
 			} else {
-				// Writer filters
+				// If filter needs to be written,
 				u16 tx = x >> _tile_bits_x;
-
 				if (!_seen_filter[tx]) {
 					u16 ty = y >> _tile_bits_y;
 
@@ -879,7 +878,7 @@ bool ImageRGBAWriter::writePixels(ImageWriter &writer) {
 				// Update chaos
 				_chaos.store(x, residuals);
 
-				// Add to histogram for this chaos bin
+				// Write pixel
 				y_bits += _y_encoder[cy].write(residuals[0], writer);
 				u_bits += _u_encoder[cu].write(residuals[1], writer);
 				v_bits += _v_encoder[cv].write(residuals[2], writer);
