@@ -113,15 +113,9 @@ void MonoWriter::maskTiles() {
 	const u16 size_x = _params.size_x, size_y = _params.size_y;
 	u8 *m = _profile->mask.get();
 
-	// If pixel writes are random-access,
-	if (_pixel_write_order) {
-		// Initialize replay matrix
-		_replay.resize(_params.size_x * _params.size_y);
-	}
-
 	// For each tile,
 	for (u16 y = 0; y < size_y; y += tile_size_y) {
-		for (u16 x = 0; x < size_x; x += tile_size_x) {
+		for (u16 x = 0; x < size_x; x += tile_size_x, ++m) {
 
 			// For each element in the tile,
 			u16 py = y, cy = tile_size_y;
@@ -139,7 +133,7 @@ void MonoWriter::maskTiles() {
 			}
 
 			// Tile is masked out entirely
-			*m++ = 1;
+			*m = 1;
 next_tile:;
 		}
 	}
@@ -680,8 +674,11 @@ void MonoWriter::computeResiduals() {
 
 	// If random-access input data,
 	if (order) {
-		replay = _replay.get();
+		// Initialize replay matrix
+		_replay.resize(_params.size_x * _params.size_y);
 		_replay.fill_00();
+
+		replay = _replay.get();
 	}
 
 	// For each row of pixels,

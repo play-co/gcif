@@ -392,7 +392,7 @@ void ImageRGBAWriter::designTiles() {
 }
 
 void ImageRGBAWriter::sortFilters() {
-	CAT_INANE("RGBA") << "Sorting filters...";
+	CAT_INANE("RGBA") << "Sorting spatial filters...";
 
 	_optimizer.process(_sf_tiles.get(), _tiles_x, _tiles_y, _sf_count,
 		PaletteOptimizer::MaskDelegate::FromMember<ImageRGBAWriter, &ImageRGBAWriter::IsSFMasked>(this));
@@ -741,6 +741,7 @@ int ImageRGBAWriter::init(const u8 *rgba, int size_x, int size_y, ImageMaskWrite
 	maskTiles();
 	designFilters();
 	designTiles();
+	sortFilters();
 	computeResiduals();
 	compressAlpha();
 	designChaos();
