@@ -64,7 +64,7 @@ void ImageRGBAWriter::maskTiles() {
 
 	// For each tile,
 	for (u16 y = 0; y < size_y; y += tile_size_y) {
-		for (u16 x = 0; x < size_x; x += tile_size_x) {
+		for (u16 x = 0; x < size_x; x += tile_size_x, ++cf) {
 
 			// For each element in the tile,
 			u16 py = y, cy = tile_size_y;
@@ -74,7 +74,7 @@ void ImageRGBAWriter::maskTiles() {
 					// If it is not masked,
 					if (!IsMasked(px, py)) {
 						// We need to do this tile
-						*cf++ = TODO_TILE;
+						*cf = TODO_TILE;
 						goto next_tile;
 					}
 					++px;
@@ -83,7 +83,7 @@ void ImageRGBAWriter::maskTiles() {
 			}
 
 			// Tile is masked out entirely
-			*cf++ = MASK_TILE;
+			*cf = MASK_TILE;
 next_tile:;
 		}
 	}
@@ -604,7 +604,7 @@ bool ImageRGBAWriter::compressSF() {
 	params.sympal_thresh = 0.1;
 	params.filter_cover_thresh = 0.6;
 	params.filter_inc_thresh = 0.05;
-	params.mask.SetMember<ImageRGBAWriter, &ImageRGBAWriter::IsMasked>(this);
+	params.mask.SetMember<ImageRGBAWriter, &ImageRGBAWriter::IsSFMasked>(this);
 	params.AWARDS[0] = 5;
 	params.AWARDS[1] = 3;
 	params.AWARDS[2] = 1;
@@ -635,7 +635,7 @@ bool ImageRGBAWriter::compressCF() {
 	params.sympal_thresh = 0.1;
 	params.filter_cover_thresh = 0.6;
 	params.filter_inc_thresh = 0.05;
-	params.mask.SetMember<ImageRGBAWriter, &ImageRGBAWriter::IsMasked>(this);
+	params.mask.SetMember<ImageRGBAWriter, &ImageRGBAWriter::IsSFMasked>(this);
 	params.AWARDS[0] = 5;
 	params.AWARDS[1] = 3;
 	params.AWARDS[2] = 1;
@@ -704,8 +704,6 @@ bool ImageRGBAWriter::IsMasked(u16 x, u16 y) {
 }
 
 bool ImageRGBAWriter::IsSFMasked(u16 x, u16 y) {
-	x >>= _tile_bits_x;
-	y >>= _tile_bits_y;
 	return _cf_tiles[x + _tiles_x * y] == MASK_TILE;
 }
 
@@ -835,18 +833,18 @@ bool ImageRGBAWriter::writePixels(ImageWriter &writer) {
 
 	_chaos.start();
 
-	// For each scanline,
 	const u8 *residuals = _residuals.get();
-	const u16 tile_mask = _tile_size_y - 1;
+	const u16 tile_mask_y = _tile_size_y - 1;
+
+	// For each scanline,
 	for (u16 y = 0; y < _size_y; ++y) {
 		_chaos.startRow();
 
 		// If at the start of a tile row,
-		if ((y & tile_mask) == 0) {
-			u16 ty = y >> _tile_bits_y;
-
+		if ((y & tile_mask_y) == 0) {
 			_seen_filter.fill_00();
 
+			u16 ty = y >> _tile_bits_y;
 			sf_bits += _sf_encoder.writeRowHeader(ty, writer);
 			cf_bits += _cf_encoder.writeRowHeader(ty, writer);
 		}
@@ -854,7 +852,7 @@ bool ImageRGBAWriter::writePixels(ImageWriter &writer) {
 		_a_encoder.writeRowHeader(y, writer);
 
 		// For each pixel,
-		for (u16 x = 0; x < _size_x; ++x) {
+		for (u16 x = 0, size_x = _size_x; x < size_x; ++x) {
 			DESYNC(x, y);
 
 			// If masked,
@@ -863,10 +861,10 @@ bool ImageRGBAWriter::writePixels(ImageWriter &writer) {
 			} else {
 				// If filter needs to be written,
 				u16 tx = x >> _tile_bits_x;
-				if (!_seen_filter[tx]) {
-					u16 ty = y >> _tile_bits_y;
+				if (_seen_filter[tx] == 0) {
+					_seen_filter[tx] = 1;
 
-					_seen_filter[tx] = true;
+					u16 ty = y >> _tile_bits_y;
 					sf_bits += _sf_encoder.write(tx, ty, writer);
 					cf_bits += _cf_encoder.write(tx, ty, writer);
 				}

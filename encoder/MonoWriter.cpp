@@ -1482,7 +1482,8 @@ int MonoWriter::writeRowHeader(u16 y, ImageWriter &writer) {
 	_profile->chaos.startRow();
 
 	// If at the start of a tile row,
-	if ((y & (_profile->tile_size_y - 1)) == 0) {
+	const u16 tile_mask_y = _profile->tile_size_y - 1;
+	if ((y & tile_mask_y) == 0) {
 		// Clear tile seen
 		_tile_seen.fill_00();
 
@@ -1491,7 +1492,7 @@ int MonoWriter::writeRowHeader(u16 y, ImageWriter &writer) {
 
 		// If filter encoder is used instead of row filters,
 		if (_profile->filter_encoder) {
-			// Recurse start row (they all start at 0)
+			// Recurse start row
 			bits += _profile->filter_encoder->writeRowHeader(ty, writer);
 		} else {
 			CAT_DEBUG_ENFORCE(MonoReader::RF_COUNT <= 2);
@@ -1531,69 +1532,66 @@ int MonoWriter::write(u16 x, u16 y, ImageWriter &writer) {
 
 	CAT_DEBUG_ENFORCE(x < _params.size_x && y < _params.size_y);
 
-	// If this pixel is masked,
-	if (_params.mask(x, y)) {
-		_profile->chaos.zero(x);
-	} else {
-		CAT_DEBUG_ENFORCE(!_pixel_write_order || *_pixel_write_order++ == x);
+	CAT_DEBUG_ENFORCE(!_params.mask(x, y));
 
-		// Calculate tile coordinates
-		u16 tx = x >> _profile->tile_bits_x;
+	CAT_DEBUG_ENFORCE(!_pixel_write_order || *_pixel_write_order++ == x);
 
-		// Get tile
-		u16 ty = y >> _profile->tile_bits_y;
-		u8 *tile = _profile->tiles.get() + tx + ty * _profile->tiles_x;
-		u8 f = tile[0];
+	// Calculate tile coordinates
+	u16 tx = x >> _profile->tile_bits_x;
 
-		CAT_DEBUG_ENFORCE(!IsMasked(tx, ty));
+	// Get tile
+	u16 ty = y >> _profile->tile_bits_y;
+	u8 *tile = _profile->tiles.get() + tx + ty * _profile->tiles_x;
+	u8 f = tile[0];
 
-		// If tile not seen yet,
-		if (!_tile_seen[tx]) {
-			_tile_seen[tx] = true;
+	CAT_DEBUG_ENFORCE(!IsMasked(tx, ty));
 
-			CAT_DEBUG_ENFORCE(*_next_write_tile_order++ == tx);
+	// If tile not seen yet,
+	if (_tile_seen[tx] == 0) {
+		_tile_seen[tx] = 1;
 
-			// If recursive filter encoded,
-			if (_profile->filter_encoder) {
-				// Pass filter write down the tree
-				overhead_bits += _profile->filter_encoder->write(tx, ty, writer);
-			} else {
-				// Calculate row filter residual for filter data (filter of filters at tree leaf)
-				u8 rf = f;
+		CAT_DEBUG_ENFORCE(*_next_write_tile_order++ == tx);
 
-				if (_profile->tile_row_filters[ty] == MonoReader::RF_PREV) {
-					const u16 filter_count = _profile->filter_count;
-					rf += filter_count - _prev_filter;
-					if (rf >= filter_count) {
-						rf -= filter_count;
-					}
-					_prev_filter = f;
+		// If recursive filter encoded,
+		if (_profile->filter_encoder) {
+			// Pass filter write down the tree
+			overhead_bits += _profile->filter_encoder->write(tx, ty, writer);
+		} else {
+			// Calculate row filter residual for filter data (filter of filters at tree leaf)
+			u8 rf = f;
+
+			if (_profile->tile_row_filters[ty] == MonoReader::RF_PREV) {
+				const u16 filter_count = _profile->filter_count;
+				rf += filter_count - _prev_filter;
+				if (rf >= filter_count) {
+					rf -= filter_count;
 				}
-
-				overhead_bits += _profile->row_filter_encoder.write(rf, writer);
+				_prev_filter = f;
 			}
 
-			Stats.filter_overhead_bits += overhead_bits;
-
-			DESYNC(x, y);
+			overhead_bits += _profile->row_filter_encoder.write(rf, writer);
 		}
 
-		// If using sympal,
-		if (f >= _profile->normal_filter_count) {
-			_profile->chaos.zero(x);
-		} else {
-			// Look up residual sym
-			u8 residual = _profile->residuals[x + y * _params.size_x];
+		Stats.filter_overhead_bits += overhead_bits;
 
-			// Calculate local chaos
-			int chaos = _profile->chaos.get(x);
-			_profile->chaos.store(x, residual, _params.num_syms);
+		DESYNC(x, y);
+	}
 
-			// Write the residual value
-			data_bits += _profile->encoder[chaos].write(residual, writer);
+	// If using sympal,
+	if (f >= _profile->normal_filter_count) {
+		_profile->chaos.zero(x);
+	} else {
+		// Look up residual sym
+		u8 residual = _profile->residuals[x + y * _params.size_x];
 
-			Stats.data_bits += data_bits;
-		}
+		// Calculate local chaos
+		int chaos = _profile->chaos.get(x);
+		_profile->chaos.store(x, residual, _params.num_syms);
+
+		// Write the residual value
+		data_bits += _profile->encoder[chaos].write(residual, writer);
+
+		Stats.data_bits += data_bits;
 	}
 
 	DESYNC(x, y);
