@@ -113,6 +113,12 @@ void MonoWriter::maskTiles() {
 	const u16 size_x = _params.size_x, size_y = _params.size_y;
 	u8 *m = _profile->mask.get();
 
+	// If pixel writes are random-access,
+	if (_pixel_write_order) {
+		// Initialize replay matrix
+		_replay.resize(_params.size_x * _params.size_y);
+	}
+
 	// For each tile,
 	for (u16 y = 0; y < size_y; y += tile_size_y) {
 		for (u16 x = 0; x < size_x; x += tile_size_x) {
@@ -663,63 +669,83 @@ void MonoWriter::designTiles() {
 void MonoWriter::computeResiduals() {
 	//CAT_INANE("2D") << "Executing tiles to generate residual matrix...";
 
-	const u16 tile_size_x = _profile->tile_size_x, tile_size_y = _profile->tile_size_y;
 	const u16 size_x = _params.size_x, size_y = _params.size_y;
 	const u16 tile_bits_x = _profile->tile_bits_x, tile_bits_y = _profile->tile_bits_y;
 	const u16 num_syms = _params.num_syms;
-	const u8 *p = _profile->tiles.get();
 
-	// For each tile,
-	const u8 *topleft_row = _params.data;
-	size_t residual_delta = (size_t)(_profile->residuals.get() - topleft_row);
-	for (u16 y = 0; y < size_y; y += tile_size_y) {
-		const u8 *topleft = topleft_row;
+	const u8 *data = _params.data;
+	u8 *residuals = _profile->residuals.get();
+	const u16 *order = _pixel_write_order;
+	u8 *replay;
 
-		for (u16 x = 0; x < size_x; x += tile_size_x, ++p, topleft += tile_size_x) {
-			// If tile is masked,
-			if (IsMasked(x >> tile_bits_x, y >> tile_bits_y)) {
-				continue;
-			}
+	// If random-access input data,
+	if (order) {
+		replay = _replay.get();
+		_replay.fill_00();
+	}
 
-			const u8 f = *p;
+	// For each row of pixels,
+	for (u16 y = 0; y < size_y; ++y) {
+		u16 ty = y >> tile_bits_y;
 
-			// If tile is sympal,
-			if (f >= _profile->normal_filter_count) {
-				continue;
-			}
+		// If random-access write order,
+		if (order) {
+			u16 x;
+			while ((x = *order++) != ORDER_SENTINEL) {
+				u16 tx = x >> tile_bits_x;
+				u8 f = _profile->getTile(tx, ty);
 
-			// For each element in the tile,
-			const u8 *row = topleft;
-			u16 py = y, cy = tile_size_y;
-			while (cy-- > 0 && py < size_y) {
-				const u8 *data = row;
-				u16 px = x, cx = tile_size_x;
-				while (cx-- > 0 && px < size_x) {
-					// If element is not masked,
-					if (!_params.mask(px, py)) {
-						const u8 value = *data;
-
-						u8 prediction = _profile->filters[f].safe(data, num_syms - 1, px, py, size_x);
-						int residual = value + num_syms - prediction;
-						if (residual >= num_syms) {
-							residual -= num_syms;
-						}
-
-						// Convert data pointer to residual pointer
-						u8 *residual_data = (u8*)data + residual_delta;
-
-						// Write residual data
-						*residual_data = residual;
-					}
-					++px;
-					++data;
+				// If type is sympal,
+				if (f >= _profile->normal_filter_count) {
+					continue;
 				}
-				++py;
-				row += size_x;
+
+				// Read input data
+				u8 value = data[x];
+
+				// Run spatial filter to arrive at a prediction
+				u8 prediction = _profile->filters[f].safe(&replay[x], num_syms - 1, x, y, size_x);
+				int residual = value + num_syms - prediction;
+				if (residual >= num_syms) {
+					residual -= num_syms;
+				}
+
+				// Store residual
+				replay[x] = value;
+				residuals[x] = residual;
+			}
+
+			data += size_x;
+			replay += size_x;
+			residuals += size_x;
+		} else {
+			for (u16 x = 0; x < size_x; ++x, ++residuals, ++data) {
+				// If element is not masked,
+				if (!_params.mask(x, y)) {
+					// Grab filter for this tile
+					u16 tx = x >> tile_bits_x;
+					u8 f = _profile->getTile(tx, ty);
+
+					// If type is sympal,
+					if (f >= _profile->normal_filter_count) {
+						continue;
+					}
+
+					// Read input data
+					u8 value = data[0];
+
+					// Run spatial filter to arrive at a prediction
+					u8 prediction = _profile->filters[f].safe(data, num_syms - 1, x, y, size_x);
+					int residual = value + num_syms - prediction;
+					if (residual >= num_syms) {
+						residual -= num_syms;
+					}
+
+					// Store residual
+					residuals[0] = residual;
+				}
 			}
 		}
-
-		topleft_row += _params.size_x * tile_size_y;
 	}
 }
 
@@ -741,99 +767,6 @@ void MonoWriter::optimizeTiles() {
 	memcpy(_profile->filter_indices, filter_indices, sizeof(_profile->filter_indices));
 }
 
-void MonoWriter::designRowFilters() {
-	//CAT_INANE("2D") << "Designing row filters for " << _profile->tiles_x << "x" << _profile->tiles_y << "...";
-
-	const int tiles_x = _profile->tiles_x, tiles_y = _profile->tiles_y;
-	const u16 filter_count = _profile->filter_count;
-
-	EntropyEstimator ee;
-	ee.init();
-
-	u32 total_entropy;
-
-	// TODO: Train with write order matrix
-
-	// Allocate temporary workspace
-	const u32 codes_size = MonoReader::RF_COUNT * tiles_x;
-	_ecodes.resize(codes_size);
-	u8 *codes = _ecodes.get();
-
-	// For each pass through,
-	int passes = 0;
-	while (passes < MAX_ROW_PASSES) {
-		total_entropy = 0;
-		u8 *p = _profile->tiles.get();
-
-		// For each tile,
-		for (int ty = 0; ty < tiles_y; ++ty) {
-			u8 prev = 0;
-			int code_count = 0;
-
-			for (int tx = 0; tx < tiles_x; ++tx) {
-				u8 f = p[0];
-
-				// If tile is not masked,
-				if (!IsMasked(tx, ty)) {
-					CAT_DEBUG_ENFORCE(f < filter_count);
-
-					// RF_NOOP
-					codes[code_count] = f;
-
-					// RF_PREV
-					u8 fprev = f + filter_count - prev;
-					if (fprev >= filter_count) {
-						fprev -= filter_count;
-					}
-
-					CAT_DEBUG_ENFORCE(fprev < filter_count);
-
-					codes[code_count + tiles_x] = fprev;
-
-					++code_count;
-
-					prev = f;
-				}
-
-				++p;
-			}
-
-			// If on the second or later pass,
-			if (passes > 0) {
-				// Subtract out the previous winner
-				if (_profile->tile_row_filters[ty] == MonoReader::RF_NOOP) {
-					ee.subtract(codes, code_count);
-				} else {
-					ee.subtract(codes + tiles_x, code_count);
-				}
-			}
-
-			// Calculate entropy for each of the row filter options
-			u32 e0 = ee.entropy(codes, code_count);
-			u32 e1 = ee.entropy(codes + tiles_x, code_count);
-
-			// Pick the better one
-			if (e0 <= e1) {
-				_profile->tile_row_filters[ty] = MonoReader::RF_NOOP;
-				total_entropy += 1 + e0; // + 1 bit per row for header
-				ee.add(codes, code_count);
-			} else {
-				_profile->tile_row_filters[ty] = MonoReader::RF_PREV;
-				total_entropy += 1 + e0; // + 1 bit per row for header
-				ee.add(codes + tiles_x, code_count);
-			}
-		}
-
-		++passes;
-	}
-
-	_profile->row_filter_entropy = total_entropy;
-}
-
-bool MonoWriter::IsMasked(u16 x, u16 y) {
-	return _profile->mask[x + y * _profile->tiles_x] != 0;
-}
-
 void MonoWriter::generateWriteOrder() {
 	// Initialize tile seen array
 	_tile_seen.resize(_profile->tiles_x);
@@ -841,7 +774,7 @@ void MonoWriter::generateWriteOrder() {
 	// Generate write order data for recursive operation
 	const u16 tile_bits_x = _profile->tile_bits_x;
 	const u16 tile_mask_y = _profile->tile_size_y - 1;
-	const u16 *order = _writeOrder;
+	const u16 *order = _pixel_write_order;
 
 	// For each pixel row,
 	for (u16 y = 0; y < _params.size_y; ++y) {
@@ -886,6 +819,95 @@ void MonoWriter::generateWriteOrder() {
 	}
 
 	_tile_write_order.push_back(ORDER_SENTINEL);
+}
+
+void MonoWriter::designRowFilters() {
+	//CAT_INANE("2D") << "Designing row filters for " << _profile->tiles_x << "x" << _profile->tiles_y << "...";
+
+	const int tiles_x = _profile->tiles_x, tiles_y = _profile->tiles_y;
+	const u16 filter_count = _profile->filter_count;
+
+	u32 total_entropy;
+	EntropyEstimator ee;
+	ee.init();
+
+	// Allocate temporary workspace
+	const u32 codes_size = MonoReader::RF_COUNT * tiles_x;
+	_ecodes.resize(codes_size);
+	u8 *codes = _ecodes.get();
+
+	// For each pass through,
+	int passes = 0;
+	while (passes < MAX_ROW_PASSES) {
+		total_entropy = 0;
+
+		u8 *p = _profile->tiles.get();
+		const u16 *order = &_tile_write_order[0];
+
+		// For each tile,
+		for (u16 ty = 0; ty < tiles_y; ++ty) {
+			u8 prev = 0;
+			int code_count = 0;
+
+			u16 tx;
+			while ((tx = *order++) != ORDER_SENTINEL) {
+				u8 f = p[tx];
+
+				CAT_DEBUG_ENFORCE(f < filter_count);
+
+				// RF_NOOP
+				codes[code_count] = f;
+
+				// RF_PREV
+				u8 fprev = f + filter_count - prev;
+				if (fprev >= filter_count) {
+					fprev -= filter_count;
+				}
+				prev = f;
+
+				CAT_DEBUG_ENFORCE(fprev < filter_count);
+
+				codes[code_count + tiles_x] = fprev;
+
+				++code_count;
+			}
+
+			p += tiles_x;
+
+			// If on the second or later pass,
+			if (passes > 0) {
+				// Subtract out the previous winner
+				if (_profile->tile_row_filters[ty] == MonoReader::RF_NOOP) {
+					ee.subtract(codes, code_count);
+				} else {
+					ee.subtract(codes + tiles_x, code_count);
+				}
+			}
+
+			// Calculate entropy for each of the row filter options
+			u32 e0 = ee.entropy(codes, code_count);
+			u32 e1 = ee.entropy(codes + tiles_x, code_count);
+
+			// Pick the better one
+			if (e0 <= e1) {
+				_profile->tile_row_filters[ty] = MonoReader::RF_NOOP;
+				total_entropy += 1 + e0; // + 1 bit per row for header
+				ee.add(codes, code_count);
+			} else {
+				_profile->tile_row_filters[ty] = MonoReader::RF_PREV;
+				total_entropy += 1 + e0; // + 1 bit per row for header
+				ee.add(codes + tiles_x, code_count);
+			}
+		}
+
+		++passes;
+	}
+
+	_profile->row_filter_entropy = total_entropy;
+}
+
+bool MonoWriter::IsMasked(u16 x, u16 y) {
+	return _profile->mask[x + y * _profile->tiles_x] != 0;
 }
 
 void MonoWriter::recurseCompress() {
@@ -941,35 +963,65 @@ void MonoWriter::designChaos() {
 
 		_profile->chaos.start();
 
+		const u16 *order = _pixel_write_order;
+
 		// For each row,
 		const u8 *residuals = _profile->residuals.get();
-		for (int y = 0; y < _params.size_y; ++y) {
+		for (u16 y = 0; y < _params.size_y; ++y) {
 			_profile->chaos.startRow();
-			// TODO: Train with write order matrix
 
-			// For each column,
-			for (int x = 0; x < _params.size_x; ++x) {
-				// If it is a palsym tile,
-				const u8 f = _profile->getTile(x, y);
+			// TODO: This currently does not zero mask-skipped tiles.  I'm not
+			// sure it really matters much for compression performance.  The
+			// effect is that chaos residual scores for masked tiles are left
+			// alone from the previous row and may affect the next row somehow.
 
-				CAT_DEBUG_ENFORCE(f < _profile->filter_count);
+			// If random write order,
+			if (order) {
+				u16 x;
+				while ((x = *order++) != ORDER_SENTINEL) {
+					const u8 f = _profile->getTile(x, y);
 
-				// If masked,
-				if (_params.mask(x, y) || f >= _profile->normal_filter_count) {
-					_profile->chaos.zero(x);
-				} else {
-					// Get residual symbol
-					u8 residual = *residuals;
+					CAT_DEBUG_ENFORCE(f < _profile->filter_count);
 
-					// Get chaos bin
-					int chaos = _profile->chaos.get(x);
-					_profile->chaos.store(x, residual, _params.num_syms);
+					// If masked or sympal,
+					if (_profile->filter_indices[f] >= SF_COUNT) {
+						_profile->chaos.zero(x);
+					} else {
+						// Get residual symbol
+						u8 residual = residuals[x];
 
-					// Add to histogram for this chaos bin
-					ee[chaos].addSingle(residual);
+						// Get chaos bin
+						int chaos = _profile->chaos.get(x);
+						_profile->chaos.store(x, residual, _params.num_syms);
+
+						// Add to histogram for this chaos bin
+						ee[chaos].addSingle(residual);
+					}
 				}
 
-				++residuals;
+				residuals += _params.size_x;
+			} else {
+				// For each column,
+				for (u16 x = 0; x < _params.size_x; ++x, ++residuals) {
+					const u8 f = _profile->getTile(x, y);
+
+					CAT_DEBUG_ENFORCE(f < _profile->filter_count);
+
+					// If masked or sympal,
+					if (_params.mask(x, y) || _profile->filter_indices[f] >= SF_COUNT) {
+						_profile->chaos.zero(x);
+					} else {
+						// Get residual symbol
+						u8 residual = *residuals;
+
+						// Get chaos bin
+						int chaos = _profile->chaos.get(x);
+						_profile->chaos.store(x, residual, _params.num_syms);
+
+						// Add to histogram for this chaos bin
+						ee[chaos].addSingle(residual);
+					}
+				}
 			}
 		}
 
@@ -997,35 +1049,60 @@ void MonoWriter::designChaos() {
 void MonoWriter::initializeEncoders() {
 	_profile->chaos.start();
 
+	const u16 *order = _pixel_write_order;
+
 	// For each row,
 	const u8 *residuals = _profile->residuals.get();
 	for (int y = 0; y < _params.size_y; ++y) {
 		_profile->chaos.startRow();
-		// TODO: Train with write order matrix
 
-		// For each column,
-		for (int x = 0; x < _params.size_x; ++x) {
-			// If it is a palsym tile,
-			const u8 f = _profile->getTile(x, y);
+		// If random write order,
+		if (order) {
+			u16 x;
+			while ((x = *order++) != ORDER_SENTINEL) {
+				const u8 f = _profile->getTile(x, y);
 
-			CAT_DEBUG_ENFORCE(f < _profile->filter_count);
+				CAT_DEBUG_ENFORCE(f < _profile->filter_count);
 
-			// If masked,
-			if (_params.mask(x, y) || f >= _profile->normal_filter_count) {
-				_profile->chaos.zero(x);
-			} else {
-				// Get residual symbol
-				u8 residual = *residuals;
+				// If masked or sympal,
+				if (_profile->filter_indices[f] >= SF_COUNT) {
+					_profile->chaos.zero(x);
+				} else {
+					// Get residual symbol
+					u8 residual = residuals[x];
 
-				// Calculate local chaos
-				int chaos = _profile->chaos.get(x);
-				_profile->chaos.store(x, residual, _params.num_syms);
+					// Get chaos bin
+					int chaos = _profile->chaos.get(x);
+					_profile->chaos.store(x, residual, _params.num_syms);
 
-				// Add to histogram for this chaos bin
-				_profile->encoder[chaos].add(residual);
+					// Add to histogram for this chaos bin
+					_profile->encoder[chaos].add(residual);
+				}
 			}
 
-			++residuals;
+			residuals += _params.size_x;
+		} else {
+			// For each column,
+			for (u16 x = 0; x < _params.size_x; ++x, ++residuals) {
+				const u8 f = _profile->getTile(x, y);
+
+				CAT_DEBUG_ENFORCE(f < _profile->filter_count);
+
+				// If masked or sympal,
+				if (_params.mask(x, y) || _profile->filter_indices[f] >= SF_COUNT) {
+					_profile->chaos.zero(x);
+				} else {
+					// Get residual symbol
+					u8 residual = *residuals;
+
+					// Get chaos bin
+					int chaos = _profile->chaos.get(x);
+					_profile->chaos.store(x, residual, _params.num_syms);
+
+					// Add to histogram for this chaos bin
+					_profile->encoder[chaos].add(residual);
+				}
+			}
 		}
 	}
 
@@ -1036,35 +1113,32 @@ void MonoWriter::initializeEncoders() {
 
 	// If using row encoders for filters,
 	if (!_profile->filter_encoder) {
-		// TODO: Train with write order matrix
 		const u16 filter_count = _profile->filter_count;
 
-		// For each filter row,
-		const u8 *tile = _profile->tiles.get();
+		const u16 *order = &_tile_write_order[0];
+
+		// For each tile row,
 		for (int ty = 0, tiles_y = _profile->tiles_y; ty < tiles_y; ++ty) {
 			int tile_row_filter = _profile->tile_row_filters[ty];
 			u8 prev = 0;
 
-			// For each column,
-			for (int tx = 0, tiles_x = _profile->tiles_x; tx < tiles_x; ++tx) {
-				u8 f = *tile++;
+			u16 tx;
+			while ((tx = *order++) != ORDER_SENTINEL) {
+				u8 f = _profile->getTile(tx, ty);
+				u8 rf = f;
 
-				if (!IsMasked(tx, ty)) {
-					u8 rf = f;
-
-					// If filtering this row,
-					if (tile_row_filter == MonoReader::RF_PREV) {
-						rf += filter_count - prev;
-						if (rf >= filter_count) {
-							rf -= filter_count;
-						}
-						prev = f;
+				// If filtering this row,
+				if (tile_row_filter == MonoReader::RF_PREV) {
+					rf += filter_count - prev;
+					if (rf >= filter_count) {
+						rf -= filter_count;
 					}
-
-					CAT_DEBUG_ENFORCE(rf < filter_count);
-
-					_profile->row_filter_encoder.add(rf);
+					prev = f;
 				}
+
+				CAT_DEBUG_ENFORCE(rf < filter_count);
+
+				_profile->row_filter_encoder.add(rf);
 			}
 		}
 
@@ -1096,32 +1170,31 @@ u32 MonoWriter::simulate() {
 		// Reset encoder for recursive simulation
 		_profile->row_filter_encoder.reset();
 
-		// TODO: Train with write-order matrix
 		const u16 filter_count = _profile->filter_count;
+		const u16 *order = &_tile_write_order[0];
 
 		// For each filter row,
-		const u8 *tile = _profile->tiles.get();
 		for (int ty = 0, tiles_y = _profile->tiles_y; ty < tiles_y; ++ty) {
 			int tile_row_filter = _profile->tile_row_filters[ty];
 			u8 prev = 0;
 
-			// For each column,
-			for (int tx = 0, tiles_x = _profile->tiles_x; tx < tiles_x; ++tx) {
-				u8 f = *tile++;
+			u16 tx;
+			while ((tx = *order++) != ORDER_SENTINEL) {
+				u8 f = _profile->getTile(tx, ty);
+				u8 rf = f;
 
-				if (!IsMasked(tx, ty)) {
-					u8 rf = f;
-
-					if (tile_row_filter == MonoReader::RF_PREV) {
-						rf += filter_count - prev;
-						if (rf >= filter_count) {
-							rf -= filter_count;
-						}
-						prev = f;
+				// If filtering this row,
+				if (tile_row_filter == MonoReader::RF_PREV) {
+					rf += filter_count - prev;
+					if (rf >= filter_count) {
+						rf -= filter_count;
 					}
-
-					bits += _profile->row_filter_encoder.simulate(rf);
+					prev = f;
 				}
+
+				CAT_DEBUG_ENFORCE(rf < filter_count);
+
+				bits += _profile->row_filter_encoder.simulate(rf);
 			}
 		}
 	}
@@ -1134,45 +1207,72 @@ u32 MonoWriter::simulate() {
 		_profile->encoder[ii].reset();
 	}
 
-	// For each row,
 	const u8 *residuals = _profile->residuals.get();
-	for (int y = 0; y < _params.size_y; ++y) {
+	const u16 *order = _pixel_write_order;
+
+	// For each row,
+	for (u16 y = 0; y < _params.size_y; ++y) {
 		_profile->chaos.startRow();
-		// TODO: Train with write order matrix
 
-		// For each column,
-		for (int x = 0; x < _params.size_x; ++x) {
-			// If it is a palsym tile,
-			const u8 f = _profile->getTile(x, y);
+		// If random write order,
+		if (order) {
+			u16 x;
+			while ((x = *order++) != ORDER_SENTINEL) {
+				const u8 f = _profile->getTile(x, y);
 
-			// If masked,
-			if (_params.mask(x, y) || f >= _profile->normal_filter_count) {
-				_profile->chaos.zero(x);
-			} else {
-				// Get residual symbol
-				u8 residual = *residuals;
+				CAT_DEBUG_ENFORCE(f < _profile->filter_count);
 
-				// Calculate local chaos
-				int chaos = _profile->chaos.get(x);
-				_profile->chaos.store(x, residual, _params.num_syms);
+				// If masked or sympal,
+				if (_profile->filter_indices[f] >= SF_COUNT) {
+					_profile->chaos.zero(x);
+				} else {
+					// Get residual symbol
+					u8 residual = residuals[x];
 
-				// Add to histogram for this chaos bin
-				bits += _profile->encoder[chaos].simulate(residual);
+					// Get chaos bin
+					int chaos = _profile->chaos.get(x);
+					_profile->chaos.store(x, residual, _params.num_syms);
+
+					// Add to histogram for this chaos bin
+					bits += _profile->encoder[chaos].simulate(residual);
+				}
 			}
 
-			++residuals;
+			residuals += _params.size_x;
+		} else {
+			// For each column,
+			for (u16 x = 0; x < _params.size_x; ++x, ++residuals) {
+				const u8 f = _profile->getTile(x, y);
+
+				CAT_DEBUG_ENFORCE(f < _profile->filter_count);
+
+				// If masked or sympal,
+				if (_params.mask(x, y) || _profile->filter_indices[f] >= SF_COUNT) {
+					_profile->chaos.zero(x);
+				} else {
+					// Get residual symbol
+					u8 residual = *residuals;
+
+					// Get chaos bin
+					int chaos = _profile->chaos.get(x);
+					_profile->chaos.store(x, residual, _params.num_syms);
+
+					// Add to histogram for this chaos bin
+					bits += _profile->encoder[chaos].simulate(residual);
+				}
+			}
 		}
 	}
 
 	return bits;
 }
 
-u32 MonoWriter::process(const Parameters &params, const u16 *writeOrder) {
+u32 MonoWriter::process(const Parameters &params, const u16 *write_order) {
 	cleanup();
 
 	// Initialize
 	_params = params;
-	_writeOrder = writeOrder;
+	_pixel_write_order = write_order;
 
 	CAT_DEBUG_ENFORCE(params.num_syms > 0);
 
@@ -1184,20 +1284,19 @@ u32 MonoWriter::process(const Parameters &params, const u16 *writeOrder) {
 	}
 	_tile_bits_field_bc = bits_bc;
 
-	// Determine best tile size to use
+	//CAT_INANE("2D") << "!! Monochrome filter processing started for " << _params.size_x << "x" << _params.size_y << " data matrix...";
+
+	// Try to reuse the same profile object
+	MonoWriterProfile *profile = new MonoWriterProfile;
 	u32 best_entropy = 0x7fffffff;
 	MonoWriterProfile *best_profile = 0;
 
-	//CAT_INANE("2D") << "!! Monochrome filter processing started for " << _params.size_x << "x" << _params.size_y << " data matrix...";
-
-	// For each bit count to try,
+	// Determine best tile size to use
 	for (int bits = params.min_bits; bits <= params.max_bits; ++bits) {
-		MonoWriterProfile *profile = new MonoWriterProfile;
-
+		// Set up a profile
 		profile->init(params.size_x, params.size_y, bits);
-
-		// Process
 		_profile = profile;
+
 		maskTiles();
 		designPaletteFilters();
 		designFilters();
@@ -1205,8 +1304,8 @@ u32 MonoWriter::process(const Parameters &params, const u16 *writeOrder) {
 		designTiles();
 		computeResiduals();
 		optimizeTiles();
-		designRowFilters();
 		generateWriteOrder();
+		designRowFilters();
 		recurseCompress();
 		designChaos();
 		initializeEncoders();
@@ -1214,22 +1313,32 @@ u32 MonoWriter::process(const Parameters &params, const u16 *writeOrder) {
 		// Calculate bits required to represent the data with this tile size
 		u32 entropy = simulate();
 
+		// If this is the best profile found so far,
 		if (best_entropy > entropy) {
 			best_entropy = entropy;
+
 			if (best_profile) {
 				delete best_profile;
 			}
 			best_profile = profile;
 
-			// TODO: Store off the best option
+			// If we need another profile to try,
+			if (bits < params.max_bits) {
+				profile = new MonoWriterProfile;
+			} else {
+				profile = 0;
+			}
 		} else {
-			delete profile;
 			// Stop trying options
 			break;
 		}
 	}
-
 	_profile = best_profile;
+
+	// If an unused profile was left over,
+	if (profile != 0) {
+		delete profile;
+	}
 
 	// Calculate bits to encode without any overhead
 	_untouched_bits = BSR32(params.num_syms) + 1;
@@ -1359,6 +1468,10 @@ void MonoWriter::initializeWriter() {
 	for (int ii = 0, iiend = _profile->chaos.getBinCount(); ii < iiend; ++ii) {
 		_profile->encoder[ii].reset();
 	}
+
+#ifdef CAT_DEBUG
+	_next_write_tile_order = &_tile_write_order[0];
+#endif
 }
 
 int MonoWriter::writeRowHeader(u16 y, ImageWriter &writer) {
@@ -1397,6 +1510,14 @@ int MonoWriter::writeRowHeader(u16 y, ImageWriter &writer) {
 			// Clear prev filter
 			_prev_filter = 0;
 		}
+
+#ifdef CAT_DEBUG
+		// After the first row,
+		if (y > 0) {
+			// Skip sentinel at row ends
+			++_next_write_tile_order;
+		}
+#endif
 	}
 
 	DESYNC(0, y);
@@ -1420,6 +1541,8 @@ int MonoWriter::write(u16 x, u16 y, ImageWriter &writer) {
 	if (_params.mask(x, y)) {
 		_profile->chaos.zero(x);
 	} else {
+		CAT_DEBUG_ENFORCE(!_pixel_write_order || *_pixel_write_order++ == x);
+
 		// Calculate tile coordinates
 		u16 tx = x >> _profile->tile_bits_x;
 
@@ -1432,32 +1555,31 @@ int MonoWriter::write(u16 x, u16 y, ImageWriter &writer) {
 		if (!_tile_seen[tx]) {
 			_tile_seen[tx] = true;
 
-			// TODO: Enforce that writes are in the order of the write order matrix
+			CAT_DEBUG_ENFORCE(!IsMasked(tx, ty));
 
-			// If tile is not masked,
-			if (!IsMasked(tx, ty)) {
-				// If recursive filter encoded,
-				if (_profile->filter_encoder) {
-					// Pass filter write down the tree
-					overhead_bits += _profile->filter_encoder->write(tx, ty, writer);
-				} else {
-					// Calculate row filter residual for filter data (filter of filters at tree leaf)
-					u8 rf = f;
+			CAT_DEBUG_ENFORCE(*_next_write_tile_order++ == tx);
 
-					if (_profile->tile_row_filters[ty] == MonoReader::RF_PREV) {
-						const u16 filter_count = _profile->filter_count;
-						rf += filter_count - _prev_filter;
-						if (rf >= filter_count) {
-							rf -= filter_count;
-						}
-						_prev_filter = f;
+			// If recursive filter encoded,
+			if (_profile->filter_encoder) {
+				// Pass filter write down the tree
+				overhead_bits += _profile->filter_encoder->write(tx, ty, writer);
+			} else {
+				// Calculate row filter residual for filter data (filter of filters at tree leaf)
+				u8 rf = f;
+
+				if (_profile->tile_row_filters[ty] == MonoReader::RF_PREV) {
+					const u16 filter_count = _profile->filter_count;
+					rf += filter_count - _prev_filter;
+					if (rf >= filter_count) {
+						rf -= filter_count;
 					}
-
-					overhead_bits += _profile->row_filter_encoder.write(rf, writer);
+					_prev_filter = f;
 				}
 
-				Stats.filter_overhead_bits += overhead_bits;
+				overhead_bits += _profile->row_filter_encoder.write(rf, writer);
 			}
+
+			Stats.filter_overhead_bits += overhead_bits;
 
 			DESYNC(x, y);
 		}

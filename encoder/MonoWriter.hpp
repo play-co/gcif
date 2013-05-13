@@ -149,8 +149,11 @@ protected:
 
 	// Parameters
 	Parameters _params;						// Input parameters
-	const u16 *_writeOrder;
-	std::vector<u16> _tile_write_order;
+	const u16 *_pixel_write_order;			// Write order for input pixels
+	std::vector<u16> _tile_write_order;		// Write order for output tiles
+#ifdef CAT_DEBUG
+	const u16 *_next_write_tile_order;
+#endif
 
 	// Selected write profile
 	MonoWriterProfile *_profile;
@@ -165,6 +168,7 @@ protected:
 	SmartArray<u8> _ecodes;
 	SmartArray<u8> _tile_seen;
 	int _untouched_bits;					// Encoding entirely disabled > 0
+	SmartArray<u8> _replay;
 
 	// Mask function for child instance
 	bool IsMasked(u16 x, u16 y);
@@ -209,7 +213,7 @@ protected:
 	u32 simulate();
 
 	// Process parameters and come up with an encoding scheme
-	u32 process(const Parameters &params, const u16 *writeOrder = 0);
+	u32 process(const Parameters &params, const u16 *write_order = 0);
 
 	// Initialize the write engine
 	void initializeWriter();
