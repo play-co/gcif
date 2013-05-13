@@ -841,7 +841,6 @@ void MonoWriter::designRowFilters() {
 	while (passes < MAX_ROW_PASSES) {
 		total_entropy = 0;
 
-		u8 *p = _profile->tiles.get();
 		const u16 *order = &_tile_write_order[0];
 
 		// For each tile,
@@ -851,7 +850,7 @@ void MonoWriter::designRowFilters() {
 
 			u16 tx;
 			while ((tx = *order++) != ORDER_SENTINEL) {
-				u8 f = p[tx];
+				u8 f = _profile->getTile(tx, ty);
 
 				CAT_DEBUG_ENFORCE(f < filter_count);
 
@@ -871,8 +870,6 @@ void MonoWriter::designRowFilters() {
 
 				++code_count;
 			}
-
-			p += tiles_x;
 
 			// If on the second or later pass,
 			if (passes > 0) {
