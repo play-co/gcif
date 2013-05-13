@@ -88,12 +88,12 @@ void MonoWriter::dumpStats() {
 }
 
 void MonoWriterProfile::dumpStats() {
-	CAT_INANE("2D") << "Designed monochrome writer using " << tiles_x << "x" << tiles_y << " tiles to express " << filter_count << " (" << sympal_filter_count << " palette) filters for " << size_x << "x" << size_y << " image";
+	CAT_INANE("Mono") << "Designed monochrome writer using " << tiles_x << "x" << tiles_y << " tiles to express " << filter_count << " (" << sympal_filter_count << " palette) filters for " << size_x << "x" << size_y << " image";
 	if (filter_encoder) {
-		CAT_INANE("2D") << " - Recursively using filter encoder:";
+		CAT_INANE("Mono") << " - Recursively using filter encoder:";
 		filter_encoder->dumpStats();
 	} else {
-		CAT_INANE("2D") << " - Using row filters";
+		CAT_INANE("Mono") << " - Using row filters";
 	}
 }
 
@@ -211,7 +211,7 @@ void MonoWriter::designPaletteFilters() {
 			// Add it
 			_profile->sympal[sympal_count++] = (u8)sym;
 
-			//CAT_INANE("2D") << " - Added symbol palette filter for symbol " << (int)sym;
+			//CAT_INANE("Mono") << " - Added symbol palette filter for symbol " << (int)sym;
 
 			// If we ran out of room,
 			if (sympal_count >= MAX_PALETTE) {
@@ -372,7 +372,7 @@ void MonoWriter::designFilters() {
 				palette[sympal_f] = index;
 				++sympal_f;
 
-				//CAT_INANE("2D") << " + Added palette filter " << sympal_f << " for palette index " << sympal_filter << " Score " << score;
+				//CAT_INANE("Mono") << " + Added palette filter " << sympal_f << " for palette index " << sympal_filter << " Score " << score;
 			} else {
 				_profile->filters[normal_f] = MONO_FILTERS[index];
 				_profile->filter_indices[normal_f] = index;
@@ -380,7 +380,7 @@ void MonoWriter::designFilters() {
 
 				coverage += score;
 
-				//CAT_INANE("2D") << " - Added filter " << normal_f << " for filter index " << index << " Score " << score << " Coverage " << coverage;
+				//CAT_INANE("Mono") << " - Added filter " << normal_f << " for filter index " << index << " Score " << score << " Coverage " << coverage;
 			}
 
 			++filters_set;
@@ -388,7 +388,7 @@ void MonoWriter::designFilters() {
 				break;
 			}
 		} else {
-			//CAT_INANE("2D") << " - Added fixed filter " << normal_f << " for filter index " << index << " Score " << score;
+			//CAT_INANE("Mono") << " - Added fixed filter " << normal_f << " for filter index " << index << " Score " << score;
 			coverage += score;
 		}
 
@@ -414,16 +414,16 @@ void MonoWriter::designFilters() {
 
 	CAT_DEBUG_ENFORCE(_profile->filter_count == _profile->normal_filter_count + _profile->sympal_filter_count);
 
-	//CAT_INANE("2D") << " + Chose " << _profile->filter_count << " filters : " << _profile->sympal_filter_count << " of which are palettes";
+	//CAT_INANE("Mono") << " + Chose " << _profile->filter_count << " filters : " << _profile->sympal_filter_count << " of which are palettes";
 }
 
 void MonoWriter::designPaletteTiles() {
 	if (_profile->sympal_filter_count < 0) {
-		//CAT_INANE("2D") << "No palette filters selected";
+		//CAT_INANE("Mono") << "No palette filters selected";
 		return;
 	}
 
-	//CAT_INANE("2D") << "Designing palette tiles for " << _profile->tiles_x << "x" << _profile->tiles_y << "...";
+	//CAT_INANE("Mono") << "Designing palette tiles for " << _profile->tiles_x << "x" << _profile->tiles_y << "...";
 
 	const u16 tile_size_x = _profile->tile_size_x, tile_size_y = _profile->tile_size_y;
 	const u16 size_x = _params.size_x, size_y = _params.size_y;
@@ -464,7 +464,7 @@ void MonoWriter::designPaletteTiles() {
 }
 
 void MonoWriter::designTiles() {
-	//CAT_INANE("2D") << "Designing tiles for " << _profile->tiles_x << "x" << _profile->tiles_y << "...";
+	//CAT_INANE("Mono") << "Designing tiles for " << _profile->tiles_x << "x" << _profile->tiles_y << "...";
 
 	const u16 tile_size_x = _profile->tile_size_x, tile_size_y = _profile->tile_size_y;
 	const u16 size_x = _params.size_x, size_y = _params.size_y;
@@ -656,12 +656,12 @@ void MonoWriter::designTiles() {
 
 		++passes;
 
-		//CAT_INANE("2D") << "Revisiting filter selections from the top... " << revisitCount << " left";
+		//CAT_INANE("Mono") << "Revisiting filter selections from the top... " << revisitCount << " left";
 	}
 }
 
 void MonoWriter::computeResiduals() {
-	//CAT_INANE("2D") << "Executing tiles to generate residual matrix...";
+	//CAT_INANE("Mono") << "Executing tiles to generate residual matrix...";
 
 	const u16 size_x = _params.size_x, size_y = _params.size_y;
 	const u16 tile_bits_x = _profile->tile_bits_x, tile_bits_y = _profile->tile_bits_y;
@@ -747,7 +747,7 @@ void MonoWriter::computeResiduals() {
 }
 
 void MonoWriter::optimizeTiles() {
-	//CAT_INANE("2D") << "Optimizing tiles for " << _profile->tiles_x << "x" << _profile->tiles_y << "...";
+	//CAT_INANE("Mono") << "Optimizing tiles for " << _profile->tiles_x << "x" << _profile->tiles_y << "...";
 
 	_optimizer.process(_profile->tiles.get(), _profile->tiles_x, _profile->tiles_y, _profile->filter_count,
 			PaletteOptimizer::MaskDelegate::FromMember<MonoWriter, &MonoWriter::IsMasked>(this));
@@ -819,7 +819,7 @@ void MonoWriter::generateWriteOrder() {
 }
 
 void MonoWriter::designRowFilters() {
-	//CAT_INANE("2D") << "Designing row filters for " << _profile->tiles_x << "x" << _profile->tiles_y << "...";
+	//CAT_INANE("Mono") << "Designing row filters for " << _profile->tiles_x << "x" << _profile->tiles_y << "...";
 
 	const int tiles_x = _profile->tiles_x, tiles_y = _profile->tiles_y;
 	const u16 filter_count = _profile->filter_count;
@@ -908,9 +908,9 @@ void MonoWriter::recurseCompress() {
 	const u16 tiles_x = _profile->tiles_x, tiles_y = _profile->tiles_y;
 
 	if (_profile->tiles_count < RECURSE_THRESH_COUNT) {
-		//CAT_INANE("2D") << "Stopping below recursive threshold for " << tiles_x << "x" << tiles_y << "...";
+		//CAT_INANE("Mono") << "Stopping below recursive threshold for " << tiles_x << "x" << tiles_y << "...";
 	} else {
-		//CAT_INANE("2D") << "Recursively compressing tiles for " << tiles_x << "x" << tiles_y << "...";
+		//CAT_INANE("Mono") << "Recursively compressing tiles for " << tiles_x << "x" << tiles_y << "...";
 
 		_profile->filter_encoder = new MonoWriter;
 
@@ -928,18 +928,18 @@ void MonoWriter::recurseCompress() {
 
 		// If it does not win over row filters,
 		if (recurse_entropy > _profile->row_filter_entropy) {
-			//CAT_INANE("2D") << "Recursive filter did not win over simple row filters: " << recurse_entropy << " > " << _profile->row_filter_entropy;
+			//CAT_INANE("Mono") << "Recursive filter did not win over simple row filters: " << recurse_entropy << " > " << _profile->row_filter_entropy;
 
 			delete _profile->filter_encoder;
 			_profile->filter_encoder = 0;
 		} else {
-			//CAT_INANE("2D") << "Recursive filter won over simple row filters: " << recurse_entropy << " <= " << _profile->row_filter_entropy;
+			//CAT_INANE("Mono") << "Recursive filter won over simple row filters: " << recurse_entropy << " <= " << _profile->row_filter_entropy;
 		}
 	}
 }
 
 void MonoWriter::designChaos() {
-	//CAT_INANE("2D") << "Designing chaos...";
+	//CAT_INANE("Mono") << "Designing chaos...";
 
 	EntropyEstimator ee[MAX_CHAOS_LEVELS];
 
@@ -1278,7 +1278,7 @@ u32 MonoWriter::process(const Parameters &params, const u16 *write_order) {
 	}
 	_tile_bits_field_bc = bits_bc;
 
-	//CAT_INANE("2D") << "!! Monochrome filter processing started for " << _params.size_x << "x" << _params.size_y << " data matrix...";
+	//CAT_INANE("Mono") << "!! Monochrome filter processing started for " << _params.size_x << "x" << _params.size_y << " data matrix...";
 
 	// Try to reuse the same profile object
 	MonoWriterProfile *profile = new MonoWriterProfile;
