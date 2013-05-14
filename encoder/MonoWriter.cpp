@@ -965,11 +965,6 @@ void MonoWriter::designChaos() {
 		// For each row,
 		const u8 *residuals = _profile->residuals.get();
 		for (u16 y = 0; y < _params.size_y; ++y) {
-			// TODO: This currently does not zero mask-skipped tiles.  I'm not
-			// sure it really matters much for compression performance.  The
-			// effect is that chaos residual scores for masked tiles are left
-			// alone from the previous row and may affect the next row somehow.
-
 			// If random write order,
 			if (order) {
 				u16 x;
@@ -1479,16 +1474,21 @@ int MonoWriter::writeRowHeader(u16 y, ImageWriter &writer) {
 	// If at the start of a tile row,
 	const u16 tile_mask_y = _profile->tile_size_y - 1;
 	if ((y & tile_mask_y) == 0) {
-		// TODO: Clear chaos for skipped tiles from previous row
-
-		// Clear tile seen
-		_tile_seen.fill_00();
-
 		// Calculate tile y-coordinate
 		u16 ty = y >> _profile->tile_bits_y;
 
 		// If filter encoder is used instead of row filters,
 		if (_profile->filter_encoder) {
+			// After the first row,
+			if (y > 0) {
+				// For each pixel in seen row,
+				for (u16 tx = 0; tx < _profile->tiles_x; ++tx) {
+					if (!_tile_seen[tx]) {
+						_profile->filter_encoder->zero(tx, ty);
+					}
+				}
+			}
+
 			// Recurse start row
 			bits += _profile->filter_encoder->writeRowHeader(ty, writer);
 		} else {
@@ -1502,6 +1502,9 @@ int MonoWriter::writeRowHeader(u16 y, ImageWriter &writer) {
 			// Clear prev filter
 			_prev_filter = 0;
 		}
+
+		// Clear tile seen
+		_tile_seen.fill_00();
 
 #ifdef CAT_DEBUG
 		// After the first row,

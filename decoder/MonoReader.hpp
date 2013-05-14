@@ -89,26 +89,25 @@ public:
 	};
 
 protected:
-	static const u8 READ_TILE = 255;
-
 	Parameters _params;
 
 	u32 _untouched_bits;				// Bits per pixel when skipping decoder
 
 	SmartArray<u8> _tiles;
-	u8 * CAT_RESTRICT _tiles_row;
 	u16 _tile_size_x, _tile_size_y;
 	u16 _tile_bits_x, _tile_bits_y;
 	u16 _tile_mask_x, _tile_mask_y;
 	u16 _tiles_x, _tiles_y;
 
-	u8 _palette[MAX_PALETTE];
+	u8 _palette[MAX_FILTERS];
 	MonoFilterFuncs _sf[MAX_FILTERS];
-	int _normal_filter_count, _sympal_filter_count, _filter_count;
+	int _filter_count;
 
 	MonoReader * CAT_RESTRICT _filter_decoder;
 	u8 _row_filter, _prev_filter;
 	EntropyDecoder<MAX_FILTERS, ZRLE_SYMS> _row_filter_decoder;
+
+	SmartArray<MonoFilterFuncs> _filter_row;
 
 	MonoChaos _chaos;
 	EntropyDecoder<MAX_SYMS, ZRLE_SYMS> _decoder[MAX_CHAOS_LEVELS];
