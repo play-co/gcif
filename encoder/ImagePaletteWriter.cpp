@@ -142,6 +142,8 @@ void ImagePaletteWriter::generateImage() {
 }
 
 void ImagePaletteWriter::optimizeImage() {
+	CAT_INANE("Palette") << "Optimizing palette...";
+
 	_optimizer.process(_image.get(), _size_x, _size_y, _palette_size,
 		PaletteOptimizer::MaskDelegate::FromMember<ImagePaletteWriter, &ImagePaletteWriter::IsMasked>(this));
 
@@ -168,6 +170,8 @@ void ImagePaletteWriter::optimizeImage() {
 }
 
 void ImagePaletteWriter::generateMonoWriter() {
+	CAT_INANE("Palette") << "Compressing index matrix...";
+
 	MonoWriter::Parameters params;
 
 	params.knobs = _knobs;

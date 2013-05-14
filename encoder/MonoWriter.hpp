@@ -266,10 +266,8 @@ class MonoWriterProfile {
 	u16 tile_bits_x, tile_bits_y;			// Number of bits in size
 	u16 tile_size_x, tile_size_y;			// Size of tile
 
-	CAT_INLINE u8 getTile(u16 x, u16 y) {
-		x >>= tile_bits_x;
-		y >>= tile_bits_y;
-		return tiles[x + y * tiles_x];
+	CAT_INLINE u8 getTile(u16 tx, u16 ty) {
+		return tiles[tx + ty * tiles_x];
 	}
 
 	// Residuals

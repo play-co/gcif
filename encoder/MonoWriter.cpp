@@ -973,7 +973,7 @@ void MonoWriter::designChaos() {
 			if (order) {
 				u16 x;
 				while ((x = *order++) != ORDER_SENTINEL) {
-					const u8 f = _profile->getTile(x, y);
+					const u8 f = _profile->getTile(x >> _profile->tile_bits_x, y >> _profile->tile_bits_y);
 
 					CAT_DEBUG_ENFORCE(f < _profile->filter_count);
 
@@ -997,7 +997,7 @@ void MonoWriter::designChaos() {
 			} else {
 				// For each column,
 				for (u16 x = 0; x < _params.size_x; ++x, ++residuals) {
-					const u8 f = _profile->getTile(x, y);
+					const u8 f = _profile->getTile(x >> _profile->tile_bits_x, y >> _profile->tile_bits_y);
 
 					CAT_DEBUG_ENFORCE(f < _profile->filter_count);
 
@@ -1054,7 +1054,7 @@ void MonoWriter::initializeEncoders() {
 		if (order) {
 			u16 x;
 			while ((x = *order++) != ORDER_SENTINEL) {
-				const u8 f = _profile->getTile(x, y);
+				const u8 f = _profile->getTile(x >> _profile->tile_bits_x, y >> _profile->tile_bits_y);
 
 				CAT_DEBUG_ENFORCE(f < _profile->filter_count);
 
@@ -1078,7 +1078,7 @@ void MonoWriter::initializeEncoders() {
 		} else {
 			// For each column,
 			for (u16 x = 0; x < _params.size_x; ++x, ++residuals) {
-				const u8 f = _profile->getTile(x, y);
+				const u8 f = _profile->getTile(x >> _profile->tile_bits_x, y >> _profile->tile_bits_y);
 
 				CAT_DEBUG_ENFORCE(f < _profile->filter_count);
 
@@ -1212,7 +1212,7 @@ u32 MonoWriter::simulate() {
 		if (order) {
 			u16 x;
 			while ((x = *order++) != ORDER_SENTINEL) {
-				const u8 f = _profile->getTile(x, y);
+				const u8 f = _profile->getTile(x >> _profile->tile_bits_x, y >> _profile->tile_bits_y);
 
 				CAT_DEBUG_ENFORCE(f < _profile->filter_count);
 
@@ -1236,7 +1236,7 @@ u32 MonoWriter::simulate() {
 		} else {
 			// For each column,
 			for (u16 x = 0; x < _params.size_x; ++x, ++residuals) {
-				const u8 f = _profile->getTile(x, y);
+				const u8 f = _profile->getTile(x >> _profile->tile_bits_x, y >> _profile->tile_bits_y);
 
 				CAT_DEBUG_ENFORCE(f < _profile->filter_count);
 
