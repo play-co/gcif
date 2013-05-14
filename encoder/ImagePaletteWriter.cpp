@@ -241,12 +241,12 @@ void ImagePaletteWriter::writePixels(ImageWriter &writer) {
 	for (int y = 0; y < _size_y; ++y) {
 		_mono_writer.writeRowHeader(y, writer);
 
-		DESYNC(0, y);
-
 		for (int x = 0; x < _size_x; ++x) {
-			_mono_writer.write(x, y, writer);
-
-			DESYNC(x, y);
+			if (IsMasked(x, y)) {
+				_mono_writer.zero(x, y);
+			} else {
+				_mono_writer.write(x, y, writer);
+			}
 		}
 	}
 }

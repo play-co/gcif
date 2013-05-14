@@ -545,8 +545,6 @@ void ImageRGBAWriter::designChaos() {
 		// For each row,
 		const u8 *residuals = _residuals.get();
 		for (int y = 0; y < _size_y; ++y) {
-			_chaos.startRow();
-
 			// For each column,
 			for (int x = 0; x < _size_x; ++x) {
 				// If masked,
@@ -659,8 +657,6 @@ void ImageRGBAWriter::initializeEncoders() {
 	// For each row,
 	const u8 *residuals = _residuals.get();
 	for (int y = 0; y < _size_y; ++y) {
-		_chaos.startRow();
-
 		// For each column,
 		for (int x = 0; x < _size_x; ++x) {
 			// If masked,
@@ -838,8 +834,6 @@ bool ImageRGBAWriter::writePixels(ImageWriter &writer) {
 
 	// For each scanline,
 	for (u16 y = 0; y < _size_y; ++y) {
-		_chaos.startRow();
-
 		// If at the start of a tile row,
 		if ((y & tile_mask_y) == 0) {
 			_seen_filter.fill_00();

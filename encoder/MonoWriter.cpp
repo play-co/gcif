@@ -768,6 +768,9 @@ void MonoWriter::generateWriteOrder() {
 	// Initialize tile seen array
 	_tile_seen.resize(_profile->tiles_x);
 
+	// Clear tile write order
+	_tile_write_order.clear();
+
 	// Generate write order data for recursive operation
 	const u16 tile_bits_x = _profile->tile_bits_x;
 	const u16 tile_mask_y = _profile->tile_size_y - 1;
@@ -823,8 +826,6 @@ void MonoWriter::designRowFilters() {
 
 	const int tiles_x = _profile->tiles_x, tiles_y = _profile->tiles_y;
 	const u16 filter_count = _profile->filter_count;
-
-	_tile_write_order.clear();
 
 	u32 total_entropy;
 	EntropyEstimator ee;
@@ -964,8 +965,6 @@ void MonoWriter::designChaos() {
 		// For each row,
 		const u8 *residuals = _profile->residuals.get();
 		for (u16 y = 0; y < _params.size_y; ++y) {
-			_profile->chaos.startRow();
-
 			// TODO: This currently does not zero mask-skipped tiles.  I'm not
 			// sure it really matters much for compression performance.  The
 			// effect is that chaos residual scores for masked tiles are left
@@ -1050,8 +1049,6 @@ void MonoWriter::initializeEncoders() {
 	// For each row,
 	const u8 *residuals = _profile->residuals.get();
 	for (int y = 0; y < _params.size_y; ++y) {
-		_profile->chaos.startRow();
-
 		// If random write order,
 		if (order) {
 			u16 x;
@@ -1208,8 +1205,6 @@ u32 MonoWriter::simulate() {
 
 	// For each row,
 	for (u16 y = 0; y < _params.size_y; ++y) {
-		_profile->chaos.startRow();
-
 		// If random write order,
 		if (order) {
 			u16 x;
@@ -1480,12 +1475,11 @@ int MonoWriter::writeRowHeader(u16 y, ImageWriter &writer) {
 
 	int bits = 0;
 
-	// Reset chaos bin subsystem
-	_profile->chaos.startRow();
-
 	// If at the start of a tile row,
 	const u16 tile_mask_y = _profile->tile_size_y - 1;
 	if ((y & tile_mask_y) == 0) {
+		// TODO: Clear chaos for skipped tiles from previous row
+
 		// Clear tile seen
 		_tile_seen.fill_00();
 
@@ -1523,6 +1517,14 @@ int MonoWriter::writeRowHeader(u16 y, ImageWriter &writer) {
 	return bits;
 }
 
+void MonoWriter::zero(u16 x, u16 y) {
+	CAT_DEBUG_ENFORCE(_params.mask(x, y));
+
+	_profile->chaos.zero(x);
+
+	DESYNC(x, y);
+}
+
 int MonoWriter::write(u16 x, u16 y, ImageWriter &writer) {
 	// If skipping encoder,
 	if (_untouched_bits > 0) {
@@ -1533,9 +1535,7 @@ int MonoWriter::write(u16 x, u16 y, ImageWriter &writer) {
 	int overhead_bits = 0, data_bits = 0;
 
 	CAT_DEBUG_ENFORCE(x < _params.size_x && y < _params.size_y);
-
 	CAT_DEBUG_ENFORCE(!_params.mask(x, y));
-
 	CAT_DEBUG_ENFORCE(!_pixel_write_order || *_pixel_write_order++ == x);
 
 	// Calculate tile coordinates
@@ -1580,7 +1580,7 @@ int MonoWriter::write(u16 x, u16 y, ImageWriter &writer) {
 	}
 
 	// If using sympal,
-	if (f >= _profile->normal_filter_count) {
+	if (_profile->filter_indices[f] >= SF_COUNT) {
 		_profile->chaos.zero(x);
 	} else {
 		// Look up residual sym

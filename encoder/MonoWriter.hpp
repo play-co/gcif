@@ -240,6 +240,9 @@ public:
 	// Write a symbol
 	int write(u16 x, u16 y, ImageWriter &writer); // Returns bits used
 
+	// Indicate a masked symbol
+	void zero(u16 x, u16 y);
+
 	void dumpStats();
 };
 

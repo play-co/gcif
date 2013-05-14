@@ -247,7 +247,7 @@ protected:
 	u8 _table[TABLE_SIZE];
 
 	SmartArray<u8> _row;	// Residual scores from last row
-	u8 _prev;				// Last residual score
+	u8 *_pixels;			// = &_row[1]
 
 public:
 	CAT_INLINE MonoChaos() {
@@ -265,24 +265,20 @@ public:
 		_row.fill_00();
 	}
 
-	CAT_INLINE void startRow() {
-		_prev = 0;
-	}
-
 	CAT_INLINE void zero(u16 x) {
-		_row[x] = _prev = 0;
+		_pixels[x] = 0;
 	}
 
 	CAT_INLINE u8 get(u16 x) {
-		return _table[_prev + (u16)_row[x]];
+		return _table[_pixels[x-1] + (u16)_pixels[x]];
 	}
 
 	CAT_INLINE void store256(u16 x, u8 r) {
-		_row[x] = _prev = ResidualScore256(r);
+		_pixels[x] = ResidualScore256(r);
 	}
 
 	CAT_INLINE void store(u16 x, u8 r, u16 num_syms) {
-		_row[x] = _prev = ResidualScore(r, num_syms);
+		_pixels[x] = ResidualScore(r, num_syms);
 	}
 };
 
@@ -316,7 +312,7 @@ protected:
 	u8 _table[TABLE_SIZE];
 
 	SmartArray<u8> _row;	// Residual scores from last row
-	u8 _prev[4];			// Last residual score
+	u8 *_pixels;			// = &_row[1]
 
 public:
 	CAT_INLINE RGBChaos() {
@@ -333,27 +329,23 @@ public:
 		_row.fill_00();
 	}
 
-	CAT_INLINE void startRow() {
-		*(u32*)_prev = 0;
-	}
-
 	CAT_INLINE void zero(u16 x) {
-		*(u32*)&_row[x << 2] = 0;
-		*(u32*)_prev = 0;
+		*(u32*)&_pixels[x << 2] = 0;
 	}
 
 	CAT_INLINE void get(u16 x, u8 & CAT_RESTRICT y, u8 & CAT_RESTRICT u, u8 & CAT_RESTRICT v) {
-		u8 * CAT_RESTRICT row = &_row[x << 2];
-		y = _table[_prev[0] + (u16)*row];
-		u = _table[_prev[1] + (u16)row[1]];
-		v = _table[_prev[2] + (u16)row[2]];
+		u8 * CAT_RESTRICT pixels = &_pixels[x << 2];
+		u32 pixel = *(u32*)pixels;
+		u32 last = *(u32*)(pixels - 4);
+
+		y = _table[(pixel >> 24) + (last >> 24)];
+		u = _table[(u8)(pixel >> 16) + (u16)(u8)(last >> 16)];
+		v = _table[(u16)(pixel + last)];
 	}
 
 	CAT_INLINE void store(u16 x, const u8 * CAT_RESTRICT yuv) {
-		u8 * CAT_RESTRICT row = &_row[x << 2];
-		row[0] = _prev[0] = ResidualScore(yuv[0]);
-		row[1] = _prev[1] = ResidualScore(yuv[1]);
-		row[2] = _prev[2] = ResidualScore(yuv[2]);
+		u32 * CAT_RESTRICT pixels = (u32 *)&_pixels[x << 2];
+		*pixels = (ResidualScore(yuv[0]) << 24) | (ResidualScore(yuv[1]) << 16) | ResidualScore(yuv[2]);
 	}
 };
 

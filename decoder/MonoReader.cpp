@@ -194,8 +194,6 @@ int MonoReader::readRowHeader(u16 y, ImageReader & CAT_RESTRICT reader) {
 		return GCIF_RE_OK;
 	}
 
-	_chaos.startRow();
-
 	// If at the start of a tile row,
 	if ((y & _tile_mask_y) == 0) {
 		// If using recursive decoder,
