@@ -1461,6 +1461,7 @@ void MonoWriter::initializeWriter() {
 	}
 
 #ifdef CAT_DEBUG
+	generateWriteOrder();
 	_next_write_tile_order = &_tile_write_order[0];
 #endif
 }
