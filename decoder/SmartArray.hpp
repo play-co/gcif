@@ -77,7 +77,7 @@ template<class T> class SmartArray {
 protected:
 	void alloc(int size) {
 		_data = aligned_malloc(size);
-		_alloc = _size = size;
+		_alloc = size;
 	}
 
 	void grow(int size) {
@@ -106,6 +106,8 @@ public:
 		} else if (size > _alloc) {
 			grow(size);
 		}
+
+		_size = size;
 	}
 
 	CAT_INLINE void fill_00() {
