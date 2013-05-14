@@ -824,6 +824,8 @@ void MonoWriter::designRowFilters() {
 	const int tiles_x = _profile->tiles_x, tiles_y = _profile->tiles_y;
 	const u16 filter_count = _profile->filter_count;
 
+	_tile_write_order.clear();
+
 	u32 total_entropy;
 	EntropyEstimator ee;
 	ee.init();
