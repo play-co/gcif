@@ -145,7 +145,7 @@ protected:
 		p[2] += pred[2];
 
 		// Read alpha pixel
-		p[3] = (u8)_a_decoder.read(x, y, reader);
+		p[3] = (u8)~_a_decoder.read(x, y, reader);
 
 		_chaos.store(x, YUV);
 	}
@@ -174,7 +174,7 @@ protected:
 		p[2] += pred[2];
 
 		// Read alpha pixel
-		p[3] = (u8)_a_decoder.read(x, y, reader);
+		p[3] = (u8)~_a_decoder.read(x, y, reader);
 
 		_chaos.store(x, YUV);
 	}

@@ -425,7 +425,7 @@ bool ImageRGBAWriter::compressAlpha() {
 	const u8 *rgba = _rgba;
 	for (int y = 0; y < _size_y; ++y) {
 		for (int x = 0; x < _size_x; ++x) {
-			*a++ = rgba[3];
+			*a++ = ~rgba[3]; // Same as 255 - a: Good default filter
 			rgba += 4;
 		}
 	}
