@@ -835,6 +835,8 @@ void MonoWriter::generateWriteOrder() {
 			// For each x,
 			u16 x;
 			while ((x = *order++) != ORDER_SENTINEL) {
+				CAT_DEBUG_ENFORCE(!_params.mask(x, y));
+
 				// If tile seen for the first time,
 				u16 tx = x >> tile_bits_x;
 				if (_tile_seen[tx] == 0) {
@@ -1556,6 +1558,14 @@ int MonoWriter::writeRowHeader(u16 y, ImageWriter &writer) {
 		}
 #endif
 	}
+
+#ifdef CAT_DEBUG
+	if (_pixel_write_order) {
+		if (y > 0) {
+			_pixel_write_order++;
+		}
+	}
+#endif
 
 	DESYNC(0, y);
 
