@@ -764,6 +764,48 @@ void MonoWriter::optimizeTiles() {
 	memcpy(_profile->filter_indices, filter_indices, sizeof(_profile->filter_indices));
 }
 
+void MonoWriter::generateWriteOrder(u16 size_x, u16 size_y, MaskDelegate mask, u16 tile_shift_bits, std::vector<u16> &order) {
+	// Ensure that vector is clear
+	order.clear();
+
+	// Generate write order data for recursive operation
+	const u16 tile_bits_x = tile_shift_bits;
+	const u16 tile_mask_y = (1 << tile_bits_x) - 1;
+	const u16 tiles_x = (size_x + tile_mask_y) >> tile_bits_x;
+
+	SmartArray<u8> seen;
+	seen.resize(tiles_x);
+
+	// For each pixel row,
+	for (u16 y = 0; y < size_y; ++y) {
+		// If starting a tile row,
+		if ((y & tile_mask_y) == 0) {
+			seen.fill_00();
+
+			// After the first tile row,
+			if (y > 0) {
+				order.push_back(ORDER_SENTINEL);
+			}
+		}
+
+		// For each pixel,
+		for (u16 x = 0; x < size_x; ++x) {
+			// If pixel is not masked out,
+			if (!mask(x, y)) {
+				// If tile seen for the first time,
+				u16 tx = x >> tile_bits_x;
+				if (seen[tx] == 0) {
+					seen[tx] = 1;
+
+					order.push_back(tx);
+				}
+			}
+		}
+	}
+
+	order.push_back(ORDER_SENTINEL);
+}
+
 void MonoWriter::generateWriteOrder() {
 	// Initialize tile seen array
 	_tile_seen.resize(_profile->tiles_x);
@@ -1338,8 +1380,8 @@ u32 MonoWriter::process(const Parameters &params, const u16 *write_order) {
 	return best_entropy;
 }
 
-bool MonoWriter::init(const Parameters &params) {
-	process(params);
+bool MonoWriter::init(const Parameters &params, const u16 *write_order) {
+	process(params, write_order);
 
 	return true;
 }

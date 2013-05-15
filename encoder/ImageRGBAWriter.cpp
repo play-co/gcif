@@ -431,7 +431,6 @@ bool ImageRGBAWriter::compressAlpha() {
 	}
 
 	MonoWriter::Parameters params;
-
 	params.knobs = _knobs;
 	params.data = _alpha.get();
 	params.num_syms = 256;
@@ -588,9 +587,16 @@ void ImageRGBAWriter::designChaos() {
 	_chaos.init(best_chaos_levels, _size_x);
 }
 
+void ImageRGBAWriter::generateWriteOrder() {
+	CAT_DEBUG_ENFORCE(_tile_bits_x == _tile_bits_y);
+
+	MonoWriter::generateWriteOrder(_tiles_x, _tiles_y,
+		MonoWriter::MaskDelegate::FromMember<ImageRGBAWriter, &ImageRGBAWriter::IsMasked>(this),
+		_tile_bits_x, _filter_order);
+}
+
 bool ImageRGBAWriter::compressSF() {
 	MonoWriter::Parameters params;
-
 	params.knobs = _knobs;
 	params.data = _sf_tiles.get();
 	params.num_syms = _sf_count;
@@ -610,7 +616,7 @@ bool ImageRGBAWriter::compressSF() {
 	params.award_count = 4;
 
 	CAT_INANE("RGBA") << "Compressing spatial filter matrix...";
-	if (!_sf_encoder.init(params)) {
+	if (!_sf_encoder.init(params, &_filter_order[0])) {
 		return false;
 	}
 
@@ -621,7 +627,6 @@ bool ImageRGBAWriter::compressSF() {
 
 bool ImageRGBAWriter::compressCF() {
 	MonoWriter::Parameters params;
-
 	params.knobs = _knobs;
 	params.data = _cf_tiles.get();
 	params.num_syms = CF_COUNT;
@@ -641,7 +646,7 @@ bool ImageRGBAWriter::compressCF() {
 	params.award_count = 4;
 
 	CAT_INANE("RGBA") << "Compressing color filter matrix...";
-	if (!_cf_encoder.init(params)) {
+	if (!_cf_encoder.init(params, &_filter_order[0])) {
 		return false;
 	}
 
@@ -696,10 +701,14 @@ void ImageRGBAWriter::initializeEncoders() {
 }
 
 bool ImageRGBAWriter::IsMasked(u16 x, u16 y) {
+	CAT_DEBUG_ENFORCE(x < _size_x && y < _size_y);
+
 	return _mask->masked(x, y) || _lz->visited(x, y);
 }
 
 bool ImageRGBAWriter::IsSFMasked(u16 x, u16 y) {
+	CAT_DEBUG_ENFORCE(x < _tiles_x && y < _tiles_y);
+
 	return _cf_tiles[x + _tiles_x * y] == MASK_TILE;
 }
 
@@ -739,6 +748,7 @@ int ImageRGBAWriter::init(const u8 *rgba, int size_x, int size_y, ImageMaskWrite
 	computeResiduals();
 	compressAlpha();
 	designChaos();
+	generateWriteOrder();
 	compressSF();
 	compressCF();
 	initializeEncoders();
@@ -852,6 +862,7 @@ bool ImageRGBAWriter::writePixels(ImageWriter &writer) {
 			// If masked,
 			if (IsMasked(x, y)) {
 				_chaos.zero(x);
+				_a_encoder.zero(x, y);
 			} else {
 				// If filter needs to be written,
 				u16 tx = x >> _tile_bits_x;

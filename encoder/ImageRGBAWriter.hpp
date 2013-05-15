@@ -97,6 +97,7 @@ protected:
 	SmartArray<u8> _sf_tiles;	// Filled with 0 for fully-masked tiles
 	SmartArray<u8> _cf_tiles;	// Set to MASK_TILE for fully-masked tiles
 	SmartArray<u8> _ecodes[3];	// Entropy temp workspace
+	std::vector<u16> _filter_order;
 
 	// Chosen spatial filter set
 	RGBAFilterFuncs _sf[MAX_FILTERS];
@@ -130,6 +131,7 @@ protected:
 	void computeResiduals();
 	bool compressAlpha();
 	void designChaos();
+	void generateWriteOrder();
 	bool compressSF();
 	bool compressCF();
 	void initializeEncoders();

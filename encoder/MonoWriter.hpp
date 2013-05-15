@@ -213,7 +213,7 @@ protected:
 	u32 simulate();
 
 	// Process parameters and come up with an encoding scheme
-	u32 process(const Parameters &params, const u16 *write_order = 0);
+	u32 process(const Parameters &params, const u16 *write_order);
 
 	// Initialize the write engine
 	void initializeWriter();
@@ -228,8 +228,11 @@ public:
 		cleanup();
 	}
 
+	// Generate write order to pass in
+	static void generateWriteOrder(u16 size_x, u16 size_y, MaskDelegate mask, u16 tile_shift_bits, std::vector<u16> &order);
+
 	// Generate writer from this configuration
-	bool init(const Parameters &params);
+	bool init(const Parameters &params, const u16 *write_order = 0);
 
 	// Write parameter tables for decoder
 	int writeTables(ImageWriter &writer);
