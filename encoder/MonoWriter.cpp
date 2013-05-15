@@ -1446,7 +1446,7 @@ int MonoWriter::writeTables(ImageWriter &writer) {
 		// Write row filter encoder overhead
 		Stats.filter_overhead_bits += _row_filter_encoder.writeTables(writer);
 
-		return GCIF_RE_OK;
+		return Stats.filter_overhead_bits;
 	}
 
 	// Enable encoders
@@ -1483,6 +1483,7 @@ int MonoWriter::writeTables(ImageWriter &writer) {
 		CAT_DEBUG_ENFORCE(SF_COUNT + MAX_PALETTE <= 128);
 
 		writer.writeBits(_profile->filter_count - SF_FIXED, 5);
+		Stats.basic_overhead_bits += 5;
 		for (int f = SF_FIXED, f_end = _profile->filter_count; f < f_end; ++f) {
 			writer.writeBits(_profile->filter_indices[f], 7);
 			Stats.basic_overhead_bits += 7;
@@ -1527,10 +1528,6 @@ void MonoWriter::initializeWriter() {
 	// Note: Not called if encoders are disabled
 
 	_profile->chaos.start();
-
-	if (!_profile->filter_encoder) {
-		_row_filter_encoder.reset();
-	}
 
 	for (int ii = 0, iiend = _profile->chaos.getBinCount(); ii < iiend; ++ii) {
 		_profile->encoder[ii].reset();
