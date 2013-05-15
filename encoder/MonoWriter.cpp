@@ -1075,6 +1075,8 @@ void MonoWriter::designChaos() {
 		}
 	}
 
+	best_chaos_levels = 8;
+
 	// Record the best option found
 	_profile->chaos.init(best_chaos_levels, _params.size_x);
 	_chaos_entropy = best_entropy;

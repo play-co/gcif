@@ -191,7 +191,7 @@ void ImageRGBAWriter::designFilters() {
 		float coverage_ratio = coverage / (float)total_score;
 
 		// If coverage is sufficient,
-		if (coverage_ratio >= 0.6) {
+		if (coverage_ratio >= 0.8) {
 			if (score / (float)total_score < 0.05) {
 				break;
 			}
@@ -576,12 +576,16 @@ void ImageRGBAWriter::designChaos() {
 			entropy += 3 * 5 * 256;
 		}
 
+		CAT_WARN("TEST") << entropy << " for " << chaos_levels;
+
 		// If this is the best chaos levels so far,
 		if (best_entropy > entropy) {
 			best_entropy = entropy;
 			best_chaos_levels = chaos_levels;
 		}
 	}
+
+	best_chaos_levels = 12;
 
 	// Record the best option found
 	_chaos.init(best_chaos_levels, _size_x);
@@ -940,20 +944,21 @@ void ImageRGBAWriter::write(ImageWriter &writer) {
 
 bool ImageRGBAWriter::dumpStats() {
 	CAT_INANE("stats") << "(RGBA Compress)     Basic Overhead : " <<  Stats.basic_overhead_bits << " bits (" << Stats.basic_overhead_bits/8 << " bytes, " << Stats.basic_overhead_bits * 100.f / Stats.rgba_bits << "% of RGBA)";
-	CAT_INANE("stats") << "(RGBA Compress) SF Choice Overhead : " <<  Stats.sf_choice_bits << " bits (" << Stats.sf_choice_bits/8 << " bytes, " << Stats.sf_choice_bits * 100.f / Stats.rgba_bits << "% of RGBA)";
-	CAT_INANE("stats") << "(RGBA Compress)  SF Table Overhead : " <<  Stats.sf_table_bits << " bits (" << Stats.sf_table_bits/8 << " bytes, " << Stats.sf_table_bits * 100.f / Stats.rgba_bits << "% of RGBA)";
-	CAT_INANE("stats") << "(RGBA Compress)  CF Table Overhead : " <<  Stats.cf_table_bits << " bits (" << Stats.cf_table_bits/8 << " bytes, " << Stats.cf_table_bits * 100.f / Stats.rgba_bits << "% of RGBA)";
-	CAT_INANE("stats") << "(RGBA Compress)   Y Table Overhead : " <<  Stats.y_table_bits << " bits (" << Stats.y_table_bits/8 << " bytes, " << Stats.y_table_bits * 100.f / Stats.rgba_bits << "% of RGBA)";
-	CAT_INANE("stats") << "(RGBA Compress)   U Table Overhead : " <<  Stats.u_table_bits << " bits (" << Stats.u_table_bits/8 << " bytes, " << Stats.u_table_bits * 100.f / Stats.rgba_bits << "% of RGBA)";
-	CAT_INANE("stats") << "(RGBA Compress)   V Table Overhead : " <<  Stats.v_table_bits << " bits (" << Stats.v_table_bits/8 << " bytes, " << Stats.v_table_bits * 100.f / Stats.rgba_bits << "% of RGBA)";
-	CAT_INANE("stats") << "(RGBA Compress)   A Table Overhead : " <<  Stats.a_table_bits << " bits (" << Stats.a_table_bits/8 << " bytes, " << Stats.a_table_bits * 100.f / Stats.rgba_bits << "% of RGBA)";
-	CAT_INANE("stats") << "(RGBA Compress)      SF Compressed : " <<  Stats.sf_bits << " bits (" << Stats.sf_bits/8 << " bytes, " << Stats.sf_bits * 100.f / Stats.rgba_bits << "% of RGBA)";
-	CAT_INANE("stats") << "(RGBA Compress)      CF Compressed : " <<  Stats.cf_bits << " bits (" << Stats.cf_bits/8 << " bytes, " << Stats.cf_bits * 100.f / Stats.rgba_bits << "% of RGBA)";
-	CAT_INANE("stats") << "(RGBA Compress)       Y Compressed : " <<  Stats.y_bits << " bits (" << Stats.y_bits/8 << " bytes, " << Stats.y_bits * 100.f / Stats.rgba_bits << "% of RGBA)";
-	CAT_INANE("stats") << "(RGBA Compress)       U Compressed : " <<  Stats.u_bits << " bits (" << Stats.u_bits/8 << " bytes, " << Stats.u_bits * 100.f / Stats.rgba_bits << "% of RGBA)";
-	CAT_INANE("stats") << "(RGBA Compress)       V Compressed : " <<  Stats.v_bits << " bits (" << Stats.v_bits/8 << " bytes, " << Stats.v_bits * 100.f / Stats.rgba_bits << "% of RGBA)";
-	CAT_INANE("stats") << "(RGBA Compress)       A Compressed : " <<  Stats.a_bits << " bits (" << Stats.a_bits/8 << " bytes, " << Stats.a_bits * 100.f / Stats.rgba_bits << "% of RGBA)";
-	CAT_INANE("stats") << "(RGBA Compress)  Overall RGBA Data : " <<  Stats.rgba_bits << " bits (" << Stats.rgba_bits/8 << " bytes, " << Stats.rgba_bits * 100.f / Stats.total_bits << "% of total)";
+	CAT_INANE("stats") << "(RGBA Compress) SF Choice Overhead : " << Stats.sf_choice_bits << " bits (" << Stats.sf_choice_bits/8 << " bytes, " << Stats.sf_choice_bits * 100.f / Stats.rgba_bits << "% of RGBA)";
+	CAT_INANE("stats") << "(RGBA Compress)  SF Table Overhead : " << Stats.sf_table_bits << " bits (" << Stats.sf_table_bits/8 << " bytes, " << Stats.sf_table_bits * 100.f / Stats.rgba_bits << "% of RGBA)";
+	CAT_INANE("stats") << "(RGBA Compress)  CF Table Overhead : " << Stats.cf_table_bits << " bits (" << Stats.cf_table_bits/8 << " bytes, " << Stats.cf_table_bits * 100.f / Stats.rgba_bits << "% of RGBA)";
+	CAT_INANE("stats") << "(RGBA Compress)     Chaos Overhead : " << _chaos.getBinCount() << " bins";
+	CAT_INANE("stats") << "(RGBA Compress)   Y Table Overhead : " << Stats.y_table_bits << " bits (" << Stats.y_table_bits/8 << " bytes, " << Stats.y_table_bits * 100.f / Stats.rgba_bits << "% of RGBA)";
+	CAT_INANE("stats") << "(RGBA Compress)   U Table Overhead : " << Stats.u_table_bits << " bits (" << Stats.u_table_bits/8 << " bytes, " << Stats.u_table_bits * 100.f / Stats.rgba_bits << "% of RGBA)";
+	CAT_INANE("stats") << "(RGBA Compress)   V Table Overhead : " << Stats.v_table_bits << " bits (" << Stats.v_table_bits/8 << " bytes, " << Stats.v_table_bits * 100.f / Stats.rgba_bits << "% of RGBA)";
+	CAT_INANE("stats") << "(RGBA Compress)   A Table Overhead : " << Stats.a_table_bits << " bits (" << Stats.a_table_bits/8 << " bytes, " << Stats.a_table_bits * 100.f / Stats.rgba_bits << "% of RGBA)";
+	CAT_INANE("stats") << "(RGBA Compress)      SF Compressed : " << Stats.sf_bits << " bits (" << Stats.sf_bits/8 << " bytes, " << Stats.sf_bits * 100.f / Stats.rgba_bits << "% of RGBA)";
+	CAT_INANE("stats") << "(RGBA Compress)      CF Compressed : " << Stats.cf_bits << " bits (" << Stats.cf_bits/8 << " bytes, " << Stats.cf_bits * 100.f / Stats.rgba_bits << "% of RGBA)";
+	CAT_INANE("stats") << "(RGBA Compress)       Y Compressed : " << Stats.y_bits << " bits (" << Stats.y_bits/8 << " bytes, " << Stats.y_bits * 100.f / Stats.rgba_bits << "% of RGBA)";
+	CAT_INANE("stats") << "(RGBA Compress)       U Compressed : " << Stats.u_bits << " bits (" << Stats.u_bits/8 << " bytes, " << Stats.u_bits * 100.f / Stats.rgba_bits << "% of RGBA)";
+	CAT_INANE("stats") << "(RGBA Compress)       V Compressed : " << Stats.v_bits << " bits (" << Stats.v_bits/8 << " bytes, " << Stats.v_bits * 100.f / Stats.rgba_bits << "% of RGBA)";
+	CAT_INANE("stats") << "(RGBA Compress)       A Compressed : " << Stats.a_bits << " bits (" << Stats.a_bits/8 << " bytes, " << Stats.a_bits * 100.f / Stats.rgba_bits << "% of RGBA)";
+	CAT_INANE("stats") << "(RGBA Compress)  Overall RGBA Data : " << Stats.rgba_bits << " bits (" << Stats.rgba_bits/8 << " bytes, " << Stats.rgba_bits * 100.f / Stats.total_bits << "% of total)";
 	CAT_INANE("stats") << "(RGBA Compress)   RGBA write count : " << Stats.rgba_count << " pixels for " << _size_x << "x" << _size_y << " pixel image (" << Stats.rgba_count * 100.f / (_size_x * _size_y) << " % of total)";
 	CAT_INANE("stats") << "(RGBA Compress)    RGBA Compression Ratio : " << Stats.rgba_compression_ratio << ":1 compression ratio";
 	CAT_INANE("stats") << "(RGBA Compress)              Overall Size : " << Stats.total_bits << " bits (" << Stats.total_bits/8 << " bytes)";
