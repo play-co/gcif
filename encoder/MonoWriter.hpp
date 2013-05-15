@@ -142,7 +142,7 @@ public:
 protected:
 	static const int MAX_PASSES = 4;
 	static const int MAX_ROW_PASSES = 4;
-	static const int RECURSE_THRESH_COUNT = 256*256;
+	static const int TILE_THRESH = 256*256;
 
 	static const u8 UNUSED_SYMPAL = 255;
 	static const int ORDER_SENTINEL = 0xffff;
@@ -152,26 +152,33 @@ protected:
 	const u16 *_pixel_write_order;			// Write order for input pixels
 	std::vector<u16> _tile_write_order;		// Write order for output tiles
 #ifdef CAT_DEBUG
-	const u16 *_next_write_tile_order;
+	const u16 *_next_write_tile_order;		// For validating write order
 #endif
 
-	// Selected write profile
-	MonoWriterProfile *_profile;
+	MonoWriterProfile *_profile;			// Selected write profile
 
-	// Temporary workspace
-	int _tile_bits_field_bc;
+	// Workspace
+	int _tile_bits_field_bc;				// Bits for tile bits field
 	u8 _sympal_filter_map[MAX_PALETTE];		// Filter index for this palette entry
 	u32 _chaos_entropy;						// Entropy after chaos applied
 	u8 _prev_filter;						// Previous filter for row encoding
 	PaletteOptimizer _optimizer;			// Optimizer for filter indices
 	u32 _residual_entropy;					// Calculated entropy of residuals
-	SmartArray<u8> _ecodes;
-	SmartArray<u8> _tile_seen;
-	int _untouched_bits;					// Encoding entirely disabled > 0
-	SmartArray<u8> _replay;
+	SmartArray<u8> _ecodes;					// Used when evaluating options
+	SmartArray<u8> _tile_seen;				// Tile seen yet during a tile row
+	SmartArray<u8> _replay;					// Used during computing residuals
+
+	// Row filter mode
+	SmartArray<u8> _row_filters;			// Selected row filters
+	u32 _row_filter_entropy;				// Calculated entropy from using row filters
+	EntropyEncoder<MAX_SYMS, ZRLE_SYMS> _row_filter_encoder;
+	bool _use_row_filters;					// Using row filters?
 
 	// Mask function for child instance
 	bool IsMasked(u16 x, u16 y);
+
+	// Try out a simple row filter for input data
+	void designRowFilters();
 
 	// Initializes the _mask matrix to easily look up entirely masked out tiles
 	void maskTiles();
@@ -197,9 +204,6 @@ protected:
 	// Optimize the spatial filter sorting
 	void optimizeTiles();
 
-	// Simple predictive row filter for tiles
-	void designRowFilters();
-
 	// Compress the tile data if possible
 	void recurseCompress();
 
@@ -211,9 +215,6 @@ protected:
 
 	// Simulate number of bits required to encode the data this way
 	u32 simulate();
-
-	// Process parameters and come up with an encoding scheme
-	u32 process(const Parameters &params, const u16 *write_order);
 
 	// Initialize the write engine
 	void initializeWriter();
@@ -232,7 +233,7 @@ public:
 	static void generateWriteOrder(u16 size_x, u16 size_y, MaskDelegate mask, u16 tile_shift_bits, std::vector<u16> &order);
 
 	// Generate writer from this configuration
-	bool init(const Parameters &params, const u16 *write_order = 0);
+	void init(const Parameters &params, const u16 *write_order = 0);
 
 	// Write parameter tables for decoder
 	int writeTables(ImageWriter &writer);
@@ -291,12 +292,6 @@ class MonoWriterProfile {
 
 	// Filter encoder
 	MonoWriter *filter_encoder;				// Child instance
-	SmartArray<u8> tile_row_filters;
-	u32 row_filter_entropy;					// Calculated entropy from using row filters
-	// TODO: Add a write order matrix here for tiles
-
-	// Filter encoder for row mode
-	EntropyEncoder<MAX_FILTERS, ZRLE_SYMS> row_filter_encoder;
 
 	// Chaos levels
 	MonoChaos chaos;						// Chaos bin lookup table
