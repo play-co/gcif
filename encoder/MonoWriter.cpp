@@ -1068,6 +1068,8 @@ void MonoWriter::designChaos() {
 			entropy += 5 * _params.num_syms;
 		}
 
+		CAT_WARN("TEST") << entropy << " for " << chaos_levels;
+
 		// If this is the best chaos levels so far,
 		if (best_entropy > entropy) {
 			best_entropy = entropy;
@@ -1075,7 +1077,7 @@ void MonoWriter::designChaos() {
 		}
 	}
 
-	best_chaos_levels = 8;
+	best_chaos_levels = 16;
 
 	// Record the best option found
 	_profile->chaos.init(best_chaos_levels, _params.size_x);

@@ -87,7 +87,13 @@ class ImagePaletteWriter {
 public:
 	struct _Stats {
 		int palette_size;
-		int overhead_bits;
+		int pal_overhead_bits, pal_table_bits, mono_overhead_bits, mono_bits;
+		int total_bits, pixel_count;
+		int file_bits;
+
+		int original_bits;
+		double pixel_compression_ratio;
+		double file_compression_ratio;
 	} Stats;
 #endif
 

@@ -237,46 +237,32 @@ void ImagePaletteWriter::write(ImageWriter &writer) {
 	}
 }
 
-void ImagePaletteWriter::writePixels(ImageWriter &writer) {
-	for (int y = 0; y < _size_y; ++y) {
-		_mono_writer.writeRowHeader(y, writer);
-
-		for (int x = 0; x < _size_x; ++x) {
-			if (IsMasked(x, y)) {
-				_mono_writer.zero(x, y);
-			} else {
-				_mono_writer.write(x, y, writer);
-			}
-		}
-	}
-}
-
 void ImagePaletteWriter::writeTable(ImageWriter &writer) {
-	int bits = 1;
+	int pal_bits = 1, pal_table_bits = 0, mono_bits = 0;
 
 	CAT_DEBUG_ENFORCE(PALETTE_MAX <= 256);
 
 	writer.writeBits(_palette_size - 1, 8);
-	bits += 8;
+	pal_bits += 8;
 
 	// Write palette index for mask
 	writer.writeBits(_masked_palette, 8);
-	bits += 8;
+	pal_bits += 8;
 
 	// If palette is small,
 	if (_palette_size < 40) {
 		writer.writeBit(0);
-		++bits;
+		++pal_bits;
 
 		for (int ii = 0; ii < _palette_size; ++ii) {
 			u32 color = getLE(_palette[ii]);
 
 			writer.writeWord(color);
-			bits += 32;
+			pal_bits += 32;
 		}
 	} else {
 		writer.writeBit(1);
-		++bits;
+		++pal_bits;
 
 		// Find best color filter
 		int bestCF = 0;
@@ -318,10 +304,10 @@ void ImagePaletteWriter::writeTable(ImageWriter &writer) {
 		if (bestCF >= 15) {
 			writer.writeBits(15, 4);
 			writer.writeBit(bestCF - 15);
-			bits += 5;
+			pal_bits += 5;
 		} else {
 			writer.writeBits(bestCF, 4);
-			bits += 4;
+			pal_bits += 4;
 		}
 
 		RGB2YUVFilterFunction bestFilter = RGB2YUV_FILTERS[bestCF];
@@ -350,7 +336,7 @@ void ImagePaletteWriter::writeTable(ImageWriter &writer) {
 
 		encoder.finalize();
 
-		bits += encoder.writeTables(writer);
+		pal_table_bits += encoder.writeTables(writer);
 
 		// Fire
 		for (int ii = 0; ii < _palette_size; ++ii) {
@@ -366,23 +352,52 @@ void ImagePaletteWriter::writeTable(ImageWriter &writer) {
 			bestFilter(rgb, yuva);
 			yuva[3] = 255 - (u8)(color >> 24);
 
-			bits += encoder.write(yuva[0], writer);
-			bits += encoder.write(yuva[1], writer);
-			bits += encoder.write(yuva[2], writer);
-			bits += encoder.write(yuva[3], writer);
+			pal_bits += encoder.write(yuva[0], writer);
+			pal_bits += encoder.write(yuva[1], writer);
+			pal_bits += encoder.write(yuva[2], writer);
+			pal_bits += encoder.write(yuva[3], writer);
 		}
 	}
 
 	DESYNC_TABLE();
 
 	// Write monochrome tables
-	bits += _mono_writer.writeTables(writer);
+	mono_bits += _mono_writer.writeTables(writer);
 
 	DESYNC_TABLE();
 
 #ifdef CAT_COLLECT_STATS
 	Stats.palette_size = _palette_size;
-	Stats.overhead_bits = bits;
+	Stats.pal_overhead_bits = pal_bits;
+	Stats.pal_table_bits = pal_table_bits;
+	Stats.mono_overhead_bits = mono_bits;
+#endif
+}
+
+void ImagePaletteWriter::writePixels(ImageWriter &writer) {
+	int bits = 0, pixels = 0;
+
+	for (int y = 0; y < _size_y; ++y) {
+		bits += _mono_writer.writeRowHeader(y, writer);
+
+		for (int x = 0; x < _size_x; ++x) {
+			if (IsMasked(x, y)) {
+				_mono_writer.zero(x, y);
+			} else {
+				bits += _mono_writer.write(x, y, writer);
+				++pixels;
+			}
+		}
+	}
+
+#ifdef CAT_COLLECT_STATS
+	Stats.mono_bits = bits;
+	Stats.total_bits = Stats.pal_overhead_bits + Stats.pal_table_bits + Stats.mono_overhead_bits + bits;
+	Stats.pixel_count = pixels;
+	Stats.file_bits = Stats.total_bits + _lz->Stats.huff_bits + _mask->Stats.compressedDataBits;
+	Stats.original_bits = Stats.pixel_count * 32;
+	Stats.pixel_compression_ratio = Stats.original_bits / (float)Stats.total_bits;
+	Stats.file_compression_ratio = _size_x * _size_y * 32 / (float)Stats.file_bits;
 #endif
 }
 
@@ -393,8 +408,14 @@ bool ImagePaletteWriter::dumpStats() {
 	if (!enabled()) {
 		CAT_INANE("stats") << "(Palette)   Disabled.";
 	} else {
-		CAT_INANE("stats") << "(Palette)   Palette size : " << Stats.palette_size << " colors";
-		CAT_INANE("stats") << "(Palette)       Overhead : " << Stats.overhead_bits / 8 << " bytes";
+		CAT_INANE("stats") << "(Palette compress)      Palette Size : " << Stats.palette_size << " colors";
+		CAT_INANE("stats") << "(Palette compress)     Palette Table : " << Stats.pal_table_bits / 8 << " bytes (" << Stats.pal_table_bits * 100.f / Stats.total_bits << "% total)";
+		CAT_INANE("stats") << "(Palette compress)  Palette Overhead : " << Stats.pal_overhead_bits / 8 << " bytes (" << Stats.pal_overhead_bits * 100.f / Stats.total_bits << "% total)";
+		CAT_INANE("stats") << "(Palette compress)  Monochrome Table : " << Stats.mono_overhead_bits / 8 << " bytes (" << Stats.mono_overhead_bits * 100.f / Stats.total_bits << "% total)";
+		CAT_INANE("stats") << "(Palette compress)            Pixels : " << Stats.mono_bits / 8 << " bytes (" << Stats.mono_bits * 100.f / Stats.total_bits << "% total)";
+		CAT_INANE("stats") << "(Palette compress) Compression Ratio : " << Stats.pixel_compression_ratio << ":1 RGBA pixels";
+		CAT_INANE("stats") << "(Palette compress)  Total Pixel Data : " << Stats.total_bits/8 << " bytes (" << Stats.total_bits * 100.f / Stats.file_bits << " % of file)";
+		CAT_INANE("stats") << "(Palette compress)        File Ratio : " << Stats.file_compression_ratio << ":1";
 	}
 
 	return true;
