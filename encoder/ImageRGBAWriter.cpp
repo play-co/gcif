@@ -590,7 +590,7 @@ void ImageRGBAWriter::designChaos() {
 void ImageRGBAWriter::generateWriteOrder() {
 	CAT_DEBUG_ENFORCE(_tile_bits_x == _tile_bits_y);
 
-	MonoWriter::generateWriteOrder(_tiles_x, _tiles_y,
+	MonoWriter::generateWriteOrder(_size_x, _size_y,
 		MonoWriter::MaskDelegate::FromMember<ImageRGBAWriter, &ImageRGBAWriter::IsMasked>(this),
 		_tile_bits_x, _filter_order);
 }
