@@ -1097,6 +1097,7 @@ void MonoWriter::designChaos() {
 		const u16 *order = _pixel_write_order;
 		const u8 *residuals = _profile->residuals.get();
 		const u8 *tiles = _profile->tiles.get();
+		const u16 tile_mask_y = _profile->tile_size_y - 1;
 
 		// For each row,
 		for (u16 y = 0; y < _params.size_y; ++y) {
@@ -1105,8 +1106,9 @@ void MonoWriter::designChaos() {
 				u16 x;
 				while ((x = *order++) != ORDER_SENTINEL) {
 					const u16 tx = x >> _profile->tile_bits_x;
-					const u8 f = tiles[tx];
+					CAT_DEBUG_ENFORCE(tx < _profile->tiles_x);
 
+					const u8 f = tiles[tx];
 					CAT_DEBUG_ENFORCE(f < _profile->filter_count);
 
 					// If masked or sympal,
@@ -1130,12 +1132,12 @@ void MonoWriter::designChaos() {
 				// For each column,
 				for (u16 x = 0; x < _params.size_x; ++x, ++residuals) {
 					const u16 tx = x >> _profile->tile_bits_x;
+					CAT_DEBUG_ENFORCE(tx < _profile->tiles_x);
 
 					if (_params.mask(x, y)) {
 						_profile->chaos.zero(x);
 					} else {
 						const u8 f = tiles[tx];
-
 						CAT_DEBUG_ENFORCE(f < _profile->filter_count);
 
 						// If masked or sympal,
@@ -1156,7 +1158,11 @@ void MonoWriter::designChaos() {
 				}
 			}
 
-			tiles += _profile->tiles_x;
+			if ((y & tile_mask_y) == 0) {
+				if (y > 0) {
+					tiles += _profile->tiles_x;
+				}
+			}
 		}
 
 		// For each chaos level,
