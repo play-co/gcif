@@ -53,9 +53,6 @@ void MonoWriterProfile::cleanup() {
 }
 
 void MonoWriterProfile::init(u16 size_x, u16 size_y, u16 bits) {
-	this->size_x = size_x;
-	this->size_y = size_y;
-
 	// Init with bits
 	tile_bits_x = bits;
 	tile_bits_y = bits;
@@ -78,22 +75,6 @@ void MonoWriterProfile::init(u16 size_x, u16 size_y, u16 bits) {
 	residuals.resize(residuals_memory);
 
 	filter_encoder = 0;
-}
-
-void MonoWriter::dumpStats() {
-	if (_use_row_filters) {
-		CAT_INANE("Mono") << "Using row-filtered encoder for " << _params.size_x << "x" << _params.size_y << " image";
-	} else {
-		if (_profile) {
-			_profile->dumpStats();
-		}
-	}
-}
-
-void MonoWriterProfile::dumpStats() {
-	CAT_INANE("Mono") << "Designed monochrome writer using " << tiles_x << "x" << tiles_y << " tiles to express " << filter_count << " (" << sympal_filter_count << " palette) filters for " << size_x << "x" << size_y << " image";
-	CAT_INANE("Mono") << " - Recursively using filter encoder:";
-	filter_encoder->dumpStats();
 }
 
 
@@ -1636,7 +1617,7 @@ int MonoWriter::write(u16 x, u16 y, ImageWriter &writer) {
 		}
 
 		// Write encoded pixel
-		overhead_bits += _row_filter_encoder.write(rf, writer);
+		data_bits += _row_filter_encoder.write(rf, writer);
 	} else {
 		// Calculate tile coordinates
 		u16 tx = x >> _profile->tile_bits_x;
@@ -1657,8 +1638,6 @@ int MonoWriter::write(u16 x, u16 y, ImageWriter &writer) {
 			// Pass filter write down the tree
 			overhead_bits += _profile->filter_encoder->write(tx, ty, writer);
 
-			Stats.filter_overhead_bits += overhead_bits;
-
 			DESYNC(x, y);
 		}
 
@@ -1675,13 +1654,33 @@ int MonoWriter::write(u16 x, u16 y, ImageWriter &writer) {
 
 			// Write the residual value
 			data_bits += _profile->encoder[chaos].write(residual, writer);
-
-			Stats.data_bits += data_bits;
 		}
 	}
 
 	DESYNC(x, y);
 
+	// Update stats
+	Stats.filter_overhead_bits += overhead_bits;
+	Stats.data_bits += data_bits;
+
 	return overhead_bits + data_bits;
+}
+
+void MonoWriter::dumpStats() {
+	if (_use_row_filters) {
+		CAT_INANE("Mono") << "Using row-filtered encoder for " << _params.size_x << "x" << _params.size_y << " image";
+	} else {
+		CAT_INANE("Mono") << "Designed monochrome writer using " << _profile->tiles_x << "x" << _profile->tiles_y << " tiles to express " << _profile->filter_count << " (" << _profile->sympal_filter_count << " palette) filters for " << _params.size_x << "x" << _params.size_y << " image";
+	}
+
+	CAT_INANE("Mono") << " -   Basic Overhead : " << Stats.basic_overhead_bits << " bits (" << Stats.basic_overhead_bits/8 << " bytes)";
+	CAT_INANE("Mono") << " - Encoder Overhead : " << Stats.encoder_overhead_bits << " bits (" << Stats.encoder_overhead_bits/8 << " bytes)";
+	CAT_INANE("Mono") << " -  Filter Overhead : " << Stats.filter_overhead_bits << " bits (" << Stats.filter_overhead_bits/8 << " bytes)";
+	CAT_INANE("Mono") << " -  Monochrome Data : " << Stats.data_bits << " bits (" << Stats.data_bits/8 << " bytes)";
+
+	if (!_use_row_filters) {
+		CAT_INANE("Mono") << " - Recursively using filter encoder:";
+		_profile->filter_encoder->dumpStats();
+	}
 }
 

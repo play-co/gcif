@@ -262,9 +262,6 @@ class MonoWriterProfile {
 	static const int MAX_SYMS = MonoWriter::MAX_SYMS;
 	static const int MAX_CHAOS_LEVELS = MonoWriter::MAX_CHAOS_LEVELS;
 
-	// Parameters
-	u16 size_x, size_y;						// Same as parameters
-
 	// Generated filter tiles
 	SmartArray<u8> mask;					// Masked tile boolean matrix
 	SmartArray<u8> tiles;					// Filter chosen per tile matrix
@@ -310,8 +307,6 @@ public:
 	}
 
 	void init(u16 size_x, u16 size_y, u16 bits);
-
-	void dumpStats();
 };
 
 

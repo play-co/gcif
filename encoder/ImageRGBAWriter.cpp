@@ -450,7 +450,6 @@ bool ImageRGBAWriter::compressAlpha() {
 	params.award_count = 4;
 
 	_a_encoder.init(params);
-	_a_encoder.dumpStats();
 
 	return true;
 }
@@ -619,7 +618,6 @@ bool ImageRGBAWriter::compressSF() {
 	CAT_INANE("RGBA") << "Compressing spatial filter matrix...";
 
 	_sf_encoder.init(params, &_filter_order[0]);
-	_sf_encoder.dumpStats();
 
 	return true;
 }
@@ -647,7 +645,6 @@ bool ImageRGBAWriter::compressCF() {
 	CAT_INANE("RGBA") << "Compressing color filter matrix...";
 
 	_cf_encoder.init(params, &_filter_order[0]);
-	_cf_encoder.dumpStats();
 
 	return true;
 }
@@ -936,6 +933,13 @@ void ImageRGBAWriter::write(ImageWriter &writer) {
 #ifdef CAT_COLLECT_STATS
 
 bool ImageRGBAWriter::dumpStats() {
+	CAT_INANE("stats") << "(RGBA Compress) Alpha channel encoder:";
+	_a_encoder.dumpStats();
+	CAT_INANE("stats") << "(RGBA Compress) Spatial filter encoder:";
+	_sf_encoder.dumpStats();
+	CAT_INANE("stats") << "(RGBA Compress) Color filter encoder:";
+	_cf_encoder.dumpStats();
+
 	CAT_INANE("stats") << "(RGBA Compress)     Basic Overhead : " <<  Stats.basic_overhead_bits << " bits (" << Stats.basic_overhead_bits/8 << " bytes, " << Stats.basic_overhead_bits * 100.f / Stats.rgba_bits << "% of RGBA)";
 	CAT_INANE("stats") << "(RGBA Compress) SF Choice Overhead : " << Stats.sf_choice_bits << " bits (" << Stats.sf_choice_bits/8 << " bytes, " << Stats.sf_choice_bits * 100.f / Stats.rgba_bits << "% of RGBA)";
 	CAT_INANE("stats") << "(RGBA Compress)  SF Table Overhead : " << Stats.sf_table_bits << " bits (" << Stats.sf_table_bits/8 << " bytes, " << Stats.sf_table_bits * 100.f / Stats.rgba_bits << "% of RGBA)";

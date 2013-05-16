@@ -193,8 +193,6 @@ void ImagePaletteWriter::generateMonoWriter() {
 	params.award_count = 4;
 
 	_mono_writer.init(params);
-
-	_mono_writer.dumpStats();
 }
 
 int ImagePaletteWriter::init(const u8 *rgba, int size_x, int size_y, const GCIFKnobs *knobs, ImageMaskWriter &mask, ImageLZWriter &lz) {
@@ -408,6 +406,8 @@ bool ImagePaletteWriter::dumpStats() {
 	if (!enabled()) {
 		CAT_INANE("stats") << "(Palette)   Disabled.";
 	} else {
+		_mono_writer.dumpStats();
+
 		CAT_INANE("stats") << "(Palette compress)      Palette Size : " << Stats.palette_size << " colors";
 		CAT_INANE("stats") << "(Palette compress)     Palette Table : " << Stats.pal_table_bits / 8 << " bytes (" << Stats.pal_table_bits * 100.f / Stats.total_bits << "% total)";
 		CAT_INANE("stats") << "(Palette compress)  Palette Overhead : " << Stats.pal_overhead_bits / 8 << " bytes (" << Stats.pal_overhead_bits * 100.f / Stats.total_bits << "% total)";
