@@ -1415,9 +1415,9 @@ void MonoWriter::init(const Parameters &params, const u16 *write_order) {
 
 int MonoWriter::writeTables(ImageWriter &writer) {
 	// Initialize stats
-	Stats.basic_overhead_bits = 0;
+	Stats.basic_overhead_bits = 1;
 	Stats.encoder_overhead_bits = 0;
-	Stats.filter_overhead_bits = 1;
+	Stats.filter_overhead_bits = 0;
 	Stats.data_bits = 0;
 
 	// If not using write profile,
