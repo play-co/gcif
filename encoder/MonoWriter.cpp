@@ -1095,15 +1095,17 @@ void MonoWriter::designChaos() {
 		_profile->chaos.start();
 
 		const u16 *order = _pixel_write_order;
+		const u8 *residuals = _profile->residuals.get();
+		const u8 *tiles = _profile->tiles.get();
 
 		// For each row,
-		const u8 *residuals = _profile->residuals.get();
 		for (u16 y = 0; y < _params.size_y; ++y) {
 			// If random write order,
 			if (order) {
 				u16 x;
 				while ((x = *order++) != ORDER_SENTINEL) {
-					const u8 f = _profile->getTile(x >> _profile->tile_bits_x, y >> _profile->tile_bits_y);
+					const u16 tx = x >> _profile->tile_bits_x;
+					const u8 f = tiles[tx];
 
 					CAT_DEBUG_ENFORCE(f < _profile->filter_count);
 
@@ -1127,7 +1129,8 @@ void MonoWriter::designChaos() {
 			} else {
 				// For each column,
 				for (u16 x = 0; x < _params.size_x; ++x, ++residuals) {
-					const u8 f = _profile->getTile(x >> _profile->tile_bits_x, y >> _profile->tile_bits_y);
+					const u16 tx = x >> _profile->tile_bits_x;
+					const u8 f = tiles[tx];
 
 					CAT_DEBUG_ENFORCE(f < _profile->filter_count);
 
@@ -1147,6 +1150,8 @@ void MonoWriter::designChaos() {
 					}
 				}
 			}
+
+			tiles += _profile->tiles_x;
 		}
 
 		// For each chaos level,
