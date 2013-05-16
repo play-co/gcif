@@ -139,21 +139,23 @@ void MonoWriter::designRowFilters() {
 				for (u16 x = 0; x < size_x; ++x, ++data) {
 					u8 p = data[0];
 
-					// RF_NOOP
-					codes[code_count] = p;
+					if (!_params.mask(x, y)) {
+						// RF_NOOP
+						codes[code_count] = p;
 
-					// RF_PREV
-					u8 pprev = p + num_syms - prev;
-					if (pprev >= num_syms) {
-						pprev -= num_syms;
+						// RF_PREV
+						u8 pprev = p + num_syms - prev;
+						if (pprev >= num_syms) {
+							pprev -= num_syms;
+						}
+						prev = p;
+
+						CAT_DEBUG_ENFORCE(pprev < num_syms);
+
+						codes[code_count + size_x] = pprev;
+
+						++code_count;
 					}
-					prev = p;
-
-					CAT_DEBUG_ENFORCE(pprev < num_syms);
-
-					codes[code_count + size_x] = pprev;
-
-					++code_count;
 				}
 			}
 
