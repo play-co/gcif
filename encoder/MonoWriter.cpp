@@ -217,21 +217,23 @@ void MonoWriter::designRowFilters() {
 				data += size_x;
 			} else {
 				for (u16 x = 0; x < size_x; ++x, ++data) {
-					u8 p = data[0];
+					if (!_params.mask(x, y)) {
+						u8 p = data[0];
 
-					// If filtered,
-					if (rf == MonoReader::RF_PREV) {
-						u8 pprev = p + num_syms - prev;
-						if (pprev >= num_syms) {
-							pprev -= num_syms;
+						// If filtered,
+						if (rf == MonoReader::RF_PREV) {
+							u8 pprev = p + num_syms - prev;
+							if (pprev >= num_syms) {
+								pprev -= num_syms;
+							}
+							prev = p;
+							p = pprev;
 						}
-						prev = p;
-						p = pprev;
+
+						CAT_DEBUG_ENFORCE(p < num_syms);
+
+						_row_filter_encoder.add(p);
 					}
-
-					CAT_DEBUG_ENFORCE(p < num_syms);
-
-					_row_filter_encoder.add(p);
 				}
 			}
 		}
@@ -273,21 +275,23 @@ void MonoWriter::designRowFilters() {
 				data += size_x;
 			} else {
 				for (u16 x = 0; x < size_x; ++x, ++data) {
-					u8 p = data[0];
+					if (!_params.mask(x, y)) {
+						u8 p = data[0];
 
-					// If filtered,
-					if (rf == MonoReader::RF_PREV) {
-						u8 pprev = p + num_syms - prev;
-						if (pprev >= num_syms) {
-							pprev -= num_syms;
+						// If filtered,
+						if (rf == MonoReader::RF_PREV) {
+							u8 pprev = p + num_syms - prev;
+							if (pprev >= num_syms) {
+								pprev -= num_syms;
+							}
+							prev = p;
+							p = pprev;
 						}
-						prev = p;
-						p = pprev;
+
+						CAT_DEBUG_ENFORCE(p < num_syms);
+
+						bits += _row_filter_encoder.simulate(p);
 					}
-
-					CAT_DEBUG_ENFORCE(p < num_syms);
-
-					bits += _row_filter_encoder.simulate(p);
 				}
 			}
 		}
