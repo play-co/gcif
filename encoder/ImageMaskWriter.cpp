@@ -328,38 +328,38 @@ void Masker::writeEncodedLZ(ImageWriter &writer) {
 }
 
 void Masker::write(ImageWriter &writer) {
-	int table_bits = 0;
+	writer.writeBit(_enabled);
+
+	if (!_enabled) {
+		return;
+	}
+
+	int table_bits = 1;
 
 #ifdef CAT_COLLECT_STATS
 	Clock *clock = Clock::ref();
 	double t0 = clock->usec();
 #endif // CAT_COLLECT_STATS
 
-	writer.writeBit(_enabled);
+	CAT_INANE("mask") << "Writing mask for color (" << (_color & 255) << "," << ((_color >> 8) & 255) << "," << ((_color >> 16) & 255) << "," << ((_color >> 24) & 255) << ") ...";
 
-	if (_enabled) {
-		CAT_INANE("mask") << "Writing mask for color (" << (_color & 255) << "," << ((_color >> 8) & 255) << "," << ((_color >> 16) & 255) << "," << ((_color >> 24) & 255) << ") ...";
+	writer.writeWord(_color);
+	table_bits += 32;
 
-		writer.writeWord(_color);
-		table_bits += 32;
+	table_bits += writer.write9((u32)_rle.size());
+	table_bits += writer.write9((u32)_lz.size());
+	writer.writeBit(_using_encoder);
+	++table_bits;
 
-		table_bits += writer.write9((u32)_rle.size());
-		table_bits += writer.write9((u32)_lz.size());
-		writer.writeBit(_using_encoder);
-		++table_bits;
-
-		if (_using_encoder) {
-			table_bits = _encoder.writeTable(writer);
-		}
+	if (_using_encoder) {
+		table_bits = _encoder.writeTable(writer);
 	}
 
 #ifdef CAT_COLLECT_STATS
 	double t1 = clock->usec();
 #endif // CAT_COLLECT_STATS
 
-	if (_enabled) {
-		writeEncodedLZ(writer);
-	}
+	writeEncodedLZ(writer);
 
 #ifdef CAT_COLLECT_STATS
 	double t2 = clock->usec();
@@ -378,7 +378,7 @@ void Masker::write(ImageWriter &writer) {
 
 bool Masker::dumpStats() {
 	if (!_enabled) {
-		CAT_INANE("stats") << "(Mask Encoding)   Disabled.";
+		CAT_INANE("stats") << "(Mask Encoding) Disabled.";
 	} else {
 		CAT_INANE("stats") << "(Mask Encoding)      Chosen Color : (" << (_color & 255) << "," << ((_color >> 8) & 255) << "," << ((_color >> 16) & 255) << "," << ((_color >> 24) & 255) << ") ...";
 		CAT_INANE("stats") << "(Mask Encoding)     Post-RLE Size : " <<  Stats.rleBytes << " bytes";

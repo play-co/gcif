@@ -236,7 +236,7 @@ void ImagePaletteWriter::write(ImageWriter &writer) {
 }
 
 void ImagePaletteWriter::writeTable(ImageWriter &writer) {
-	int pal_bits = 1, pal_table_bits = 0, mono_bits = 0;
+	int pal_bits = 0, pal_table_bits = 1, mono_bits = 0;
 
 	CAT_DEBUG_ENFORCE(PALETTE_MAX <= 256);
 
