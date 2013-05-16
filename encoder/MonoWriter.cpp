@@ -1096,11 +1096,11 @@ void MonoWriter::designChaos() {
 
 		const u16 *order = _pixel_write_order;
 		const u8 *residuals = _profile->residuals.get();
-		const u8 *tiles = _profile->tiles.get();
-		const u16 tile_mask_y = _profile->tile_size_y - 1;
 
 		// For each row,
 		for (u16 y = 0; y < _params.size_y; ++y) {
+			const u16 ty = y >> _profile->tile_bits_y;
+
 			// If random write order,
 			if (order) {
 				u16 x;
@@ -1108,7 +1108,7 @@ void MonoWriter::designChaos() {
 					const u16 tx = x >> _profile->tile_bits_x;
 					CAT_DEBUG_ENFORCE(tx < _profile->tiles_x);
 
-					const u8 f = tiles[tx];
+					const u8 f = _profile->getTile(tx, ty);
 					CAT_DEBUG_ENFORCE(f < _profile->filter_count);
 
 					// If masked or sympal,
@@ -1137,7 +1137,7 @@ void MonoWriter::designChaos() {
 					if (_params.mask(x, y)) {
 						_profile->chaos.zero(x);
 					} else {
-						const u8 f = tiles[tx];
+						const u8 f = _profile->getTile(tx, ty);
 						CAT_DEBUG_ENFORCE(f < _profile->filter_count);
 
 						// If masked or sympal,
@@ -1145,7 +1145,7 @@ void MonoWriter::designChaos() {
 							_profile->chaos.zero(x);
 						} else {
 							// Get residual symbol
-							u8 residual = *residuals;
+							u8 residual = residuals[0];
 
 							// Get chaos bin
 							int chaos = _profile->chaos.get(x);
@@ -1155,12 +1155,6 @@ void MonoWriter::designChaos() {
 							ee[chaos].addSingle(residual);
 						}
 					}
-				}
-			}
-
-			if ((y & tile_mask_y) == 0) {
-				if (y > 0) {
-					tiles += _profile->tiles_x;
 				}
 			}
 		}
