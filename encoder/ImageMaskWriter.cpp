@@ -411,7 +411,10 @@ bool Masker::dumpStats() {
 //// ImageMaskWriter
 
 u32 ImageMaskWriter::dominantColor() {
-	map<u32, u32> tracker;
+	static const int BINS_BITS = 12;
+	static const int BINS = 1 << BINS_BITS; // To help with STL map inefficiencies
+
+	map<u32, u32> *bins = new map<u32, u32>[BINS];
 
 	// Histogram all image colors
 	const u32 *pixel = reinterpret_cast<const u32 *>( _rgba );
@@ -419,8 +422,13 @@ u32 ImageMaskWriter::dominantColor() {
 	u32 zeroes = 0;
 	while (count--) {
 		u32 p = *pixel++;
-		if ((getLE(p) & 0xff000000) != 0) {
-			tracker[p]++;
+
+		u32 op = getLE(p);
+		u8 bin = op >> (32 - BINS_BITS);
+
+		// If non-zero,
+		if (op >> 24) {
+			bins[bin][p]++;
 		} else {
 			++zeroes;
 		}
@@ -428,12 +436,16 @@ u32 ImageMaskWriter::dominantColor() {
 
 	// Determine dominant color
 	u32 domColor = 0, domScore = zeroes;
-	for (map<u32, u32>::iterator ii = tracker.begin(); ii != tracker.end(); ++ii) {
-		if (domScore < ii->second) {
-			domScore = ii->second;
-			domColor = ii->first;
+	for (int jj = 0; jj < BINS; ++jj) {
+		for (map<u32, u32>::iterator ii = bins[jj].begin(); ii != bins[jj].end(); ++ii) {
+			if (domScore < ii->second) {
+				domScore = ii->second;
+				domColor = ii->first;
+			}
 		}
 	}
+
+	delete []bins;
 
 	return domColor;
 }

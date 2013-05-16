@@ -1160,10 +1160,10 @@ void MonoWriter::designChaos() {
 			entropy += ee[ii].entropyOverall();
 
 			// Approximate cost of adding an entropy level
-			entropy += 5 * _params.num_syms;
+			//entropy += 5 * _params.num_syms;
 		}
 
-		CAT_WARN("TEST") << entropy << " for " << chaos_levels;
+		CAT_WARN("MONO") << entropy << " for " << chaos_levels;
 
 		// If this is the best chaos levels so far,
 		if (best_entropy > entropy) {
