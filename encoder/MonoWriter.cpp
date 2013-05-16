@@ -1130,23 +1130,28 @@ void MonoWriter::designChaos() {
 				// For each column,
 				for (u16 x = 0; x < _params.size_x; ++x, ++residuals) {
 					const u16 tx = x >> _profile->tile_bits_x;
-					const u8 f = tiles[tx];
 
-					CAT_DEBUG_ENFORCE(f < _profile->filter_count);
-
-					// If masked or sympal,
-					if (_params.mask(x, y) || _profile->filter_indices[f] >= SF_COUNT) {
+					if (_params.mask(x, y)) {
 						_profile->chaos.zero(x);
 					} else {
-						// Get residual symbol
-						u8 residual = *residuals;
+						const u8 f = tiles[tx];
 
-						// Get chaos bin
-						int chaos = _profile->chaos.get(x);
-						_profile->chaos.store(x, residual, _params.num_syms);
+						CAT_DEBUG_ENFORCE(f < _profile->filter_count);
 
-						// Add to histogram for this chaos bin
-						ee[chaos].addSingle(residual);
+						// If masked or sympal,
+						if (_profile->filter_indices[f] >= SF_COUNT) {
+							_profile->chaos.zero(x);
+						} else {
+							// Get residual symbol
+							u8 residual = *residuals;
+
+							// Get chaos bin
+							int chaos = _profile->chaos.get(x);
+							_profile->chaos.store(x, residual, _params.num_syms);
+
+							// Add to histogram for this chaos bin
+							ee[chaos].addSingle(residual);
+						}
 					}
 				}
 			}
@@ -1160,7 +1165,7 @@ void MonoWriter::designChaos() {
 			entropy += ee[ii].entropyOverall();
 
 			// Approximate cost of adding an entropy level
-			//entropy += 5 * _params.num_syms;
+			entropy += 5 * _params.num_syms;
 		}
 
 		CAT_WARN("MONO") << entropy << " for " << chaos_levels;
