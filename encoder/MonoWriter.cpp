@@ -1375,6 +1375,9 @@ void MonoWriter::init(const Parameters &params, const u16 *write_order) {
 
 	// If the data is too small to bother with tiles,
 	if (_params.size_x * _params.size_y >= TILE_THRESH) {
+		// Disable it for now
+		_use_row_filters = false;
+
 		// For each tile size to try,
 		for (int bits = params.min_bits; bits <= params.max_bits; ++bits) {
 			// Set up a profile
