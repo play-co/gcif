@@ -441,7 +441,6 @@ u8 ImageMaskWriter::dominantMono() {
 
 	const u8 *pixel = _rgba;
 	int count = _size_x * _size_y;
-	u32 zeroes = 0;
 	while (count--) {
 		hist[*pixel++]++;
 	}
