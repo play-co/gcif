@@ -19,7 +19,7 @@ decode_objects += ImagePaletteReader.o MonoReader.o
 
 gcif_objects = gcif.o lodepng.o Log.o Mutex.o Clock.o Thread.o
 gcif_objects += lz4hc.o HuffmanEncoder.o PaletteOptimizer.o
-gcif_objects += SystemInfo.o ImageWriter.o
+gcif_objects += SystemInfo.o ImageWriter.o SmallPalette.o
 gcif_objects += ImageMaskWriter.o MonoWriter.o
 gcif_objects += ImageRGBAWriter.o FilterScorer.o
 gcif_objects += ImageLZWriter.o ImagePaletteWriter.o
@@ -49,7 +49,7 @@ SRCS += encoder/HuffmanEncoder.cpp
 SRCS += encoder/SystemInfo.cpp encoder/ImageWriter.cpp
 SRCS += encoder/ImageMaskWriter.cpp
 SRCS += encoder/ImageRGBAWriter.cpp
-SRCS += encoder/FilterScorer.cpp
+SRCS += encoder/FilterScorer.cpp encoder/SmallPalette.cpp
 SRCS += encoder/ImageLZWriter.cpp
 SRCS += encoder/GCIFWriter.cpp encoder/PaletteOptimizer.cpp
 SRCS += encoder/ImagePaletteWriter.cpp
@@ -189,6 +189,9 @@ MonoWriter.o : encoder/MonoWriter.cpp
 
 PaletteOptimizer.o : encoder/PaletteOptimizer.cpp
 	$(CCPP) $(CPFLAGS) -c encoder/PaletteOptimizer.cpp
+
+SmallPalette.o : encoder/SmallPalette.cpp
+	$(CCPP) $(CPFLAGS) -c encoder/SmallPalette.cpp
 
 #ImageLPWriter.o : ImageLPWriter.cpp
 #	$(CCPP) $(CPFLAGS) -c ImageLPWriter.cpp

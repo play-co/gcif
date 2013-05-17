@@ -90,15 +90,11 @@ static int decompress(const char *filename, const char *outfile) {
 	return GCIF_RE_OK;
 }
 
-struct BenchStats {
-	int x;
-};
-
 #include <sys/stat.h>
 
-static int benchfile(BenchStats &stats, string filename) {
+static int benchfile(string filename) {
 	vector<unsigned char> image;
-	unsigned size_x, size_y;
+	unsigned size_x = 0, size_y = 0;
 
 	const int compress_level = 9999;
 
@@ -118,6 +114,8 @@ static int benchfile(BenchStats &stats, string filename) {
 
 	string benchfile = filename + ".gci";
 	const char *cbenchfile = benchfile.c_str();
+
+	CAT_WARN("TEST") << benchfile << " and " << image.size();
 
 	if ((err = gcif_write(&image[0], size_x, size_y, cbenchfile, compress_level))) {
 		CAT_WARN("main") << "Error while compressing the image: " << gcif_write_errstr(err) << " for " << filename;
@@ -198,8 +196,8 @@ public:
 					}
 
 					if (hasFile) {
-						BenchStats stats;
-						benchfile(stats, filename);
+						CAT_WARN("TEST") << filename;
+						benchfile(filename);
 					} else {
 						break;
 					}
@@ -250,6 +248,8 @@ static int benchmark(const char *path) {
 	if (cpu_count < 1) {
 		cpu_count = 1;
 	}
+
+	cpu_count = 1;
 
 	BenchThread threads[MAX_CPU_COUNT];
 	vector<string> files;

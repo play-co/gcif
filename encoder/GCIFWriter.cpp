@@ -32,6 +32,7 @@
 #include "ImageLZWriter.hpp"
 #include "ImagePaletteWriter.hpp"
 #include "ImageRGBAWriter.hpp"
+#include "SmallPalette.hpp"
 using namespace cat;
 
 
@@ -155,42 +156,90 @@ extern "C" int gcif_write_ex(const void *rgba, int size_x, int size_y, const cha
 		return err;
 	}
 
-	// Dominant Color Mask
-	ImageMaskWriter imageMaskWriter;
-	if ((err = imageMaskWriter.init(image, size_x, size_y, knobs))) {
+	// Small Palette
+	SmallPalette imageSmallPalette;
+	if ((err = imageSmallPalette.init(image, size_x, size_y, knobs))) {
 		return err;
 	}
 
-	imageMaskWriter.write(writer);
-	imageMaskWriter.dumpStats();
+	imageSmallPalette.write(writer);
+	imageSmallPalette.dumpStats();
 
-	// 2D-LZ Exact Match
-	ImageLZWriter imageLZWriter;
-	if ((err = imageLZWriter.init(image, size_x, size_y, knobs))) {
-		return err;
-	}
+	// If small palette mode is enabled,
+	if (imageSmallPalette.enabled()) {
+		// If not just a single color,
+		if (!imageSmallPalette.isSingleColor()) {
+			const int pack_x = imageSmallPalette.getPackX();
+			const int pack_y = imageSmallPalette.getPackY();
+			const u8 *pack_image = imageSmallPalette.get();
 
-	imageLZWriter.write(writer);
-	imageLZWriter.dumpStats();
+			// Dominant Color Mask
+			ImageMaskWriter imageMaskWriter;
+			if ((err = imageMaskWriter.init(pack_image, 1, pack_x, pack_y, knobs))) {
+				return err;
+			}
 
-	// Global Palette
-	ImagePaletteWriter imagePaletteWriter;
-	if ((err = imagePaletteWriter.init(image, size_x, size_y, knobs, imageMaskWriter, imageLZWriter))) {
-		return err;
-	}
+			imageMaskWriter.write(writer);
+			imageMaskWriter.dumpStats();
 
-	imagePaletteWriter.write(writer);
-	imagePaletteWriter.dumpStats();
+			// 2D-LZ Exact Match
+			ImageLZWriter imageLZWriter;
+			if ((err = imageLZWriter.init(pack_image, 1, pack_x, pack_y, knobs))) {
+				return err;
+			}
 
-	if (!imagePaletteWriter.enabled()) {
-		// Context Modeling Decompression
-		ImageRGBAWriter imageRGBAWriter;
-		if ((err = imageRGBAWriter.init(image, size_x, size_y, imageMaskWriter, imageLZWriter, knobs))) {
+			imageLZWriter.write(writer);
+			imageLZWriter.dumpStats();
+
+			// Global Palette
+			ImagePaletteWriter imagePaletteWriter;
+			if ((err = imagePaletteWriter.init(pack_image, 1, pack_x, pack_y, knobs, imageMaskWriter, imageLZWriter))) {
+				return err;
+			}
+
+			imagePaletteWriter.write(writer);
+			imagePaletteWriter.dumpStats();
+
+			CAT_DEBUG_ENFORCE(imagePaletteWriter.enabled());
+		}
+	} else {
+		// Dominant Color Mask
+		ImageMaskWriter imageMaskWriter;
+		if ((err = imageMaskWriter.init(image, 4, size_x, size_y, knobs))) {
 			return err;
 		}
 
-		imageRGBAWriter.write(writer);
-		imageRGBAWriter.dumpStats();
+		imageMaskWriter.write(writer);
+		imageMaskWriter.dumpStats();
+
+		// 2D-LZ Exact Match
+		ImageLZWriter imageLZWriter;
+		if ((err = imageLZWriter.init(image, 4, size_x, size_y, knobs))) {
+			return err;
+		}
+
+		imageLZWriter.write(writer);
+		imageLZWriter.dumpStats();
+
+		// Global Palette
+		ImagePaletteWriter imagePaletteWriter;
+		if ((err = imagePaletteWriter.init(image, 4, size_x, size_y, knobs, imageMaskWriter, imageLZWriter))) {
+			return err;
+		}
+
+		imagePaletteWriter.write(writer);
+		imagePaletteWriter.dumpStats();
+
+		if (!imagePaletteWriter.enabled()) {
+			// Context Modeling Decompression
+			ImageRGBAWriter imageRGBAWriter;
+			if ((err = imageRGBAWriter.init(image, size_x, size_y, imageMaskWriter, imageLZWriter, knobs))) {
+				return err;
+			}
+
+			imageRGBAWriter.write(writer);
+			imageRGBAWriter.dumpStats();
+		}
 	}
 
 	// Finalize file

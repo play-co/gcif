@@ -26,112 +26,89 @@
 	POSSIBILITY OF SUCH DAMAGE.
 */
 
-#ifndef IMAGE_PALETTE_WRITER_HPP
-#define IMAGE_PALETTE_WRITER_HPP
+#ifndef SMALL_PALETTE_HPP
+#define SMALL_PALETTE_HPP
 
 #include "../decoder/Platform.hpp"
-#include "ImageWriter.hpp"
-#include "GCIFWriter.h"
-#include "ImageLZWriter.hpp"
-#include "ImageMaskWriter.hpp"
-#include "../decoder/ImagePaletteReader.hpp"
-#include "MonoWriter.hpp"
 #include "../decoder/SmartArray.hpp"
-#include "PaletteOptimizer.hpp"
+#include "GCIFWriter.h"
+#include "ImageWriter.hpp"
 
 #include <vector>
 #include <map>
 
 /*
- * Game Closure Global Palette Compression
+ * Game Closure Small Palette Compression
  *
- * This compression step is enabled selectively if the number of colors in the
- * image is less than or equal to 256.  It uses the Mono compressor for the
- * indexed image data.
+ * Packing for Small Palette sizes (in colors):
+ * 1 = Special case where we do not emit anything
+ * 2 = 1 bits/pixel => Packs 4 pixels from current scanline and 4 pixels from next.
+ * 3-4 = 2 bits/pixel => Packs 2 pixels from current scanline and 2 from next.
+ * 5-16 = 3-4 bits/pixel => Packs 2 pixels from current scanline.
  *
- * At 16 colors or lower, the palette compressor activates another additional
- * mechanism that repacks several pixels into one byte: Small Palette Mode.
- * ( See SmallPalette.hpp for more information. )
+ * For Small Palette Mode, the compressor generates a new palette from the
+ * packed pixels and then compresses that as normal.
+ *
+ * The number of image colors may be affected by masking, so an up-front
+ * small palette check is performed.  In small palette mode, the LZ and mask
+ * preprocessors go into a special byte-wise mode since the data is not RGBA.
  */
 
 namespace cat {
 
 
-//// ImagePaletteWriter
+//// SmallPalette
 
-class ImagePaletteWriter {
-	static const int PALETTE_MAX = ImagePaletteReader::PALETTE_MAX;
-	static const int ENCODER_ZRLE_SYMS = ImagePaletteReader::ENCODER_ZRLE_SYMS;
+class SmallPalette {
+	static const int SMALL_PALETTE_MAX = 16;
 
 	const GCIFKnobs *_knobs;
 
-	const u8 *_rgba;		// Original image
-	SmartArray<u8> _image;	// Palette-encoded image
 	int _size_x, _size_y;	// In pixels
-	int _palette_size;		// Number of palette entries
-	u8 _most_common;
-	u16 _masked_palette;	// Palette index for the mask
+	const u8 *_rgba;		// Original image
 
-	ImageMaskWriter *_mask;
-	ImageLZWriter *_lz;
+	int _pack_x, _pack_y;	// In packed pixels
+	SmartArray<u8> _image;	// Repacked image
 
-	PaletteOptimizer _optimizer;
+	int _palette_size;		// Number of palette entries (> 0 : enabled)
+
 	std::vector<u32> _palette;		// Map index => color
 	std::map<u32, u16> _map;		// Map color => index
 
-	MonoWriter _mono_writer;
-
-	// Small palette mode
-	bool _use_small_palette;
-	std::vector<u8> _small_palette;	// Map output index => packed bytes
-
-	bool IsMasked(u16 x, u16 y);
-
-	bool checkSmallPalette();
-
 	bool generatePalette();
 	void generateImage();
-	void optimizeImage();
-	void generateMonoWriter();
 
 	void writeTable(ImageWriter &writer);
-	void writePixels(ImageWriter &writer);
 
 #ifdef CAT_COLLECT_STATS
 public:
 	struct _Stats {
 		int palette_size;
-		int pal_overhead_bits, pal_table_bits, mono_overhead_bits, mono_bits;
-		int total_bits, pixel_count;
-		int file_bits;
-
-		int original_bits;
-		double pixel_compression_ratio;
-		double file_compression_ratio;
+		int overhead_bits;
 	} Stats;
 #endif
 
 public:
-	int init(const u8 *rgba, int size_x, int size_y, const GCIFKnobs *knobs, ImageMaskWriter &mask, ImageLZWriter &lz);
+	int init(const u8 *rgba, int size_x, int size_y, const GCIFKnobs *knobs);
 
 	CAT_INLINE bool enabled() {
 		return _palette_size > 0;
 	}
 
-	CAT_INLINE u8 getPaletteFromColor(u32 color) {
-		return _map[color];
+	CAT_INLINE bool isSingleColor() {
+		return _palette_size == 1;
 	}
 
-	CAT_INLINE u32 getColorFromPalette(u8 palette) {
-		return _palette[palette];
+	CAT_INLINE u8 *get() {
+		return _image.get();
 	}
 
-	CAT_INLINE int getPaletteSize() {
-		return _palette_size;
+	CAT_INLINE int getPackX() {
+		return _pack_x;
 	}
 
-	CAT_INLINE u8 *get(int x, int y) {
-		return _image.get() + x + y * _size_x;
+	CAT_INLINE int getPackY() {
+		return _pack_y;
 	}
 
 	void write(ImageWriter &writer);
@@ -147,5 +124,5 @@ public:
 
 } // namespace cat
 
-#endif // IMAGE_PALETTE_WRITER_HPP
+#endif // SMALL_PALETTE_HPP
 
