@@ -51,7 +51,7 @@
  *
  * At 16 colors or lower, the palette compressor activates another additional
  * mechanism that repacks several pixels into one byte: Small Palette Mode.
- * ( See SmallPalette.hpp for more information. )
+ * ( See SmallPaletteWriter.hpp for more information. )
  */
 
 namespace cat {

@@ -32,7 +32,7 @@
 #include "ImageLZWriter.hpp"
 #include "ImagePaletteWriter.hpp"
 #include "ImageRGBAWriter.hpp"
-#include "SmallPalette.hpp"
+#include "SmallPaletteWriter.hpp"
 using namespace cat;
 
 

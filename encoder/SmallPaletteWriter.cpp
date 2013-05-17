@@ -26,7 +26,7 @@
 	POSSIBILITY OF SUCH DAMAGE.
 */
 
-#include "SmallPalette.hpp"
+#include "SmallPaletteWriter.hpp"
 #include "../decoder/EndianNeutral.hpp"
 #include "Log.hpp"
 #include "../decoder/Enforcer.hpp"
