@@ -34,9 +34,9 @@ using namespace cat;
 using namespace std;
 
 
-//// SmallPalette
+//// SmallPaletteWriter
 
-bool SmallPalette::generatePalette() {
+bool SmallPaletteWriter::generatePalette() {
 	u32 hist[SMALL_PALETTE_MAX] = {0};
 
 	const u32 *color = reinterpret_cast<const u32 *>( _rgba );
@@ -80,7 +80,7 @@ bool SmallPalette::generatePalette() {
 	return true;
 }
 
-void SmallPalette::generateImage() {
+void SmallPaletteWriter::generateImage() {
 	if (_palette_size > 4) { // 3-4 bits/pixel
 		/*
 		 * Combine pairs of pixels on the same scanline together.
@@ -215,7 +215,7 @@ void SmallPalette::generateImage() {
 	// Else: 0 bits per pixel, just need to transmit palette
 }
 
-int SmallPalette::init(const u8 *rgba, int size_x, int size_y, const GCIFKnobs *knobs) {
+int SmallPaletteWriter::init(const u8 *rgba, int size_x, int size_y, const GCIFKnobs *knobs) {
 	_knobs = knobs;
 	_rgba = rgba;
 	_size_x = size_x;
@@ -233,7 +233,7 @@ int SmallPalette::init(const u8 *rgba, int size_x, int size_y, const GCIFKnobs *
 	return GCIF_WE_OK;
 }
 
-void SmallPalette::write(ImageWriter &writer) {
+void SmallPaletteWriter::write(ImageWriter &writer) {
 	if (enabled()) {
 		writer.writeBit(1);
 		writeTable(writer);
@@ -242,7 +242,7 @@ void SmallPalette::write(ImageWriter &writer) {
 	}
 }
 
-void SmallPalette::writeTable(ImageWriter &writer) {
+void SmallPaletteWriter::writeTable(ImageWriter &writer) {
 	int bits = 0;
 
 	CAT_DEBUG_ENFORCE(SMALL_PALETTE_MAX <= 16);
@@ -264,7 +264,7 @@ void SmallPalette::writeTable(ImageWriter &writer) {
 
 #ifdef CAT_COLLECT_STATS
 
-bool SmallPalette::dumpStats() {
+bool SmallPaletteWriter::dumpStats() {
 	if (!enabled()) {
 		CAT_INANE("stats") << "(Small Palette) Disabled.";
 	} else {

@@ -157,7 +157,7 @@ extern "C" int gcif_write_ex(const void *rgba, int size_x, int size_y, const cha
 	}
 
 	// Small Palette
-	SmallPalette imageSmallPalette;
+	SmallPaletteWriter imageSmallPalette;
 	if ((err = imageSmallPalette.init(image, size_x, size_y, knobs))) {
 		return err;
 	}

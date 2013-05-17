@@ -26,8 +26,8 @@
 	POSSIBILITY OF SUCH DAMAGE.
 */
 
-#ifndef SMALL_PALETTE_HPP
-#define SMALL_PALETTE_HPP
+#ifndef SMALL_PALETTE_WRITER_HPP
+#define SMALL_PALETTE_WRITER_HPP
 
 #include "../decoder/Platform.hpp"
 #include "../decoder/SmartArray.hpp"
@@ -57,9 +57,9 @@
 namespace cat {
 
 
-//// SmallPalette
+//// SmallPaletteWriter
 
-class SmallPalette {
+class SmallPaletteWriter {
 	static const int SMALL_PALETTE_MAX = 16;
 
 	const GCIFKnobs *_knobs;
@@ -124,5 +124,5 @@ public:
 
 } // namespace cat
 
-#endif // SMALL_PALETTE_HPP
+#endif // SMALL_PALETTE_WRITER_HPP
 
