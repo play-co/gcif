@@ -15,7 +15,7 @@ CPFLAGS = $(CFLAGS)
 decode_objects = EndianNeutral.o Enforcer.o Filters.o GCIFReader.o
 decode_objects += HuffmanDecoder.o ImageRGBAReader.o ImageLZReader.o
 decode_objects += ImageMaskReader.o ImageReader.o MappedFile.o lz4.o
-decode_objects += ImagePaletteReader.o MonoReader.o
+decode_objects += ImagePaletteReader.o MonoReader.o SmallPaletteReader.o
 
 gcif_objects = gcif.o lodepng.o Log.o Mutex.o Clock.o Thread.o
 gcif_objects += lz4hc.o HuffmanEncoder.o PaletteOptimizer.o
@@ -39,7 +39,7 @@ DECODE_SRCS += decoder/ImagePaletteReader.cpp
 DECODE_SRCS += decoder/ImageMaskReader.cpp
 DECODE_SRCS += decoder/ImageReader.cpp
 DECODE_SRCS += decoder/MappedFile.cpp
-DECODE_SRCS += decoder/lz4.c
+DECODE_SRCS += decoder/lz4.c decoder/SmallPaletteReader.cpp
 DECODE_SRCS += decoder/MonoReader.cpp
 
 SRCS = ./gcif.cpp encoder/lodepng.cpp encoder/Log.cpp encoder/Mutex.cpp
@@ -193,8 +193,8 @@ PaletteOptimizer.o : encoder/PaletteOptimizer.cpp
 SmallPaletteWriter.o : encoder/SmallPaletteWriter.cpp
 	$(CCPP) $(CPFLAGS) -c encoder/SmallPaletteWriter.cpp
 
-SmallPaletteReader.o : encoder/SmallPaletteReader.cpp
-	$(CCPP) $(CPFLAGS) -c encoder/SmallPaletteReader.cpp
+SmallPaletteReader.o : decoder/SmallPaletteReader.cpp
+	$(CCPP) $(CPFLAGS) -c decoder/SmallPaletteReader.cpp
 
 #ImageLPWriter.o : ImageLPWriter.cpp
 #	$(CCPP) $(CPFLAGS) -c ImageLPWriter.cpp

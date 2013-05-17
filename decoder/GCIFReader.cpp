@@ -28,6 +28,7 @@
 
 #include "GCIFReader.h"
 #include "ImageReader.hpp"
+#include "SmallPaletteReader.hpp"
 #include "ImageMaskReader.hpp"
 #include "ImageLZReader.hpp"
 #include "ImagePaletteReader.hpp"
@@ -67,34 +68,71 @@ static int gcif_read(ImageReader &reader, GCIFImage *image) {
 		image->rgba = (u8 *)output;
 	}
 
-	// Color mask
-	ImageMaskReader maskReader;
-	if ((err = maskReader.read(reader))) {
+	// Small Palette
+	SmallPaletteReader smallPaletteReader;
+	if ((err = smallPaletteReader.read(reader, image))) {
 		return err;
 	}
-	maskReader.dumpStats();
+	smallPaletteReader.dumpStats();
 
-	// 2D-LZ Exact Match
-	ImageLZReader imageLZReader;
-	if ((err = imageLZReader.read(reader))) {
-		return err;
-	}
-	imageLZReader.dumpStats();
+	// If small palette is being used,
+	if (smallPaletteReader.enabled()) {
+		GCIFImage * CAT_RESTRICT pal_image = smallPaletteReader.getImage();
 
-	// Global Palette Decompression
-	ImagePaletteReader imagePaletteReader;
-	if ((err = imagePaletteReader.read(reader, maskReader, imageLZReader, image))) {
-		return err;
-	}
-	imagePaletteReader.dumpStats();
-
-	if (!imagePaletteReader.enabled()) {
-		// RGBA Decompression
-		ImageRGBAReader imageRGBAReader;
-		if ((err = imageRGBAReader.read(reader, maskReader, imageLZReader, image))) {
+		// Color Mask
+		ImageMaskReader maskReader;
+		if ((err = maskReader.read(reader, 1, pal_image))) {
 			return err;
 		}
-		imageRGBAReader.dumpStats();
+		maskReader.dumpStats();
+
+		// 2D-LZ Exact Match
+		ImageLZReader imageLZReader;
+		if ((err = imageLZReader.read(reader, 1, pal_image))) {
+			return err;
+		}
+		imageLZReader.dumpStats();
+
+		// Global Palette Decompression
+		ImagePaletteReader imagePaletteReader;
+		if ((err = imagePaletteReader.read(reader, 1, pal_image, maskReader, imageLZReader))) {
+			return err;
+		}
+		imagePaletteReader.dumpStats();
+
+		CAT_DEBUG_ENFORCE(imagePaletteReader.enabled());
+
+		smallPaletteReader.unpack(image);
+	} else {
+		// Color Mask
+		ImageMaskReader maskReader;
+		if ((err = maskReader.read(reader, 4, image))) {
+			return err;
+		}
+		maskReader.dumpStats();
+
+		// 2D-LZ Exact Match
+		ImageLZReader imageLZReader;
+		if ((err = imageLZReader.read(reader, 4, image))) {
+			return err;
+		}
+		imageLZReader.dumpStats();
+
+		// Global Palette Decompression
+		ImagePaletteReader imagePaletteReader;
+		if ((err = imagePaletteReader.read(reader, 4, image, maskReader, imageLZReader))) {
+			return err;
+		}
+		imagePaletteReader.dumpStats();
+
+		if (!imagePaletteReader.enabled()) {
+			// RGBA Decompression
+			ImageRGBAReader imageRGBAReader;
+			if ((err = imageRGBAReader.read(reader, maskReader, imageLZReader, image))) {
+				return err;
+			}
+			imageRGBAReader.dumpStats();
+		}
 	}
 
 	return GCIF_RE_OK;
