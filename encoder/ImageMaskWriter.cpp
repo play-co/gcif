@@ -81,7 +81,7 @@ void Masker::applyFilter() {
 	}
 }
 
-int Masker::init(const u8 *rgba, u32 color, u32 color_mask, int size_x, int size_y, const GCIFKnobs *knobs, int min_ratio) {
+int Masker::init(const u8 *rgba, int planes, u32 color, u32 color_mask, int size_x, int size_y, const GCIFKnobs *knobs, int min_ratio) {
 	_knobs = knobs;
 	_rgba = rgba;
 	_size_x = size_x;
@@ -91,6 +91,7 @@ int Masker::init(const u8 *rgba, u32 color, u32 color_mask, int size_x, int size
 	_min_ratio = min_ratio;
 	_stride = (size_x + 31) >> 5;
 	_size = size_y * _stride;
+	_planes = planes;
 
 	// If image is too small,
 	if (size_x < MIN_SIZE && size_y < MIN_SIZE) {
@@ -105,7 +106,7 @@ int Masker::init(const u8 *rgba, u32 color, u32 color_mask, int size_x, int size
 
 	// Fill in bitmask
 	int covered = 0;
-	const u32 *pixel = reinterpret_cast<const u32 *>( _rgba );
+	const u8 *pixel = _rgba;
 	u32 *writer = _mask.get();
 
 	// For each scanline,
@@ -116,9 +117,19 @@ int Masker::init(const u8 *rgba, u32 color, u32 color_mask, int size_x, int size
 		for (int x = 0, xend = _size_x; x < xend; ++x) {
 			bits <<= 1;
 
-			if ((*pixel & color_mask) == color) {
-				++covered;
-				bits |= 1;
+			// If using RGBA,
+			if (planes == 4) {
+				if ((*(const u32 *)pixel & color_mask) == color) {
+					++covered;
+					bits |= 1;
+				}
+			} else { // Monochrome:
+				CAT_DEBUG_ENFORCE(planes == 1);
+
+				if (*pixel == color) {
+					++covered;
+					bits |= 1;
+				}
 			}
 
 			if (++seen >= 32) {
@@ -127,7 +138,7 @@ int Masker::init(const u8 *rgba, u32 color, u32 color_mask, int size_x, int size
 				bits = 0;
 			}
 
-			++pixel;
+			pixel += planes;
 		}
 
 		if (seen > 0) {
@@ -221,7 +232,7 @@ void Masker::performLZ() {
 u32 Masker::simulate() {
 	const int lzSize = static_cast<int>( _lz.size() );
 
-	int bits = 32;
+	int bits = (_planes == 4) ? 32 : 8;
 
 	if (_using_encoder) {
 		for (int ii = 0; ii < lzSize; ++ii) {
@@ -279,7 +290,8 @@ bool Masker::evaluate() {
 #endif // CAT_COLLECT_STATS
 
 	u32 simulated_bits = simulate();
-	int ratio = _covered * 32 / simulated_bits;
+	const int bits = (_planes == 4) ? 32 : 8;
+	const int ratio = _covered * bits / simulated_bits;
 	_enabled = (ratio >= _min_ratio);
 
 #ifdef CAT_COLLECT_STATS
@@ -341,10 +353,17 @@ void Masker::write(ImageWriter &writer) {
 	double t0 = clock->usec();
 #endif // CAT_COLLECT_STATS
 
-	CAT_INANE("mask") << "Writing mask for color (" << (_color & 255) << "," << ((_color >> 8) & 255) << "," << ((_color >> 16) & 255) << "," << ((_color >> 24) & 255) << ") ...";
+	if (_planes == 4) {
+		CAT_INANE("mask") << "Writing mask for 4-plane color (" << (_color & 255) << "," << ((_color >> 8) & 255) << "," << ((_color >> 16) & 255) << "," << ((_color >> 24) & 255) << ") ...";
 
-	writer.writeWord(_color);
-	table_bits += 32;
+		writer.writeWord(_color);
+		table_bits += 32;
+	} else {
+		CAT_INANE("mask") << "Writing mask for 1-plane color (" << _color << ") ...";
+
+		writer.writeBits(_color, 8);
+		table_bits += 8;
+	}
 
 	table_bits += writer.write9((u32)_rle.size());
 	table_bits += writer.write9((u32)_lz.size());
@@ -370,7 +389,8 @@ void Masker::write(ImageWriter &writer) {
 	Stats.overallUsec += t2 - t0;
 
 	Stats.compressedDataBits = Stats.data_bits + Stats.table_bits;
-	Stats.compressionRatio = Stats.covered * 32 / (double)Stats.compressedDataBits;
+	const int bits = (_planes == 4) ? 32 : 8;
+	Stats.compressionRatio = Stats.covered * bits / (double)Stats.compressedDataBits;
 #endif // CAT_COLLECT_STATS
 }
 
@@ -380,7 +400,11 @@ bool Masker::dumpStats() {
 	if (!_enabled) {
 		CAT_INANE("stats") << "(Mask Encoding) Disabled.";
 	} else {
-		CAT_INANE("stats") << "(Mask Encoding)      Chosen Color : (" << (_color & 255) << "," << ((_color >> 8) & 255) << "," << ((_color >> 16) & 255) << "," << ((_color >> 24) & 255) << ") ...";
+		if (_planes == 4) {
+			CAT_INANE("stats") << "(Mask Encoding)      Chosen Color : (" << (_color & 255) << "," << ((_color >> 8) & 255) << "," << ((_color >> 16) & 255) << "," << ((_color >> 24) & 255) << ") ...";
+		} else {
+			CAT_INANE("stats") << "(Mask Encoding)      Chosen Color : " << _color << " (1-plane) ...";
+		}
 		CAT_INANE("stats") << "(Mask Encoding)     Post-RLE Size : " <<  Stats.rleBytes << " bytes";
 		CAT_INANE("stats") << "(Mask Encoding)      Post-LZ Size : " <<  Stats.lzBytes << " bytes";
 		CAT_INANE("stats") << "(Mask Encoding) Post-Huffman Size : " << (Stats.data_bits + 7) / 8 << " bytes (" << Stats.data_bits << " bits)";
@@ -410,7 +434,34 @@ bool Masker::dumpStats() {
 
 //// ImageMaskWriter
 
-u32 ImageMaskWriter::dominantColor() {
+u8 ImageMaskWriter::dominantMono() {
+	static const int BINS = 256;
+
+	u32 hist[BINS] = {0};
+
+	const u8 *pixel = _rgba;
+	int count = _size_x * _size_y;
+	u32 zeroes = 0;
+	while (count--) {
+		hist[*pixel++]++;
+	}
+
+	// Determine dominant color
+	u8 domColor = 0;
+	u32 domScore = hist[0];
+	for (int jj = 1; jj < BINS; ++jj) {
+		u32 count = hist[jj];
+
+		if (domScore < count) {
+			domScore = count;
+			domColor = (u8)jj;
+		}
+	}
+
+	return domColor;
+}
+
+u32 ImageMaskWriter::dominantRGBA() {
 	static const int BINS_BITS = 12;
 	static const int BINS = 1 << BINS_BITS; // To help with STL map inefficiencies
 
@@ -450,18 +501,28 @@ u32 ImageMaskWriter::dominantColor() {
 	return domColor;
 }
 
-int ImageMaskWriter::init(const u8 *rgba, int size_x, int size_y, const GCIFKnobs *knobs) {
+int ImageMaskWriter::init(const u8 *rgba, int planes, int size_x, int size_y, const GCIFKnobs *knobs) {
 	_knobs = knobs;
 	_rgba = rgba;
 	_size_x = size_x;
 	_size_y = size_y;
+	_planes = planes;
+
+	u32 domColor, mask;
+	if (planes == 4) {
+		domColor = dominantRGBA();
+		mask = 0xffffffff;
+		if (domColor == 0) {
+			mask = getLE(0xff000000);
+		}
+	} else {
+		domColor = dominantMono();
+		mask = 0xff; // unused
+	}
 
 	int err;
 
-	u32 domColor = dominantColor();
-	const u32 COLOR_MASK = 0xffffffff;
-
-	if ((err = _color.init(rgba, domColor, COLOR_MASK, size_x, size_y, knobs, _knobs->mask_minColorRat))) {
+	if ((err = _color.init(rgba, planes, domColor, mask, size_x, size_y, knobs, _knobs->mask_minColorRat))) {
 		return err;
 	}
 

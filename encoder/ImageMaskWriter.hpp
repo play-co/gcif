@@ -79,7 +79,7 @@ class Masker {
 
 	SmartArray<u32> _mask, _filtered;
 	const u8 *_rgba;		// Original pixel data
-	int _size, _stride, _size_x, _size_y;
+	int _size, _stride, _size_x, _size_y, _planes;
 	u32 _covered;			// Number of pixels covered
 
 	bool _using_encoder;	// Above threshold for encodering?
@@ -121,7 +121,7 @@ public:
 	}
 
 	// Create mask
-	int init(const u8 *rgba, u32 color, u32 color_mask, int size_x, int size_y, const GCIFKnobs *knobs, int min_ratio);
+	int init(const u8 *rgba, int planes, u32 color, u32 color_mask, int size_x, int size_y, const GCIFKnobs *knobs, int min_ratio);
 
 	// Evaluate compression ratio
 	bool evaluate();
@@ -157,10 +157,12 @@ class ImageMaskWriter {
 
 	const u8 *_rgba;
 	int _size_x, _size_y;
+	int _planes;
 
 	Masker _color;
 
-	u32 dominantColor();
+	u32 dominantRGBA();	// 4-plane mode
+	u8 dominantMono();	// 1-plane mode
 
 #ifdef CAT_COLLECT_STATS
 public:
@@ -171,7 +173,7 @@ public:
 #endif // CAT_COLLECT_STATS
 
 public:
-	int init(const u8 *rgba, int size_x, int size_y, const GCIFKnobs *knobs);
+	int init(const u8 *rgba, int planes, int size_x, int size_y, const GCIFKnobs *knobs);
 
 	void write(ImageWriter &writer);
 
