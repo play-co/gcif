@@ -80,7 +80,7 @@ bool SmallPaletteWriter::generatePalette() {
 	return true;
 }
 
-void SmallPaletteWriter::generateImage() {
+void SmallPaletteWriter::generatePacked() {
 	if (_palette_size > 4) { // 3-4 bits/pixel
 		/*
 		 * Combine pairs of pixels on the same scanline together.
@@ -226,23 +226,22 @@ int SmallPaletteWriter::init(const u8 *rgba, int size_x, int size_y, const GCIFK
 
 	// If palette was generated,
 	if (generatePalette()) {
-		// Generate palette raster
-		generateImage();
+		generatePacked();
 	}
 
 	return GCIF_WE_OK;
 }
 
-void SmallPaletteWriter::write(ImageWriter &writer) {
+void SmallPaletteWriter::writeHead(ImageWriter &writer) {
 	if (enabled()) {
 		writer.writeBit(1);
-		writeTable(writer);
+		writeSmallPalette(writer);
 	} else {
 		writer.writeBit(0);
 	}
 }
 
-void SmallPaletteWriter::writeTable(ImageWriter &writer) {
+void SmallPaletteWriter::writeSmallPalette(ImageWriter &writer) {
 	int bits = 0;
 
 	CAT_DEBUG_ENFORCE(SMALL_PALETTE_MAX <= 16);
@@ -258,8 +257,141 @@ void SmallPaletteWriter::writeTable(ImageWriter &writer) {
 	}
 
 #ifdef CAT_COLLECT_STATS
-	Stats.overhead_bits = bits;
+	Stats.small_palette_bits = bits;
 #endif
+}
+
+bool SmallPaletteWriter::IsMasked(u16 x, u16 y) {
+	return _mask->masked(x, y) || _lz->visited(x, y);
+}
+
+void SmallPaletteWriter::convertPacked() {
+	// Find used symbols
+	u8 seen[MAX_SYMS] = { 0 };
+	u8 *image = _image.get();
+
+	for (int y = 0; y < _pack_y; ++y) {
+		for (int x = 0, xend = _pack_x; x < xend; ++x) {
+			seen[*image++] = 1;
+		}
+	}
+
+	// Generate mapping
+	u8 reverse[MAX_SYMS];
+
+	int num_syms = 0;
+	for (int ii = 0; ii < MAX_SYMS; ++ii) {
+		if (seen[ii] != 0) {
+			reverse[ii] = num_syms;
+			_pack_palette[num_syms++] = (u8)ii;
+		}
+	}
+	_pack_palette_size = num_syms;
+
+	// Convert image
+	image = _image.get();
+	for (int y = 0; y < _pack_y; ++y) {
+		for (int x = 0, xend = _pack_x; x < xend; ++x) {
+			const u8 p = *image;
+			*image++ = reverse[p];
+		}
+	}
+}
+
+void SmallPaletteWriter::optimizeImage() {
+	_optimizer.process(_image.get(), _pack_x, _pack_y, _pack_palette_size,
+		PaletteOptimizer::MaskDelegate::FromMember<SmallPaletteWriter, &SmallPaletteWriter::IsMasked>(this));
+}
+
+void SmallPaletteWriter::generateMonoWriter() {
+	CAT_INANE("Palette") << "Compressing index matrix...";
+
+	MonoWriter::Parameters params;
+
+	params.knobs = _knobs;
+	params.data = _image.get();
+	params.num_syms = _pack_palette_size;
+	params.size_x = _pack_x;
+	params.size_y = _pack_y;
+	params.max_filters = 32;
+	params.min_bits = 2;
+	params.max_bits = 5;
+	params.sympal_thresh = 0.1;
+	params.filter_cover_thresh = 0.6;
+	params.filter_inc_thresh = 0.05;
+	params.mask.SetMember<SmallPaletteWriter, &SmallPaletteWriter::IsMasked>(this);
+	params.AWARDS[0] = 5;
+	params.AWARDS[1] = 3;
+	params.AWARDS[2] = 1;
+	params.AWARDS[3] = 1;
+	params.award_count = 4;
+
+	_mono_writer.init(params);
+}
+
+int SmallPaletteWriter::compress(ImageMaskWriter &mask, ImageLZWriter &lz) {
+	_mask = &mask;
+	_lz = &lz;
+
+	CAT_DEBUG_ENFORCE(enabled());
+
+	convertPacked();
+	optimizeImage();
+	generateMonoWriter();
+}
+
+void SmallPaletteWriter::writePackPalette(ImageWriter &writer) {
+	int bits = 0;
+
+	writer.writeBits(_pack_palette_size - 1, 8);
+	bits += 8;
+
+	for (int ii = 0; ii < _pack_palette_size; ++ii) {
+		u8 packed = _pack_palette[ii];
+
+		writer.writeBits(packed, 8);
+		bits += 8;
+	}
+
+#ifdef CAT_COLLECT_STATS
+	Stats.pack_palette_bits = bits;
+#endif
+}
+
+void SmallPaletteWriter::writePixels(ImageWriter &writer) {
+	int bits = 0, pixels = 0;
+
+	// Write tables for pixel data
+	bits += _mono_writer.writeTables(writer);
+
+	const u8 *image = _image.get();
+
+	for (int y = 0; y < _pack_y; ++y) {
+		bits += _mono_writer.writeRowHeader(y, writer);
+
+		for (int x = 0, xend = _pack_x; x < xend; ++x, ++image) {
+			if (IsMasked(x, y)) {
+				_mono_writer.zero(x, y);
+			} else {
+				bits += _mono_writer.write(x, y, writer);
+				++pixels;
+			}
+		}
+	}
+
+#ifdef CAT_COLLECT_STATS
+	Stats.pixel_bits = bits;
+	Stats.packed_pixels = pixels;
+	Stats.total_bits = Stats.small_palette_bits + Stats.pack_palette_bits + Stats.pixel_bits;
+	Stats.compression_ratio = _size_x * _size_y * 32 / (double)Stats.total_bits;
+#endif
+}
+
+void SmallPaletteWriter::writeTail(ImageWriter &writer) {
+	CAT_DEBUG_ENFORCE(enabled());
+
+	writePackPalette(writer);
+	writePixels(writer);
 }
 
 #ifdef CAT_COLLECT_STATS
@@ -268,8 +400,12 @@ bool SmallPaletteWriter::dumpStats() {
 	if (!enabled()) {
 		CAT_INANE("stats") << "(Small Palette) Disabled.";
 	} else {
-		CAT_INANE("stats") << "(Small Palette)  Size : " << Stats.palette_size << " colors";
-		CAT_INANE("stats") << "(Small Palette) Table : " << Stats.overhead_bits / 8 << " bytes";
+		CAT_INANE("stats") << "(Small Palette)              Size : " << Stats.palette_size << " colors";
+		CAT_INANE("stats") << "(Small Palette)     Small Palette : " << Stats.small_palette_bits / 8 << " bytes (" << Stats.small_palette_bits * 100.f / Stats.total_bits << "% total)";
+		CAT_INANE("stats") << "(Small Palette)    Packed Palette : " << Stats.pack_palette_bits / 8 << " bytes (" << Stats.pack_palette_bits * 100.f / Stats.total_bits << "% total)";
+		CAT_INANE("stats") << "(Small Palette)        Pixel Data : " << Stats.pixel_bits / 8 << " bytes (" << Stats.pixel_bits * 100.f / Stats.total_bits << "% total)";
+		CAT_INANE("stats") << "(Small Palette)     Packed Pixels : " << Stats.packed_pixels << " packed pixels written";
+		CAT_INANE("stats") << "(Small Palette) Compression Ratio : " << Stats.compression_ratio << ":1 compression ratio";
 	}
 
 	return true;

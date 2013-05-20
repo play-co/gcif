@@ -33,6 +33,10 @@
 #include "../decoder/SmartArray.hpp"
 #include "GCIFWriter.h"
 #include "ImageWriter.hpp"
+#include "ImageMaskWriter.hpp"
+#include "ImageLZWriter.hpp"
+#include "PaletteOptimizer.hpp"
+#include "MonoWriter.hpp"
 
 #include <vector>
 #include <map>
@@ -60,6 +64,7 @@ namespace cat {
 //// SmallPaletteWriter
 
 class SmallPaletteWriter {
+	static const int MAX_SYMS = 256;
 	static const int SMALL_PALETTE_MAX = 16;
 
 	const GCIFKnobs *_knobs;
@@ -70,26 +75,58 @@ class SmallPaletteWriter {
 	int _pack_x, _pack_y;	// In packed pixels
 	SmartArray<u8> _image;	// Repacked image
 
+	ImageMaskWriter *_mask;
+	ImageLZWriter *_lz;
+	PaletteOptimizer _optimizer;
+
 	int _palette_size;		// Number of palette entries (> 0 : enabled)
 
 	std::vector<u32> _palette;		// Map index => color
 	std::map<u32, u16> _map;		// Map color => index
 
-	bool generatePalette();
-	void generateImage();
+	int _pack_palette_size;	// Palette size for repacked bytes
+	u8 _pack_palette[MAX_SYMS];
 
-	void writeTable(ImageWriter &writer);
+	MonoWriter _mono_writer;
+
+	// Generate palette and check if small palette condition <= 16 holds
+	bool generatePalette();
+
+	// Generated packed image from small palette
+	void generatePacked();
+
+	// Convert packed image to larger palette size
+	void convertPacked();
+
+	// Sort palette for better compression
+	void optimizeImage();
+
+	// Generate monochrome writer
+	void generateMonoWriter();
+
+	bool IsMasked(u16 x, u16 y);
+
+	void writeSmallPalette(ImageWriter &writer);
+
+	void writePackPalette(ImageWriter &writer);
+	void writePixels(ImageWriter &writer);
 
 #ifdef CAT_COLLECT_STATS
 public:
 	struct _Stats {
 		int palette_size;
-		int overhead_bits;
+		int small_palette_bits;
+		int pack_palette_bits;
+		int pixel_bits;
+		int total_bits;
+		int packed_pixels;
+		double compression_ratio;
 	} Stats;
 #endif
 
 public:
 	int init(const u8 *rgba, int size_x, int size_y, const GCIFKnobs *knobs);
+	int compress(ImageMaskWriter &mask, ImageLZWriter &lz);
 
 	CAT_INLINE bool enabled() {
 		return _palette_size > 0;
@@ -111,7 +148,9 @@ public:
 		return _pack_y;
 	}
 
-	void write(ImageWriter &writer);
+	void writeHead(ImageWriter &writer);
+	void writeTail(ImageWriter &writer);
+
 #ifdef CAT_COLLECT_STATS
 	bool dumpStats();
 #else
