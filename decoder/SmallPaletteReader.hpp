@@ -53,6 +53,8 @@ public:
 	static const int SMALL_PALETTE_MAX = 16;
 
 protected:
+	static const int MAX_SYMS = 256;
+
 	u32 _palette[SMALL_PALETTE_MAX];
 	int _palette_size;
 	u8 _mask_palette;	// Masked palette index
@@ -65,11 +67,15 @@ protected:
 
 	SmartArray<u8> _image;
 
+	int _pack_palette_size;	// Palette size for repacked bytes
+	u8 _pack_palette[MAX_SYMS];
+
 	MonoReader _mono_decoder;
 
 	int readSmallPalette(ImageReader & CAT_RESTRICT reader);
 	int readPackPalette(ImageReader & CAT_RESTRICT reader);
 	int readPixels(ImageReader & CAT_RESTRICT reader);
+	int unpackPixels();
 
 #ifdef CAT_COLLECT_STATS
 public:
@@ -87,8 +93,12 @@ public:
 		return _palette_size > 0;
 	}
 
-	int read(ImageReader & CAT_RESTRICT reader, GCIFImage * CAT_RESTRICT image);
-	int unpack(ImageMaskReader & CAT_RESTRICT mask, ImageLZReader & CAT_RESTRICT lz);
+	CAT_INLINE bool multipleColors() {
+		return _palette_size > 1;
+	}
+
+	int readHead(ImageReader & CAT_RESTRICT reader, u8 * CAT_RESTRICT rgba);
+	int readTail(ImageReader & CAT_RESTRICT reader, ImageMaskReader & CAT_RESTRICT mask, ImageLZReader & CAT_RESTRICT lz);
 
 	CAT_INLINE u16 getPackX() {
 		return _pack_x;

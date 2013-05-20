@@ -209,6 +209,7 @@ int ImagePaletteReader::readPixels(ImageReader & CAT_RESTRICT reader) {
 			mask <<= 1;
 		}
 	}
+
 	return GCIF_RE_OK;
 }
 

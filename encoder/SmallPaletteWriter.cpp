@@ -299,8 +299,22 @@ void SmallPaletteWriter::convertPacked() {
 }
 
 void SmallPaletteWriter::optimizeImage() {
+	CAT_INANE("Palette") << "Optimizing palette...";
+
 	_optimizer.process(_image.get(), _pack_x, _pack_y, _pack_palette_size,
 		PaletteOptimizer::MaskDelegate::FromMember<SmallPaletteWriter, &SmallPaletteWriter::IsMasked>(this));
+
+	// Replace palette image
+	const u8 *src = _optimizer.getOptimizedImage();
+	memcpy(_image.get(), src, _size_x * _size_y);
+
+	// Fix pack palette array
+	u8 better_palette[MAX_SYMS];
+
+	for (int ii = 0; ii < _pack_palette_size; ++ii) {
+		better_palette[_optimizer.forward(ii)] = _pack_palette[ii];
+	}
+	memcpy(_pack_palette, better_palette, _pack_palette_size * sizeof(_pack_palette[0]));
 }
 
 void SmallPaletteWriter::generateMonoWriter() {

@@ -37,6 +37,7 @@
 #include "ImageLZWriter.hpp"
 #include "PaletteOptimizer.hpp"
 #include "MonoWriter.hpp"
+#include "../decoder/SmallPaletteReader.hpp"
 
 #include <vector>
 #include <map>
@@ -65,7 +66,7 @@ namespace cat {
 
 class SmallPaletteWriter {
 	static const int MAX_SYMS = 256;
-	static const int SMALL_PALETTE_MAX = 16;
+	static const int SMALL_PALETTE_MAX = SmallPaletteReader::SMALL_PALETTE_MAX;
 
 	const GCIFKnobs *_knobs;
 

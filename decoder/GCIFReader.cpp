@@ -70,33 +70,35 @@ static int gcif_read(ImageReader &reader, GCIFImage *image) {
 
 	// Small Palette
 	SmallPaletteReader smallPaletteReader;
-	if ((err = smallPaletteReader.read(reader, image))) {
+	if ((err = smallPaletteReader.readHead(reader, image->rgba))) {
 		return err;
 	}
 
 	// If small palette is being used,
 	if (smallPaletteReader.enabled()) {
-		const int pack_x = smallPaletteReader.getPackX();
-		const int pack_y = smallPaletteReader.getPackY();
+		if (smallPaletteReader.multipleColors()) {
+			const int pack_x = smallPaletteReader.getPackX();
+			const int pack_y = smallPaletteReader.getPackY();
 
-		// Color Mask
-		ImageMaskReader imageMaskReader;
-		if ((err = imageMaskReader.read(reader,  pack_x, pack_y))) {
-			return err;
-		}
-		imageMaskReader.dumpStats();
+			// Color Mask
+			ImageMaskReader imageMaskReader;
+			if ((err = imageMaskReader.read(reader,  pack_x, pack_y))) {
+				return err;
+			}
+			imageMaskReader.dumpStats();
 
-		// 2D-LZ Exact Match
-		ImageLZReader imageLZReader;
-		if ((err = imageLZReader.read(reader, pack_x, pack_y))) {
-			return err;
-		}
-		imageLZReader.dumpStats();
+			// 2D-LZ Exact Match
+			ImageLZReader imageLZReader;
+			if ((err = imageLZReader.read(reader, pack_x, pack_y))) {
+				return err;
+			}
+			imageLZReader.dumpStats();
 
-		if ((err = smallPaletteReader.unpack(imageMaskReader, imageLZReader))) {
-			return err;
+			if ((err = smallPaletteReader.readTail(reader, imageMaskReader, imageLZReader))) {
+				return err;
+			}
+			smallPaletteReader.dumpStats();
 		}
-		smallPaletteReader.dumpStats();
 	} else {
 		// Color Mask
 		ImageMaskReader imageMaskReader;
