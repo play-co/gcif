@@ -32,6 +32,9 @@
 #include "Platform.hpp"
 #include "GCIFReader.h"
 #include "ImageReader.hpp"
+#include "ImageMaskReader.hpp"
+#include "ImageLZReader.hpp"
+#include "MonoReader.hpp"
 
 #include <vector>
 #include <map>
@@ -58,14 +61,14 @@ protected:
 	ImageLZReader * CAT_RESTRICT _lz;
 
 	u8 * CAT_RESTRICT _rgba;
-	u16 _size_x, _size_y;
+	u16 _size_x, _size_y, _pack_x, _pack_y;
 
 	SmartArray<u8> _image;
 
 	MonoReader _mono_decoder;
 
-	int readPalette(ImageReader & CAT_RESTRICT reader);
-	int readTables(ImageReader & CAT_RESTRICT reader);
+	int readSmallPalette(ImageReader & CAT_RESTRICT reader);
+	int readPackPalette(ImageReader & CAT_RESTRICT reader);
 	int readPixels(ImageReader & CAT_RESTRICT reader);
 
 #ifdef CAT_COLLECT_STATS
@@ -85,6 +88,14 @@ public:
 	}
 
 	int read(ImageReader & CAT_RESTRICT reader, GCIFImage * CAT_RESTRICT image);
+	int unpack(ImageMaskReader & CAT_RESTRICT mask, ImageLZReader & CAT_RESTRICT lz);
+
+	CAT_INLINE u16 getPackX() {
+		return _pack_x;
+	}
+	CAT_INLINE u16 getPackY() {
+		return _pack_y;
+	}
 
 #ifdef CAT_COLLECT_STATS
 	bool dumpStats();

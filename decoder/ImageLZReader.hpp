@@ -108,7 +108,7 @@ public:
 #endif
 
 public:
-	int read(ImageReader & CAT_RESTRICT reader);
+	int read(ImageReader & CAT_RESTRICT reader, int size_x, int size_y);
 
 	CAT_INLINE u16 getTriggerX() {
 		return _zone_trigger_x;

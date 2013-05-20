@@ -59,7 +59,7 @@ class ImageMaskReader {
 
 	int decodeLZ(ImageReader & CAT_RESTRICT reader);
 
-	int init(const ImageReader::Header * CAT_RESTRICT header);
+	int init(int size_x, int size_y);
 
 #ifdef CAT_COLLECT_STATS
 public:
@@ -71,7 +71,7 @@ public:
 #endif // CAT_COLLECT_STATS
 
 public:
-	int read(ImageReader & CAT_RESTRICT reader);
+	int read(ImageReader & CAT_RESTRICT reader, int size_x, int size_y);
 
 	// Returns bitmask for scanline, MSB = first pixel
 	const u32 *nextScanline();

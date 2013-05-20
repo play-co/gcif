@@ -73,54 +73,48 @@ static int gcif_read(ImageReader &reader, GCIFImage *image) {
 	if ((err = smallPaletteReader.read(reader, image))) {
 		return err;
 	}
-	smallPaletteReader.dumpStats();
 
 	// If small palette is being used,
 	if (smallPaletteReader.enabled()) {
-		GCIFImage * CAT_RESTRICT pal_image = smallPaletteReader.getImage();
+		const int pack_x = smallPaletteReader.getPackX();
+		const int pack_y = smallPaletteReader.getPackY();
 
 		// Color Mask
-		ImageMaskReader maskReader;
-		if ((err = maskReader.read(reader, 1, pal_image))) {
+		ImageMaskReader imageMaskReader;
+		if ((err = imageMaskReader.read(reader,  pack_x, pack_y))) {
 			return err;
 		}
-		maskReader.dumpStats();
+		imageMaskReader.dumpStats();
 
 		// 2D-LZ Exact Match
 		ImageLZReader imageLZReader;
-		if ((err = imageLZReader.read(reader, 1, pal_image))) {
+		if ((err = imageLZReader.read(reader, pack_x, pack_y))) {
 			return err;
 		}
 		imageLZReader.dumpStats();
 
-		// Global Palette Decompression
-		ImagePaletteReader imagePaletteReader;
-		if ((err = imagePaletteReader.read(reader, 1, pal_image, maskReader, imageLZReader))) {
+		if ((err = smallPaletteReader.unpack(imageMaskReader, imageLZReader))) {
 			return err;
 		}
-		imagePaletteReader.dumpStats();
-
-		CAT_DEBUG_ENFORCE(imagePaletteReader.enabled());
-
-		smallPaletteReader.unpack(image);
+		smallPaletteReader.dumpStats();
 	} else {
 		// Color Mask
-		ImageMaskReader maskReader;
-		if ((err = maskReader.read(reader, 4, image))) {
+		ImageMaskReader imageMaskReader;
+		if ((err = imageMaskReader.read(reader, image->size_x, image->size_y))) {
 			return err;
 		}
-		maskReader.dumpStats();
+		imageMaskReader.dumpStats();
 
 		// 2D-LZ Exact Match
 		ImageLZReader imageLZReader;
-		if ((err = imageLZReader.read(reader, 4, image))) {
+		if ((err = imageLZReader.read(reader, image->size_x, image->size_y))) {
 			return err;
 		}
 		imageLZReader.dumpStats();
 
 		// Global Palette Decompression
 		ImagePaletteReader imagePaletteReader;
-		if ((err = imagePaletteReader.read(reader, 4, image, maskReader, imageLZReader))) {
+		if ((err = imagePaletteReader.read(reader, image, imageMaskReader, imageLZReader))) {
 			return err;
 		}
 		imagePaletteReader.dumpStats();
@@ -128,7 +122,7 @@ static int gcif_read(ImageReader &reader, GCIFImage *image) {
 		if (!imagePaletteReader.enabled()) {
 			// RGBA Decompression
 			ImageRGBAReader imageRGBAReader;
-			if ((err = imageRGBAReader.read(reader, maskReader, imageLZReader, image))) {
+			if ((err = imageRGBAReader.read(reader, imageMaskReader, imageLZReader, image))) {
 				return err;
 			}
 			imageRGBAReader.dumpStats();

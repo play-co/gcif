@@ -272,11 +272,13 @@ int ImageLZReader::triggerXPal(u8 * CAT_RESTRICT p, u32 * CAT_RESTRICT rgba) {
 
 	// Copy scanline one at a time in case the pointers are aliased
 	int offset = zi->sox + zi->soy * _size_x;
-	const volatile u32 *rgba_src = rgba + offset;
-	for (int jj = 0; jj < lz_left; ++jj) {
-		*rgba = *rgba_src;
-		++rgba_src;
-		++rgba;
+	if (rgba) {
+		const volatile u32 *rgba_src = rgba + offset;
+		for (int jj = 0; jj < lz_left; ++jj) {
+			*rgba = *rgba_src;
+			++rgba_src;
+			++rgba;
+		}
 	}
 
 	// Copy scanline one at a time in case the pointers are aliased
