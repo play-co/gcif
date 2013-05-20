@@ -34,6 +34,7 @@
 #include "../decoder/ImageLZReader.hpp"
 #include "GCIFWriter.h"
 #include "../decoder/SmartArray.hpp"
+#include "ImageMaskWriter.hpp"
 
 #include <vector>
 
@@ -90,8 +91,9 @@ class ImageLZWriter {
 	int _table_mask; // table_size - 1
 
 	const GCIFKnobs *_knobs;
+	ImageMaskWriter *_mask;
 	const u8 *_rgba;
-	int _size_x, _size_y;
+	int _size_x, _size_y, _planes;
 
 	SmartArray<u32> _table, _visited;
 
@@ -111,7 +113,8 @@ class ImageLZWriter {
 	std::vector<Match> _exact_matches;
 
 	bool checkMatch(u16 x, u16 y, u16 mx, u16 my);	
-	bool expandMatch(u16 &sx, u16 &sy, u16 &dx, u16 &dy, u16 &w, u16 &h);
+	bool expandMatch4(u16 &sx, u16 &sy, u16 &dx, u16 &dy, u16 &w, u16 &h);
+	bool expandMatch1(u16 &sx, u16 &sy, u16 &dx, u16 &dy, u16 &w, u16 &h);
 	u32 score(int x, int y, int w, int h);
 	void add(int unused, u16 sx, u16 sy, u16 dx, u16 dy, u16 w, u16 h);
 	int match();
@@ -131,7 +134,7 @@ public:
 #endif
 
 public:
-	int init(const u8 *rgba, int size_x, int size_y, const GCIFKnobs *knobs);
+	int init(const u8 *rgba, int planes, int size_x, int size_y, const GCIFKnobs *knobs, ImageMaskWriter &mask);
 
 	CAT_INLINE u32 visited(int x, int y) {
 		const int off = x + y * _size_x;
@@ -146,10 +149,6 @@ public:
 		return false;
 	}
 #endif
-
-	// Returns false if no LZ destination region under x,y
-	// w,h : number of pixels left in region including the pixel at x,y
-	bool findExtent(int x, int y, int &w, int &h);
 };
 
 

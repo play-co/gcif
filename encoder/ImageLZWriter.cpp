@@ -55,11 +55,13 @@ static CAT_INLINE u32 hashPixel(u32 key) {
 
 //// ImageLZWriter
 
-int ImageLZWriter::init(const u8 *rgba, int size_x, int size_y, const GCIFKnobs *knobs) {
+int ImageLZWriter::init(const u8 *rgba, int planes, int size_x, int size_y, const GCIFKnobs *knobs, ImageMaskWriter &mask) {
 	_knobs = knobs;
 	_rgba = rgba;
 	_size_x = size_x;
 	_size_y = size_y;
+	_planes = planes;
+	_mask = &mask;
 
 	if (knobs->lz_tableBits < 0 || knobs->lz_tableBits > 24 ||
 		knobs->lz_nonzeroCoeff <= 0) {
@@ -92,33 +94,65 @@ bool ImageLZWriter::checkMatch(u16 x, u16 y, u16 mx, u16 my) {
 	u32 nonzero = 0;
 #endif
 
-	for (int ii = 0; ii < ZONEW; ++ii) {
-		for (int jj = 0; jj < ZONEH; ++jj) {
-			if (visited(x + ii, y + jj)) {
-				return false;
-			}
+	if (_planes == 4) {
+		for (int ii = 0; ii < ZONEW; ++ii) {
+			for (int jj = 0; jj < ZONEH; ++jj) {
+				if (visited(x + ii, y + jj)) {
+					return false;
+				}
 
-			u32 *p = (u32*)&rgba[((x + ii) + (y + jj) * size_x)*4];
-			u32 *mp = (u32*)&rgba[((mx + ii) + (my + jj) * size_x)*4];
+				u32 *p = (u32*)&rgba[((x + ii) + (y + jj) * size_x)*4];
+				u32 *mp = (u32*)&rgba[((mx + ii) + (my + jj) * size_x)*4];
 
-			if (getLE(*p) ^ getLE(*mp)) {
-				return false;
-			}
+				if (getLE(*p) ^ getLE(*mp)) {
+					return false;
+				}
 
 #ifdef IGNORE_ALL_ZERO_MATCHES
-			nonzero |= *p;
+				nonzero |= *p;
 #endif
+			}
 		}
+
+#ifdef IGNORE_ALL_ZERO_MATCHES
+		return (getLE(nonzero) >> 24) != 0;
+#else
+		return true;
+#endif
+	} else {
+#ifdef IGNORE_ALL_ZERO_MATCHES
+		u32 mask = 256; // Impossible
+		if (_mask->enabled()) {
+			mask = _mask->getColor();
+		}
+#endif
+
+		for (int ii = 0; ii < ZONEW; ++ii) {
+			for (int jj = 0; jj < ZONEH; ++jj) {
+				if (visited(x + ii, y + jj)) {
+					return false;
+				}
+
+				const u8 *p = &rgba[((x + ii) + (y + jj) * size_x)];
+				const u8 *mp = &rgba[((mx + ii) + (my + jj) * size_x)];
+
+				if (getLE(*p) ^ getLE(*mp)) {
+					return false;
+				}
+
+#ifdef IGNORE_ALL_ZERO_MATCHES
+				nonzero |= (*p != mask);
+#endif
+			}
+		}
+
+		return true;
 	}
 
-#ifdef IGNORE_ALL_ZERO_MATCHES
-	return (getLE(nonzero) >> 24) != 0;
-#else
-	return true;
-#endif
 }
 
-bool ImageLZWriter::expandMatch(u16 &sx, u16 &sy, u16 &dx, u16 &dy, u16 &w, u16 &h) {
+// RGBA version
+bool ImageLZWriter::expandMatch4(u16 &sx, u16 &sy, u16 &dx, u16 &dy, u16 &w, u16 &h) {
 	const u8 *rgba = _rgba;
 	const int size_x = _size_x;
 	const int size_y = _size_y;
@@ -282,33 +316,141 @@ done:
 	return true;
 }
 
+// Monochrome version
+bool ImageLZWriter::expandMatch1(u16 &sx, u16 &sy, u16 &dx, u16 &dy, u16 &w, u16 &h) {
+	const u8 *rgba = _rgba;
+	const int size_x = _size_x;
+	const int size_y = _size_y;
+
+	// Try expanding to the right
+	while (w + 1 <= MAXW && sx + w < size_x && dx + w < size_x) {
+		for (int jj = 0; jj < h; ++jj) {
+			if (visited(dx + w, dy + jj)) {
+				goto try_down;
+			}
+
+			const u8 *sp = &rgba[((sx + w) + (sy + jj) * size_x)*4];
+			const u8 *dp = &rgba[((dx + w) + (dy + jj) * size_x)*4];
+
+			if (*sp != *dp) {
+				goto try_down;
+			}
+		}
+
+		// Widen size_x
+		++w;
+	}
+
+try_down:
+	// Try expanding down
+	while (h + 1 <= MAXH && sy + h < size_y && dy + h < size_y) {
+		for (int jj = 0; jj < w; ++jj) {
+			if (visited(dx + jj, dy + h)) {
+				goto try_left;
+			}
+
+			const u8 *sp = &rgba[((sx + jj) + (sy + h) * size_x)*4];
+			const u8 *dp = &rgba[((dx + jj) + (dy + h) * size_x)*4];
+
+			if (*sp != *dp) {
+				goto try_left;
+			}
+		}
+
+		// Heighten size_y
+		++h;
+	}
+
+try_left:
+	// Try expanding left
+	while (w + 1 <= MAXW && sx >= 1 && dx >= 1) {
+		for (int jj = 0; jj < h; ++jj) {
+			if (visited(dx - 1, dy + jj)) {
+				goto try_up;
+			}
+
+			const u8 *sp = &rgba[((sx - 1) + (sy + jj) * size_x)*4];
+			const u8 *dp = &rgba[((dx - 1) + (dy + jj) * size_x)*4];
+
+			if (*sp != *dp) {
+				goto try_up;
+			}
+		}
+
+		// Widen size_x
+		sx--;
+		dx--;
+		++w;	
+	}
+
+try_up:
+	// Try expanding up
+	while (h + 1 <= MAXH && sy >= 1 && dy >= 1) {
+		for (int jj = 0; jj < w; ++jj) {
+			if (visited(dx + jj, dy - 1)) {
+				goto done;
+			}
+
+			const u8 *sp = &rgba[((sx + jj) + (sy - 1) * size_x)*4];
+			const u8 *dp = &rgba[((dx + jj) + (dy - 1) * size_x)*4];
+
+			if (*sp != *dp) {
+				goto done;
+			}
+		}
+
+		// Widen size_x
+		sy--;
+		dy--;
+		++h;	
+	}
+
+done:
+	return true;
+}
+
 u32 ImageLZWriter::score(int x, int y, int w, int h) {
 	u32 sum = 0;
 
-	for (int ii = 0; ii < w; ++ii) {
-		for (int jj = 0; jj < h; ++jj) {
-			if (visited(x + ii, y + jj)) {
-				return 0;
-			}
-			u32 *p = (u32*)&_rgba[((x + ii) + (y + jj) * _size_x)*4];
-			u32 pv = getLE(*p);
+	if (_planes == 4) {
+		for (int ii = 0; ii < w; ++ii) {
+			for (int jj = 0; jj < h; ++jj) {
+				if (visited(x + ii, y + jj)) {
+					return 0;
+				}
+				u32 *p = (u32*)&_rgba[((x + ii) + (y + jj) * _size_x)*4];
+				u32 pv = getLE(*p);
 
 #ifdef IGNORE_ALL_ZERO_MATCHES
-			// If not fully transparent,
-			if (pv >> 24)
+				// If not fully transparent,
+				if (pv >> 24)
 #endif
-			{
-				// If color data,
-				if (pv << 8) {
-					sum += _knobs->lz_nonzeroCoeff;
-				} else {
-					sum += 1;
+				{
+					// If color data,
+					if (pv << 8) {
+						sum += _knobs->lz_nonzeroCoeff;
+					} else {
+						sum += 1;
+					}
 				}
 			}
 		}
+
+		return sum / _knobs->lz_nonzeroCoeff;
+	} else {
+		for (int ii = 0; ii < w; ++ii) {
+			for (int jj = 0; jj < h; ++jj) {
+				if (visited(x + ii, y + jj)) {
+					return 0;
+				}
+
+				++sum;
+			}
+		}
+
+		return sum;
 	}
 
-	return sum / _knobs->lz_nonzeroCoeff;
 }
 
 void ImageLZWriter::add(int unused, u16 sx, u16 sy, u16 dx, u16 dy, u16 w, u16 h) {
@@ -350,10 +492,20 @@ int ImageLZWriter::match() {
 	for (u16 y = 0, yend = _size_y - ZONEH; y <= yend; ++y) {
 		// Initialize a full hash block in the upper left of this row
 		u32 hash = 0;
-		for (int ii = 0; ii < ZONEW; ++ii) {
-			for (int jj = 0; jj < ZONEH; ++jj) {
-				u32 *p = (u32*)&rgba[(ii + jj * size_x)*4];
-				hash += hashPixel(*p);
+
+		if (_planes == 4) {
+			for (int ii = 0; ii < ZONEW; ++ii) {
+				for (int jj = 0; jj < ZONEH; ++jj) {
+					const u32 *p = (const u32 *)&rgba[(ii + jj * size_x)*4];
+					hash += hashPixel(*p);
+				}
+			}
+		} else {
+			for (int ii = 0; ii < ZONEW; ++ii) {
+				for (int jj = 0; jj < ZONEH; ++jj) {
+					const u8 *p = &rgba[ii + jj * size_x];
+					hash += hashPixel(*p);
+				}
 			}
 		}
 
@@ -375,7 +527,11 @@ int ImageLZWriter::match() {
 
 					// See how far the match can be expanded
 					u16 dx = x, dy = y, w = ZONEW, h = ZONEH;
-					expandMatch(sx, sy, dx, dy, w, h);
+					if (_planes == 4) {
+						expandMatch4(sx, sy, dx, dy, w, h);
+					} else {
+						expandMatch1(sx, sy, dx, dy, w, h);
+					}
 
 					// If the match scores well,
 					int unused = score(dx, dy, w, h);
@@ -403,12 +559,22 @@ int ImageLZWriter::match() {
 				break;
 			}
 
-			// Roll the hash to the next zone one pixel over
-			for (int jj = 0; jj < ZONEH; ++jj) {
-				u32 *lp = (u32*)&rgba[(x + (y + jj) * size_x)*4];
-				hash -= hashPixel(*lp);
-				u32 *rp = (u32*)&rgba[((x + ZONEW) + (y + jj) * size_x)*4];
-				hash += hashPixel(*rp);
+			if (_planes == 4) {
+				// Roll the hash to the next zone one pixel over
+				for (int jj = 0; jj < ZONEH; ++jj) {
+					u32 *lp = (u32*)&rgba[(x + (y + jj) * size_x)*4];
+					hash -= hashPixel(*lp);
+					u32 *rp = (u32*)&rgba[((x + ZONEW) + (y + jj) * size_x)*4];
+					hash += hashPixel(*rp);
+				}
+			} else {
+				// Roll the hash to the next zone one pixel over
+				for (int jj = 0; jj < ZONEH; ++jj) {
+					const u8 *lp = &rgba[x + (y + jj) * size_x];
+					hash -= hashPixel(*lp);
+					const u8 *rp = &rgba[(x + ZONEW) + (y + jj) * size_x];
+					hash += hashPixel(*rp);
+				}
 			}
 		}
 	}
@@ -570,26 +736,10 @@ void ImageLZWriter::write(ImageWriter &writer) {
 #ifdef CAT_COLLECT_STATS
 	Stats.huff_bits = bits;
 	Stats.covered_percent = Stats.covered * 100. / (double)(_size_x * _size_y);
-	Stats.bytes_saved = Stats.covered * 4;
+	Stats.bytes_saved = Stats.covered * _planes;
 	Stats.bytes_overhead = bits / 8;
 	Stats.compression_ratio = Stats.bytes_saved / (double)Stats.bytes_overhead;
 #endif
-}
-
-bool ImageLZWriter::findExtent(int x, int y, int &w, int &h) {
-	for (int ii = 0, iiend = (int)_exact_matches.size(); ii < iiend; ++ii) {
-		Match *m = &_exact_matches[ii];
-		const int mw = m->w + ZONEW;
-		const int mh = m->h + ZONEH;
-
-		if (m->dx <= x && m->dy <= y && m->dx + mw > x && m->dy + mh > y) {
-			w = mw + m->dx - x;
-			h = mh + m->dy - y;
-			return true;
-		}
-	}
-
-	return false;
 }
 
 #ifdef CAT_COLLECT_STATS

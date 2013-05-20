@@ -183,7 +183,7 @@ extern "C" int gcif_write_ex(const void *rgba, int size_x, int size_y, const cha
 
 			// 2D-LZ Exact Match
 			ImageLZWriter imageLZWriter;
-			if ((err = imageLZWriter.init(pack_image, 1, pack_x, pack_y, knobs))) {
+			if ((err = imageLZWriter.init(pack_image, 1, pack_x, pack_y, knobs, imageMaskWriter))) {
 				return err;
 			}
 
@@ -211,7 +211,7 @@ extern "C" int gcif_write_ex(const void *rgba, int size_x, int size_y, const cha
 
 		// 2D-LZ Exact Match
 		ImageLZWriter imageLZWriter;
-		if ((err = imageLZWriter.init(image, 4, size_x, size_y, knobs))) {
+		if ((err = imageLZWriter.init(image, 4, size_x, size_y, knobs, imageMaskWriter))) {
 			return err;
 		}
 
@@ -220,7 +220,7 @@ extern "C" int gcif_write_ex(const void *rgba, int size_x, int size_y, const cha
 
 		// Global Palette
 		ImagePaletteWriter imagePaletteWriter;
-		if ((err = imagePaletteWriter.init(image, 4, size_x, size_y, knobs, imageMaskWriter, imageLZWriter))) {
+		if ((err = imagePaletteWriter.init(image, size_x, size_y, knobs, imageMaskWriter, imageLZWriter))) {
 			return err;
 		}
 

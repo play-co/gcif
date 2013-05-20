@@ -338,6 +338,8 @@ int SmallPaletteWriter::compress(ImageMaskWriter &mask, ImageLZWriter &lz) {
 	convertPacked();
 	optimizeImage();
 	generateMonoWriter();
+
+	return GCIF_WE_OK;
 }
 
 void SmallPaletteWriter::writePackPalette(ImageWriter &writer) {
