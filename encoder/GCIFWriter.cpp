@@ -157,21 +157,20 @@ extern "C" int gcif_write_ex(const void *rgba, int size_x, int size_y, const cha
 	}
 
 	// Small Palette
-	SmallPaletteWriter imageSmallPalette;
-	if ((err = imageSmallPalette.init(image, size_x, size_y, knobs))) {
+	SmallPaletteWriter smallPaletteWriter;
+	if ((err = smallPaletteWriter.init(image, size_x, size_y, knobs))) {
 		return err;
 	}
 
-	imageSmallPalette.write(writer);
-	imageSmallPalette.dumpStats();
+	smallPaletteWriter.writeHead(writer);
 
 	// If small palette mode is enabled,
-	if (imageSmallPalette.enabled()) {
+	if (smallPaletteWriter.enabled()) {
 		// If not just a single color,
-		if (!imageSmallPalette.isSingleColor()) {
-			const int pack_x = imageSmallPalette.getPackX();
-			const int pack_y = imageSmallPalette.getPackY();
-			const u8 *pack_image = imageSmallPalette.get();
+		if (!smallPaletteWriter.isSingleColor()) {
+			const int pack_x = smallPaletteWriter.getPackX();
+			const int pack_y = smallPaletteWriter.getPackY();
+			const u8 *pack_image = smallPaletteWriter.get();
 
 			// Dominant Color Mask
 			ImageMaskWriter imageMaskWriter;
@@ -191,17 +190,15 @@ extern "C" int gcif_write_ex(const void *rgba, int size_x, int size_y, const cha
 			imageLZWriter.write(writer);
 			imageLZWriter.dumpStats();
 
-			// Global Palette
-			ImagePaletteWriter imagePaletteWriter;
-			if ((err = imagePaletteWriter.init(pack_image, 1, pack_x, pack_y, knobs, imageMaskWriter, imageLZWriter))) {
+			// Small Palette Compression
+			if ((err = smallPaletteWriter.compress(imageMaskWriter, imageLZWriter))) {
 				return err;
 			}
 
-			imagePaletteWriter.write(writer);
-			imagePaletteWriter.dumpStats();
-
-			CAT_DEBUG_ENFORCE(imagePaletteWriter.enabled());
+			smallPaletteWriter.writeTail(writer);
 		}
+
+		smallPaletteWriter.dumpStats();
 	} else {
 		// Dominant Color Mask
 		ImageMaskWriter imageMaskWriter;

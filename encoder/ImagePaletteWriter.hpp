@@ -81,13 +81,7 @@ class ImagePaletteWriter {
 
 	MonoWriter _mono_writer;
 
-	// Small palette mode
-	bool _use_small_palette;
-	std::vector<u8> _small_palette;	// Map output index => packed bytes
-
 	bool IsMasked(u16 x, u16 y);
-
-	bool checkSmallPalette();
 
 	bool generatePalette();
 	void generateImage();

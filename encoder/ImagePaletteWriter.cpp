@@ -227,15 +227,11 @@ bool ImagePaletteWriter::IsMasked(u16 x, u16 y) {
 
 void ImagePaletteWriter::write(ImageWriter &writer) {
 	if (enabled()) {
-		if (_planes > 1) {
-			writer.writeBit(1);
-		}
+		writer.writeBit(1);
 		writeTable(writer);
 		writePixels(writer);
 	} else {
-		if (_planes > 1) {
-			writer.writeBit(0);
-		}
+		writer.writeBit(0);
 	}
 }
 
