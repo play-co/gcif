@@ -421,10 +421,9 @@ setup_trigger_x:
 	_zone_trigger_x = _zones[_zone_work_head].dx;
 }
 
-int ImageLZReader::read(ImageReader &reader) {
-	const ImageReader::Header * CAT_RESTRICT header = reader.getHeader();
-	_size_x = header->size_x;
-	_size_y = header->size_y;
+int ImageLZReader::read(ImageReader &reader, int size_x, int size_y) {
+	_size_x = size_x;
+	_size_y = size_y;
 
 #ifdef CAT_COLLECT_STATS
 	m_clock = Clock::ref();

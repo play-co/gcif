@@ -114,7 +114,7 @@ static int gcif_read(ImageReader &reader, GCIFImage *image) {
 
 		// Global Palette Decompression
 		ImagePaletteReader imagePaletteReader;
-		if ((err = imagePaletteReader.read(reader, image, imageMaskReader, imageLZReader))) {
+		if ((err = imagePaletteReader.read(reader, imageMaskReader, imageLZReader, image))) {
 			return err;
 		}
 		imagePaletteReader.dumpStats();
