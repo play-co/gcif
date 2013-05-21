@@ -66,14 +66,14 @@ public:
 	static const int BZ_TAIL_SYM = BZ_SYMS - 1;
 
 protected:
-	FreqHistogram<BZ_SYMS> _bz_hist;
-	FreqHistogram<AZ_SYMS> _az_hist;
+	FreqHistogram<BZ_SYMS> *_bz_hist;
+	FreqHistogram<AZ_SYMS> *_az_hist;
 
 	HuffmanEncoder<BZ_SYMS> _bz;
 	HuffmanEncoder<AZ_SYMS> _az;
 
 	std::vector<u8> _basic_syms;
-	FreqHistogram<NUM_SYMS> _basic_hist;
+	FreqHistogram<NUM_SYMS> *_basic_hist;
 	HuffmanEncoder<NUM_SYMS> _basic;
 	bool _using_basic;
 
@@ -120,16 +120,22 @@ protected:
 public:
 	CAT_INLINE EntropyEncoder() {
 		_zeroRun = 0;
+		_bz_hist = new FreqHistogram<BZ_SYMS>;
+		_az_hist = new FreqHistogram<AZ_SYMS>;
+		_basic_hist = new FreqHistogram<NUM_SYMS>;
 	}
 
 	CAT_INLINE virtual ~EntropyEncoder() {
+		delete _bz_hist;
+		delete _az_hist;
+		delete _basic_hist;
 	}
 
 	void add(u16 symbol) {
 		CAT_DEBUG_ENFORCE(symbol < NUM_SYMS);
 
 		if (NUM_SYMS <= 256) {
-			_basic_hist.add(symbol);
+			_basic_hist->add(symbol);
 			_basic_syms.push_back(symbol);
 		}
 
@@ -140,17 +146,17 @@ public:
 
 			if (zeroRun > 0) {
 				if (zeroRun < ZRLE_SYMS) {
-					_bz_hist.add(NUM_SYMS + zeroRun - 1);
+					_bz_hist->add(NUM_SYMS + zeroRun - 1);
 				} else {
-					_bz_hist.add(BZ_TAIL_SYM);
+					_bz_hist->add(BZ_TAIL_SYM);
 				}
 
 				_runList.push_back(zeroRun);
 				_zeroRun = 0;
 
-				_az_hist.add(symbol);
+				_az_hist->add(symbol);
 			} else {
-				_bz_hist.add(symbol);
+				_bz_hist->add(symbol);
 			}
 		}
 	}
@@ -165,15 +171,15 @@ public:
 
 			// Record symbols that will be emitted
 			if (zeroRun < ZRLE_SYMS) {
-				_bz_hist.add(NUM_SYMS + zeroRun - 1);
+				_bz_hist->add(NUM_SYMS + zeroRun - 1);
 			} else {
-				_bz_hist.add(BZ_TAIL_SYM);
+				_bz_hist->add(BZ_TAIL_SYM);
 			}
 		}
 
 		// Initialize Huffman encoders with histograms
-		_bz.init(_bz_hist);
-		_az.init(_az_hist);
+		_bz.init(*_bz_hist);
+		_az.init(*_az_hist);
 
 		reset();
 
@@ -181,7 +187,7 @@ public:
 
 		// Evaluate basic encoder
 		if (NUM_SYMS <= 256) {
-			_basic.init(_basic_hist);
+			_basic.init(*_basic_hist);
 
 			int basic_cost = 0;
 			for (int ii = 0, iiend = (int)_basic_syms.size(); ii < iiend; ++ii) {

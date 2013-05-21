@@ -249,8 +249,6 @@ static int benchmark(const char *path) {
 		cpu_count = 1;
 	}
 
-	cpu_count = 1;
-
 	BenchThread threads[MAX_CPU_COUNT];
 	vector<string> files;
 	Mutex lock;

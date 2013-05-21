@@ -116,7 +116,7 @@ public:
 	u32 hist[NUM_SYMS];
 	u32 max_freq;
 
-	CAT_INLINE FreqHistogram() {
+	FreqHistogram() {
 		CAT_OBJCLR(hist);
 		max_freq = 0;
 	}

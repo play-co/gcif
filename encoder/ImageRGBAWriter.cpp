@@ -572,8 +572,6 @@ void ImageRGBAWriter::designChaos() {
 			entropy += 3 * 5 * 256;
 		}
 
-		CAT_WARN("TEST") << entropy << " for " << chaos_levels;
-
 		// If this is the best chaos levels so far,
 		if (best_entropy > entropy) {
 			best_entropy = entropy;

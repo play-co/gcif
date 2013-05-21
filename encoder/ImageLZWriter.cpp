@@ -329,8 +329,8 @@ bool ImageLZWriter::expandMatch1(u16 &sx, u16 &sy, u16 &dx, u16 &dy, u16 &w, u16
 				goto try_down;
 			}
 
-			const u8 *sp = &rgba[((sx + w) + (sy + jj) * size_x)*4];
-			const u8 *dp = &rgba[((dx + w) + (dy + jj) * size_x)*4];
+			const u8 *sp = &rgba[(sx + w) + (sy + jj) * size_x];
+			const u8 *dp = &rgba[(dx + w) + (dy + jj) * size_x];
 
 			if (*sp != *dp) {
 				goto try_down;
@@ -349,8 +349,8 @@ try_down:
 				goto try_left;
 			}
 
-			const u8 *sp = &rgba[((sx + jj) + (sy + h) * size_x)*4];
-			const u8 *dp = &rgba[((dx + jj) + (dy + h) * size_x)*4];
+			const u8 *sp = &rgba[(sx + jj) + (sy + h) * size_x];
+			const u8 *dp = &rgba[(dx + jj) + (dy + h) * size_x];
 
 			if (*sp != *dp) {
 				goto try_left;
@@ -369,8 +369,8 @@ try_left:
 				goto try_up;
 			}
 
-			const u8 *sp = &rgba[((sx - 1) + (sy + jj) * size_x)*4];
-			const u8 *dp = &rgba[((dx - 1) + (dy + jj) * size_x)*4];
+			const u8 *sp = &rgba[(sx - 1) + (sy + jj) * size_x];
+			const u8 *dp = &rgba[(dx - 1) + (dy + jj) * size_x];
 
 			if (*sp != *dp) {
 				goto try_up;
@@ -391,8 +391,8 @@ try_up:
 				goto done;
 			}
 
-			const u8 *sp = &rgba[((sx + jj) + (sy - 1) * size_x)*4];
-			const u8 *dp = &rgba[((dx + jj) + (dy - 1) * size_x)*4];
+			const u8 *sp = &rgba[(sx + jj) + (sy - 1) * size_x];
+			const u8 *dp = &rgba[(dx + jj) + (dy - 1) * size_x];
 
 			if (*sp != *dp) {
 				goto done;

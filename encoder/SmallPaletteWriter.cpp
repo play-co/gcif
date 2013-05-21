@@ -306,7 +306,7 @@ void SmallPaletteWriter::optimizeImage() {
 
 	// Replace palette image
 	const u8 *src = _optimizer.getOptimizedImage();
-	memcpy(_image.get(), src, _size_x * _size_y);
+	memcpy(_image.get(), src, _pack_x * _pack_y);
 
 	// Fix pack palette array
 	u8 better_palette[MAX_SYMS];

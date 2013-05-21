@@ -1174,8 +1174,6 @@ void MonoWriter::designChaos() {
 			entropy += 5 * _params.num_syms;
 		}
 
-		CAT_WARN("MONO") << entropy << " for " << chaos_levels;
-
 		// If this is the best chaos levels so far,
 		if (best_entropy > entropy) {
 			best_entropy = entropy;
