@@ -1525,6 +1525,9 @@ int MonoWriter::writeTables(ImageWriter &writer) {
 void MonoWriter::initializeWriter() {
 	// Note: Not called if encoders are disabled
 
+	// Initialize tile seen array
+	_tile_seen.resize(_profile->tiles_x);
+
 	_profile->chaos.start();
 
 	for (int ii = 0, iiend = _profile->chaos.getBinCount(); ii < iiend; ++ii) {
