@@ -1544,7 +1544,7 @@ int MonoWriter::writeRowHeader(u16 y, ImageWriter &writer) {
 
 	// If using row filters,
 	if (_use_row_filters) {
-		CAT_DEBUG_ENFORCE(MonoReader::RF_COUNT <= 2);
+		CAT_DEBUG_ENFORCE(MonoReader::RF_COUNT == 2);
 		CAT_DEBUG_ENFORCE(_row_filters[y] < 2);
 
 		// Write out chosen row filter

@@ -54,17 +54,18 @@ void MonoReader::cleanup() {
 }
 
 int MonoReader::readTables(const Parameters & CAT_RESTRICT params, ImageReader & CAT_RESTRICT reader) {
+	// Store parameters
 	_params = params;
 
 	// If decoder is disabled,
-	if CAT_UNLIKELY(reader.readBit() == 0) {
-		_untouched_bits = BSR32(params.num_syms) + 1;
+	if (reader.readBit() == 0) {
+		_use_row_filters = true;
 
 		return GCIF_RE_OK;
 	}
 
 	// Enable decoder
-	_untouched_bits = 0;
+	_use_row_filters = false;
 
 	// Calculate bits to represent tile bits field
 	u32 range = (_params.max_bits - _params.min_bits);
@@ -104,6 +105,9 @@ int MonoReader::readTables(const Parameters & CAT_RESTRICT params, ImageReader &
 
 	// Read palette
 	u8 palette[MAX_PALETTE];
+
+	CAT_DEBUG_ENFORCE(MAX_PALETTE == 16);
+
 	const int sympal_filter_count = reader.readBits(4);
 	for (int ii = 0; ii < sympal_filter_count; ++ii) {
 		palette[ii] = reader.readBits(8);
@@ -118,6 +122,8 @@ int MonoReader::readTables(const Parameters & CAT_RESTRICT params, ImageReader &
 	for (int ii = 0; ii < SF_FIXED; ++ii) {
 		_sf[ii] = MONO_FILTERS[ii];
 	}
+
+	CAT_DEBUG_ENFORCE(MAX_FILTERS == 32);
 
 	// Read normal filters
 	_filter_count = reader.readBits(5) + SF_FIXED;
@@ -140,8 +146,10 @@ int MonoReader::readTables(const Parameters & CAT_RESTRICT params, ImageReader &
 
 	DESYNC_TABLE();
 
+	CAT_DEBUG_ENFORCE(MAX_CHAOS_LEVELS == 16);
+
 	// Read chaos levels
-	int chaos_levels = reader.readBits(5) + 1;
+	int chaos_levels = reader.readBits(4) + 1;
 	_chaos.init(chaos_levels, _params.size_x);
 	_chaos.start();
 
@@ -199,29 +207,36 @@ int MonoReader::readTables(const Parameters & CAT_RESTRICT params, ImageReader &
 }
 
 int MonoReader::readRowHeader(u16 y, ImageReader & CAT_RESTRICT reader) {
-	if CAT_UNLIKELY(_untouched_bits) {
-		return GCIF_RE_OK;
-	}
+	// If using row filters instead of tiled filters,
+	if (_use_row_filters) {
+		CAT_DEBUG_ENFORCE(RF_COUNT == 2);
 
-	// If at the start of a tile row,
-	if ((y & _tile_mask_y) == 0) {
-		// If using recursive decoder,
-		if (_filter_decoder) {
-			// Read its header too
-			_filter_decoder->readRowHeader(y >> _tile_bits_y, reader);
-		} else {
-			// Read row filter
-			_row_filter = reader.readBit();
+		// Read row filter
+		_row_filter = reader.readBit();
 
-			// Clear previous filter
-			_prev_filter = 0;
+		// Reset previous to zero
+		_prev_filter = 0;
+	} else {
+		// If at the start of a tile row,
+		if ((y & _tile_mask_y) == 0) {
+			// If using recursive decoder,
+			if (_filter_decoder) {
+				// Read its header too
+				_filter_decoder->readRowHeader(y >> _tile_bits_y, reader);
+			} else {
+				// Read row filter
+				_row_filter = reader.readBit();
+
+				// Clear previous filter
+				_prev_filter = 0;
+			}
+
+			// Clear filter function row
+			_filter_row.fill_00();
 		}
-
-		// Clear filter function row
-		_filter_row.fill_00();
 	}
 
-	_current_row += _tiles_x << _params.data_step_shift;
+	_current_row += _params.size_x << _params.data_step_shift;
 
 	DESYNC(0, y);
 
@@ -234,82 +249,68 @@ u8 MonoReader::read(u16 x, u16 y, ImageReader & CAT_RESTRICT reader) {
 	CAT_DEBUG_ENFORCE(x < _params.size_x && y < _params.size_y);
 
 	u8 *data = _current_row + (x << _params.data_step_shift);
-
-	// If decoder is disabled,
-	if CAT_UNLIKELY(_untouched_bits) {
-		u8 value = reader.readBits(_untouched_bits);
-
-		if CAT_UNLIKELY(value >= _params.num_syms) {
-			value = 0;
-		}
-
-		*data = value;
-		return value;
-	}
-
-	// Check cached filter
-	const u16 tx = x >> _tile_bits_x;
-
-	// Choose safe/unsafe filter
-	MonoFilterFunc filter = _filter_row[tx].safe;
-
-	// If filter must be read,
-	if (!filter) {
-		const u16 ty = y >> _tile_bits_y;
-		u8 f;
-
-		// If filter is recursively compressed,
-		if (_filter_decoder) {
-			f = _filter_decoder->read(tx, ty, reader);
-		} else {
-			// Read filter residual directly
-			f = _row_filter_decoder.next(reader);
-
-			// Defilter the filter value
-			if (_row_filter == RF_PREV) {
-				f += _prev_filter;
-				if (f >= _filter_count) {
-					f -= _filter_count;
-				}
-				_prev_filter = f;
-			}
-		}
-
-		// Read filter
-		MonoFilterFuncs * CAT_RESTRICT funcs = &_sf[f];
-		_filter_row[tx] = *funcs;
-		filter = funcs->safe; // Choose here
-	}
-
-	// If the filter is a palette symbol,
 	u16 value;
-#ifdef CAT_WORD_64
-	u64 pf = (u64)filter;
-#else
-	u32 pf = (u32)filter;
-#endif
-	if (pf < SF_COUNT) {
-		value = _palette[pf];
 
-		_chaos.zero(x);
+	// If using row filters,
+	if (_use_row_filters) {
+		// Read filter residual directly
+		value = _row_filter_decoder.next(reader);
+
+		// Defilter the filter value
+		if (_row_filter == RF_PREV) {
+			value += _prev_filter;
+			if (value >= _filter_count) {
+				value -= _filter_count;
+			}
+			_prev_filter = value;
+		}
 	} else {
-		// Get chaos bin
-		int chaos = _chaos.get(x);
+		// Check cached filter
+		const u16 tx = x >> _tile_bits_x;
 
-		// Read residual from bitstream
-		u16 residual = _decoder[chaos].next(reader);
+		// Choose safe/unsafe filter
+		MonoFilterFunc filter = _filter_row[tx].safe;
 
-		// Store for next chaos lookup
-		const u16 num_syms = _params.num_syms;
-		_chaos.store(x, residual, num_syms);
+		// If filter must be read,
+		if (!filter) {
+			const u16 ty = y >> _tile_bits_y;
+			u8 f = _filter_decoder->read(tx, ty, reader);
 
-		// Read filter result
-		u16 pred = filter(data, num_syms - 1, x, y, _params.size_x);
+			// Read filter
+			MonoFilterFuncs * CAT_RESTRICT funcs = &_sf[f];
+			_filter_row[tx] = *funcs;
+			filter = funcs->safe; // Choose here
+		}
 
-		// Defilter value
-		value = residual + pred;
-		if (value >= num_syms) {
-			value -= num_syms;
+		// If the filter is a palette symbol,
+#ifdef CAT_WORD_64
+		u64 pf = (u64)filter;
+#else
+		u32 pf = (u32)filter;
+#endif
+		if (pf < SF_COUNT) {
+			value = _palette[pf];
+
+			_chaos.zero(x);
+		} else {
+			// Get chaos bin
+			int chaos = _chaos.get(x);
+
+			// Read residual from bitstream
+			u16 residual = _decoder[chaos].next(reader);
+
+			// Store for next chaos lookup
+			const u16 num_syms = _params.num_syms;
+			_chaos.store(x, residual, num_syms);
+
+			// Calculate predicted value
+			u16 pred = filter(data, num_syms - 1, x, y, _params.size_x);
+
+			// Defilter using prediction
+			value = residual + pred;
+			if (value >= num_syms) {
+				value -= num_syms;
+			}
 		}
 	}
 
@@ -329,82 +330,68 @@ u8 MonoReader::read_unsafe(u16 x, u16 y, ImageReader & CAT_RESTRICT reader) {
 	CAT_DEBUG_ENFORCE(x < _params.size_x && y < _params.size_y);
 
 	u8 *data = _current_row + (x << _params.data_step_shift);
-
-	// If decoder is disabled,
-	if CAT_UNLIKELY(_untouched_bits) {
-		u8 value = reader.readBits(_untouched_bits);
-
-		if CAT_UNLIKELY(value >= _params.num_syms) {
-			value = 0;
-		}
-
-		*data = value;
-		return value;
-	}
-
-	// Check cached filter
-	const u16 tx = x >> _tile_bits_x;
-
-	// Choose safe/unsafe filter
-	MonoFilterFunc filter = _filter_row[tx].unsafe;
-
-	// If filter must be read,
-	if (!filter) {
-		const u16 ty = y >> _tile_bits_y;
-		u8 f;
-
-		// If filter is recursively compressed,
-		if (_filter_decoder) {
-			f = _filter_decoder->read(tx, ty, reader);
-		} else {
-			// Read filter residual directly
-			f = _row_filter_decoder.next(reader);
-
-			// Defilter the filter value
-			if (_row_filter == RF_PREV) {
-				f += _prev_filter;
-				if (f >= _filter_count) {
-					f -= _filter_count;
-				}
-				_prev_filter = f;
-			}
-		}
-
-		// Read filter
-		MonoFilterFuncs * CAT_RESTRICT funcs = &_sf[f];
-		_filter_row[tx] = *funcs;
-		filter = funcs->unsafe; // Choose here
-	}
-
-	// If the filter is a palette symbol,
 	u16 value;
-#ifdef CAT_WORD_64
-	u64 pf = (u64)filter;
-#else
-	u32 pf = (u32)filter;
-#endif
-	if (pf < SF_COUNT) {
-		value = _palette[pf];
 
-		_chaos.zero(x);
+	// If using row filters,
+	if (_use_row_filters) {
+		// Read filter residual directly
+		value = _row_filter_decoder.next(reader);
+
+		// Defilter the filter value
+		if (_row_filter == RF_PREV) {
+			value += _prev_filter;
+			if (value >= _filter_count) {
+				value -= _filter_count;
+			}
+			_prev_filter = value;
+		}
 	} else {
-		// Get chaos bin
-		int chaos = _chaos.get(x);
+		// Check cached filter
+		const u16 tx = x >> _tile_bits_x;
 
-		// Read residual from bitstream
-		u16 residual = _decoder[chaos].next(reader);
+		// Choose safe/unsafe filter
+		MonoFilterFunc filter = _filter_row[tx].unsafe;
 
-		// Store for next chaos lookup
-		const u16 num_syms = _params.num_syms;
-		_chaos.store(x, residual, num_syms);
+		// If filter must be read,
+		if (!filter) {
+			const u16 ty = y >> _tile_bits_y;
+			u8 f = _filter_decoder->read(tx, ty, reader);
 
-		// Read filter result
-		u16 pred = filter(data, num_syms - 1, x, y, _params.size_x);
+			// Read filter
+			MonoFilterFuncs * CAT_RESTRICT funcs = &_sf[f];
+			_filter_row[tx] = *funcs;
+			filter = funcs->unsafe; // Choose here
+		}
 
-		// Defilter value
-		value = residual + pred;
-		if (value >= num_syms) {
-			value -= num_syms;
+		// If the filter is a palette symbol,
+#ifdef CAT_WORD_64
+		u64 pf = (u64)filter;
+#else
+		u32 pf = (u32)filter;
+#endif
+		if (pf < SF_COUNT) {
+			value = _palette[pf];
+
+			_chaos.zero(x);
+		} else {
+			// Get chaos bin
+			int chaos = _chaos.get(x);
+
+			// Read residual from bitstream
+			u16 residual = _decoder[chaos].next(reader);
+
+			// Store for next chaos lookup
+			const u16 num_syms = _params.num_syms;
+			_chaos.store(x, residual, num_syms);
+
+			// Calculate predicted value
+			u16 pred = filter(data, num_syms - 1, x, y, _params.size_x);
+
+			// Defilter using prediction
+			value = residual + pred;
+			if (value >= num_syms) {
+				value -= num_syms;
+			}
 		}
 	}
 

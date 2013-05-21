@@ -91,8 +91,6 @@ public:
 protected:
 	Parameters _params;
 
-	u32 _untouched_bits;				// Bits per pixel when skipping decoder
-
 	SmartArray<u8> _tiles;
 	u16 _tile_size_x, _tile_size_y;
 	u16 _tile_bits_x, _tile_bits_y;
@@ -104,10 +102,11 @@ protected:
 	int _filter_count;
 
 	MonoReader * CAT_RESTRICT _filter_decoder;
-	u8 _row_filter, _prev_filter;
-	EntropyDecoder<MAX_FILTERS, ZRLE_SYMS> _row_filter_decoder;
-
 	SmartArray<MonoFilterFuncs> _filter_row;
+
+	bool _use_row_filters;
+	u8 _row_filter, _prev_filter;
+	EntropyDecoder<MAX_SYMS, ZRLE_SYMS> _row_filter_decoder;
 
 	MonoChaos _chaos;
 	EntropyDecoder<MAX_SYMS, ZRLE_SYMS> _decoder[MAX_CHAOS_LEVELS];
