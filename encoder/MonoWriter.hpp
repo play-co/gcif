@@ -173,6 +173,7 @@ protected:
 	u32 _row_filter_entropy;				// Calculated entropy from using row filters
 	EntropyEncoder<MAX_SYMS, ZRLE_SYMS> _row_filter_encoder;
 	bool _use_row_filters;					// Using row filters?
+	bool _one_row_filter;					// Only one row filter?
 
 	// Mask function for child instance
 	bool IsMasked(u16 x, u16 y);

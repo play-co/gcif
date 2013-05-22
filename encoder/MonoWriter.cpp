@@ -107,6 +107,9 @@ void MonoWriter::designRowFilters() {
 		const u16 *order = _pixel_write_order;
 		const u8 *data = _params.data;
 
+		_one_row_filter = true;
+		u8 last = 0;
+
 		// For each tile,
 		for (u16 y = 0; y < size_y; ++y) {
 			u8 prev = 0;
@@ -174,12 +177,21 @@ void MonoWriter::designRowFilters() {
 			u32 e1 = ee.entropy(codes + size_x, code_count);
 
 			// Pick the better one
+			u8 filter;
 			if (e0 <= e1) {
-				_row_filters[y] = MonoReader::RF_NOOP;
+				filter = MonoReader::RF_NOOP;
 				ee.add(codes, code_count);
 			} else {
-				_row_filters[y] = MonoReader::RF_PREV;
+				filter = MonoReader::RF_PREV;
 				ee.add(codes + size_x, code_count);
+			}
+
+			// Store it	
+			_row_filters[y] = filter;
+			if (y == 0) {
+				last = filter;
+			} else if (last != filter) {
+				_one_row_filter = false;
 			}
 		}
 
@@ -1440,6 +1452,14 @@ int MonoWriter::writeTables(ImageWriter &writer) {
 	if (_use_row_filters) {
 		writer.writeBit(0);
 
+		// If only using one row filter,
+		if (_one_row_filter) {
+			writer.writeBit(1);
+			writer.writeBit(_row_filters[0]);
+		} else {
+			writer.writeBit(0);
+		}
+
 		// Write row filter encoder overhead
 		Stats.filter_overhead_bits += _row_filter_encoder.writeTables(writer);
 
@@ -1549,9 +1569,12 @@ int MonoWriter::writeRowHeader(u16 y, ImageWriter &writer) {
 		CAT_DEBUG_ENFORCE(MonoReader::RF_COUNT == 2);
 		CAT_DEBUG_ENFORCE(_row_filters[y] < 2);
 
-		// Write out chosen row filter
-		writer.writeBit(_row_filters[y]);
-		bits++;
+		// If different row filters,
+		if (!_one_row_filter) {
+			// Write out chosen row filter
+			writer.writeBit(_row_filters[y]);
+			bits++;
+		}
 
 		// Clear prev filter
 		_prev_filter = 0;
