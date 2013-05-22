@@ -104,7 +104,7 @@ protected:
 	MonoReader * CAT_RESTRICT _filter_decoder;
 	SmartArray<MonoFilterFuncs> _filter_row;
 
-	bool _use_row_filters;
+	bool _use_row_filters, _one_row_filter;
 	u8 _row_filter, _prev_filter;
 	EntropyDecoder<MAX_SYMS, ZRLE_SYMS> _row_filter_decoder;
 

@@ -61,6 +61,14 @@ int MonoReader::readTables(const Parameters & CAT_RESTRICT params, ImageReader &
 	if (reader.readBit() == 0) {
 		_use_row_filters = true;
 
+		// If one row filter,
+		if (reader.readBit()) {
+			_one_row_filter = true;
+			_row_filter = reader.readBit();
+		} else {
+			_one_row_filter = false;
+		}
+
 		return GCIF_RE_OK;
 	}
 
@@ -211,25 +219,19 @@ int MonoReader::readRowHeader(u16 y, ImageReader & CAT_RESTRICT reader) {
 	if (_use_row_filters) {
 		CAT_DEBUG_ENFORCE(RF_COUNT == 2);
 
-		// Read row filter
-		_row_filter = reader.readBit();
+		// If different row filter on each row,
+		if (!_one_row_filter) {
+			// Read row filter
+			_row_filter = reader.readBit();
+		}
 
 		// Reset previous to zero
 		_prev_filter = 0;
 	} else {
 		// If at the start of a tile row,
 		if ((y & _tile_mask_y) == 0) {
-			// If using recursive decoder,
-			if (_filter_decoder) {
-				// Read its header too
-				_filter_decoder->readRowHeader(y >> _tile_bits_y, reader);
-			} else {
-				// Read row filter
-				_row_filter = reader.readBit();
-
-				// Clear previous filter
-				_prev_filter = 0;
-			}
+			// Read its header too
+			_filter_decoder->readRowHeader(y >> _tile_bits_y, reader);
 
 			// Clear filter function row
 			_filter_row.fill_00();
