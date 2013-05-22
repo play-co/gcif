@@ -959,22 +959,21 @@ void MonoWriter::optimizeTiles() {
 	memcpy(_profile->filter_indices, filter_indices, sizeof(_profile->filter_indices));
 }
 
-void MonoWriter::generateWriteOrder(u16 size_x, u16 size_y, MaskDelegate mask, u16 tile_shift_bits, std::vector<u16> &order) {
+void MonoWriter::generateWriteOrder(u16 size_x, u16 size_y, MaskDelegate mask, u16 tile_bits, std::vector<u16> &order) {
 	// Ensure that vector is clear
 	order.clear();
 
 	// Generate write order data for recursive operation
-	const u16 tile_bits_x = tile_shift_bits;
-	const u16 tile_mask_y = (1 << tile_bits_x) - 1;
-	const u16 tiles_x = (size_x + tile_mask_y) >> tile_bits_x;
+	const u16 tile_mask = (1 << tile_bits) - 1;
+	const u16 tiles = (size_x + tile_mask) >> tile_bits;
 
 	SmartArray<u8> seen;
-	seen.resize(tiles_x);
+	seen.resize(tiles);
 
 	// For each pixel row,
 	for (u16 y = 0; y < size_y; ++y) {
 		// If starting a tile row,
-		if ((y & tile_mask_y) == 0) {
+		if ((y & tile_mask) == 0) {
 			seen.fill_00();
 
 			// After the first tile row,
@@ -988,7 +987,7 @@ void MonoWriter::generateWriteOrder(u16 size_x, u16 size_y, MaskDelegate mask, u
 			// If pixel is not masked out,
 			if (!mask(x, y)) {
 				// If tile seen for the first time,
-				u16 tx = x >> tile_bits_x;
+				u16 tx = x >> tile_bits;
 				if (seen[tx] == 0) {
 					seen[tx] = 1;
 

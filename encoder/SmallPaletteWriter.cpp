@@ -77,6 +77,10 @@ bool SmallPaletteWriter::generatePalette() {
 	// Store the palette size
 	_palette_size = palette_size;
 
+#ifdef CAT_COLLECT_STATS
+	Stats.palette_size = _palette_size;
+#endif
+
 	return true;
 }
 
