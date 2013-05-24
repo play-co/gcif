@@ -183,7 +183,7 @@ void SmallPaletteWriter::generatePacked() {
 		 * 3 3 3 3 4 4 4 4 5 5 5
 		 *
 		 * Each 4x2 block is packed like so:
-		 * 0 1 2 3  -->  HI:[ 7 6 5 4 3 2 1 0 ]:LO
+		 * 0 1 2 3  -->  HI:[ 0 1 2 3 4 5 6 7 ]:LO
 		 * 4 5 6 7
 		 */
 		_pack_x = (_size_x + 3) >> 2;
@@ -207,7 +207,11 @@ void SmallPaletteWriter::generatePacked() {
 						if (px < _size_x && py < _size_y) {
 							u32 c = color[px + py * _size_x];
 
-							b |= (u8)_map[c];
+							u8 p = (u8)_map[c];
+
+							CAT_DEBUG_ENFORCE(p < 2);
+
+							b |= p;
 						}
 					}
 				}
@@ -362,6 +366,15 @@ int SmallPaletteWriter::compress(ImageMaskWriter &mask, ImageLZWriter &lz) {
 
 void SmallPaletteWriter::writePackPalette(ImageWriter &writer) {
 	int bits = 0;
+
+	// If using mask,
+	if (_mask->enabled()) {
+		u32 maskColor = _mask->getColor();
+
+		CAT_DEBUG_ENFORCE(maskColor < 256);
+
+		writer.writeBits(maskColor, 8);
+	}
 
 	writer.writeBits(_pack_palette_size - 1, 8);
 	bits += 8;

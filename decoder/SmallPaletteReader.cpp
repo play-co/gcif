@@ -65,6 +65,11 @@ int SmallPaletteReader::readSmallPalette(ImageReader & CAT_RESTRICT reader) {
 }
 
 int SmallPaletteReader::readPackPalette(ImageReader & CAT_RESTRICT reader) {
+	// If mask is enabled,
+	if (_mask->enabled()) {
+		_mask_palette = reader.readBits(8);
+	}
+
 	_pack_palette_size = reader.readBits(8) + 1;
 
 	for (int ii = 0; ii < _pack_palette_size; ++ii) {
@@ -128,9 +133,185 @@ int SmallPaletteReader::readPixels(ImageReader & CAT_RESTRICT reader) {
 }
 
 int SmallPaletteReader::unpackPixels() {
-	for (int y = 0; y < _pack_y; ++y) {
-		for (int x = 0; x < _pack_x; ++x) {
-			// TODO: unpack
+	CAT_DEBUG_ENFORCE(_pack_palette_size > 1);
+
+	u32 *rgba = reinterpret_cast<u32 *>( _rgba );
+	const u8 *image = _image.get();
+
+	if (_pack_palette_size > 4) { // 3-4 bits/pixel
+		CAT_DEBUG_ENFORCE(_pack_y == _size_y);
+		CAT_DEBUG_ENFORCE(_pack_x == (_size_x+1)/2);
+
+		for (int y = 0; y < _pack_y; ++y) {
+			u32 *pixel = rgba;
+
+			for (int x = 0, xlen = _size_x >> 1; x < xlen; ++x, pixel += 2) {
+				u8 p = *image++;
+
+				CAT_DEBUG_ENFORCE(p < _pack_palette_size);
+
+				p = _pack_palette[p];
+
+				pixel[0] = _palette[p >> 4];
+				pixel[1] = _palette[p & 15];
+			}
+
+			if (_size_x & 1) {
+				u8 p = *image++;
+
+				CAT_DEBUG_ENFORCE(p < _pack_palette_size);
+
+				p = _pack_palette[p];
+
+				pixel[0] = _palette[p];
+			}
+
+			rgba += _size_x;
+		}
+	} else if (_pack_palette_size > 2) { // 2 bits/pixel
+		CAT_DEBUG_ENFORCE(_pack_y == (_size_y+1)/2);
+		CAT_DEBUG_ENFORCE(_pack_x == (_size_x+1)/2);
+
+		for (int y = 0, ylen = _size_y >> 1; y < ylen; ++y) {
+			u32 *pixel = rgba;
+
+			for (int x = 0, xlen = _size_x >> 1; x < xlen; ++x, pixel += 2) {
+				u8 p = *image++;
+
+				CAT_DEBUG_ENFORCE(p < _pack_palette_size);
+
+				p = _pack_palette[p];
+
+				pixel[0] = _palette[p & 3];
+				pixel[1] = _palette[(p >> 2) & 3];
+				pixel[_size_x] = _palette[(p >> 4) & 3];
+				pixel[_size_x+1] = _palette[p >> 6];
+			}
+
+			if (_size_x & 1) {
+				u8 p = *image++;
+
+				CAT_DEBUG_ENFORCE(p < _pack_palette_size);
+
+				p = _pack_palette[p];
+
+				pixel[0] = _palette[p & 3];
+				pixel[_size_x] = _palette[(p >> 4) & 3];
+			}
+
+			rgba += _size_x;
+		}
+
+		if (_size_y & 1) {
+			u32 *pixel = rgba;
+
+			for (int x = 0, xlen = _size_x >> 1; x < xlen; ++x, pixel += 2) {
+				u8 p = *image++;
+
+				CAT_DEBUG_ENFORCE(p < _pack_palette_size);
+
+				p = _pack_palette[p];
+
+				pixel[0] = _palette[p & 3];
+				pixel[1] = _palette[(p >> 2) & 3];
+			}
+
+			if (_size_x & 1) {
+				u8 p = *image++;
+
+				CAT_DEBUG_ENFORCE(p < _pack_palette_size);
+
+				p = _pack_palette[p];
+
+				pixel[0] = _palette[p & 3];
+			}
+		}
+	} else { // 1 bit/pixel
+		CAT_DEBUG_ENFORCE(_pack_y == (_size_y+1)/2);
+		CAT_DEBUG_ENFORCE(_pack_x == (_size_x+3)/4);
+
+		int x, xlen = _size_x >> 2;
+		for (int y = 0, ylen = _size_y >> 1; y < ylen; ++y) {
+			u32 *pixel = rgba;
+
+			for (x = 0; x < xlen; ++x, pixel += 4) {
+				u8 p = *image++;
+
+				CAT_DEBUG_ENFORCE(p < _pack_palette_size);
+
+				p = _pack_palette[p];
+
+				// Unpack byte into 8 pixels
+				pixel[0] = _palette[p >> 7]; p <<= 1;
+				pixel[1] = _palette[p >> 7]; p <<= 1;
+				pixel[2] = _palette[p >> 7]; p <<= 1;
+				pixel[3] = _palette[p >> 7]; p <<= 1;
+				u32 *next = pixel + _size_x;
+				next[0] = _palette[p >> 7]; p <<= 1;
+				next[1] = _palette[p >> 7]; p <<= 1;
+				next[2] = _palette[p >> 7]; p <<= 1;
+				next[3] = _palette[p >> 7];
+			}
+
+			if (_size_x & 3) {
+				u8 p = *image++;
+
+				CAT_DEBUG_ENFORCE(p < _pack_palette_size);
+
+				p = _pack_palette[p];
+
+				u32 *out = pixel;
+				for (int jj = 0; jj < 2; ++jj) {
+					for (int ii = 0; ii < 4; ++ii) {
+						int px = x + ii, py = y + jj;
+
+						if (px < _size_x && py < _size_y) {
+							out[ii] = _palette[p >> 7];
+						}
+
+						p <<= 1;
+					}
+					out += _size_x;
+				}
+			}
+
+			rgba += _size_x;
+		}
+
+		if (_size_y & 1) {
+			u32 *pixel = rgba;
+
+			for (int x = 0, xlen = _size_x >> 2; x < xlen; ++x, pixel += 4) {
+				u8 p = *image++;
+
+				CAT_DEBUG_ENFORCE(p < _pack_palette_size);
+
+				p = _pack_palette[p];
+
+				// Unpack byte into 8 pixels
+				pixel[0] = _palette[p >> 7]; p <<= 1;
+				pixel[1] = _palette[p >> 7]; p <<= 1;
+				pixel[2] = _palette[p >> 7]; p <<= 1;
+				pixel[3] = _palette[p >> 7];
+			}
+
+			if (_size_x & 3) {
+				u8 p = *image++;
+
+				CAT_DEBUG_ENFORCE(p < _pack_palette_size);
+
+				p = _pack_palette[p];
+
+				for (int ii = 0; ii < 4; ++ii) {
+					int px = x + ii;
+
+					if (px < _size_x) {
+						pixel[ii] = _palette[p >> 7];
+					}
+
+					p <<= 1;
+				}
+			}
 		}
 	}
 

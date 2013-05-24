@@ -45,7 +45,7 @@ extern "C" const char *gcif_write_errstr(int err) {
 	case GCIF_WE_FILE:		// Unable to access file
 		return "File access error:GCIF_WE_FILE";
 	case GCIF_WE_BUG:		// Internal error
-		return "Iunno:GCIF_WE_BUG";
+		return "IOno:GCIF_WE_BUG";
 	default:
 		break;
 	}

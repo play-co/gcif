@@ -57,7 +57,6 @@ protected:
 
 	u32 _palette[SMALL_PALETTE_MAX];
 	int _palette_size;
-	u8 _mask_palette;	// Masked palette index
 
 	ImageMaskReader * CAT_RESTRICT _mask;
 	ImageLZReader * CAT_RESTRICT _lz;
@@ -69,6 +68,7 @@ protected:
 
 	int _pack_palette_size;	// Palette size for repacked bytes
 	u8 _pack_palette[MAX_SYMS];
+	u8 _mask_palette;	// Masked palette index
 
 	MonoReader _mono_decoder;
 
