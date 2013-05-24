@@ -488,6 +488,8 @@ int ImageLZWriter::match() {
 	Stats.covered = 0;
 #endif
 
+	const int minScore = _planes == 4 ? _knobs->lz_minScore4 : _knobs->lz_minScore1;
+
 	// For each raster,
 	for (u16 y = 0, yend = _size_y - ZONEH; y <= yend; ++y) {
 		// Initialize a full hash block in the upper left of this row
@@ -535,7 +537,7 @@ int ImageLZWriter::match() {
 
 					// If the match scores well,
 					int unused = score(dx, dy, w, h);
-					if (unused >= _knobs->lz_minScore) {
+					if (unused >= minScore) {
 						// Accept it
 						add(unused, sx, sy, dx, dy, w, h);
 
@@ -624,7 +626,7 @@ void ImageLZWriter::write(ImageWriter &writer) {
 		for (int ii = 0; ii < match_count; ++ii) {
 			Match *m = &_exact_matches[ii];
 
-			CAT_WARN("LZ") << m->sx << ", " << m->sy << " -> " << m->dx << ", " << m->dy << " [" << (m->w + ZONEW) << ", " << (m->h + ZONEH) << "]";
+			//CAT_WARN("LZ") << m->sx << ", " << m->sy << " -> " << m->dx << ", " << m->dy << " [" << (m->w + ZONEW) << ", " << (m->h + ZONEH) << "]";
 
 			// Apply some context modeling for better compression
 			u16 edx = m->dx;
@@ -664,7 +666,7 @@ void ImageLZWriter::write(ImageWriter &writer) {
 	for (int ii = 0; ii < match_count; ++ii) {
 		Match *m = &_exact_matches[ii];
 
-		CAT_WARN("LZ") << m->sx << ", " << m->sy << " -> " << m->dx << ", " << m->dy << " [" << (m->w + ZONEW) << ", " << (m->h + ZONEH) << "]";
+		//CAT_WARN("LZ") << m->sx << ", " << m->sy << " -> " << m->dx << ", " << m->dy << " [" << (m->w + ZONEW) << ", " << (m->h + ZONEH) << "]";
 
 		// Apply some context modeling for better compression
 		u16 edx = m->dx;
