@@ -1468,69 +1468,56 @@ int MonoWriter::writeTables(ImageWriter &writer) {
 	writer.writeBit(1);
 
 	// Write tile size
-	{
-		CAT_DEBUG_ENFORCE(_profile->tile_bits_x == _profile->tile_bits_y);	// Square regions only for now
+	CAT_DEBUG_ENFORCE(_profile->tile_bits_x == _profile->tile_bits_y);	// Square regions only for now
 
-		if (_tile_bits_field_bc > 0) {
-			writer.writeBits(_profile->tile_bits_x - _params.min_bits, _tile_bits_field_bc);
-			Stats.basic_overhead_bits += _tile_bits_field_bc;
-		}
+	if (_tile_bits_field_bc > 0) {
+		writer.writeBits(_profile->tile_bits_x - _params.min_bits, _tile_bits_field_bc);
+		Stats.basic_overhead_bits += _tile_bits_field_bc;
 	}
 
 	DESYNC_TABLE();
 
 	// Sympal filters
-	{
-		CAT_DEBUG_ENFORCE(MAX_PALETTE <= 15);
+	CAT_DEBUG_ENFORCE(MAX_PALETTE <= 15);
 
-		writer.writeBits(_profile->sympal_filter_count, 4);
-		for (int f = 0, f_end = _profile->sympal_filter_count; f < f_end; ++f) {
-			writer.writeBits(_profile->sympal[f], 8);
-			Stats.basic_overhead_bits += 8;
-		}
+	writer.writeBits(_profile->sympal_filter_count, 4);
+	for (int f = 0, f_end = _profile->sympal_filter_count; f < f_end; ++f) {
+		writer.writeBits(_profile->sympal[f], 8);
+		Stats.basic_overhead_bits += 8;
 	}
 
 	DESYNC_TABLE();
 
 	// Normal filters
-	{
-		CAT_DEBUG_ENFORCE(MAX_FILTERS <= 32);
-		CAT_DEBUG_ENFORCE(SF_COUNT + MAX_PALETTE <= 128);
+	CAT_DEBUG_ENFORCE(MAX_FILTERS <= 32);
+	CAT_DEBUG_ENFORCE(SF_COUNT + MAX_PALETTE <= 128);
 
-		writer.writeBits(_profile->filter_count - SF_FIXED, 5);
-		Stats.basic_overhead_bits += 5;
-		for (int f = SF_FIXED, f_end = _profile->filter_count; f < f_end; ++f) {
-			writer.writeBits(_profile->filter_indices[f], 7);
-			Stats.basic_overhead_bits += 7;
-		}
+	writer.writeBits(_profile->filter_count - SF_FIXED, 5);
+	Stats.basic_overhead_bits += 5;
+	for (int f = SF_FIXED, f_end = _profile->filter_count; f < f_end; ++f) {
+		writer.writeBits(_profile->filter_indices[f], 7);
+		Stats.basic_overhead_bits += 7;
 	}
 
 	DESYNC_TABLE();
 
 	// Write chaos levels
-	{
-		CAT_DEBUG_ENFORCE(MAX_CHAOS_LEVELS <= 16);
+	CAT_DEBUG_ENFORCE(MAX_CHAOS_LEVELS <= 16);
 
-		writer.writeBits(_profile->chaos.getBinCount() - 1, 4);
-		Stats.basic_overhead_bits += 4;
-	}
+	writer.writeBits(_profile->chaos.getBinCount() - 1, 4);
+	Stats.basic_overhead_bits += 4;
 
 	DESYNC_TABLE();
 
 	// Write encoder tables
-	{
-		for (int ii = 0, iiend = _profile->chaos.getBinCount(); ii < iiend; ++ii) {
-			Stats.encoder_overhead_bits += _profile->encoder[ii].writeTables(writer);
-		}
+	for (int ii = 0, iiend = _profile->chaos.getBinCount(); ii < iiend; ++ii) {
+		Stats.encoder_overhead_bits += _profile->encoder[ii].writeTables(writer);
 	}
 
 	DESYNC_TABLE();
 
-	// Bit : row filters or recurse write tables
-	{
-		// Recurse write tables
-		Stats.filter_overhead_bits += _profile->filter_encoder->writeTables(writer);
-	}
+	// Recurse write tables
+	Stats.filter_overhead_bits += _profile->filter_encoder->writeTables(writer);
 
 	DESYNC_TABLE();
 
