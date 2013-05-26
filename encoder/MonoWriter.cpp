@@ -65,10 +65,7 @@ void MonoWriterProfile::init(u16 size_x, u16 size_y, u16 bits) {
 	tiles_count = tiles_x * tiles_y;
 	tiles.resize(tiles_count);
 	tiles.fill_00();
-
-	// Initialize mask
 	mask.resize(tiles_count);
-	mask.fill_00();
 
 	// Allocate residual memory
 	const u32 residuals_memory = size_x * size_y;
@@ -333,6 +330,7 @@ void MonoWriter::maskTiles() {
 					// If it is not masked,
 					if (!_params.mask(px, py)) {
 						// We need to do this tile
+						*m = 0;
 						goto next_tile;
 					}
 					++px;
