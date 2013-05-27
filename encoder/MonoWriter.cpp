@@ -1601,9 +1601,6 @@ int MonoWriter::writeRowHeader(u16 y, ImageWriter &writer) {
 		// If at the start of a tile row,
 		const u16 tile_mask_y = _profile->tile_size_y - 1;
 		if ((y & tile_mask_y) == 0) {
-			// Calculate tile y-coordinate
-			u16 ty = y >> _profile->tile_bits_y;
-
 			// After the first row,
 			if (y > 0) {
 				// For each pixel in seen row,
@@ -1615,6 +1612,7 @@ int MonoWriter::writeRowHeader(u16 y, ImageWriter &writer) {
 			}
 
 			// Recurse start row
+			u16 ty = y >> _profile->tile_bits_y;
 			bits += _profile->filter_encoder->writeRowHeader(ty, writer);
 
 			// Clear tile seen
@@ -1678,13 +1676,10 @@ int MonoWriter::write(u16 x, u16 y, ImageWriter &writer) {
 		// Write encoded pixel
 		data_bits += _row_filter_encoder.write(rf, writer);
 	} else {
-		// Calculate tile coordinates
-		u16 tx = x >> _profile->tile_bits_x;
-
 		// Get tile
-		u16 ty = y >> _profile->tile_bits_y;
-		u8 *tile = _profile->tiles.get() + tx + ty * _profile->tiles_x;
-		u8 f = tile[0];
+		const u16 tx = x >> _profile->tile_bits_x;
+		const u16 ty = y >> _profile->tile_bits_y;
+		const u8 f = _profile->getTile(tx, ty);
 
 		CAT_DEBUG_ENFORCE(!IsMasked(tx, ty));
 
