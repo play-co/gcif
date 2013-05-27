@@ -1119,6 +1119,16 @@ void MonoWriter::designChaos() {
 
 			// If random write order,
 			if (order) {
+				// After the first one,
+				if (y > 0) {
+					// Simulate zeroing the chaos residuals
+					for (u16 x = 0; x < _params.size_x; ++x) {
+						if (_params.mask(x, y)) {
+							_profile->chaos.zero(x);
+						}
+					}
+				}
+
 				u16 x;
 				while ((x = *order++) != ORDER_SENTINEL) {
 					const u16 tx = x >> _profile->tile_bits_x;
@@ -1208,6 +1218,16 @@ void MonoWriter::initializeEncoders() {
 	for (int y = 0; y < _params.size_y; ++y) {
 		// If random write order,
 		if (order) {
+			// After the first one,
+			if (y > 0) {
+				// Simulate zeroing the chaos residuals
+				for (u16 x = 0; x < _params.size_x; ++x) {
+					if (_params.mask(x, y)) {
+						_profile->chaos.zero(x);
+					}
+				}
+			}
+
 			u16 x;
 			while ((x = *order++) != ORDER_SENTINEL) {
 				const u8 f = _profile->getTile(x >> _profile->tile_bits_x, y >> _profile->tile_bits_y);
@@ -1300,6 +1320,16 @@ u32 MonoWriter::simulate() {
 		for (u16 y = 0; y < _params.size_y; ++y) {
 			// If random write order,
 			if (order) {
+				// After the first one,
+				if (y > 0) {
+					// Simulate zeroing the chaos residuals
+					for (u16 x = 0; x < _params.size_x; ++x) {
+						if (_params.mask(x, y)) {
+							_profile->chaos.zero(x);
+						}
+					}
+				}
+
 				u16 x;
 				while ((x = *order++) != ORDER_SENTINEL) {
 					const u8 f = _profile->getTile(x >> _profile->tile_bits_x, y >> _profile->tile_bits_y);
