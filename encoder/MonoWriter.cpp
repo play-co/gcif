@@ -1446,6 +1446,10 @@ int MonoWriter::writeTables(ImageWriter &writer) {
 	Stats.filter_overhead_bits = 0;
 	Stats.data_bits = 0;
 
+#ifdef CAT_DEBUG
+	_next_write_pixel_order = _params.write_order;
+#endif
+
 	// If not using write profile,
 	if (_use_row_filters) {
 		writer.writeBit(0);
@@ -1541,7 +1545,6 @@ void MonoWriter::initializeWriter() {
 #ifdef CAT_DEBUG
 	generateWriteOrder();
 	_next_write_tile_order = &_profile->write_order[0];
-	_next_write_pixel_order = _params.write_order;
 #endif
 }
 
@@ -1576,7 +1579,7 @@ int MonoWriter::writeRowHeader(u16 y, ImageWriter &writer) {
 				// For each pixel in seen row,
 				for (u16 tx = 0; tx < _profile->tiles_x; ++tx) {
 					if (!_tile_seen[tx]) {
-						_profile->filter_encoder->zero(tx, ty);
+						_profile->filter_encoder->zero(tx);
 					}
 				}
 			}
@@ -1611,14 +1614,12 @@ int MonoWriter::writeRowHeader(u16 y, ImageWriter &writer) {
 	return bits;
 }
 
-void MonoWriter::zero(u16 x, u16 y) {
+void MonoWriter::zero(u16 x) {
 	if (!_use_row_filters) {
-		CAT_DEBUG_ENFORCE(_params.mask(x, y));
-
 		_profile->chaos.zero(x);
 	}
 
-	DESYNC(x, y);
+	DESYNC(x, 0);
 }
 
 int MonoWriter::write(u16 x, u16 y, ImageWriter &writer) {

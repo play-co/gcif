@@ -381,7 +381,7 @@ void ImagePaletteWriter::writePixels(ImageWriter &writer) {
 
 		for (int x = 0; x < _size_x; ++x) {
 			if (IsMasked(x, y)) {
-				_mono_writer.zero(x, y);
+				_mono_writer.zero(x);
 			} else {
 				bits += _mono_writer.write(x, y, writer);
 				++pixels;

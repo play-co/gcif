@@ -857,7 +857,7 @@ bool ImageRGBAWriter::writePixels(ImageWriter &writer) {
 			// If masked,
 			if (IsMasked(x, y)) {
 				_chaos.zero(x);
-				_a_encoder.zero(x, y);
+				_a_encoder.zero(x);
 			} else {
 				// If filter needs to be written,
 				u16 tx = x >> _tile_bits_x;

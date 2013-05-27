@@ -405,7 +405,7 @@ void SmallPaletteWriter::writePixels(ImageWriter &writer) {
 
 		for (int x = 0, xend = _pack_x; x < xend; ++x, ++image) {
 			if (IsMasked(x, y)) {
-				_mono_writer.zero(x, y);
+				_mono_writer.zero(x);
 			} else {
 				bits += _mono_writer.write(x, y, writer);
 				++pixels;
