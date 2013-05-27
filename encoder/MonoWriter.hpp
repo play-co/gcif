@@ -124,6 +124,7 @@ public:
 		// Encoder-only
 		const GCIFKnobs *knobs;			// Global knobs
 		const u8 *data;					// Input data
+		const u16 *write_order;			// Write order for input pixels
 		u16 max_filters;				// Maximum number of filters to use
 		float sympal_thresh;			// Normalized coverage to add a symbol palette filter (1.0 = entire image)
 		float filter_cover_thresh;		// 0.6 Normalized coverage to stop adding filters (1.0 = entire image)
@@ -149,10 +150,9 @@ protected:
 
 	// Parameters
 	Parameters _params;						// Input parameters
-	const u16 *_pixel_write_order;			// Write order for input pixels
-	std::vector<u16> _tile_write_order;		// Write order for output tiles
 #ifdef CAT_DEBUG
 	const u16 *_next_write_tile_order;		// For validating write order
+	const u16 *_next_write_pixel_order;		// For validating write order
 #endif
 
 	MonoWriterProfile *_profile;			// Selected write profile
@@ -234,7 +234,7 @@ public:
 	static void generateWriteOrder(u16 size_x, u16 size_y, MaskDelegate mask, u16 tile_shift_bits, std::vector<u16> &order);
 
 	// Generate writer from this configuration
-	void init(const Parameters &params, const u16 *write_order = 0);
+	void init(const Parameters &params);
 
 	// Write parameter tables for decoder
 	int writeTables(ImageWriter &writer);
@@ -266,6 +266,7 @@ class MonoWriterProfile {
 	// Generated filter tiles
 	SmartArray<u8> mask;					// Masked tile boolean matrix
 	SmartArray<u8> tiles;					// Filter chosen per tile matrix
+	std::vector<u16> write_order;			// Write order for output tiles
 	u32 tiles_count;						// Number of tiles
 	int tiles_x, tiles_y;					// Tiles in x,y
 	u16 tile_bits_x, tile_bits_y;			// Number of bits in size

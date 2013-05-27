@@ -101,7 +101,7 @@ void MonoWriter::designRowFilters() {
 	// For each pass through,
 	int passes = 0;
 	while (passes < MAX_ROW_PASSES) {
-		const u16 *order = _pixel_write_order;
+		const u16 *order = _params.write_order;
 		const u8 *data = _params.data;
 
 		_one_row_filter = true;
@@ -197,7 +197,7 @@ void MonoWriter::designRowFilters() {
 
 	// Initialize row encoder
 	{
-		const u16 *order = _pixel_write_order;
+		const u16 *order = _params.write_order;
 		const u8 *data = _params.data;
 
 		// For each tile,
@@ -255,7 +255,7 @@ void MonoWriter::designRowFilters() {
 	// Simulate encoding
 	u32 bits = 0;
 	{
-		const u16 *order = _pixel_write_order;
+		const u16 *order = _params.write_order;
 		const u8 *data = _params.data;
 
 		// For each tile,
@@ -874,7 +874,7 @@ void MonoWriter::computeResiduals() {
 
 	const u8 *data = _params.data;
 	u8 *residuals = _profile->residuals.get();
-	const u16 *order = _pixel_write_order;
+	const u16 *order = _params.write_order;
 	u8 *replay;
 
 	// If random-access input data,
@@ -1015,12 +1015,12 @@ void MonoWriter::generateWriteOrder() {
 	_tile_seen.resize(_profile->tiles_x);
 
 	// Clear tile write order
-	_tile_write_order.clear();
+	_profile->write_order.clear();
 
 	// Generate write order data for recursive operation
 	const u16 tile_bits_x = _profile->tile_bits_x;
 	const u16 tile_mask_y = _profile->tile_size_y - 1;
-	const u16 *order = _pixel_write_order;
+	const u16 *order = _params.write_order;
 
 	// For each pixel row,
 	for (u16 y = 0; y < _params.size_y; ++y) {
@@ -1030,7 +1030,7 @@ void MonoWriter::generateWriteOrder() {
 
 			// After the first tile row,
 			if (y > 0) {
-				_tile_write_order.push_back(ORDER_SENTINEL);
+				_profile->write_order.push_back(ORDER_SENTINEL);
 			}
 		}
 
@@ -1046,7 +1046,7 @@ void MonoWriter::generateWriteOrder() {
 				if (_tile_seen[tx] == 0) {
 					_tile_seen[tx] = 1;
 
-					_tile_write_order.push_back(tx);
+					_profile->write_order.push_back(tx);
 				}
 			}
 		} else {
@@ -1059,14 +1059,14 @@ void MonoWriter::generateWriteOrder() {
 					if (_tile_seen[tx] == 0) {
 						_tile_seen[tx] = 1;
 
-						_tile_write_order.push_back(tx);
+						_profile->write_order.push_back(tx);
 					}
 				}
 			}
 		}
 	}
 
-	_tile_write_order.push_back(ORDER_SENTINEL);
+	_profile->write_order.push_back(ORDER_SENTINEL);
 }
 
 bool MonoWriter::IsMasked(u16 x, u16 y) {
@@ -1086,8 +1086,9 @@ void MonoWriter::recurseCompress() {
 	params.size_x = tiles_x;
 	params.size_y = tiles_y;
 	params.mask.SetMember<MonoWriter, &MonoWriter::IsMasked>(this);
+	params.write_order = &_profile->write_order[0];
 
-	_profile->filter_encoder->init(params, &_tile_write_order[0]);
+	_profile->filter_encoder->init(params);
 }
 
 void MonoWriter::designChaos() {
@@ -1109,7 +1110,7 @@ void MonoWriter::designChaos() {
 
 		_profile->chaos.start();
 
-		const u16 *order = _pixel_write_order;
+		const u16 *order = _params.write_order;
 		const u8 *residuals = _profile->residuals.get();
 
 		// For each row,
@@ -1200,7 +1201,7 @@ void MonoWriter::designChaos() {
 void MonoWriter::initializeEncoders() {
 	_profile->chaos.start();
 
-	const u16 *order = _pixel_write_order;
+	const u16 *order = _params.write_order;
 
 	// For each row,
 	const u8 *residuals = _profile->residuals.get();
@@ -1293,7 +1294,7 @@ u32 MonoWriter::simulate() {
 		}
 
 		const u8 *residuals = _profile->residuals.get();
-		const u16 *order = _pixel_write_order;
+		const u16 *order = _params.write_order;
 
 		// For each row,
 		for (u16 y = 0; y < _params.size_y; ++y) {
@@ -1351,12 +1352,11 @@ u32 MonoWriter::simulate() {
 	return bits;
 }
 
-void MonoWriter::init(const Parameters &params, const u16 *write_order) {
+void MonoWriter::init(const Parameters &params) {
 	cleanup();
 
 	// Initialize
 	_params = params;
-	_pixel_write_order = write_order;
 
 	_row_filters.resize(_params.size_y);
 
@@ -1540,7 +1540,8 @@ void MonoWriter::initializeWriter() {
 
 #ifdef CAT_DEBUG
 	generateWriteOrder();
-	_next_write_tile_order = &_tile_write_order[0];
+	_next_write_tile_order = &_profile->write_order[0];
+	_next_write_pixel_order = _params.write_order;
 #endif
 }
 
@@ -1597,9 +1598,9 @@ int MonoWriter::writeRowHeader(u16 y, ImageWriter &writer) {
 	}
 
 #ifdef CAT_DEBUG
-	if (_pixel_write_order) {
+	if (_next_write_pixel_order) {
 		if (y > 0) {
-			_pixel_write_order++;
+			_next_write_pixel_order++;
 		}
 	}
 #endif
@@ -1625,7 +1626,7 @@ int MonoWriter::write(u16 x, u16 y, ImageWriter &writer) {
 
 	CAT_DEBUG_ENFORCE(x < _params.size_x && y < _params.size_y);
 	CAT_DEBUG_ENFORCE(!_params.mask(x, y));
-	CAT_DEBUG_ENFORCE(!_pixel_write_order || *_pixel_write_order++ == x);
+	CAT_DEBUG_ENFORCE(!_next_write_pixel_order || *_next_write_pixel_order++ == x);
 
 	// If using row filters,
 	if (_use_row_filters) {

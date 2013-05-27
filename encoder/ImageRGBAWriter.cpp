@@ -448,6 +448,7 @@ bool ImageRGBAWriter::compressAlpha() {
 	params.AWARDS[2] = 1;
 	params.AWARDS[3] = 1;
 	params.award_count = 4;
+	params.write_order = 0;
 
 	_a_encoder.init(params);
 
@@ -612,10 +613,11 @@ bool ImageRGBAWriter::compressSF() {
 	params.AWARDS[2] = 1;
 	params.AWARDS[3] = 1;
 	params.award_count = 4;
+	params.write_order = &_filter_order[0];
 
 	CAT_INANE("RGBA") << "Compressing spatial filter matrix...";
 
-	_sf_encoder.init(params, &_filter_order[0]);
+	_sf_encoder.init(params);
 
 	return true;
 }
@@ -639,10 +641,11 @@ bool ImageRGBAWriter::compressCF() {
 	params.AWARDS[2] = 1;
 	params.AWARDS[3] = 1;
 	params.award_count = 4;
+	params.write_order = &_filter_order[0];
 
 	CAT_INANE("RGBA") << "Compressing color filter matrix...";
 
-	_cf_encoder.init(params, &_filter_order[0]);
+	_cf_encoder.init(params);
 
 	return true;
 }

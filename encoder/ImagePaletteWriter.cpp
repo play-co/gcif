@@ -191,6 +191,7 @@ void ImagePaletteWriter::generateMonoWriter() {
 	params.AWARDS[2] = 1;
 	params.AWARDS[3] = 1;
 	params.award_count = 4;
+	params.write_order = 0;
 
 	_mono_writer.init(params);
 }
