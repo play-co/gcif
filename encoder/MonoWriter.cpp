@@ -1188,7 +1188,8 @@ void MonoWriter::designChaos() {
 		// For each chaos level,
 		u32 entropy = 0;
 		for (int ii = 0; ii < chaos_levels; ++ii) {
-			entropy += ee[ii].entropyOverall();
+			u32 eee = ee[ii].entropyOverall();
+			entropy += eee;
 
 			// Approximate cost of adding an entropy level
 			entropy += 5 * _params.num_syms;
@@ -1200,8 +1201,6 @@ void MonoWriter::designChaos() {
 			best_chaos_levels = chaos_levels;
 		}
 	}
-
-	best_chaos_levels = 16;
 
 	// Record the best option found
 	_profile->chaos.init(best_chaos_levels, _params.size_x);
@@ -1720,7 +1719,7 @@ void MonoWriter::dumpStats() {
 	if (_use_row_filters) {
 		CAT_INANE("Mono") << "Using row-filtered encoder for " << _params.size_x << "x" << _params.size_y << " image";
 	} else {
-		CAT_INANE("Mono") << "Designed monochrome writer using " << _profile->tiles_x << "x" << _profile->tiles_y << " tiles to express " << _profile->filter_count << " (" << _profile->sympal_filter_count << " palette) filters for " << _params.size_x << "x" << _params.size_y << " image";
+		CAT_INANE("Mono") << "Designed monochrome writer using " << _profile->tiles_x << "x" << _profile->tiles_y << " tiles to express " << _profile->filter_count << " (" << _profile->sympal_filter_count << " palette) filters for " << _params.size_x << "x" << _params.size_y << " image with " << _profile->chaos.getBinCount() << " chaos bins";
 	}
 
 	CAT_INANE("Mono") << " -   Basic Overhead : " << Stats.basic_overhead_bits << " bits (" << Stats.basic_overhead_bits/8 << " bytes)";
