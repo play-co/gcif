@@ -30,7 +30,6 @@
 #define ENTROPY_ESTIMATOR_HPP
 
 #include "../decoder/Platform.hpp"
-#include "HuffmanEncoder.hpp"
 
 namespace cat {
 
@@ -73,25 +72,6 @@ public:
 	// Calculate entropy of given symbols, counting zeroes as free
 	u32 entropy(const u8 *symbols, int count);
 };
-
-
-// This version is designed to more closely represent the bits used
-
-class CodelenEstimator {
-	static const int NUM_SYMS = 256;
-
-	FreqHistogram<NUM_SYMS> _hist;
-
-public:
-	void init();
-
-	// These versions will add the same symbol multiple times
-	void addSingle(const u8 symbol, int count = 1);
-
-	// Overall bits, counting zeroes as free
-	u32 calculate();
-};
-
 
 
 } // namespace cat

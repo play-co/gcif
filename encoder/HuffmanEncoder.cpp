@@ -577,6 +577,8 @@ int cat::writeCompressedHuffmanTable(int num_syms, u8 codelens[], ImageWriter &w
 	// 00 : No modifications
 
 	{
+		encoders[0].init();
+
 		// Collect statistics
 		for (int ii = 0; ii < num_syms; ++ii) {
 			u8 len = codelens[ii];
@@ -601,6 +603,8 @@ int cat::writeCompressedHuffmanTable(int num_syms, u8 codelens[], ImageWriter &w
 	// 01 : Smoothed average with a cutoff at 32 symbols
 
 	{
+		encoders[1].init();
+
 		// Collect statistics
 		u32 lag0 = 1, lag1 = 1;
 		for (int ii = 0; ii < num_syms; ++ii) {
@@ -649,6 +653,8 @@ int cat::writeCompressedHuffmanTable(int num_syms, u8 codelens[], ImageWriter &w
 	// 10 : Monotonically increasing with a smoothed average of the last two, rounding up
 
 	{
+		encoders[2].init();
+
 		// Collect statistics
 		u32 lag0 = 1, lag1 = 1;
 		for (int ii = 0; ii < num_syms; ++ii) {
@@ -689,6 +695,8 @@ int cat::writeCompressedHuffmanTable(int num_syms, u8 codelens[], ImageWriter &w
 	// 11 : Predict using running average
 
 	{
+		encoders[3].init();
+
 		// Collect statistics
 		u32 lag0 = 1, lag1 = 1;
 		for (int ii = 0; ii < num_syms; ++ii) {
@@ -817,6 +825,11 @@ int cat::writeCompressedHuffmanTable(int num_syms, u8 codelens[], ImageWriter &w
 
 
 //// HuffmanTableEncoder
+
+void HuffmanTableEncoder::init() {
+	_zeroRun = 0;
+	_bz_hist.init();
+}
 
 int HuffmanTableEncoder::simulateZeroRun(int run) {
 	if (run <= 0) {

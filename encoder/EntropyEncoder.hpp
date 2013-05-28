@@ -120,15 +120,37 @@ protected:
 public:
 	CAT_INLINE EntropyEncoder() {
 		_zeroRun = 0;
-		_bz_hist = new FreqHistogram<BZ_SYMS>;
-		_az_hist = new FreqHistogram<AZ_SYMS>;
-		_basic_hist = new FreqHistogram<NUM_SYMS>;
+		_bz_hist = 0;
+		_az_hist = 0;
+		_basic_hist = 0;
 	}
 
 	CAT_INLINE virtual ~EntropyEncoder() {
-		delete _bz_hist;
-		delete _az_hist;
-		delete _basic_hist;
+		if (_bz_hist) {
+			delete _bz_hist;
+		}
+		if (_az_hist) {
+			delete _az_hist;
+		}
+		if (_basic_hist) {
+			delete _basic_hist;
+		}
+	}
+
+	void init() {
+		_zeroRun = 0;
+		if (!_bz_hist) {
+			_bz_hist = new FreqHistogram<BZ_SYMS>;
+		}
+		if (!_az_hist) {
+			_az_hist = new FreqHistogram<AZ_SYMS>;
+		}
+		if (!_basic_hist) {
+			_basic_hist = new FreqHistogram<NUM_SYMS>;
+		}
+		_bz_hist->init();
+		_az_hist->init();
+		_basic_hist->init();
 	}
 
 	void add(u16 symbol) {
@@ -254,6 +276,21 @@ public:
 
 		// Set the run list read index for writing
 		_runListReadIndex = 0;
+	}
+
+	int simulateAll() {
+		CAT_DEBUG_ENFORCE(NUM_SYMS <= 256);
+
+		reset();
+
+		int bits = 0;
+		for (int ii = 0, len = (int)_basic_syms.size(); ii < len; ++ii) {
+			u8 sym = _basic_syms[ii];
+
+			bits += simulate(sym);
+		}
+
+		return bits;
 	}
 
 	int simulate(u16 symbol) {
