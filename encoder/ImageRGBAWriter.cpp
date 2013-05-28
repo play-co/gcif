@@ -522,7 +522,11 @@ void ImageRGBAWriter::computeResiduals() {
 void ImageRGBAWriter::designChaos() {
 	CAT_INANE("RGBA") << "Designing chaos...";
 
-	EntropyEstimator ee[MAX_CHAOS_LEVELS];
+	// Allocate entropy estimators
+	EntropyEstimator *ee[3];
+	for (int ii = 0; ii < 3; ++ii) {
+		ee[ii] = new EntropyEstimator[MAX_CHAOS_LEVELS];
+	}
 
 	u32 best_entropy = 0x7fffffff;
 	int best_chaos_levels = 1;
@@ -533,7 +537,9 @@ void ImageRGBAWriter::designChaos() {
 
 		// Reset entropy estimator
 		for (int ii = 0; ii < chaos_levels; ++ii) {
-			ee[ii].init();
+			ee[0][ii].init();
+			ee[1][ii].init();
+			ee[2][ii].init();
 		}
 
 		_chaos.start();
@@ -555,9 +561,9 @@ void ImageRGBAWriter::designChaos() {
 					_chaos.store(x, residuals);
 
 					// Add to histogram for this chaos bin
-					ee[cy].addSingle(residuals[0]);
-					ee[cu].addSingle(residuals[1]);
-					ee[cv].addSingle(residuals[2]);
+					ee[0][cy].addSingle(residuals[0]);
+					ee[1][cu].addSingle(residuals[1]);
+					ee[2][cv].addSingle(residuals[2]);
 				}
 
 				residuals += 4;
@@ -567,11 +573,17 @@ void ImageRGBAWriter::designChaos() {
 		// For each chaos level,
 		u32 entropy = 0;
 		for (int ii = 0; ii < chaos_levels; ++ii) {
-			entropy += ee[ii].entropyOverall();
+			u32 ee0 = ee[0][ii].entropyOverall();
+			u32 ee1 = ee[1][ii].entropyOverall();
+			u32 ee2 = ee[2][ii].entropyOverall();
+			entropy += ee0 + ee1 + ee2;
+			CAT_WARN("Entropy") << ii << " + " << ee0 << ", " << ee1 << ", " << ee2;
 
 			// Approximate cost of adding an entropy level
-			entropy += 3 * 5 * 256;
+			//entropy += 3 * 5 * 256;
 		}
+
+		CAT_WARN("Entropy Overall") << entropy;
 
 		// If this is the best chaos levels so far,
 		if (best_entropy > entropy) {
@@ -584,6 +596,11 @@ void ImageRGBAWriter::designChaos() {
 
 	// Record the best option found
 	_chaos.init(best_chaos_levels, _size_x);
+
+	// Deallocate entropy estimators
+	for (int ii = 0; ii < 3; ++ii) {
+		delete[] ee[ii];
+	}
 }
 
 void ImageRGBAWriter::generateWriteOrder() {
