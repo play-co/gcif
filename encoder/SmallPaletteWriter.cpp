@@ -434,6 +434,8 @@ bool SmallPaletteWriter::dumpStats() {
 	if (!enabled()) {
 		CAT_INANE("stats") << "(Small Palette) Disabled.";
 	} else {
+		_mono_writer.dumpStats();
+
 		CAT_INANE("stats") << "(Small Palette)              Size : " << Stats.palette_size << " colors";
 		CAT_INANE("stats") << "(Small Palette)     Small Palette : " << Stats.small_palette_bits / 8 << " bytes (" << Stats.small_palette_bits * 100.f / Stats.total_bits << "% total)";
 		CAT_INANE("stats") << "(Small Palette)    Packed Palette : " << Stats.pack_palette_bits / 8 << " bytes (" << Stats.pack_palette_bits * 100.f / Stats.total_bits << "% total)";
