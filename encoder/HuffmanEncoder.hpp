@@ -116,7 +116,7 @@ public:
 	u32 hist[NUM_SYMS];
 	u32 max_freq;
 
-	FreqHistogram() {
+	CAT_INLINE void init() {
 		CAT_OBJCLR(hist);
 		max_freq = 0;
 	}
@@ -266,12 +266,7 @@ protected:
 	void recordZeroRun();
 
 public:
-	CAT_INLINE HuffmanTableEncoder() {
-		_zeroRun = 0;
-	}
-	CAT_INLINE virtual ~HuffmanTableEncoder() {
-	}
-
+	void init();
 	void add(u16 symbol);
 	void finalize();
 

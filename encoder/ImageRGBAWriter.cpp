@@ -523,9 +523,9 @@ void ImageRGBAWriter::designChaos() {
 	CAT_INANE("RGBA") << "Designing chaos...";
 
 	// Allocate entropy estimators
-	EntropyEstimator *ee[3];
+	CodelenEstimator *ce[3];
 	for (int ii = 0; ii < 3; ++ii) {
-		ee[ii] = new EntropyEstimator[MAX_CHAOS_LEVELS];
+		ce[ii] = new CodelenEstimator[MAX_CHAOS_LEVELS];
 	}
 
 	u32 best_entropy = 0x7fffffff;
@@ -537,9 +537,9 @@ void ImageRGBAWriter::designChaos() {
 
 		// Reset entropy estimator
 		for (int ii = 0; ii < chaos_levels; ++ii) {
-			ee[0][ii].init();
-			ee[1][ii].init();
-			ee[2][ii].init();
+			ce[0][ii].init();
+			ce[1][ii].init();
+			ce[2][ii].init();
 		}
 
 		_chaos.start();
@@ -561,9 +561,9 @@ void ImageRGBAWriter::designChaos() {
 					_chaos.store(x, residuals);
 
 					// Add to histogram for this chaos bin
-					ee[0][cy].addSingle(residuals[0]);
-					ee[1][cu].addSingle(residuals[1]);
-					ee[2][cv].addSingle(residuals[2]);
+					ce[0][cy].addSingle(residuals[0]);
+					ce[1][cu].addSingle(residuals[1]);
+					ce[2][cv].addSingle(residuals[2]);
 				}
 
 				residuals += 4;
@@ -573,17 +573,18 @@ void ImageRGBAWriter::designChaos() {
 		// For each chaos level,
 		u32 entropy = 0;
 		for (int ii = 0; ii < chaos_levels; ++ii) {
-			u32 ee0 = ee[0][ii].entropyOverall();
-			u32 ee1 = ee[1][ii].entropyOverall();
-			u32 ee2 = ee[2][ii].entropyOverall();
-			entropy += ee0 + ee1 + ee2;
-			CAT_WARN("Entropy") << ii << " + " << ee0 << ", " << ee1 << ", " << ee2;
+			u32 ce0 = ce[0][ii].calculate();
+			u32 ce1 = ce[1][ii].calculate();
+			u32 ce2 = ce[2][ii].calculate();
+			entropy += ce0 + ce1 + ce2;
+
+			//CAT_WARN("ENTROPY") << ii << " : " << ce0 << ", " << ce1 << ", " << ce2;
 
 			// Approximate cost of adding an entropy level
-			//entropy += 3 * 5 * 256;
+			entropy += 300;
 		}
 
-		CAT_WARN("Entropy Overall") << entropy;
+		//CAT_WARN("SUM") << chaos_levels << " -> " << entropy;
 
 		// If this is the best chaos levels so far,
 		if (best_entropy > entropy) {
@@ -592,14 +593,14 @@ void ImageRGBAWriter::designChaos() {
 		}
 	}
 
-	best_chaos_levels = 12;
+	//CAT_WARN("BEST") << best_chaos_levels;
 
 	// Record the best option found
 	_chaos.init(best_chaos_levels, _size_x);
 
 	// Deallocate entropy estimators
 	for (int ii = 0; ii < 3; ++ii) {
-		delete[] ee[ii];
+		delete[] ce[ii];
 	}
 }
 
@@ -968,11 +969,10 @@ bool ImageRGBAWriter::dumpStats() {
 	CAT_INANE("stats") << "(RGBA Compress) Color filter encoder:";
 	_cf_encoder.dumpStats();
 
-	CAT_INANE("stats") << "(RGBA Compress)     Basic Overhead : " <<  Stats.basic_overhead_bits << " bits (" << Stats.basic_overhead_bits/8 << " bytes, " << Stats.basic_overhead_bits * 100.f / Stats.rgba_bits << "% of RGBA)";
+	CAT_INANE("stats") << "(RGBA Compress)     Basic Overhead : " <<  Stats.basic_overhead_bits << " bits (" << Stats.basic_overhead_bits/8 << " bytes, " << Stats.basic_overhead_bits * 100.f / Stats.rgba_bits << "% of RGBA) with " << _chaos.getBinCount() << " chaos bins";
 	CAT_INANE("stats") << "(RGBA Compress) SF Choice Overhead : " << Stats.sf_choice_bits << " bits (" << Stats.sf_choice_bits/8 << " bytes, " << Stats.sf_choice_bits * 100.f / Stats.rgba_bits << "% of RGBA)";
 	CAT_INANE("stats") << "(RGBA Compress)  SF Table Overhead : " << Stats.sf_table_bits << " bits (" << Stats.sf_table_bits/8 << " bytes, " << Stats.sf_table_bits * 100.f / Stats.rgba_bits << "% of RGBA)";
 	CAT_INANE("stats") << "(RGBA Compress)  CF Table Overhead : " << Stats.cf_table_bits << " bits (" << Stats.cf_table_bits/8 << " bytes, " << Stats.cf_table_bits * 100.f / Stats.rgba_bits << "% of RGBA)";
-	CAT_INANE("stats") << "(RGBA Compress)     Chaos Overhead : " << _chaos.getBinCount() << " bins";
 	CAT_INANE("stats") << "(RGBA Compress)   Y Table Overhead : " << Stats.y_table_bits << " bits (" << Stats.y_table_bits/8 << " bytes, " << Stats.y_table_bits * 100.f / Stats.rgba_bits << "% of RGBA)";
 	CAT_INANE("stats") << "(RGBA Compress)   U Table Overhead : " << Stats.u_table_bits << " bits (" << Stats.u_table_bits/8 << " bytes, " << Stats.u_table_bits * 100.f / Stats.rgba_bits << "% of RGBA)";
 	CAT_INANE("stats") << "(RGBA Compress)   V Table Overhead : " << Stats.v_table_bits << " bits (" << Stats.v_table_bits/8 << " bytes, " << Stats.v_table_bits * 100.f / Stats.rgba_bits << "% of RGBA)";

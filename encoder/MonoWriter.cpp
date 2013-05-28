@@ -50,6 +50,11 @@ void MonoWriterProfile::cleanup() {
 		delete filter_encoder;
 		filter_encoder = 0;
 	}
+
+	if (encoders) {
+		delete encoders;
+		encoders = 0;
+	}
 }
 
 void MonoWriterProfile::init(u16 size_x, u16 size_y, u16 bits) {
@@ -254,6 +259,8 @@ void MonoWriter::designRowFilters() {
 
 	// Simulate encoding
 	u32 bits = 0;
+	u8 seen[256] = {0};
+	CAT_DEBUG_ENFORCE(num_syms <= 256);
 	{
 		const u16 *order = _params.write_order;
 		const u8 *data = _params.data;
@@ -281,6 +288,7 @@ void MonoWriter::designRowFilters() {
 					CAT_DEBUG_ENFORCE(p < num_syms);
 
 					bits += _row_filter_encoder.simulate(p);
+					seen[p] = 1;
 				}
 
 				data += size_x;
@@ -302,12 +310,20 @@ void MonoWriter::designRowFilters() {
 						CAT_DEBUG_ENFORCE(p < num_syms);
 
 						bits += _row_filter_encoder.simulate(p);
+						seen[p] = 1;
 					}
 				}
 			}
 		}
 
 		_row_filter_encoder.reset();
+	}
+
+	// Add in overhead
+	for (int ii = 0; ii < num_syms; ++ii) {
+		if (seen[ii]) {
+			bits += 2;
+		}
 	}
 
 	_row_filter_entropy = bits;
@@ -1094,24 +1110,23 @@ void MonoWriter::recurseCompress() {
 void MonoWriter::designChaos() {
 	//CAT_INANE("Mono") << "Designing chaos...";
 
-	EntropyEstimator ee[MAX_CHAOS_LEVELS];
-
 	u32 best_entropy = 0x7fffffff;
-	int best_chaos_levels = 1;
+
+	MonoWriterProfile::Encoders *best = 0;
+	MonoWriterProfile::Encoders *encoders = new MonoWriterProfile::Encoders;
 
 	// For each chaos level,
 	for (int chaos_levels = 1; chaos_levels < MAX_CHAOS_LEVELS; ++chaos_levels) {
-		_profile->chaos.init(chaos_levels, _params.size_x);
-
-		// Reset entropy estimator
-		for (int ii = 0; ii < chaos_levels; ++ii) {
-			ee[ii].init();
-		}
-
-		_profile->chaos.start();
+		encoders->chaos.init(chaos_levels, _params.size_x);
+		encoders->chaos.start();
 
 		const u16 *order = _params.write_order;
 		const u8 *residuals = _profile->residuals.get();
+
+		// For each chaos level,
+		for (int ii = 0; ii < chaos_levels; ++ii) {
+			encoders->encoder[ii].init();
+		}
 
 		// For each row,
 		for (u16 y = 0; y < _params.size_y; ++y) {
@@ -1124,7 +1139,7 @@ void MonoWriter::designChaos() {
 					// Simulate zeroing the chaos residuals
 					for (u16 x = 0; x < _params.size_x; ++x) {
 						if (_params.mask(x, y)) {
-							_profile->chaos.zero(x);
+							encoders->chaos.zero(x);
 						}
 					}
 				}
@@ -1139,17 +1154,17 @@ void MonoWriter::designChaos() {
 
 					// If masked or sympal,
 					if (_profile->filter_indices[f] >= SF_COUNT) {
-						_profile->chaos.zero(x);
+						encoders->chaos.zero(x);
 					} else {
 						// Get residual symbol
 						u8 residual = residuals[x];
 
 						// Get chaos bin
-						int chaos = _profile->chaos.get(x);
-						_profile->chaos.store(x, residual, _params.num_syms);
+						int chaos = encoders->chaos.get(x);
+						encoders->chaos.store(x, residual, _params.num_syms);
 
 						// Add to histogram for this chaos bin
-						ee[chaos].addSingle(residual);
+						encoders->encoder[chaos].add(residual);
 					}
 				}
 
@@ -1161,24 +1176,24 @@ void MonoWriter::designChaos() {
 					CAT_DEBUG_ENFORCE(tx < _profile->tiles_x);
 
 					if (_params.mask(x, y)) {
-						_profile->chaos.zero(x);
+						encoders->chaos.zero(x);
 					} else {
 						const u8 f = _profile->getTile(tx, ty);
 						CAT_DEBUG_ENFORCE(f < _profile->filter_count);
 
 						// If masked or sympal,
 						if (_profile->filter_indices[f] >= SF_COUNT) {
-							_profile->chaos.zero(x);
+							encoders->chaos.zero(x);
 						} else {
 							// Get residual symbol
 							u8 residual = residuals[0];
 
 							// Get chaos bin
-							int chaos = _profile->chaos.get(x);
-							_profile->chaos.store(x, residual, _params.num_syms);
+							int chaos = encoders->chaos.get(x);
+							encoders->chaos.store(x, residual, _params.num_syms);
 
 							// Add to histogram for this chaos bin
-							ee[chaos].addSingle(residual);
+							encoders->encoder[chaos].add(residual);
 						}
 					}
 				}
@@ -1188,97 +1203,30 @@ void MonoWriter::designChaos() {
 		// For each chaos level,
 		u32 entropy = 0;
 		for (int ii = 0; ii < chaos_levels; ++ii) {
-			entropy += ee[ii].entropyOverall();
-
-			// Approximate cost of adding an entropy level
-			entropy += 5 * _params.num_syms;
+			encoders->encoder[ii].finalize();
+			entropy += encoders->encoder[ii].simulateAll();
 		}
+
+		CAT_WARN("CHAOS") << chaos_levels << " -> " << entropy;
 
 		// If this is the best chaos levels so far,
 		if (best_entropy > entropy) {
 			best_entropy = entropy;
-			best_chaos_levels = chaos_levels;
-		}
-	}
-
-	best_chaos_levels = 16;
-
-	// Record the best option found
-	_profile->chaos.init(best_chaos_levels, _params.size_x);
-	_chaos_entropy = best_entropy;
-}
-
-void MonoWriter::initializeEncoders() {
-	_profile->chaos.start();
-
-	const u16 *order = _params.write_order;
-
-	// For each row,
-	const u8 *residuals = _profile->residuals.get();
-	for (int y = 0; y < _params.size_y; ++y) {
-		// If random write order,
-		if (order) {
-			// After the first one,
-			if (y > 0) {
-				// Simulate zeroing the chaos residuals
-				for (u16 x = 0; x < _params.size_x; ++x) {
-					if (_params.mask(x, y)) {
-						_profile->chaos.zero(x);
-					}
-				}
-			}
-
-			u16 x;
-			while ((x = *order++) != ORDER_SENTINEL) {
-				const u8 f = _profile->getTile(x >> _profile->tile_bits_x, y >> _profile->tile_bits_y);
-
-				CAT_DEBUG_ENFORCE(f < _profile->filter_count);
-
-				// If masked or sympal,
-				if (_profile->filter_indices[f] >= SF_COUNT) {
-					_profile->chaos.zero(x);
-				} else {
-					// Get residual symbol
-					u8 residual = residuals[x];
-
-					// Get chaos bin
-					int chaos = _profile->chaos.get(x);
-					_profile->chaos.store(x, residual, _params.num_syms);
-
-					// Add to histogram for this chaos bin
-					_profile->encoder[chaos].add(residual);
-				}
-			}
-
-			residuals += _params.size_x;
-		} else {
-			// For each column,
-			for (u16 x = 0; x < _params.size_x; ++x, ++residuals) {
-				const u8 f = _profile->getTile(x >> _profile->tile_bits_x, y >> _profile->tile_bits_y);
-
-				CAT_DEBUG_ENFORCE(f < _profile->filter_count);
-
-				// If masked or sympal,
-				if (_params.mask(x, y) || _profile->filter_indices[f] >= SF_COUNT) {
-					_profile->chaos.zero(x);
-				} else {
-					// Get residual symbol
-					u8 residual = *residuals;
-
-					// Get chaos bin
-					int chaos = _profile->chaos.get(x);
-					_profile->chaos.store(x, residual, _params.num_syms);
-
-					// Add to histogram for this chaos bin
-					_profile->encoder[chaos].add(residual);
-				}
+			MonoWriterProfile::Encoders *temp = best;
+			best = encoders;
+			best->bits = entropy;
+			if (temp) {
+				encoders = temp;
+			} else {
+				encoders = new MonoWriterProfile::Encoders;
 			}
 		}
 	}
 
-	// For each chaos level,
-	for (int ii = 0, iiend = _profile->chaos.getBinCount(); ii < iiend; ++ii) {
-		_profile->encoder[ii].finalize();
+	_profile->encoders = best;
+
+	if (encoders) {
+		delete encoders;
 	}
 }
 
@@ -1291,7 +1239,7 @@ u32 MonoWriter::simulate() {
 		bits += _row_filter_entropy;
 	} else {
 		// Chaos overhead
-		bits += 4 + _profile->chaos.getBinCount() * 5 * _params.num_syms;
+		bits += 4 + _profile->encoders->chaos.getBinCount() * 5 * _params.num_syms;
 
 		// Tile bits overhead
 		bits += _tile_bits_field_bc;
@@ -1306,77 +1254,7 @@ u32 MonoWriter::simulate() {
 		bits += _profile->filter_encoder->simulate();
 
 		// Simulate residuals
-		_profile->chaos.start();
-
-		// Reset encoders for recursive simulation
-		for (int ii = 0, iiend = _profile->chaos.getBinCount(); ii < iiend; ++ii) {
-			_profile->encoder[ii].reset();
-		}
-
-		const u8 *residuals = _profile->residuals.get();
-		const u16 *order = _params.write_order;
-
-		// For each row,
-		for (u16 y = 0; y < _params.size_y; ++y) {
-			// If random write order,
-			if (order) {
-				// After the first one,
-				if (y > 0) {
-					// Simulate zeroing the chaos residuals
-					for (u16 x = 0; x < _params.size_x; ++x) {
-						if (_params.mask(x, y)) {
-							_profile->chaos.zero(x);
-						}
-					}
-				}
-
-				u16 x;
-				while ((x = *order++) != ORDER_SENTINEL) {
-					const u8 f = _profile->getTile(x >> _profile->tile_bits_x, y >> _profile->tile_bits_y);
-
-					CAT_DEBUG_ENFORCE(f < _profile->filter_count);
-
-					// If masked or sympal,
-					if (_profile->filter_indices[f] >= SF_COUNT) {
-						_profile->chaos.zero(x);
-					} else {
-						// Get residual symbol
-						u8 residual = residuals[x];
-
-						// Get chaos bin
-						int chaos = _profile->chaos.get(x);
-						_profile->chaos.store(x, residual, _params.num_syms);
-
-						// Add to histogram for this chaos bin
-						bits += _profile->encoder[chaos].simulate(residual);
-					}
-				}
-
-				residuals += _params.size_x;
-			} else {
-				// For each column,
-				for (u16 x = 0; x < _params.size_x; ++x, ++residuals) {
-					const u8 f = _profile->getTile(x >> _profile->tile_bits_x, y >> _profile->tile_bits_y);
-
-					CAT_DEBUG_ENFORCE(f < _profile->filter_count);
-
-					// If masked or sympal,
-					if (_params.mask(x, y) || _profile->filter_indices[f] >= SF_COUNT) {
-						_profile->chaos.zero(x);
-					} else {
-						// Get residual symbol
-						u8 residual = *residuals;
-
-						// Get chaos bin
-						int chaos = _profile->chaos.get(x);
-						_profile->chaos.store(x, residual, _params.num_syms);
-
-						// Add to histogram for this chaos bin
-						bits += _profile->encoder[chaos].simulate(residual);
-					}
-				}
-			}
-		}
+		bits += _profile->encoders->bits;
 	}
 
 	return bits;
@@ -1432,7 +1310,6 @@ void MonoWriter::init(const Parameters &params) {
 			generateWriteOrder();
 			recurseCompress();
 			designChaos();
-			initializeEncoders();
 
 			// Calculate bits required to represent the data with this tile size
 			u32 entropy = simulate();
@@ -1538,14 +1415,14 @@ int MonoWriter::writeTables(ImageWriter &writer) {
 	// Write chaos levels
 	CAT_DEBUG_ENFORCE(MAX_CHAOS_LEVELS <= 16);
 
-	writer.writeBits(_profile->chaos.getBinCount() - 1, 4);
+	writer.writeBits(_profile->encoders->chaos.getBinCount() - 1, 4);
 	Stats.basic_overhead_bits += 4;
 
 	DESYNC_TABLE();
 
 	// Write encoder tables
-	for (int ii = 0, iiend = _profile->chaos.getBinCount(); ii < iiend; ++ii) {
-		Stats.encoder_overhead_bits += _profile->encoder[ii].writeTables(writer);
+	for (int ii = 0, iiend = _profile->encoders->chaos.getBinCount(); ii < iiend; ++ii) {
+		Stats.encoder_overhead_bits += _profile->encoders->encoder[ii].writeTables(writer);
 	}
 
 	DESYNC_TABLE();
@@ -1566,10 +1443,10 @@ void MonoWriter::initializeWriter() {
 	// Initialize tile seen array
 	_tile_seen.resize(_profile->tiles_x);
 
-	_profile->chaos.start();
+	_profile->encoders->chaos.start();
 
-	for (int ii = 0, iiend = _profile->chaos.getBinCount(); ii < iiend; ++ii) {
-		_profile->encoder[ii].reset();
+	for (int ii = 0, iiend = _profile->encoders->chaos.getBinCount(); ii < iiend; ++ii) {
+		_profile->encoders->encoder[ii].reset();
 	}
 
 #ifdef CAT_DEBUG
@@ -1640,7 +1517,7 @@ int MonoWriter::writeRowHeader(u16 y, ImageWriter &writer) {
 
 void MonoWriter::zero(u16 x) {
 	if (!_use_row_filters) {
-		_profile->chaos.zero(x);
+		_profile->encoders->chaos.zero(x);
 	}
 
 	DESYNC(x, 0);
@@ -1693,17 +1570,17 @@ int MonoWriter::write(u16 x, u16 y, ImageWriter &writer) {
 
 		// If using sympal,
 		if (_profile->filter_indices[f] >= SF_COUNT) {
-			_profile->chaos.zero(x);
+			_profile->encoders->chaos.zero(x);
 		} else {
 			// Look up residual sym
 			u8 residual = _profile->residuals[x + y * _params.size_x];
 
 			// Calculate local chaos
-			int chaos = _profile->chaos.get(x);
-			_profile->chaos.store(x, residual, _params.num_syms);
+			int chaos = _profile->encoders->chaos.get(x);
+			_profile->encoders->chaos.store(x, residual, _params.num_syms);
 
 			// Write the residual value
-			data_bits += _profile->encoder[chaos].write(residual, writer);
+			data_bits += _profile->encoders->encoder[chaos].write(residual, writer);
 		}
 	}
 
@@ -1720,7 +1597,7 @@ void MonoWriter::dumpStats() {
 	if (_use_row_filters) {
 		CAT_INANE("Mono") << "Using row-filtered encoder for " << _params.size_x << "x" << _params.size_y << " image";
 	} else {
-		CAT_INANE("Mono") << "Designed monochrome writer using " << _profile->tiles_x << "x" << _profile->tiles_y << " tiles to express " << _profile->filter_count << " (" << _profile->sympal_filter_count << " palette) filters for " << _params.size_x << "x" << _params.size_y << " image with " << _profile->chaos.getBinCount() << " chaos bins";
+		CAT_INANE("Mono") << "Designed monochrome writer using " << _profile->tiles_x << "x" << _profile->tiles_y << " tiles to express " << _profile->filter_count << " (" << _profile->sympal_filter_count << " palette) filters for " << _params.size_x << "x" << _params.size_y << " image with " << _profile->encoders->chaos.getBinCount() << " chaos bins";
 	}
 
 	CAT_INANE("Mono") << " -   Basic Overhead : " << Stats.basic_overhead_bits << " bits (" << Stats.basic_overhead_bits/8 << " bytes)";

@@ -160,7 +160,6 @@ protected:
 	// Workspace
 	int _tile_bits_field_bc;				// Bits for tile bits field
 	u8 _sympal_filter_map[MAX_PALETTE];		// Filter index for this palette entry
-	u32 _chaos_entropy;						// Entropy after chaos applied
 	u8 _prev_filter;						// Previous filter for row encoding
 	PaletteOptimizer _optimizer;			// Optimizer for filter indices
 	u32 _residual_entropy;					// Calculated entropy of residuals
@@ -210,9 +209,6 @@ protected:
 
 	// Determine number of chaos levels to use when encoding the data
 	void designChaos();
-
-	// Load up the encoders with symbol statistics
-	void initializeEncoders();
 
 	// Simulate number of bits required to encode the data this way
 	u32 simulate();
@@ -292,11 +288,11 @@ class MonoWriterProfile {
 	// Filter encoder
 	MonoWriter *filter_encoder;				// Child instance
 
-	// Chaos levels
-	MonoChaos chaos;						// Chaos bin lookup table
-
-	// Data encoders
-	EntropyEncoder<MAX_SYMS, ZRLE_SYMS> encoder[MAX_CHAOS_LEVELS];
+	struct Encoders {
+		u32 bits;							// Bits required to encode residuals
+		MonoChaos chaos;					// Chaos bin lookup table
+		EntropyEncoder<MAX_SYMS, ZRLE_SYMS> encoder[MAX_CHAOS_LEVELS];
+	} *encoders;
 
 	void cleanup();
 

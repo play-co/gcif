@@ -61,15 +61,7 @@ class EntropyEstimator {
 	u32 _hist_total;
 
 public:
-	CAT_INLINE EntropyEstimator() {
-	}
-	CAT_INLINE virtual ~EntropyEstimator() {
-	}
-
 	void init();
-
-	// Calculate entropy of given symbols, counting zeroes as free
-	u32 entropy(const u8 *symbols, int count);
 
 	// Add symbols to running histogram
 	void add(const u8 *symbols, int count);
@@ -77,15 +69,9 @@ public:
 	// Subtract symbols from running histogram
 	void subtract(const u8 *symbols, int count);
 
-	// These versions will add the same symbol multiple times
-	u32 entropySingle(const u8 symbol, int count = 1);
-	void addSingle(const u8 symbol, int count = 1);
-	void subtractSingle(const u8 symbol, int count = 1);
-
-	// Overall entropy, counting zeroes as free
-	u32 entropyOverall();
+	// Calculate entropy of given symbols, counting zeroes as free
+	u32 entropy(const u8 *symbols, int count);
 };
-
 
 
 } // namespace cat

@@ -32,12 +32,10 @@
 #include "../decoder/Enforcer.hpp"
 using namespace cat;
 
-void EntropyEstimator::init() {
-	_hist_total = 0;
-	CAT_OBJCLR(_hist);
-}
 
-static u32 calculateCodelen(u32 inst, u32 total) {
+//// EntropyEstimator
+
+static u32 calculateEntropy(u32 inst, u32 total) {
 	// Calculate fixed-point likelihood
 	u32 fpLikelihood = ((u64)inst << 24) / total;
 
@@ -66,7 +64,42 @@ static u32 calculateCodelen(u32 inst, u32 total) {
 	}
 }
 
-u32 EntropyEstimator::entropy(const u8 *symbols, int count) {
+void EntropyEstimator::init() {
+	_hist_total = 0;
+	CAT_OBJCLR(_hist);
+}
+
+void EntropyEstimator::add(const u8 * CAT_RESTRICT symbols, int count) {
+	// Update histogram total count
+	_hist_total += count;
+
+	// For each symbol,
+	for (int ii = 0; ii < count; ++ii) {
+		u8 symbol = symbols[ii];
+
+		if (symbol > 0) {
+			// Add it to the global histogram
+			_hist[symbol]++;
+		}
+	}
+}
+
+void EntropyEstimator::subtract(const u8 * CAT_RESTRICT symbols, int count) {
+	// Update histogram total count
+	_hist_total -= count;
+
+	// For each symbol,
+	for (int ii = 0; ii < count; ++ii) {
+		u8 symbol = symbols[ii];
+
+		if (symbol > 0) {
+			// Subtract it from the global histogram
+			_hist[symbol]--;
+		}
+	}
+}
+
+u32 EntropyEstimator::entropy(const u8 * CAT_RESTRICT symbols, int count) {
 	if (count == 0) {
 		return 0;
 	}
@@ -77,7 +110,9 @@ u32 EntropyEstimator::entropy(const u8 *symbols, int count) {
 	for (int ii = 0; ii < count; ++ii) {
 		const u8 symbol = symbols[ii];
 
-		hist[symbol]++;
+		if (symbol > 0) {
+			hist[symbol]++;
+		}
 	}
 
 	// Calculate bits required for symbols
@@ -85,106 +120,29 @@ u32 EntropyEstimator::entropy(const u8 *symbols, int count) {
 	u32 bits = 0;
 	const u32 total = _hist_total + count;
 
-	CAT_DEBUG_ENFORCE(total > 0);
+	// If the total is nonzero,
+	if (total > 0) {
+		// For each symbol,
+		for (int ii = 0; ii < count; ++ii) {
+			const u8 symbol = symbols[ii];
 
-	// For each symbol,
-	for (int ii = 0; ii < count; ++ii) {
-		const u8 symbol = symbols[ii];
+			// Zeroes are not counted towards entropy since they are the ideal
+			if (symbol > 0) {
+				// If codelen not determined yet,
+				if (!codelens[symbol]) {
+					// Get number of instances of this symbol out of total
+					u32 inst = _hist[symbol] + hist[symbol];
 
-		// Zeroes are not counted towards entropy since they are the ideal
-		if (symbol > 0) {
-			// If codelen not determined yet,
-			if (!codelens[symbol]) {
-				// Get number of instances of this symbol out of total
-				u32 inst = _hist[symbol] + hist[symbol];
+					// Calculate codelen
+					codelens[symbol] = calculateEntropy(inst, total);
+				}
 
-				// Calculate codelen
-				codelens[symbol] = calculateCodelen(inst, total);
+				// Accumulate bits for symbol
+				bits += codelens[symbol];
 			}
-
-			// Accumulate bits for symbol
-			bits += codelens[symbol];
 		}
 	}
 
 	return bits;
-}
-
-void EntropyEstimator::add(const u8 *symbols, int count) {
-	// Update histogram total count
-	_hist_total += count;
-
-	// For each symbol,
-	for (int ii = 0; ii < count; ++ii) {
-		u8 symbol = symbols[ii];
-
-		// Add it to the global histogram
-		_hist[symbol]++;
-	}
-}
-
-void EntropyEstimator::subtract(const u8 *symbols, int count) {
-	// Update histogram total count
-	_hist_total -= count;
-
-	// For each symbol,
-	for (int ii = 0; ii < count; ++ii) {
-		u8 symbol = symbols[ii];
-
-		// Subtract it from the global histogram
-		_hist[symbol]--;
-	}
-}
-
-
-u32 EntropyEstimator::entropySingle(const u8 symbol, int count) {
-	if (symbol <= 0) {
-		return 0;
-	} else {
-		// Get number of instances of this symbol out of total
-		const u32 total = _hist_total + count;
-
-		if (total <= 0) {
-			return 0;
-		} else {
-			u32 inst = _hist[symbol] + count;
-			return calculateCodelen(inst, total);
-		}
-	}
-}
-
-void EntropyEstimator::addSingle(const u8 symbol, int count) {
-	// Update histogram total count
-	_hist_total += count;
-
-	// Add it to the global histogram
-	_hist[symbol] += count;
-}
-
-void EntropyEstimator::subtractSingle(const u8 symbol, int count) {
-	// Update histogram total count
-	_hist_total -= count;
-
-	// Subtract it from the global histogram
-	_hist[symbol] -= count;
-}
-
-
-u32 EntropyEstimator::entropyOverall() {
-	u32 entropy_sum = 0;
-	const u32 total = _hist_total;
-
-	if (total > 0) {
-		// Count zeroes as free, so skip 0
-		for (u32 sym = 1; sym < NUM_SYMS; ++sym) {
-			u32 inst = _hist[sym];
-
-			if (inst > 0) {
-				entropy_sum += calculateCodelen(inst, total);
-			}
-		}
-	}
-
-	return entropy_sum;
 }
 
