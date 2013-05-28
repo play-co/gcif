@@ -216,6 +216,7 @@ protected:
 	// Initialize the write engine
 	void initializeWriter();
 
+	// Free dynamic objects
 	void cleanup();
 
 public:

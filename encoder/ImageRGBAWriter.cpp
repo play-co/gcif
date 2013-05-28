@@ -522,27 +522,22 @@ void ImageRGBAWriter::computeResiduals() {
 void ImageRGBAWriter::designChaos() {
 	CAT_INANE("RGBA") << "Designing chaos...";
 
-	// Allocate entropy estimators
-	CodelenEstimator *ce[3];
-	for (int ii = 0; ii < 3; ++ii) {
-		ce[ii] = new CodelenEstimator[MAX_CHAOS_LEVELS];
-	}
-
 	u32 best_entropy = 0x7fffffff;
-	int best_chaos_levels = 1;
+
+	Encoders *best = 0;
+	Encoders *encoders = new Encoders;
 
 	// For each chaos level,
 	for (int chaos_levels = 1; chaos_levels < MAX_CHAOS_LEVELS; ++chaos_levels) {
-		_chaos.init(chaos_levels, _size_x);
+		encoders->chaos.init(chaos_levels, _size_x);
+		encoders->chaos.start();
 
-		// Reset entropy estimator
+		// For each chaos level,
 		for (int ii = 0; ii < chaos_levels; ++ii) {
-			ce[0][ii].init();
-			ce[1][ii].init();
-			ce[2][ii].init();
+			encoders->y[ii].init();
+			encoders->u[ii].init();
+			encoders->v[ii].init();
 		}
-
-		_chaos.start();
 
 		// For each row,
 		const u8 *residuals = _residuals.get();
@@ -551,19 +546,19 @@ void ImageRGBAWriter::designChaos() {
 			for (int x = 0; x < _size_x; ++x) {
 				// If masked,
 				if (IsMasked(x, y)) {
-					_chaos.zero(x);
+					encoders->chaos.zero(x);
 				} else {
 					// Get chaos bin
 					u8 cy, cu, cv;
-					_chaos.get(x, cy, cu, cv);
+					encoders->chaos.get(x, cy, cu, cv);
 
 					// Update chaos
-					_chaos.store(x, residuals);
+					encoders->chaos.store(x, residuals);
 
 					// Add to histogram for this chaos bin
-					ce[0][cy].addSingle(residuals[0]);
-					ce[1][cu].addSingle(residuals[1]);
-					ce[2][cv].addSingle(residuals[2]);
+					encoders->y[cy].add(residuals[0]);
+					encoders->u[cu].add(residuals[1]);
+					encoders->v[cv].add(residuals[2]);
 				}
 
 				residuals += 4;
@@ -573,34 +568,34 @@ void ImageRGBAWriter::designChaos() {
 		// For each chaos level,
 		u32 entropy = 0;
 		for (int ii = 0; ii < chaos_levels; ++ii) {
-			u32 ce0 = ce[0][ii].calculate();
-			u32 ce1 = ce[1][ii].calculate();
-			u32 ce2 = ce[2][ii].calculate();
-			entropy += ce0 + ce1 + ce2;
-
-			//CAT_WARN("ENTROPY") << ii << " : " << ce0 << ", " << ce1 << ", " << ce2;
-
-			// Approximate cost of adding an entropy level
-			entropy += 300;
+			encoders->y[ii].finalize();
+			entropy += encoders->y[ii].simulateAll();
+			encoders->u[ii].finalize();
+			entropy += encoders->u[ii].simulateAll();
+			encoders->v[ii].finalize();
+			entropy += encoders->v[ii].simulateAll();
 		}
 
-		//CAT_WARN("SUM") << chaos_levels << " -> " << entropy;
+		CAT_WARN("SUM") << chaos_levels << " -> " << entropy;
 
 		// If this is the best chaos levels so far,
 		if (best_entropy > entropy) {
 			best_entropy = entropy;
-			best_chaos_levels = chaos_levels;
+			Encoders *temp = best;
+			best = encoders;
+			if (temp) {
+				encoders = temp;
+			} else {
+				encoders = new Encoders;
+			}
 		}
 	}
 
-	//CAT_WARN("BEST") << best_chaos_levels;
-
 	// Record the best option found
-	_chaos.init(best_chaos_levels, _size_x);
+	_encoders = best;
 
-	// Deallocate entropy estimators
-	for (int ii = 0; ii < 3; ++ii) {
-		delete[] ce[ii];
+	if (encoders) {
+		delete encoders;
 	}
 }
 
@@ -668,51 +663,6 @@ bool ImageRGBAWriter::compressCF() {
 	return true;
 }
 
-void ImageRGBAWriter::initializeEncoders() {
-	_chaos.start();
-	int rgba_count = 0;
-
-	// For each row,
-	const u8 *residuals = _residuals.get();
-	for (int y = 0; y < _size_y; ++y) {
-		// For each column,
-		for (int x = 0; x < _size_x; ++x) {
-			// If masked,
-			if (IsMasked(x, y)) {
-				_chaos.zero(x);
-			} else {
-				// Get chaos bin
-				u8 cy, cu, cv;
-				_chaos.get(x, cy, cu, cv);
-
-				// Update chaos
-				_chaos.store(x, residuals);
-
-				// Add to histogram for this chaos bin
-				_y_encoder[cy].add(residuals[0]);
-				_u_encoder[cu].add(residuals[1]);
-				_v_encoder[cv].add(residuals[2]);
-
-				++rgba_count;
-			}
-
-			residuals += 4;
-		}
-	}
-
-#ifdef CAT_COLLECT_STATS
-	Stats.rgba_count = rgba_count;
-	Stats.chaos_bins = _chaos.getBinCount();
-#endif
-
-	// For each chaos level,
-	for (int ii = 0, iiend = _chaos.getBinCount(); ii < iiend; ++ii) {
-		_y_encoder[ii].finalize();
-		_u_encoder[ii].finalize();
-		_v_encoder[ii].finalize();
-	}
-}
-
 bool ImageRGBAWriter::IsMasked(u16 x, u16 y) {
 	CAT_DEBUG_ENFORCE(x < _size_x && y < _size_y);
 
@@ -764,12 +714,11 @@ int ImageRGBAWriter::init(const u8 *rgba, int size_x, int size_y, ImageMaskWrite
 	generateWriteOrder();
 	compressSF();
 	compressCF();
-	initializeEncoders();
 
 	return GCIF_WE_OK;
 }
 
-bool ImageRGBAWriter::writeTables(ImageWriter &writer) {
+int ImageRGBAWriter::writeTables(ImageWriter &writer) {
 	CAT_INANE("RGBA") << "Writing tables...";
 
 	CAT_DEBUG_ENFORCE(MAX_FILTERS <= 32);
@@ -812,15 +761,15 @@ bool ImageRGBAWriter::writeTables(ImageWriter &writer) {
 	Stats.v_table_bits = 0;
 #endif // CAT_COLLECT_STATS
 
-	writer.writeBits(_chaos.getBinCount() - 1, 4);
+	writer.writeBits(_encoders->chaos.getBinCount() - 1, 4);
 	basic_bits += 4;
 
-	for (int jj = 0; jj < _chaos.getBinCount(); ++jj) {
-		int y_table_bits = _y_encoder[jj].writeTables(writer);
+	for (int jj = 0; jj < _encoders->chaos.getBinCount(); ++jj) {
+		int y_table_bits = _encoders->y[jj].writeTables(writer);
 		DESYNC_TABLE();
-		int u_table_bits = _u_encoder[jj].writeTables(writer);
+		int u_table_bits = _encoders->u[jj].writeTables(writer);
 		DESYNC_TABLE();
-		int v_table_bits = _v_encoder[jj].writeTables(writer);
+		int v_table_bits = _encoders->v[jj].writeTables(writer);
 		DESYNC_TABLE();
 
 #ifdef CAT_COLLECT_STATS
@@ -838,19 +787,24 @@ bool ImageRGBAWriter::writeTables(ImageWriter &writer) {
 	Stats.a_table_bits = a_table_bits;
 #endif // CAT_COLLECT_STATS
 
-	return true;
+	return GCIF_WE_OK;
 }
 
 bool ImageRGBAWriter::writePixels(ImageWriter &writer) {
 	CAT_INANE("RGBA") << "Writing interleaved pixel/filter data...";
 
 #ifdef CAT_COLLECT_STATS
-	int sf_bits = 0, cf_bits = 0, y_bits = 0, u_bits = 0, v_bits = 0, a_bits = 0;
+	int sf_bits = 0, cf_bits = 0, y_bits = 0, u_bits = 0, v_bits = 0, a_bits = 0, rgba_count = 0;
 #endif
 
 	_seen_filter.resize(_tiles_x);
 
-	_chaos.start();
+	_encoders->chaos.start();
+	for (int ii = 0, iiend = _encoders->chaos.getBinCount(); ii < iiend; ++ii) {
+		_encoders->y[ii].reset();
+		_encoders->u[ii].reset();
+		_encoders->v[ii].reset();
+	}
 
 	const u8 *residuals = _residuals.get();
 	const u16 tile_mask_y = _tile_size_y - 1;
@@ -884,7 +838,7 @@ bool ImageRGBAWriter::writePixels(ImageWriter &writer) {
 
 			// If masked,
 			if (IsMasked(x, y)) {
-				_chaos.zero(x);
+				_encoders->chaos.zero(x);
 				_a_encoder.zero(x);
 			} else {
 				// If filter needs to be written,
@@ -899,16 +853,21 @@ bool ImageRGBAWriter::writePixels(ImageWriter &writer) {
 
 				// Get chaos bin
 				u8 cy, cu, cv;
-				_chaos.get(x, cy, cu, cv);
+				_encoders->chaos.get(x, cy, cu, cv);
 
 				// Update chaos
-				_chaos.store(x, residuals);
+				_encoders->chaos.store(x, residuals);
 
 				// Write pixel
-				y_bits += _y_encoder[cy].write(residuals[0], writer);
-				u_bits += _u_encoder[cu].write(residuals[1], writer);
-				v_bits += _v_encoder[cv].write(residuals[2], writer);
+				y_bits += _encoders->y[cy].write(residuals[0], writer);
+				u_bits += _encoders->u[cu].write(residuals[1], writer);
+				v_bits += _encoders->v[cv].write(residuals[2], writer);
 				a_bits += _a_encoder.write(x, y, writer);
+
+#ifdef CAT_COLLECT_STATS
+				// Increment RGBA pixel count
+				++rgba_count;
+#endif
 			}
 
 			residuals += 4;
@@ -916,6 +875,7 @@ bool ImageRGBAWriter::writePixels(ImageWriter &writer) {
 	}
 
 #ifdef CAT_COLLECT_STATS
+	Stats.rgba_count = rgba_count;
 	Stats.sf_bits = sf_bits;
 	Stats.cf_bits = cf_bits;
 	Stats.y_bits = y_bits;
@@ -933,6 +893,8 @@ void ImageRGBAWriter::write(ImageWriter &writer) {
 	writePixels(writer);
 
 #ifdef CAT_COLLECT_STATS
+	Stats.chaos_bins = _encoders->chaos.getBinCount();
+
 	int rgba_total = 0;
 	rgba_total += Stats.basic_overhead_bits;
 	rgba_total += Stats.sf_choice_bits;
@@ -969,7 +931,7 @@ bool ImageRGBAWriter::dumpStats() {
 	CAT_INANE("stats") << "(RGBA Compress) Color filter encoder:";
 	_cf_encoder.dumpStats();
 
-	CAT_INANE("stats") << "(RGBA Compress)     Basic Overhead : " <<  Stats.basic_overhead_bits << " bits (" << Stats.basic_overhead_bits/8 << " bytes, " << Stats.basic_overhead_bits * 100.f / Stats.rgba_bits << "% of RGBA) with " << _chaos.getBinCount() << " chaos bins";
+	CAT_INANE("stats") << "(RGBA Compress)     Basic Overhead : " <<  Stats.basic_overhead_bits << " bits (" << Stats.basic_overhead_bits/8 << " bytes, " << Stats.basic_overhead_bits * 100.f / Stats.rgba_bits << "% of RGBA) with " << _encoders->chaos.getBinCount() << " chaos bins";
 	CAT_INANE("stats") << "(RGBA Compress) SF Choice Overhead : " << Stats.sf_choice_bits << " bits (" << Stats.sf_choice_bits/8 << " bytes, " << Stats.sf_choice_bits * 100.f / Stats.rgba_bits << "% of RGBA)";
 	CAT_INANE("stats") << "(RGBA Compress)  SF Table Overhead : " << Stats.sf_table_bits << " bits (" << Stats.sf_table_bits/8 << " bytes, " << Stats.sf_table_bits * 100.f / Stats.rgba_bits << "% of RGBA)";
 	CAT_INANE("stats") << "(RGBA Compress)  CF Table Overhead : " << Stats.cf_table_bits << " bits (" << Stats.cf_table_bits/8 << " bytes, " << Stats.cf_table_bits * 100.f / Stats.rgba_bits << "% of RGBA)";

@@ -106,12 +106,15 @@ protected:
 
 	// Write state
 	SmartArray<u8> _residuals, _seen_filter;
-	RGBChaos _chaos;
 
 	// RGB encoders
-	EntropyEncoder<MAX_SYMS, ZRLE_SYMS> _y_encoder[MAX_CHAOS_LEVELS];
-	EntropyEncoder<MAX_SYMS, ZRLE_SYMS> _u_encoder[MAX_CHAOS_LEVELS];
-	EntropyEncoder<MAX_SYMS, ZRLE_SYMS> _v_encoder[MAX_CHAOS_LEVELS];
+	struct Encoders {
+		RGBChaos chaos;
+
+		EntropyEncoder<MAX_SYMS, ZRLE_SYMS> y[MAX_CHAOS_LEVELS];
+		EntropyEncoder<MAX_SYMS, ZRLE_SYMS> u[MAX_CHAOS_LEVELS];
+		EntropyEncoder<MAX_SYMS, ZRLE_SYMS> v[MAX_CHAOS_LEVELS];
+	} *_encoders;
 
 	// Filter encoders
 	PaletteOptimizer _optimizer;	// Optimizer for SF palette
@@ -134,9 +137,8 @@ protected:
 	void generateWriteOrder();
 	bool compressSF();
 	bool compressCF();
-	void initializeEncoders();
 
-	bool writeTables(ImageWriter &writer);
+	int writeTables(ImageWriter &writer);
 	bool writePixels(ImageWriter &writer);
 
 #ifdef CAT_COLLECT_STATS
