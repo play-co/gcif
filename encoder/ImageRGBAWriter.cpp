@@ -841,6 +841,16 @@ bool ImageRGBAWriter::writePixels(ImageWriter &writer) {
 	for (u16 y = 0; y < _size_y; ++y) {
 		// If at the start of a tile row,
 		if ((y & tile_mask_y) == 0) {
+			// After the first row,
+			if (y > 0) {
+				for (u16 tx = 0; tx < _tiles_x; ++tx) {
+					if (!_seen_filter[tx]) {
+						_sf_encoder.zero(tx);
+						_cf_encoder.zero(tx);
+					}
+				}
+			}
+
 			_seen_filter.fill_00();
 
 			u16 ty = y >> _tile_bits_y;

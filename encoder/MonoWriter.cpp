@@ -1609,22 +1609,18 @@ int MonoWriter::writeRowHeader(u16 y, ImageWriter &writer) {
 						_profile->filter_encoder->zero(tx);
 					}
 				}
+#ifdef CAT_DEBUG
+				// Skip sentinel at row ends
+				++_next_write_tile_order;
+#endif
 			}
-
-			// Recurse start row
-			u16 ty = y >> _profile->tile_bits_y;
-			bits += _profile->filter_encoder->writeRowHeader(ty, writer);
 
 			// Clear tile seen
 			_tile_seen.fill_00();
 
-#ifdef CAT_DEBUG
-			// After the first row,
-			if (y > 0) {
-				// Skip sentinel at row ends
-				++_next_write_tile_order;
-			}
-#endif
+			// Recurse start row
+			u16 ty = y >> _profile->tile_bits_y;
+			bits += _profile->filter_encoder->writeRowHeader(ty, writer);
 		}
 	}
 
