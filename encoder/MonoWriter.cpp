@@ -1094,7 +1094,7 @@ void MonoWriter::recurseCompress() {
 void MonoWriter::designChaos() {
 	//CAT_INANE("Mono") << "Designing chaos...";
 
-	EntropyEstimator ee[MAX_CHAOS_LEVELS];
+	CodelenEstimator ce[MAX_CHAOS_LEVELS];
 
 	u32 best_entropy = 0x7fffffff;
 	int best_chaos_levels = 1;
@@ -1105,7 +1105,7 @@ void MonoWriter::designChaos() {
 
 		// Reset entropy estimator
 		for (int ii = 0; ii < chaos_levels; ++ii) {
-			ee[ii].init();
+			ce[ii].init();
 		}
 
 		_profile->chaos.start();
@@ -1149,7 +1149,7 @@ void MonoWriter::designChaos() {
 						_profile->chaos.store(x, residual, _params.num_syms);
 
 						// Add to histogram for this chaos bin
-						ee[chaos].addSingle(residual);
+						ce[chaos].addSingle(residual);
 					}
 				}
 
@@ -1178,7 +1178,7 @@ void MonoWriter::designChaos() {
 							_profile->chaos.store(x, residual, _params.num_syms);
 
 							// Add to histogram for this chaos bin
-							ee[chaos].addSingle(residual);
+							ce[chaos].addSingle(residual);
 						}
 					}
 				}
@@ -1188,12 +1188,14 @@ void MonoWriter::designChaos() {
 		// For each chaos level,
 		u32 entropy = 0;
 		for (int ii = 0; ii < chaos_levels; ++ii) {
-			u32 eee = ee[ii].entropyOverall();
-			entropy += eee;
+			u32 cee = ce[ii].calculate();
+			entropy += cee;
 
 			// Approximate cost of adding an entropy level
-			entropy += 5 * _params.num_syms;
+			entropy += 2 * _params.num_syms;
 		}
+
+		//CAT_WARN("CHAOS") << chaos_levels << " -> " << entropy;
 
 		// If this is the best chaos levels so far,
 		if (best_entropy > entropy) {

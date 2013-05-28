@@ -117,6 +117,10 @@ public:
 	u32 max_freq;
 
 	FreqHistogram() {
+		init();
+	}
+
+	CAT_INLINE void init() {
 		CAT_OBJCLR(hist);
 		max_freq = 0;
 	}

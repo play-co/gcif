@@ -32,19 +32,17 @@
 #include "../decoder/Enforcer.hpp"
 using namespace cat;
 
-void EntropyEstimator::init() {
-	_hist_total = 0;
-	CAT_OBJCLR(_hist);
-}
 
-static u32 calculateCodelen(u32 inst, u32 total) {
+//// EntropyEstimator
+
+static u32 calculateEntropy(u32 inst, u32 total) {
 	// Calculate fixed-point likelihood
 	u32 fpLikelihood = ((u64)inst << 24) / total;
 
 	if (fpLikelihood <= 0) {
 		// Very unlikely: Give it the worst score we can
 		return 24;
-	} else if (fpLikelihood >= 0x1000000) {
+	} else if (fpLikelihood >= 0x800000) {
 		// Very likely: Give it the best score we can above 0
 		return 1;
 	} else if (fpLikelihood >= 0x8000) {
@@ -52,7 +50,7 @@ static u32 calculateCodelen(u32 inst, u32 total) {
 		int msb = BSR32(fpLikelihood);
 
 		// This is quantized log2(likelihood)
-		return 24 - msb;
+		return 23 - msb;
 	} else {
 		// Adapted from the Stanford Bit Twiddling Hacks collection
 		u32 shift, r, x = fpLikelihood;
@@ -66,8 +64,14 @@ static u32 calculateCodelen(u32 inst, u32 total) {
 	}
 }
 
-void EntropyEstimator::add(const u8 *symbols, int count) {
-	int nonzero = 0;
+void EntropyEstimator::init() {
+	_hist_total = 0;
+	CAT_OBJCLR(_hist);
+}
+
+void EntropyEstimator::add(const u8 * CAT_RESTRICT symbols, int count) {
+	// Update histogram total count
+	_hist_total += count;
 
 	// For each symbol,
 	for (int ii = 0; ii < count; ++ii) {
@@ -76,16 +80,13 @@ void EntropyEstimator::add(const u8 *symbols, int count) {
 		if (symbol > 0) {
 			// Add it to the global histogram
 			_hist[symbol]++;
-			++nonzero;
 		}
 	}
-
-	// Update histogram total count
-	_hist_total += nonzero;
 }
 
-void EntropyEstimator::subtract(const u8 *symbols, int count) {
-	int nonzero = 0;
+void EntropyEstimator::subtract(const u8 * CAT_RESTRICT symbols, int count) {
+	// Update histogram total count
+	_hist_total -= count;
 
 	// For each symbol,
 	for (int ii = 0; ii < count; ++ii) {
@@ -94,21 +95,16 @@ void EntropyEstimator::subtract(const u8 *symbols, int count) {
 		if (symbol > 0) {
 			// Subtract it from the global histogram
 			_hist[symbol]--;
-			++nonzero;
 		}
 	}
-
-	// Update histogram total count
-	_hist_total -= nonzero;
 }
 
-u32 EntropyEstimator::entropy(const u8 *symbols, int count) {
+u32 EntropyEstimator::entropy(const u8 * CAT_RESTRICT symbols, int count) {
 	if (count == 0) {
 		return 0;
 	}
 
 	u32 hist[NUM_SYMS] = {0};
-	int nonzero = 0;
 
 	// Generate histogram for symbols
 	for (int ii = 0; ii < count; ++ii) {
@@ -116,14 +112,13 @@ u32 EntropyEstimator::entropy(const u8 *symbols, int count) {
 
 		if (symbol > 0) {
 			hist[symbol]++;
-			nonzero++;
 		}
 	}
 
 	// Calculate bits required for symbols
 	u8 codelens[NUM_SYMS] = {0};
 	u32 bits = 0;
-	const u32 total = _hist_total + nonzero;
+	const u32 total = _hist_total + count;
 
 	// If the total is nonzero,
 	if (total > 0) {
@@ -139,7 +134,7 @@ u32 EntropyEstimator::entropy(const u8 *symbols, int count) {
 					u32 inst = _hist[symbol] + hist[symbol];
 
 					// Calculate codelen
-					codelens[symbol] = calculateCodelen(inst, total) + 1;
+					codelens[symbol] = calculateEntropy(inst, total);
 				}
 
 				// Accumulate bits for symbol
@@ -151,34 +146,48 @@ u32 EntropyEstimator::entropy(const u8 *symbols, int count) {
 	return bits;
 }
 
-void EntropyEstimator::addSingle(const u8 symbol, int count) {
-	if (symbol != 0) {
-		// Update histogram total count
-		_hist_total += count;
 
-		// Add it to the global histogram
-		_hist[symbol] += count;
-	}
+//// CodelenEstimator
+
+void CodelenEstimator::init() {
+	_hist.init();
 }
 
-u32 EntropyEstimator::entropyOverall() {
-	u32 entropy_sum = 0;
-	const u32 total = _hist_total;
+void CodelenEstimator::addSingle(const u8 symbol, int count) {
+	_hist.addMore(symbol, count);
+}
 
-	if (total > 0) {
-		// Count zeroes as free, so skip 0
-		for (u32 sym = 1; sym < NUM_SYMS; ++sym) {
-			u32 inst = _hist[sym];
+u32 CodelenEstimator::calculate() {
+	u16 freqs[NUM_SYMS];
 
-			if (inst > 0) {
-				u32 codelen = calculateCodelen(inst, total) + 1;
-				entropy_sum += codelen * inst;
+	_hist.normalize(freqs);
 
-				//CAT_WARN("ADD SYM") << sym << " : " << inst << " / " << total << " -> " << codelen;
-			}
+	huffman::huffman_work_tables state;
+	u32 max_code_size, total_freq, one_sym;
+
+	u8 codelens[NUM_SYMS];
+
+	if (!huffman::generate_huffman_codes(&state, NUM_SYMS, freqs, codelens, max_code_size, total_freq, one_sym)) {
+		CAT_EXCEPTION();
+		return 0;
+	}
+
+	if (!one_sym) {
+		if (max_code_size > HuffmanDecoder::MAX_CODE_SIZE) {
+			huffman::limit_max_code_size(NUM_SYMS, codelens, HuffmanDecoder::MAX_CODE_SIZE);
 		}
 	}
 
-	return entropy_sum;
+	u32 bits = 0;
+
+	for (int ii = 0; ii < NUM_SYMS; ++ii) {
+		u32 inst = _hist.hist[ii];
+
+		if (inst > 0) {
+			bits += inst * codelens[ii];
+		}
+	}
+
+	return bits;
 }
 

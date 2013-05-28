@@ -523,9 +523,9 @@ void ImageRGBAWriter::designChaos() {
 	CAT_INANE("RGBA") << "Designing chaos...";
 
 	// Allocate entropy estimators
-	EntropyEstimator *ee[3];
+	CodelenEstimator *ce[3];
 	for (int ii = 0; ii < 3; ++ii) {
-		ee[ii] = new EntropyEstimator[MAX_CHAOS_LEVELS];
+		ce[ii] = new CodelenEstimator[MAX_CHAOS_LEVELS];
 	}
 
 	u32 best_entropy = 0x7fffffff;
@@ -537,9 +537,9 @@ void ImageRGBAWriter::designChaos() {
 
 		// Reset entropy estimator
 		for (int ii = 0; ii < chaos_levels; ++ii) {
-			ee[0][ii].init();
-			ee[1][ii].init();
-			ee[2][ii].init();
+			ce[0][ii].init();
+			ce[1][ii].init();
+			ce[2][ii].init();
 		}
 
 		_chaos.start();
@@ -561,9 +561,9 @@ void ImageRGBAWriter::designChaos() {
 					_chaos.store(x, residuals);
 
 					// Add to histogram for this chaos bin
-					ee[0][cy].addSingle(residuals[0]);
-					ee[1][cu].addSingle(residuals[1]);
-					ee[2][cv].addSingle(residuals[2]);
+					ce[0][cy].addSingle(residuals[0]);
+					ce[1][cu].addSingle(residuals[1]);
+					ce[2][cv].addSingle(residuals[2]);
 				}
 
 				residuals += 4;
@@ -573,18 +573,18 @@ void ImageRGBAWriter::designChaos() {
 		// For each chaos level,
 		u32 entropy = 0;
 		for (int ii = 0; ii < chaos_levels; ++ii) {
-			u32 ee0 = ee[0][ii].entropyOverall();
-			u32 ee1 = ee[1][ii].entropyOverall();
-			u32 ee2 = ee[2][ii].entropyOverall();
-			entropy += ee0 + ee1 + ee2;
+			u32 ce0 = ce[0][ii].calculate();
+			u32 ce1 = ce[1][ii].calculate();
+			u32 ce2 = ce[2][ii].calculate();
+			entropy += ce0 + ce1 + ce2;
 
-			CAT_WARN("ENTROPY") << ii << " : " << ee0 << ", " << ee1 << ", " << ee2;
+			//CAT_WARN("ENTROPY") << ii << " : " << ce0 << ", " << ce1 << ", " << ce2;
 
 			// Approximate cost of adding an entropy level
 			entropy += 300;
 		}
 
-		CAT_WARN("SUM") << chaos_levels << " -> " << entropy;
+		//CAT_WARN("SUM") << chaos_levels << " -> " << entropy;
 
 		// If this is the best chaos levels so far,
 		if (best_entropy > entropy) {
@@ -593,14 +593,14 @@ void ImageRGBAWriter::designChaos() {
 		}
 	}
 
-	CAT_WARN("BEST") << best_chaos_levels;
+	//CAT_WARN("BEST") << best_chaos_levels;
 
 	// Record the best option found
 	_chaos.init(best_chaos_levels, _size_x);
 
 	// Deallocate entropy estimators
 	for (int ii = 0; ii < 3; ++ii) {
-		delete[] ee[ii];
+		delete[] ce[ii];
 	}
 }
 
