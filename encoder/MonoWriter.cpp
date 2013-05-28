@@ -1212,7 +1212,7 @@ void MonoWriter::designChaos() {
 		CAT_WARN("CHAOS") << chaos_levels << " -> " << entropy;
 
 		// If this is the best chaos levels so far,
-		if (best_entropy > entropy) {
+		if (best_entropy > entropy + 128) {
 			best_entropy = entropy;
 			MonoWriterProfile::Encoders *temp = best;
 			best = encoders;
@@ -1222,6 +1222,12 @@ void MonoWriter::designChaos() {
 			} else {
 				encoders = new MonoWriterProfile::Encoders;
 			}
+		}
+
+		// If we have not found a better one in 4 moves,
+		if (chaos_levels - best->chaos.getBinCount() >= 2) {
+			// Stop early to save time
+			break;
 		}
 	}
 
