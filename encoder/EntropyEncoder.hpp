@@ -139,6 +139,7 @@ public:
 
 	void init() {
 		_zeroRun = 0;
+
 		if (!_bz_hist) {
 			_bz_hist = new FreqHistogram<BZ_SYMS>;
 		}
@@ -148,9 +149,13 @@ public:
 		if (!_basic_hist) {
 			_basic_hist = new FreqHistogram<NUM_SYMS>;
 		}
+
 		_bz_hist->init();
 		_az_hist->init();
 		_basic_hist->init();
+
+		_runList.clear();
+		_basic_syms.clear();
 	}
 
 	void add(u16 symbol) {
