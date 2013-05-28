@@ -202,6 +202,8 @@ void MonoWriter::designRowFilters() {
 
 	// Initialize row encoder
 	{
+		_row_filter_encoder.init();
+
 		const u16 *order = _params.write_order;
 		const u8 *data = _params.data;
 

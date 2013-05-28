@@ -662,6 +662,7 @@ void ImageLZWriter::write(ImageWriter &writer) {
 	u16 last_dx = 0, last_dy = 0;
 
 	EntropyEncoder<256, ENCODER_ZRLE_SYMS> encoder;
+	encoder.init();
 
 	for (int ii = 0; ii < match_count; ++ii) {
 		Match *m = &_exact_matches[ii];
