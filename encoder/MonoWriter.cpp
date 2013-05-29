@@ -1209,7 +1209,7 @@ void MonoWriter::designChaos() {
 			entropy += encoders->encoder[ii].simulateAll();
 		}
 
-		CAT_WARN("CHAOS") << chaos_levels << " -> " << entropy;
+		//CAT_WARN("CHAOS") << chaos_levels << " -> " << entropy;
 
 		// If this is the best chaos levels so far,
 		if (best_entropy > entropy + 128) {
