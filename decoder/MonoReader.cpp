@@ -252,9 +252,10 @@ u8 MonoReader::read(u16 x, u16 y, ImageReader & CAT_RESTRICT reader) {
 
 		// Defilter the filter value
 		if (_row_filter == RF_PREV) {
+			const u16 num_syms = _params.num_syms;
 			value += _prev_filter;
-			if (value >= _filter_count) {
-				value -= _filter_count;
+			if (value >= num_syms) {
+				value -= num_syms;
 			}
 			_prev_filter = value;
 		}
@@ -333,9 +334,10 @@ u8 MonoReader::read_unsafe(u16 x, u16 y, ImageReader & CAT_RESTRICT reader) {
 
 		// Defilter the filter value
 		if (_row_filter == RF_PREV) {
+			const u16 num_syms = _params.num_syms;
 			value += _prev_filter;
-			if (value >= _filter_count) {
-				value -= _filter_count;
+			if (value >= num_syms) {
+				value -= num_syms;
 			}
 			_prev_filter = value;
 		}
