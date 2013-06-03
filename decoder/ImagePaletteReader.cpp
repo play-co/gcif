@@ -160,7 +160,6 @@ int ImagePaletteReader::readPixels(ImageReader & CAT_RESTRICT reader) {
 
 	for (int y = 0, yend = _size_y; y < yend; ++y) {
 		_mono_decoder.readRowHeader(y, reader);
-		DESYNC(0, y);
 
 		if (y == _lz->getTriggerY()) {
 			_lz->triggerY();

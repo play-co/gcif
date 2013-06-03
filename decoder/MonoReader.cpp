@@ -69,145 +69,137 @@ int MonoReader::readTables(const Parameters & CAT_RESTRICT params, ImageReader &
 			_one_row_filter = false;
 		}
 
-		return GCIF_RE_OK;
-	}
-
-	// Enable decoder
-	_use_row_filters = false;
-
-	// Calculate bits to represent tile bits field
-	u32 range = (_params.max_bits - _params.min_bits);
-	int bits_bc = 0;
-	if (range > 0) {
-		bits_bc = BSR32(range) + 1;
-
-		int tile_bits_field_bc = bits_bc;
-
-		// Read tile bits
-		_tile_bits_x = reader.readBits(tile_bits_field_bc) + _params.min_bits;
-
-		// Validate input
-		if (_tile_bits_x > _params.max_bits) {
-			CAT_DEBUG_EXCEPTION();
+		if CAT_UNLIKELY(!_row_filter_decoder.init(reader)) {
 			return GCIF_RE_BAD_MONO;
 		}
 	} else {
-		_tile_bits_x = _params.min_bits;
-	}
+		// Enable decoder
+		_use_row_filters = false;
 
-	DESYNC_TABLE();
+		// Calculate bits to represent tile bits field
+		u32 range = (_params.max_bits - _params.min_bits);
+		int bits_bc = 0;
+		if (range > 0) {
+			bits_bc = BSR32(range) + 1;
 
-	// Initialize tile sizes
-	_tile_bits_y = _tile_bits_x;
-	_tile_size_x = 1 << _tile_bits_x;
-	_tile_size_y = 1 << _tile_bits_y;
-	_tile_mask_x = _tile_size_x - 1;
-	_tile_mask_y = _tile_size_y - 1;
-	_tiles_x = (_params.size_x + _tile_size_x - 1) >> _tile_bits_x;
-	_tiles_y = (_params.size_y + _tile_size_y - 1) >> _tile_bits_y;
+			int tile_bits_field_bc = bits_bc;
 
-	_filter_row.resize(_tiles_x);
+			// Read tile bits
+			_tile_bits_x = reader.readBits(tile_bits_field_bc) + _params.min_bits;
 
-	_tiles.resize(_tiles_x * _tiles_y);
-	_tiles.fill_00();
-
-	// Read palette
-	u8 palette[MAX_PALETTE];
-
-	CAT_DEBUG_ENFORCE(MAX_PALETTE == 16);
-
-	const int sympal_filter_count = reader.readBits(4);
-	for (int ii = 0; ii < sympal_filter_count; ++ii) {
-		palette[ii] = reader.readBits(8);
-	}
-
-	// Clear palette so bounds checking does not need to be performed
-	CAT_OBJCLR(_palette);
-
-	DESYNC_TABLE();
-
-	// Initialize fixed filters
-	for (int ii = 0; ii < SF_FIXED; ++ii) {
-		_sf[ii] = MONO_FILTERS[ii];
-	}
-
-	CAT_DEBUG_ENFORCE(MAX_FILTERS == 32);
-
-	// Read normal filters
-	_filter_count = reader.readBits(5) + SF_FIXED;
-	for (int ii = SF_FIXED, iiend = _filter_count; ii < iiend; ++ii) {
-		u8 sf = reader.readBits(7);
-
-		// If it is a palette filter,
-		if (sf >= SF_COUNT) {
-			// Set palette entry
-			_palette[sf] = palette[sf - SF_COUNT];
-
-			// Set filter function sentinel
-			MonoFilterFuncs pal_funcs;
-			pal_funcs.safe = pal_funcs.unsafe = (MonoFilterFunc)sf;
-			_sf[ii] = pal_funcs;
+			// Validate input
+			if CAT_UNLIKELY(_tile_bits_x > _params.max_bits) {
+				CAT_DEBUG_EXCEPTION();
+				return GCIF_RE_BAD_MONO;
+			}
 		} else {
-			_sf[ii] = MONO_FILTERS[sf];
+			_tile_bits_x = _params.min_bits;
 		}
-	}
 
-	DESYNC_TABLE();
+		DESYNC_TABLE();
 
-	CAT_DEBUG_ENFORCE(MAX_CHAOS_LEVELS == 16);
+		// Initialize tile sizes
+		_tile_bits_y = _tile_bits_x;
+		_tile_size_x = 1 << _tile_bits_x;
+		_tile_size_y = 1 << _tile_bits_y;
+		_tile_mask_x = _tile_size_x - 1;
+		_tile_mask_y = _tile_size_y - 1;
+		_tiles_x = (_params.size_x + _tile_size_x - 1) >> _tile_bits_x;
+		_tiles_y = (_params.size_y + _tile_size_y - 1) >> _tile_bits_y;
 
-	// Read chaos levels
-	int chaos_levels = reader.readBits(4) + 1;
-	_chaos.init(chaos_levels, _params.size_x);
-	_chaos.start();
+		_filter_row.resize(_tiles_x);
 
-	DESYNC_TABLE();
+		_tiles.resize(_tiles_x * _tiles_y);
+		_tiles.fill_00();
 
-	// For each chaos level,
-	for (int ii = 0; ii < chaos_levels; ++ii) {
-		if (!_decoder[ii].init(reader)) {
-			CAT_DEBUG_EXCEPTION();
-			return GCIF_RE_BAD_MONO;
+		// Read palette
+		u8 palette[MAX_PALETTE];
+
+		CAT_DEBUG_ENFORCE(MAX_PALETTE == 16);
+
+		const int sympal_filter_count = reader.readBits(4);
+		for (int ii = 0; ii < sympal_filter_count; ++ii) {
+			palette[ii] = reader.readBits(8);
 		}
-	}
 
-	DESYNC_TABLE();
+		// Clear palette so bounds checking does not need to be performed
+		CAT_OBJCLR(_palette);
 
-	// If recursively encoded,
-	if (reader.readBit()) {
+		DESYNC_TABLE();
+
+		// Initialize fixed filters
+		for (int ii = 0; ii < SF_FIXED; ++ii) {
+			_sf[ii] = MONO_FILTERS[ii];
+		}
+
+		CAT_DEBUG_ENFORCE(MAX_FILTERS == 32);
+
+		// Read normal filters
+		_filter_count = reader.readBits(5) + SF_FIXED;
+		for (int ii = SF_FIXED, iiend = _filter_count; ii < iiend; ++ii) {
+			u8 sf = reader.readBits(7);
+
+			// If it is a palette filter,
+			if (sf >= SF_COUNT) {
+				// Set palette entry
+				_palette[sf] = palette[sf - SF_COUNT];
+
+				// Set filter function sentinel
+				MonoFilterFuncs pal_funcs;
+				pal_funcs.safe = pal_funcs.unsafe = (MonoFilterFunc)sf;
+				_sf[ii] = pal_funcs;
+			} else {
+				_sf[ii] = MONO_FILTERS[sf];
+			}
+		}
+
+		DESYNC_TABLE();
+
+		CAT_DEBUG_ENFORCE(MAX_CHAOS_LEVELS == 16);
+
+		// Read chaos levels
+		int chaos_levels = reader.readBits(4) + 1;
+		_chaos.init(chaos_levels, _params.size_x);
+		_chaos.start();
+
+		DESYNC_TABLE();
+
+		// For each chaos level,
+		for (int ii = 0; ii < chaos_levels; ++ii) {
+			if CAT_UNLIKELY(!_decoder[ii].init(reader)) {
+				CAT_DEBUG_EXCEPTION();
+				return GCIF_RE_BAD_MONO;
+			}
+		}
+
+		DESYNC_TABLE();
+
 		// Create a recursive decoder if needed
 		if (!_filter_decoder) {
 			_filter_decoder = new MonoReader;
 		}
 
-		Parameters params;
-		params.data = _tiles.get();
-		params.data_step_shift = 0;
-		params.size_x = _tiles_x;
-		params.size_y = _tiles_y;
-		params.min_bits = _params.min_bits;
-		params.max_bits = _params.max_bits;
-		params.num_syms = _filter_count;
+		Parameters sub_params;
+		sub_params.data = _tiles.get();
+		sub_params.data_step_shift = 0;
+		sub_params.size_x = _tiles_x;
+		sub_params.size_y = _tiles_y;
+		sub_params.min_bits = _params.min_bits;
+		sub_params.max_bits = _params.max_bits;
+		sub_params.num_syms = _filter_count;
 
 		int err;
-		if ((err = _filter_decoder->readTables(params, reader))) {
+		if CAT_UNLIKELY((err = _filter_decoder->readTables(sub_params, reader))) {
 			return err;
-		}
-	} else {
-		// Ensure that old filter decoder is erased
-		if (_filter_decoder) {
-			delete _filter_decoder;
-			_filter_decoder = 0;
-		}
-
-		if (!_row_filter_decoder.init(reader)) {
-			return GCIF_RE_BAD_MONO;
 		}
 	}
 
 	DESYNC_TABLE();
 
-	CAT_DEBUG_ENFORCE(!reader.eof());
+	if CAT_UNLIKELY(reader.eof()) {
+		CAT_DEBUG_EXCEPTION();
+		return GCIF_RE_BAD_MONO;
+	}
 
 	_current_row = _params.data;
 

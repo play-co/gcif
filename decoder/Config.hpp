@@ -32,6 +32,9 @@
 namespace cat {
 
 
+// Bloat the file size a lot to check for desynchronization points in decoder
+#define CAT_DESYNCH_CHECKS
+
 // Enable memory-mapped file IO, allows API that has a file name as input
 //#define CAT_COMPILE_MMAP
 
@@ -44,9 +47,6 @@ namespace cat {
 // Modify level of detail for enforcer strings
 #define CAT_USE_ENFORCE_EXPRESSION_STRING
 #define CAT_USE_ENFORCE_FILE_LINE_STRING
-
-// Bloat the file size a lot to check for desynchronization points in decoder
-//#define CAT_DESYNCH_CHECKS
 
 // This definition overrides CAT_BUILD_DLL below.  Neuters CAT_EXPORT macro so symbols are
 // neither exported or imported.

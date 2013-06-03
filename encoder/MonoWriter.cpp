@@ -1381,88 +1381,80 @@ int MonoWriter::writeTables(ImageWriter &writer) {
 
 		// Write row filter encoder overhead
 		Stats.filter_overhead_bits += _row_filter_encoder.writeTables(writer);
+	} else {
+		// Enable encoders
+		writer.writeBit(1);
 
-		return Stats.filter_overhead_bits;
-	}
+		// Write tile size
+		CAT_DEBUG_ENFORCE(_profile->tile_bits_x == _profile->tile_bits_y);	// Square regions only for now
 
-	// Enable encoders
-	writer.writeBit(1);
+		if (_tile_bits_field_bc > 0) {
+			writer.writeBits(_profile->tile_bits_x - _params.min_bits, _tile_bits_field_bc);
+			Stats.basic_overhead_bits += _tile_bits_field_bc;
+		}
 
-	// Write tile size
-	CAT_DEBUG_ENFORCE(_profile->tile_bits_x == _profile->tile_bits_y);	// Square regions only for now
+		DESYNC_TABLE();
 
-	if (_tile_bits_field_bc > 0) {
-		writer.writeBits(_profile->tile_bits_x - _params.min_bits, _tile_bits_field_bc);
-		Stats.basic_overhead_bits += _tile_bits_field_bc;
-	}
+		// Sympal filters
+		CAT_DEBUG_ENFORCE(MAX_PALETTE <= 15);
 
-	DESYNC_TABLE();
+		writer.writeBits(_profile->sympal_filter_count, 4);
+		for (int f = 0, f_end = _profile->sympal_filter_count; f < f_end; ++f) {
+			writer.writeBits(_profile->sympal[f], 8);
+			Stats.basic_overhead_bits += 8;
+		}
 
-	// Sympal filters
-	CAT_DEBUG_ENFORCE(MAX_PALETTE <= 15);
+		DESYNC_TABLE();
 
-	writer.writeBits(_profile->sympal_filter_count, 4);
-	for (int f = 0, f_end = _profile->sympal_filter_count; f < f_end; ++f) {
-		writer.writeBits(_profile->sympal[f], 8);
-		Stats.basic_overhead_bits += 8;
-	}
+		// Normal filters
+		CAT_DEBUG_ENFORCE(MAX_FILTERS <= 32);
+		CAT_DEBUG_ENFORCE(SF_COUNT + MAX_PALETTE <= 128);
 
-	DESYNC_TABLE();
+		writer.writeBits(_profile->filter_count - SF_FIXED, 5);
+		Stats.basic_overhead_bits += 5;
+		for (int f = SF_FIXED, f_end = _profile->filter_count; f < f_end; ++f) {
+			writer.writeBits(_profile->filter_indices[f], 7);
+			Stats.basic_overhead_bits += 7;
+		}
 
-	// Normal filters
-	CAT_DEBUG_ENFORCE(MAX_FILTERS <= 32);
-	CAT_DEBUG_ENFORCE(SF_COUNT + MAX_PALETTE <= 128);
+		DESYNC_TABLE();
 
-	writer.writeBits(_profile->filter_count - SF_FIXED, 5);
-	Stats.basic_overhead_bits += 5;
-	for (int f = SF_FIXED, f_end = _profile->filter_count; f < f_end; ++f) {
-		writer.writeBits(_profile->filter_indices[f], 7);
-		Stats.basic_overhead_bits += 7;
-	}
+		// Write chaos levels
+		CAT_DEBUG_ENFORCE(MAX_CHAOS_LEVELS <= 16);
 
-	DESYNC_TABLE();
+		writer.writeBits(_profile->encoders->chaos.getBinCount() - 1, 4);
+		Stats.basic_overhead_bits += 4;
 
-	// Write chaos levels
-	CAT_DEBUG_ENFORCE(MAX_CHAOS_LEVELS <= 16);
+		DESYNC_TABLE();
 
-	writer.writeBits(_profile->encoders->chaos.getBinCount() - 1, 4);
-	Stats.basic_overhead_bits += 4;
+		// Write encoder tables
+		for (int ii = 0, iiend = _profile->encoders->chaos.getBinCount(); ii < iiend; ++ii) {
+			Stats.encoder_overhead_bits += _profile->encoders->encoder[ii].writeTables(writer);
+		}
 
-	DESYNC_TABLE();
+		DESYNC_TABLE();
 
-	// Write encoder tables
-	for (int ii = 0, iiend = _profile->encoders->chaos.getBinCount(); ii < iiend; ++ii) {
-		Stats.encoder_overhead_bits += _profile->encoders->encoder[ii].writeTables(writer);
-	}
+		// Recurse write tables
+		Stats.filter_overhead_bits += _profile->filter_encoder->writeTables(writer);
 
-	DESYNC_TABLE();
-
-	// Recurse write tables
-	Stats.filter_overhead_bits += _profile->filter_encoder->writeTables(writer);
-
-	DESYNC_TABLE();
-
-	initializeWriter();
-
-	return Stats.encoder_overhead_bits + Stats.basic_overhead_bits + Stats.filter_overhead_bits;
-}
-
-void MonoWriter::initializeWriter() {
-	// Note: Not called if encoders are disabled
-
-	// Initialize tile seen array
-	_tile_seen.resize(_profile->tiles_x);
-
-	_profile->encoders->chaos.start();
-
-	for (int ii = 0, iiend = _profile->encoders->chaos.getBinCount(); ii < iiend; ++ii) {
-		_profile->encoders->encoder[ii].reset();
-	}
+		// Initialize tile seen array
+		_tile_seen.resize(_profile->tiles_x);
 
 #ifdef CAT_DEBUG
-	generateWriteOrder();
-	_next_write_tile_order = &_profile->write_order[0];
+		generateWriteOrder();
+		_next_write_tile_order = &_profile->write_order[0];
 #endif
+
+		_profile->encoders->chaos.start();
+
+		for (int ii = 0, iiend = _profile->encoders->chaos.getBinCount(); ii < iiend; ++ii) {
+			_profile->encoders->encoder[ii].reset();
+		}
+	}
+
+	DESYNC_TABLE();
+
+	return Stats.encoder_overhead_bits + Stats.basic_overhead_bits + Stats.filter_overhead_bits;
 }
 
 int MonoWriter::writeRowHeader(u16 y, ImageWriter &writer) {
@@ -1529,8 +1521,6 @@ void MonoWriter::zero(u16 x) {
 	if (!_use_row_filters) {
 		_profile->encoders->chaos.zero(x);
 	}
-
-	DESYNC(x, 0);
 }
 
 int MonoWriter::write(u16 x, u16 y, ImageWriter &writer) {

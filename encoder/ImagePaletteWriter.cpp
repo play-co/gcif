@@ -381,6 +381,8 @@ void ImagePaletteWriter::writePixels(ImageWriter &writer) {
 		bits += _mono_writer.writeRowHeader(y, writer);
 
 		for (int x = 0; x < _size_x; ++x) {
+			DESYNC(x, y);
+
 			if (IsMasked(x, y)) {
 				_mono_writer.zero(x);
 			} else {

@@ -213,9 +213,6 @@ protected:
 	// Simulate number of bits required to encode the data this way
 	u32 simulate();
 
-	// Initialize the write engine
-	void initializeWriter();
-
 	// Free dynamic objects
 	void cleanup();
 
