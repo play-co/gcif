@@ -817,12 +817,15 @@ bool ImageRGBAWriter::writePixels(ImageWriter &writer) {
 
 	// For each scanline,
 	for (u16 y = 0; y < _size_y; ++y) {
+		const u16 ty = y >> _tile_bits_y;
+
 		// If at the start of a tile row,
 		if ((y & tile_mask_y) == 0) {
 			// After the first row,
 			if (y > 0) {
 				for (u16 tx = 0; tx < _tiles_x; ++tx) {
-					if (!_seen_filter[tx]) {
+					if (_seen_filter[tx] == 0) {
+						CAT_DEBUG_ENFORCE(IsSFMasked(tx, ty - 1));
 						_sf_encoder.zero(tx);
 						_cf_encoder.zero(tx);
 					}
@@ -831,7 +834,6 @@ bool ImageRGBAWriter::writePixels(ImageWriter &writer) {
 
 			_seen_filter.fill_00();
 
-			u16 ty = y >> _tile_bits_y;
 			sf_bits += _sf_encoder.writeRowHeader(ty, writer);
 			cf_bits += _cf_encoder.writeRowHeader(ty, writer);
 		}
@@ -852,7 +854,8 @@ bool ImageRGBAWriter::writePixels(ImageWriter &writer) {
 				if (_seen_filter[tx] == 0) {
 					_seen_filter[tx] = 1;
 
-					u16 ty = y >> _tile_bits_y;
+					CAT_DEBUG_ENFORCE(!IsSFMasked(tx, ty));
+
 					sf_bits += _sf_encoder.write(tx, ty, writer);
 					cf_bits += _cf_encoder.write(tx, ty, writer);
 				}

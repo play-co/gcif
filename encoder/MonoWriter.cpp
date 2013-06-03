@@ -1140,7 +1140,7 @@ void MonoWriter::designChaos() {
 				if (y > 0) {
 					// Simulate zeroing the chaos residuals
 					for (u16 x = 0; x < _params.size_x; ++x) {
-						if (_params.mask(x, y)) {
+						if (_params.mask(x, y - 1)) {
 							encoders->chaos.zero(x);
 						}
 					}
@@ -1148,6 +1148,8 @@ void MonoWriter::designChaos() {
 
 				u16 x;
 				while ((x = *order++) != ORDER_SENTINEL) {
+					CAT_DEBUG_ENFORCE(!_params.mask(x, y));
+
 					const u16 tx = x >> _profile->tile_bits_x;
 					CAT_DEBUG_ENFORCE(tx < _profile->tiles_x);
 
@@ -1490,7 +1492,7 @@ int MonoWriter::writeRowHeader(u16 y, ImageWriter &writer) {
 			if (y > 0) {
 				// For each pixel in seen row,
 				for (u16 tx = 0; tx < _profile->tiles_x; ++tx) {
-					if (!_tile_seen[tx]) {
+					if (_tile_seen[tx] == 0) {
 						_profile->filter_encoder->zero(tx);
 					}
 				}
