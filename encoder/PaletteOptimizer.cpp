@@ -116,7 +116,7 @@ void PaletteOptimizer::sortPalette(MaskDelegate &mask) {
 					 */
 					if (x > 0) {
 						if (!mask(x - 1, y)) {
-							scores[image[-1]] += p; // A
+							scores[image[-1]] += p*2; // A
 						}
 
 						if (y < size_y-1) {
@@ -133,7 +133,7 @@ void PaletteOptimizer::sortPalette(MaskDelegate &mask) {
 					}
 					if (x < size_x-1) {
 						if (!mask(x + 1, y)) {
-							scores[image[1]] += p; // a
+							scores[image[1]] += p*2; // a
 						}
 
 						if (y < size_y-1) {
