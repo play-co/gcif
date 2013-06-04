@@ -44,18 +44,32 @@ void PaletteOptimizer::histogramImage(MaskDelegate &mask) {
 		}
 	}
 
+	int palette_size = 0;
+
 	// Find most common
 	int best_ii = 0;
-	u32 best_count = 0;
-	for (int ii = 0; ii < PALETTE_MAX; ++ii) {
+	u32 best_count = _hist[0];
+
+	if (best_count > 0) {
+		++palette_size;
+	}
+
+	for (int ii = 1; ii < PALETTE_MAX; ++ii) {
 		u32 count = _hist[ii];
 
-		if (best_count < count) {
-			best_count = count;
-			best_ii = ii;
+		if (count > 0) {
+			++palette_size;
+
+			if (best_count < count) {
+				best_count = count;
+				best_ii = ii;
+			}
 		}
 	}
+
 	_most_common = (u8)best_ii;
+
+	CAT_DEBUG_ENFORCE(_palette_size == palette_size);
 }
 
 void PaletteOptimizer::sortPalette(MaskDelegate &mask) {

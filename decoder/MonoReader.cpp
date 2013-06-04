@@ -33,6 +33,7 @@
 using namespace cat;
 
 #ifdef CAT_DESYNCH_CHECKS
+#include "../encoder/Log.hpp"
 #define DESYNC_TABLE() \
 	CAT_ENFORCE(reader.readWord() == 1234567);
 #define DESYNC(x, y) \
@@ -230,7 +231,9 @@ int MonoReader::readRowHeader(u16 y, ImageReader & CAT_RESTRICT reader) {
 		}
 	}
 
-	_current_row += _params.size_x << _params.data_step_shift;
+	if (y > 0) {
+		_current_row += _params.size_x << _params.data_step_shift;
+	}
 
 	DESYNC(0, y);
 

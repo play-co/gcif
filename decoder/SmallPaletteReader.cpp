@@ -329,6 +329,9 @@ int SmallPaletteReader::readHead(ImageReader & CAT_RESTRICT reader, u8 * CAT_RES
 	if (reader.readBit()) {
 		// Read small palette table
 		readSmallPalette(reader);
+	} else {
+		// Disabled
+		_palette_size = 0;
 	}
 
 	return GCIF_RE_OK;

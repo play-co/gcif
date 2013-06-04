@@ -378,7 +378,7 @@ const u32 *ImageMaskReader::nextScanline() {
 
 bool ImageMaskReader::dumpStats() {
 	if (!_enabled) {
-		CAT_INANE("stats") << "(Mask Decode)   Disabled.";
+		CAT_INANE("stats") << "(Mask Decode) Disabled.";
 	} else {
 		CAT_INANE("stats") << "(Mask Decode)   Chosen Color : (" << (_color & 255) << "," << ((_color >> 8) & 255) << "," << ((_color >> 16) & 255) << "," << ((_color >> 24) & 255) << ") ...";
 		CAT_INANE("stats") << "(Mask Decode) Initialization : " <<  Stats.initUsec << " usec (" << Stats.initUsec * 100.f / Stats.overallUsec << " %total)";

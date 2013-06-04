@@ -460,11 +460,14 @@ int ImageLZReader::read(ImageReader &reader, int size_x, int size_y) {
 #ifdef CAT_COLLECT_STATS
 
 bool ImageLZReader::dumpStats() {
-	CAT_INANE("stats") << "(LZ Decode) Read Huffman Table : " << Stats.readCodelensUsec << " usec (" << Stats.readCodelensUsec * 100.f / Stats.overallUsec << " %total)";
-	CAT_INANE("stats") << "(LZ Decode)         Read Zones : " << Stats.readZonesUsec << " usec (" << Stats.readZonesUsec * 100.f / Stats.overallUsec << " %total)";
-	CAT_INANE("stats") << "(LZ Decode)            Overall : " << Stats.overallUsec << " usec";
-
-	CAT_INANE("stats") << "(LZ Decode)         Zone Count : " << Stats.zoneCount << " zones read";
+	if (Stats.zoneCount <= 0) {
+		CAT_INANE("stats") << "(LZ Decode) Disabled.";
+	} else {
+		CAT_INANE("stats") << "(LZ Decode) Read Huffman Table : " << Stats.readCodelensUsec << " usec (" << Stats.readCodelensUsec * 100.f / Stats.overallUsec << " %total)";
+		CAT_INANE("stats") << "(LZ Decode)         Read Zones : " << Stats.readZonesUsec << " usec (" << Stats.readZonesUsec * 100.f / Stats.overallUsec << " %total)";
+		CAT_INANE("stats") << "(LZ Decode)            Overall : " << Stats.overallUsec << " usec";
+		CAT_INANE("stats") << "(LZ Decode)         Zone Count : " << Stats.zoneCount << " zones read";
+	}
 
 	return true;
 }
