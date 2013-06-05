@@ -94,6 +94,8 @@ int ImageRGBAReader::readFilterTables(ImageReader & CAT_RESTRICT reader) {
 		params.size_x = _tiles_x;
 		params.size_y = _tiles_y;
 		params.num_syms = _sf_count;
+		params.min_bits = 2;
+		params.max_bits = 5;
 
 		if ((err = _sf_decoder.readTables(params, reader))) {
 			return err;
@@ -110,6 +112,8 @@ int ImageRGBAReader::readFilterTables(ImageReader & CAT_RESTRICT reader) {
 		params.size_x = _tiles_x;
 		params.size_y = _tiles_y;
 		params.num_syms = CF_COUNT;
+		params.min_bits = 2;
+		params.max_bits = 5;
 
 		if ((err = _cf_decoder.readTables(params, reader))) {
 			return err;
@@ -132,6 +136,8 @@ int ImageRGBAReader::readRGBATables(ImageReader & CAT_RESTRICT reader) {
 		params.size_x = _size_x;
 		params.size_y = _size_y;
 		params.num_syms = 256;
+		params.min_bits = 2;
+		params.max_bits = 5;
 
 		if ((err = _a_decoder.readTables(params, reader))) {
 			return err;
