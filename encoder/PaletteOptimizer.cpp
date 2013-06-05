@@ -69,7 +69,11 @@ void PaletteOptimizer::histogramImage(MaskDelegate &mask) {
 
 	_most_common = (u8)best_ii;
 
-	CAT_DEBUG_ENFORCE(_palette_size == palette_size);
+	CAT_DEBUG_ENFORCE(_palette_size >= palette_size);
+
+	if (_palette_size != palette_size) {
+		CAT_INFO("pal") << "Palette optimizer noticed the data uses " << palette_size << " palette indices of " << _palette_size;
+	}
 }
 
 void PaletteOptimizer::sortPalette(MaskDelegate &mask) {
