@@ -1396,7 +1396,7 @@ int MonoWriter::writeTables(ImageWriter &writer) {
 		DESYNC_TABLE();
 
 		// Sympal filters
-		CAT_DEBUG_ENFORCE(MAX_PALETTE <= 15);
+		CAT_DEBUG_ENFORCE(MAX_PALETTE == 15);
 
 		writer.writeBits(_profile->sympal_filter_count, 4);
 		for (int f = 0, f_end = _profile->sympal_filter_count; f < f_end; ++f) {

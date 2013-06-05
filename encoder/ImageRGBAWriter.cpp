@@ -576,8 +576,6 @@ void ImageRGBAWriter::designChaos() {
 			entropy += encoders->v[ii].simulateAll();
 		}
 
-		CAT_WARN("SUM") << chaos_levels << " -> " << entropy;
-
 		// If this is the best chaos levels so far,
 		if (best_entropy > entropy + 128) {
 			best_entropy = entropy;

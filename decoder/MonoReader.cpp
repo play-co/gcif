@@ -116,7 +116,7 @@ int MonoReader::readTables(const Parameters & CAT_RESTRICT params, ImageReader &
 		// Read palette
 		u8 palette[MAX_PALETTE];
 
-		CAT_DEBUG_ENFORCE(MAX_PALETTE == 16);
+		CAT_DEBUG_ENFORCE(MAX_PALETTE == 15);
 
 		const int sympal_filter_count = reader.readBits(4);
 		for (int ii = 0; ii < sympal_filter_count; ++ii) {
