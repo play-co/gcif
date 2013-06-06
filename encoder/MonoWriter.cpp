@@ -1534,7 +1534,7 @@ int MonoWriter::write(u16 x, u16 y, ImageWriter &writer) {
 	if (_use_row_filters) {
 		// Calculate row filter residual for filter data (filter of filters at tree leaf)
 		u8 p = _params.data[x + _params.size_x * y];
-		u8 rf = p;
+		u16 rf = p;
 
 		// If this row is filtered,
 		if (_row_filters[y] == MonoReader::RF_PREV) {
