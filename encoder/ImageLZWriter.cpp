@@ -669,6 +669,14 @@ void ImageLZWriter::write(ImageWriter &writer) {
 
 		//CAT_WARN("LZ") << m->sx << ", " << m->sy << " -> " << m->dx << ", " << m->dy << " [" << (m->w + ZONEW) << ", " << (m->h + ZONEH) << "]";
 
+		CAT_DEBUG_ENFORCE(m->sy <= m->dy && (m->sy != m->dy || m->sx < m->dx));
+
+		CAT_DEBUG_ENFORCE((u32)m->sx + (u32)m->w + ZONEW <= (u32)_size_x &&
+				(u32)m->sy + (u32)m->h + ZONEH <= (u32)_size_y);
+
+		CAT_DEBUG_ENFORCE((u32)m->dx + (u32)m->w + ZONEW <= (u32)_size_x &&
+				(u32)m->dy + (u32)m->h + ZONEH <= (u32)_size_y);
+
 		// Apply some context modeling for better compression
 		u16 edx = m->dx;
 		u16 esy = m->dy - m->sy;
@@ -702,6 +710,14 @@ void ImageLZWriter::write(ImageWriter &writer) {
 
 	for (int ii = 0; ii < match_count; ++ii) {
 		Match *m = &_exact_matches[ii];
+
+		CAT_DEBUG_ENFORCE(m->sy <= m->dy && (m->sy != m->dy || m->sx < m->dx));
+
+		CAT_DEBUG_ENFORCE((u32)m->sx + (u32)m->w + ZONEW <= (u32)_size_x &&
+				(u32)m->sy + (u32)m->h + ZONEH <= (u32)_size_y);
+
+		CAT_DEBUG_ENFORCE((u32)m->dx + (u32)m->w + ZONEW <= (u32)_size_x &&
+				(u32)m->dy + (u32)m->h + ZONEH <= (u32)_size_y);
 
 		// Apply some context modeling for better compression
 		u16 edx = m->dx;
