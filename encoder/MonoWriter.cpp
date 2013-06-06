@@ -126,7 +126,7 @@ void MonoWriter::designRowFilters() {
 					codes[code_count] = p;
 
 					// RF_PREV
-					u8 pprev = p + num_syms - prev;
+					u16 pprev = p + num_syms - prev;
 					if (pprev >= num_syms) {
 						pprev -= num_syms;
 					}
@@ -134,7 +134,7 @@ void MonoWriter::designRowFilters() {
 
 					CAT_DEBUG_ENFORCE(pprev < num_syms);
 
-					codes[code_count + size_x] = pprev;
+					codes[code_count + size_x] = (u8)pprev;
 
 					++code_count;
 				}
@@ -149,7 +149,7 @@ void MonoWriter::designRowFilters() {
 						codes[code_count] = p;
 
 						// RF_PREV
-						u8 pprev = p + num_syms - prev;
+						u16 pprev = p + num_syms - prev;
 						if (pprev >= num_syms) {
 							pprev -= num_syms;
 						}
@@ -157,7 +157,7 @@ void MonoWriter::designRowFilters() {
 
 						CAT_DEBUG_ENFORCE(pprev < num_syms);
 
-						codes[code_count + size_x] = pprev;
+						codes[code_count + size_x] = (u8)pprev;
 
 						++code_count;
 					}
@@ -219,12 +219,12 @@ void MonoWriter::designRowFilters() {
 
 					// If filtered,
 					if (rf == MonoReader::RF_PREV) {
-						u8 pprev = p + num_syms - prev;
+						u16 pprev = p + num_syms - prev;
 						if (pprev >= num_syms) {
 							pprev -= num_syms;
 						}
 						prev = p;
-						p = pprev;
+						p = (u8)pprev;
 					}
 
 					CAT_DEBUG_ENFORCE(p < num_syms);
@@ -240,12 +240,12 @@ void MonoWriter::designRowFilters() {
 
 						// If filtered,
 						if (rf == MonoReader::RF_PREV) {
-							u8 pprev = p + num_syms - prev;
+							u16 pprev = p + num_syms - prev;
 							if (pprev >= num_syms) {
 								pprev -= num_syms;
 							}
 							prev = p;
-							p = pprev;
+							p = (u8)pprev;
 						}
 
 						CAT_DEBUG_ENFORCE(p < num_syms);
@@ -279,12 +279,12 @@ void MonoWriter::designRowFilters() {
 
 					// If filtered,
 					if (rf == MonoReader::RF_PREV) {
-						u8 pprev = p + num_syms - prev;
+						u16 pprev = p + num_syms - prev;
 						if (pprev >= num_syms) {
 							pprev -= num_syms;
 						}
 						prev = p;
-						p = pprev;
+						p = (u8)pprev;
 					}
 
 					CAT_DEBUG_ENFORCE(p < num_syms);
@@ -301,12 +301,12 @@ void MonoWriter::designRowFilters() {
 
 						// If filtered,
 						if (rf == MonoReader::RF_PREV) {
-							u8 pprev = p + num_syms - prev;
+							u16 pprev = p + num_syms - prev;
 							if (pprev >= num_syms) {
 								pprev -= num_syms;
 							}
 							prev = p;
-							p = pprev;
+							p = (u8)pprev;
 						}
 
 						CAT_DEBUG_ENFORCE(p < num_syms);
@@ -502,7 +502,7 @@ void MonoWriter::designFilters() {
 
 						for (int f = 0; f < SF_COUNT; ++f) {
 							u8 prediction = MONO_FILTERS[f].safe(data, num_syms - 1, px, py, size_x);
-							int residual = value + num_syms - prediction;
+							u16 residual = value + num_syms - prediction;
 							if (residual >= num_syms) {
 								residual -= num_syms;
 							}
@@ -751,7 +751,7 @@ void MonoWriter::designTiles() {
 									const u8 value = *data;
 
 									u8 prediction = _profile->filters[old_filter].safe(data, num_syms - 1, px, py, size_x);
-									int residual = value + num_syms - prediction;
+									u16 residual = value + num_syms - prediction;
 									if (residual >= num_syms) {
 										residual -= num_syms;
 									}
@@ -786,7 +786,7 @@ void MonoWriter::designTiles() {
 							for (int f = 0, f_end = _profile->filter_count; f < f_end; ++f) {
 								if (_profile->filter_indices[f] < SF_COUNT) {
 									u8 prediction = _profile->filters[f].safe(data, num_syms - 1, px, py, size_x);
-									int residual = value + num_syms - prediction;
+									u16 residual = value + num_syms - prediction;
 									if (residual >= num_syms) {
 										residual -= num_syms;
 									}
@@ -925,7 +925,7 @@ void MonoWriter::computeResiduals() {
 
 				// Run spatial filter to arrive at a prediction
 				u8 prediction = _profile->filters[f].safe(&replay[x], num_syms - 1, x, y, size_x);
-				int residual = value + num_syms - prediction;
+				u16 residual = value + num_syms - prediction;
 				if (residual >= num_syms) {
 					residual -= num_syms;
 				}
@@ -956,7 +956,7 @@ void MonoWriter::computeResiduals() {
 
 					// Run spatial filter to arrive at a prediction
 					u8 prediction = _profile->filters[f].safe(data, num_syms - 1, x, y, size_x);
-					int residual = value + num_syms - prediction;
+					u16 residual = value + num_syms - prediction;
 					if (residual >= num_syms) {
 						residual -= num_syms;
 					}
