@@ -41,10 +41,10 @@ int SmallPaletteReader::readSmallPalette(ImageReader & CAT_RESTRICT reader) {
 		_palette[ii] = getLE(reader.readWord());
 	}
 
-	if (_pack_palette_size > 4) { // 3-4 bits/pixel
+	if (_palette_size > 4) { // 3-4 bits/pixel
 		_pack_x = (_size_x + 1) >> 1;
 		_pack_y = _size_y;
-	} else if (_pack_palette_size > 2) { // 2 bits/pixel
+	} else if (_palette_size > 2) { // 2 bits/pixel
 		_pack_x = (_size_x + 1) >> 1;
 		_pack_y = (_size_y + 1) >> 1;
 	} else if (_palette_size > 1) {
