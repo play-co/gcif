@@ -60,6 +60,8 @@ int MonoReader::readTables(const Parameters & CAT_RESTRICT params, ImageReader &
 
 	// If decoder is disabled,
 	if (reader.readBit() == 0) {
+		CAT_WARN("Mono") << "Reading row filter tables";
+
 		_use_row_filters = true;
 
 		// If one row filter,
@@ -74,6 +76,8 @@ int MonoReader::readTables(const Parameters & CAT_RESTRICT params, ImageReader &
 			return GCIF_RE_BAD_MONO;
 		}
 	} else {
+		CAT_WARN("Mono") << "Reading tile-based decoder tables";
+
 		// Enable decoder
 		_use_row_filters = false;
 

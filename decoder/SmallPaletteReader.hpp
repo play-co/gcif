@@ -74,6 +74,7 @@ protected:
 
 	int readSmallPalette(ImageReader & CAT_RESTRICT reader);
 	int readPackPalette(ImageReader & CAT_RESTRICT reader);
+	int readTables(ImageReader & CAT_RESTRICT reader);
 	int readPixels(ImageReader & CAT_RESTRICT reader);
 	int unpackPixels();
 

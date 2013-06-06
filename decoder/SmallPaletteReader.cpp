@@ -79,6 +79,23 @@ int SmallPaletteReader::readPackPalette(ImageReader & CAT_RESTRICT reader) {
 	return GCIF_RE_OK;
 }
 
+int SmallPaletteReader::readTables(ImageReader & CAT_RESTRICT reader) {
+	// Allocate image matrix
+	_image.resize(_pack_x * _pack_y);
+
+	// Build parameters for decoder
+	MonoReader::Parameters params;
+	params.data = _image.get();
+	params.data_step_shift = 0;
+	params.size_x = _pack_x;
+	params.size_y = _pack_y;
+	params.min_bits = 2;
+	params.max_bits = 5;
+	params.num_syms = _palette_size;
+
+	return _mono_decoder.readTables(params, reader);
+}
+
 int SmallPaletteReader::readPixels(ImageReader & CAT_RESTRICT reader) {
 	const u8 MASK_PAL = _mask_palette;
 
@@ -346,6 +363,10 @@ int SmallPaletteReader::readTail(ImageReader & CAT_RESTRICT reader, ImageMaskRea
 	int err;
 
 	if ((err = readPackPalette(reader))) {
+		return err;
+	}
+
+	if ((err = readTables(reader))) {
 		return err;
 	}
 
