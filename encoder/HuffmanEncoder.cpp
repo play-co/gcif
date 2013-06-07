@@ -522,6 +522,7 @@ int cat::writeCompressedHuffmanTable(int num_syms, u8 codelens[], ImageWriter &w
 
 	CAT_DEBUG_ENFORCE(HUFF_SYMS == 17);
 	CAT_DEBUG_ENFORCE(num_syms >= 2);
+
 /*
 	for (int ii = 0; ii < num_syms; ++ii) {
 		if (codelens[ii] > 0) {

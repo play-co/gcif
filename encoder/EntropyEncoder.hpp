@@ -253,7 +253,7 @@ public:
 				}
 			}
 
-			if (basic_cost < az_cost) {
+			if (basic_cost < az_cost + 64) {
 				_using_basic = true;
 			}
 		}

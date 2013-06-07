@@ -158,14 +158,19 @@ int ImageRGBAReader::readRGBATables(ImageReader & CAT_RESTRICT reader) {
 			CAT_DEBUG_EXCEPTION();
 			return GCIF_RE_BAD_RGBA;
 		}
+		DESYNC_TABLE();
+
 		if (!_u_decoder[jj].init(reader)) {
 			CAT_DEBUG_EXCEPTION();
 			return GCIF_RE_BAD_RGBA;
 		}
+		DESYNC_TABLE();
+
 		if (!_v_decoder[jj].init(reader)) {
 			CAT_DEBUG_EXCEPTION();
 			return GCIF_RE_BAD_RGBA;
 		}
+		DESYNC_TABLE();
 	}
 
 	return GCIF_RE_OK;

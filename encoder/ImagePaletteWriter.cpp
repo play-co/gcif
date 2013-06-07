@@ -408,7 +408,7 @@ void ImagePaletteWriter::writePixels(ImageWriter &writer) {
 
 bool ImagePaletteWriter::dumpStats() {
 	if (!enabled()) {
-		CAT_INANE("stats") << "(Palette)   Disabled.";
+		CAT_INANE("stats") << "(Palette) Disabled.";
 	} else {
 		_mono_writer.dumpStats();
 

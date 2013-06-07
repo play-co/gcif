@@ -58,11 +58,6 @@ protected:
 	bool _afterZero;
 
 public:
-	CAT_INLINE EntropyDecoder() {
-	}
-	virtual CAT_INLINE ~EntropyDecoder() {
-	}
-
 	bool init(ImageReader &reader) {
 		// If using AZ symbols,
 		if (reader.readBit()) {

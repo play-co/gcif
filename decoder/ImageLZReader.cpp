@@ -275,7 +275,8 @@ int ImageLZReader::triggerXPal(u8 * CAT_RESTRICT p, u32 * CAT_RESTRICT rgba) {
 	if (rgba) {
 		const volatile u32 *rgba_src = rgba + offset;
 		for (int jj = 0; jj < lz_left; ++jj) {
-			*rgba = *rgba_src;
+			//*rgba = *rgba_src;
+			*rgba = 0;
 			++rgba_src;
 			++rgba;
 		}
