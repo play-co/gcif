@@ -81,11 +81,13 @@ protected:
 #ifdef CAT_COLLECT_STATS
 public:
 	struct _Stats {
-		double paletteUsec;
+		double smallPaletteUsec;
+		double packPaletteUsec;
 		double tablesUsec;
 		double pixelsUsec;
+		double unpackUsec;
 
-		int colorCount;
+		double overallUsec;
 	} Stats;
 #endif
 

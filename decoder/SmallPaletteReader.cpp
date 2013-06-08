@@ -31,6 +31,13 @@
 #include "Enforcer.hpp"
 using namespace cat;
 
+#ifdef CAT_COLLECT_STATS
+#include "../encoder/Log.hpp"
+#include "../encoder/Clock.hpp"
+
+static cat::Clock *m_clock = 0;
+#endif // CAT_COLLECT_STATS
+
 
 //// SmallPaletteReader
 
@@ -137,6 +144,8 @@ int SmallPaletteReader::readPixels(ImageReader & CAT_RESTRICT reader) {
 			} else {
 				// TODO: Unroll to use unsafe version
 				u8 index = _mono_decoder.read(x, y, reader);
+
+				CAT_WARN("Read") << (int)index << " for " << x << ", " << y;
 
 				CAT_DEBUG_ENFORCE(index < _palette_size);
 			}
@@ -341,6 +350,12 @@ int SmallPaletteReader::readHead(ImageReader & CAT_RESTRICT reader, u8 * CAT_RES
 	_size_y = header->size_y;
 	_rgba = rgba;
 
+#ifdef CAT_COLLECT_STATS
+	m_clock = Clock::ref();
+
+	double t0 = m_clock->usec();
+#endif // CAT_COLLECT_STATS
+
 	// If enabled,
 	if (reader.readBit()) {
 		// Read small palette table
@@ -349,6 +364,12 @@ int SmallPaletteReader::readHead(ImageReader & CAT_RESTRICT reader, u8 * CAT_RES
 		// Disabled
 		_palette_size = 0;
 	}
+
+#ifdef CAT_COLLECT_STATS
+	double t1 = m_clock->usec();
+
+	Stats.smallPaletteUsec = t1 - t0;
+#endif // CAT_COLLECT_STATS
 
 	return GCIF_RE_OK;
 }
@@ -359,23 +380,51 @@ int SmallPaletteReader::readTail(ImageReader & CAT_RESTRICT reader, ImageMaskRea
 
 	CAT_DEBUG_ENFORCE(multipleColors());
 
+#ifdef CAT_COLLECT_STATS
+	m_clock = Clock::ref();
+
+	double t0 = m_clock->usec();
+#endif // CAT_COLLECT_STATS
+
 	int err;
 
 	if ((err = readPackPalette(reader))) {
 		return err;
 	}
 
+#ifdef CAT_COLLECT_STATS
+	double t1 = m_clock->usec();
+#endif // CAT_COLLECT_STATS
+
 	if ((err = readTables(reader))) {
 		return err;
 	}
+
+#ifdef CAT_COLLECT_STATS
+	double t2 = m_clock->usec();
+#endif // CAT_COLLECT_STATS
 
 	if ((err = readPixels(reader))) {
 		return err;
 	}
 
+#ifdef CAT_COLLECT_STATS
+	double t3 = m_clock->usec();
+#endif // CAT_COLLECT_STATS
+
 	if ((err = unpackPixels())) {
 		return err;
 	}
+
+#ifdef CAT_COLLECT_STATS
+	double t4 = m_clock->usec();
+
+	Stats.packPaletteUsec = t1 - t0;
+	Stats.tablesUsec = t2 - t1;
+	Stats.pixelsUsec = t3 - t2;
+	Stats.unpackUsec = t4 - t3;
+	Stats.overallUsec = t4 - t0 + Stats.smallPaletteUsec;
+#endif // CAT_COLLECT_STATS
 
 	return GCIF_RE_OK;
 }
@@ -383,6 +432,20 @@ int SmallPaletteReader::readTail(ImageReader & CAT_RESTRICT reader, ImageMaskRea
 #ifdef CAT_COLLECT_STATS
 
 bool SmallPaletteReader::dumpStats() {
+	if (!enabled()) {
+		CAT_INANE("stats") << "(Small Palette) Disabled.";
+	} else if (!multipleColors()) {
+		CAT_INANE("stats") << "(Small Palette) Small Palette : " << Stats.smallPaletteUsec << " usec";
+		CAT_INANE("stats") << "(Small Palette) Only one color.";
+	} else {
+		CAT_INANE("stats") << "(Small Palette) Small Palette : " << Stats.smallPaletteUsec << " usec (" << Stats.smallPaletteUsec * 100.f / Stats.overallUsec << " %total)";
+		CAT_INANE("stats") << "(Small Palette)  Pack Palette : " << Stats.packPaletteUsec << " usec (" << Stats.packPaletteUsec * 100.f / Stats.overallUsec << " %total)";
+		CAT_INANE("stats") << "(Small Palette)        Tables : " << Stats.tablesUsec << " usec (" << Stats.tablesUsec * 100.f / Stats.overallUsec << " %total)";
+		CAT_INANE("stats") << "(Small Palette)        Pixels : " << Stats.pixelsUsec << " usec (" << Stats.pixelsUsec * 100.f / Stats.overallUsec << " %total)";
+		CAT_INANE("stats") << "(Small Palette)        Unpack : " << Stats.unpackUsec << " usec (" << Stats.unpackUsec * 100.f / Stats.overallUsec << " %total)";
+		CAT_INANE("stats") << "(Small Palette)       Overall : " << Stats.overallUsec << " usec";
+	}
+
 	return true;
 }
 
