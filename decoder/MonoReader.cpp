@@ -290,7 +290,7 @@ u8 MonoReader::read(u16 x, u16 y, ImageReader & CAT_RESTRICT reader) {
 
 		// If the filter is a palette symbol,
 #ifdef CAT_WORD_64
-		u32 pf = (u32)(u64)filter;
+		u64 pf = (u64)filter;
 #else
 		u32 pf = (u32)filter;
 #endif
@@ -372,7 +372,7 @@ u8 MonoReader::read_unsafe(u16 x, u16 y, ImageReader & CAT_RESTRICT reader) {
 
 		// If the filter is a palette symbol,
 #ifdef CAT_WORD_64
-		u32 pf = (u32)(u64)filter;
+		u64 pf = (u64)filter;
 #else
 		u32 pf = (u32)filter;
 #endif
