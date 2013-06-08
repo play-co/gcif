@@ -124,7 +124,7 @@ int SmallPaletteReader::readPixels(ImageReader & CAT_RESTRICT reader) {
 		for (int x = 0, xend = _pack_x; x < xend; ++x) {
 			// If LZ triggered,
 			if (x == trigger_x_lz) {
-				u8 * CAT_RESTRICT p = _image.get() + x + y * _size_x;
+				u8 * CAT_RESTRICT p = _image.get() + x + y * _pack_x;
 
 				lz_skip = _lz->triggerXPal(p, 0);
 				trigger_x_lz = _lz->getTriggerX();
