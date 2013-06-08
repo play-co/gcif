@@ -312,6 +312,8 @@ u8 MonoReader::read(u16 x, u16 y, ImageReader & CAT_RESTRICT reader) {
 			// Calculate predicted value
 			u16 pred = filter(data, num_syms - 1, x, y, _params.size_x);
 
+			CAT_DEBUG_ENFORCE(pred < num_syms);
+
 			// Defilter using prediction
 			value = residual + pred;
 			if (value >= num_syms) {
@@ -393,6 +395,8 @@ u8 MonoReader::read_unsafe(u16 x, u16 y, ImageReader & CAT_RESTRICT reader) {
 
 			// Calculate predicted value
 			u16 pred = filter(data, num_syms - 1, x, y, _params.size_x);
+
+			CAT_DEBUG_ENFORCE(pred < num_syms);
 
 			// Defilter using prediction
 			value = residual + pred;
