@@ -101,7 +101,7 @@ int SmallPaletteReader::readPixels(ImageReader & CAT_RESTRICT reader) {
 
 	u16 trigger_x_lz = _lz->getTriggerX();
 
-	for (int y = 0, yend = _size_y; y < yend; ++y) {
+	for (int y = 0, yend = _pack_y; y < yend; ++y) {
 		_mono_decoder.readRowHeader(y, reader);
 
 		if (y == _lz->getTriggerY()) {
@@ -115,7 +115,7 @@ int SmallPaletteReader::readPixels(ImageReader & CAT_RESTRICT reader) {
 
 		int lz_skip = 0;
 
-		for (int x = 0, xend = _size_x; x < xend; ++x) {
+		for (int x = 0, xend = _pack_x; x < xend; ++x) {
 			// If LZ triggered,
 			if (x == trigger_x_lz) {
 				u8 * CAT_RESTRICT p = _image.get() + x + y * _size_x;
