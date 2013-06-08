@@ -93,7 +93,6 @@ int SmallPaletteReader::readTables(ImageReader & CAT_RESTRICT reader) {
 	// Build parameters for decoder
 	MonoReader::Parameters params;
 	params.data = _image.get();
-	params.data_step_shift = 0;
 	params.size_x = _pack_x;
 	params.size_y = _pack_y;
 	params.min_bits = 2;
@@ -105,6 +104,8 @@ int SmallPaletteReader::readTables(ImageReader & CAT_RESTRICT reader) {
 
 int SmallPaletteReader::readPixels(ImageReader & CAT_RESTRICT reader) {
 	const u8 MASK_PAL = _mask_palette;
+
+	u8 * CAT_RESTRICT p = _image.get();
 
 	u16 trigger_x_lz = _lz->getTriggerX();
 
@@ -124,9 +125,7 @@ int SmallPaletteReader::readPixels(ImageReader & CAT_RESTRICT reader) {
 		for (int x = 0, xend = _pack_x; x < xend; ++x) {
 			// If LZ triggered,
 			if (x == trigger_x_lz) {
-				u8 * CAT_RESTRICT p = _image.get() + x + y * _pack_x;
-
-				lz_skip = _lz->triggerXPal(p, 0);
+				lz_skip = _lz->triggerX(p, 0);
 				trigger_x_lz = _lz->getTriggerX();
 			}
 
@@ -138,18 +137,20 @@ int SmallPaletteReader::readPixels(ImageReader & CAT_RESTRICT reader) {
 
 			if (lz_skip > 0) {
 				--lz_skip;
-				_mono_decoder.maskedSkip(x);
+				_mono_decoder.zero(x);
 			} else if ((s32)mask < 0) {
-				_mono_decoder.maskedWrite(x, MASK_PAL);
+				*p = MASK_PAL;
+				_mono_decoder.zero(x);
 			} else {
 				// TODO: Unroll to use unsafe version
-				u8 index = _mono_decoder.read(x, y, reader);
+				u8 index = _mono_decoder.read(x, y, p, reader);
 
 				CAT_WARN("Read") << (int)index << " for " << x << ", " << y;
 
 				CAT_DEBUG_ENFORCE(index < _palette_size);
 			}
 
+			++p;
 			mask <<= 1;
 		}
 	}

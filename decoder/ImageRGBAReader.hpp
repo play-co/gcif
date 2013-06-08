@@ -100,7 +100,7 @@ protected:
 	SmartArray<FilterSelection> _filters;
 
 	// Filter/Alpha decoders
-	SmartArray<u8> _sf_tiles, _cf_tiles;
+	SmartArray<u8> _sf_tiles, _cf_tiles, _a_tiles;
 	MonoReader _sf_decoder, _cf_decoder, _a_decoder;
 
 	// RGB decoders
@@ -110,11 +110,18 @@ protected:
 	EntropyDecoder<NUM_COLORS, ZRLE_SYMS> _v_decoder[MAX_CHAOS_LEVELS];
 
 	CAT_INLINE FilterSelection *readFilter(u16 x, u16 y, ImageReader & CAT_RESTRICT reader) {
-		FilterSelection * CAT_RESTRICT filter = &_filters[x >> _tile_bits_x];
+		const u16 tx = x >> _tile_bits_x;
+		FilterSelection * CAT_RESTRICT filter = &_filters[tx];
 
 		if (!filter->ready()) {
-			filter->cf = YUV2RGB_FILTERS[_cf_decoder.read(x, y, reader)];
-			filter->sf = _sf[_sf_decoder.read(x, y, reader)];
+			const u16 ty = y >> _tile_bits_y;
+
+			const u32 toff = tx + ty * _tile_size_x; // TODO: Optimize away
+			u8 * CAT_RESTRICT cf_p = _cf_tiles.get() + toff;
+			u8 * CAT_RESTRICT sf_p = _sf_tiles.get() + toff;
+
+			filter->cf = YUV2RGB_FILTERS[_cf_decoder.read(tx, ty, cf_p, reader)];
+			filter->sf = _sf[_sf_decoder.read(tx, ty, sf_p, reader)];
 		}
 
 		return filter;
@@ -122,7 +129,7 @@ protected:
 
 	u8 _FPT[3];
 
-	CAT_INLINE void readSafe(u16 x, u16 y, u8 * CAT_RESTRICT p, ImageReader & CAT_RESTRICT reader) {
+	CAT_INLINE void readSafe(u16 x, u16 y, u8 * CAT_RESTRICT p, u8 * CAT_RESTRICT a_p, ImageReader & CAT_RESTRICT reader) {
 		FilterSelection *filter = readFilter(x, y, reader);
 
 		// Calculate YUV chaos
@@ -145,13 +152,13 @@ protected:
 		p[2] += pred[2];
 
 		// Read alpha pixel
-		p[3] = (u8)~_a_decoder.read(x, y, reader);
+		p[3] = (u8)~_a_decoder.read(x, y, a_p, reader);
 
 		_chaos.store(x, YUV);
 	}
 
 	// WARNING: Should be exactly the same as above, except call unsafe()
-	CAT_INLINE void readUnsafe(u16 x, u16 y, u8 * CAT_RESTRICT p, ImageReader & CAT_RESTRICT reader) {
+	CAT_INLINE void readUnsafe(u16 x, u16 y, u8 * CAT_RESTRICT p, u8 * CAT_RESTRICT a_p, ImageReader & CAT_RESTRICT reader) {
 		FilterSelection *filter = readFilter(x, y, reader);
 
 		// Calculate YUV chaos
@@ -174,7 +181,7 @@ protected:
 		p[2] += pred[2];
 
 		// Read alpha pixel
-		p[3] = (u8)~_a_decoder.read(x, y, reader);
+		p[3] = (u8)~_a_decoder.read_unsafe(x, y, a_p, reader);
 
 		_chaos.store(x, YUV);
 	}

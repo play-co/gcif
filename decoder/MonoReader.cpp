@@ -183,7 +183,6 @@ int MonoReader::readTables(const Parameters & CAT_RESTRICT params, ImageReader &
 
 		Parameters sub_params;
 		sub_params.data = _tiles.get();
-		sub_params.data_step_shift = 0;
 		sub_params.size_x = _tiles_x;
 		sub_params.size_y = _tiles_y;
 		sub_params.min_bits = _params.min_bits;
@@ -194,6 +193,9 @@ int MonoReader::readTables(const Parameters & CAT_RESTRICT params, ImageReader &
 		if CAT_UNLIKELY((err = _filter_decoder->readTables(sub_params, reader))) {
 			return err;
 		}
+
+		_current_tile = _tiles.get();
+		_current_tile_y = 0;
 	}
 
 	DESYNC_TABLE();
@@ -224,8 +226,12 @@ int MonoReader::readRowHeader(u16 y, ImageReader & CAT_RESTRICT reader) {
 	} else {
 		// If at the start of a tile row,
 		if ((y & _tile_mask_y) == 0) {
+			// Next tile row
+			_current_tile_y++;
+			_current_tile += _tiles_x;
+
 			// Read its header too
-			_filter_decoder->readRowHeader(y >> _tile_bits_y, reader);
+			_filter_decoder->readRowHeader(_current_tile_y, reader);
 
 			// Clear filter function row
 			_filter_row.fill_00();
@@ -233,7 +239,7 @@ int MonoReader::readRowHeader(u16 y, ImageReader & CAT_RESTRICT reader) {
 	}
 
 	if (y > 0) {
-		_current_row += _params.size_x << _params.data_step_shift;
+		_current_row += _params.size_x;
 	}
 
 	DESYNC(0, y);
@@ -243,12 +249,11 @@ int MonoReader::readRowHeader(u16 y, ImageReader & CAT_RESTRICT reader) {
 	return GCIF_RE_OK;
 }
 
-u8 MonoReader::read(u16 x, u16 y, ImageReader & CAT_RESTRICT reader) {
+u8 MonoReader::read(u16 x, u16 y, u8 * CAT_RESTRICT data, ImageReader & CAT_RESTRICT reader) {
 	CAT_DEBUG_ENFORCE(x < _params.size_x && y < _params.size_y);
 
 	DESYNC(x, y);
 
-	u8 *data = _current_row + (x << _params.data_step_shift);
 	u16 value;
 
 	// If using row filters,
@@ -274,8 +279,9 @@ u8 MonoReader::read(u16 x, u16 y, ImageReader & CAT_RESTRICT reader) {
 
 		// If filter must be read,
 		if (!filter) {
-			const u16 ty = y >> _tile_bits_y;
-			u8 f = _filter_decoder->read(tx, ty, reader);
+			const u16 ty = _current_tile_y;
+			u8 *tp = _current_tile + tx;
+			u8 f = _filter_decoder->read(tx, ty, tp, reader);
 
 			CAT_WARN("FILTER") << (tx << _tile_bits_x) << ", " << (ty << _tile_bits_x) << " : " << (int)f;
 
@@ -333,10 +339,11 @@ u8 MonoReader::read(u16 x, u16 y, ImageReader & CAT_RESTRICT reader) {
 //// KEEP THIS IN SYNC WITH VERSION ABOVE! ////
 // The only change should be that unsafe() is used.
 
-u8 MonoReader::read_unsafe(u16 x, u16 y, ImageReader & CAT_RESTRICT reader) {
+u8 MonoReader::read_unsafe(u16 x, u16 y, u8 * CAT_RESTRICT data, ImageReader & CAT_RESTRICT reader) {
 	CAT_DEBUG_ENFORCE(x < _params.size_x && y < _params.size_y);
 
-	u8 *data = _current_row + (x << _params.data_step_shift);
+	DESYNC(x, y);
+
 	u16 value;
 
 	// If using row filters,
@@ -362,13 +369,18 @@ u8 MonoReader::read_unsafe(u16 x, u16 y, ImageReader & CAT_RESTRICT reader) {
 
 		// If filter must be read,
 		if (!filter) {
-			const u16 ty = y >> _tile_bits_y;
-			u8 f = _filter_decoder->read(tx, ty, reader);
+			const u16 ty = _current_tile_y;
+			u8 *tp = _current_tile + tx;
+			u8 f = _filter_decoder->read(tx, ty, tp, reader);
+
+			CAT_WARN("FILTER") << (tx << _tile_bits_x) << ", " << (ty << _tile_bits_x) << " : " << (int)f;
 
 			// Read filter
 			MonoFilterFuncs * CAT_RESTRICT funcs = &_sf[f];
 			_filter_row[tx] = *funcs;
 			filter = funcs->unsafe; // Choose here
+
+			DESYNC(x, y);
 		}
 
 		// If the filter is a palette symbol,

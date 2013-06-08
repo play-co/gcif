@@ -212,63 +212,7 @@ int ImageLZReader::readZones(ImageReader & CAT_RESTRICT reader) {
 	return GCIF_RE_OK;
 }
 
-int ImageLZReader::triggerX(u8 * CAT_RESTRICT p) {
-	// Just triggered a line from zi
-	u16 ii = _zone_next_x;
-	Zone * CAT_RESTRICT zi = &_zones[ii];
-	const int lz_left = zi->w;
-
-	// Copy scanline one at a time in case the pointers are aliased
-	u32 *dst = reinterpret_cast<u32 *>( p );
-	const volatile u32 *src = dst + zi->sox + zi->soy * _size_x;
-	for (int jj = 0; jj < lz_left; ++jj) {
-		*dst = *src;
-		++src;
-		++dst;
-	}
-
-	// Iterate ahead to next in work list
-	_zone_next_x = zi->next;
-
-	// If this is zi's last scanline,
-	if (--zi->h <= 0) {
-		// Unlink from list
-
-		// If nothing behind it,
-		if (zi->prev == ZONE_NULL) {
-			// Link next as head
-			_zone_work_head = zi->next;
-		} else {
-			// Link previous through to next
-			_zones[zi->prev].next = zi->next;
-		}
-
-		// If there is a zone ahead of it,
-		if (zi->next != ZONE_NULL) {
-			// Link it back through to previous
-			_zones[zi->next].prev = zi->prev;
-		}
-	}
-
-	// If work list is exhausted,
-	if (_zone_next_x == ZONE_NULL) {
-		// Loop back to front of remaining list
-		_zone_next_x = _zone_work_head;
-	}
-
-	// If list just emptied,
-	if (_zone_next_x == ZONE_NULL) {
-		// Disable triggers
-		_zone_trigger_x = ZONE_NULL;
-	} else {
-		// Set it to the next trigger dx
-		_zone_trigger_x = _zones[_zone_next_x].dx;
-	}
-
-	return lz_left;
-}
-
-int ImageLZReader::triggerXPal(u8 * CAT_RESTRICT p, u32 * CAT_RESTRICT rgba) {
+int ImageLZReader::triggerX(u8 * CAT_RESTRICT p, u32 * CAT_RESTRICT rgba) {
 	// Just triggered a line from zi
 	u16 ii = _zone_next_x;
 	Zone * CAT_RESTRICT zi = &_zones[ii];

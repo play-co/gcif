@@ -132,7 +132,6 @@ int ImagePaletteReader::readTables(ImageReader & CAT_RESTRICT reader) {
 
 	MonoReader::Parameters params;
 	params.data = _image.get();
-	params.data_step_shift = 0;
 	params.size_x = _size_x;
 	params.size_y = _size_y;
 	params.min_bits = 2;
@@ -155,6 +154,7 @@ int ImagePaletteReader::readPixels(ImageReader & CAT_RESTRICT reader) {
 	const u8 MASK_PAL = _mask_palette;
 
 	u32 * CAT_RESTRICT rgba = reinterpret_cast<u32 *>( _rgba );
+	u8 * CAT_RESTRICT p = _image.get();
 
 	u16 trigger_x_lz = _lz->getTriggerX();
 
@@ -177,9 +177,7 @@ int ImagePaletteReader::readPixels(ImageReader & CAT_RESTRICT reader) {
 
 			// If LZ triggered,
 			if (x == trigger_x_lz) {
-				u8 * CAT_RESTRICT p = _image.get() + x + y * _size_x;
-
-				lz_skip = _lz->triggerXPal(p, rgba);
+				lz_skip = _lz->triggerX(p, rgba);
 				trigger_x_lz = _lz->getTriggerX();
 			}
 
@@ -191,13 +189,14 @@ int ImagePaletteReader::readPixels(ImageReader & CAT_RESTRICT reader) {
 
 			if (lz_skip > 0) {
 				--lz_skip;
-				_mono_decoder.maskedSkip(x);
+				_mono_decoder.zero(x);
 			} else if ((s32)mask < 0) {
 				*rgba = MASK_COLOR;
-				_mono_decoder.maskedWrite(x, MASK_PAL);
+				*p = MASK_PAL;
+				_mono_decoder.zero(x);
 			} else {
 				// TODO: Unroll to use unsafe version
-				u8 index = _mono_decoder.read(x, y, reader);
+				u8 index = _mono_decoder.read(x, y, p, reader);
 
 				CAT_DEBUG_ENFORCE(index < _palette_size);
 
@@ -206,6 +205,7 @@ int ImagePaletteReader::readPixels(ImageReader & CAT_RESTRICT reader) {
 
 			++rgba;
 			mask <<= 1;
+			++p;
 		}
 	}
 

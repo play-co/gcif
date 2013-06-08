@@ -121,8 +121,7 @@ public:
 	// Skip the number of pixels returned
 	// Returns pixel count which is always at least 1
 	// p: Pointer to first byte of current RGBA pixel
-	int triggerX(u8 * CAT_RESTRICT p);
-	int triggerXPal(u8 * CAT_RESTRICT p, u32 * CAT_RESTRICT rgba); // Palette version
+	int triggerX(u8 * CAT_RESTRICT p, u32 * CAT_RESTRICT rgba);
 
 	// Call when y reaches next trigger y before looping over x values
 	void triggerY();

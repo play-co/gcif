@@ -82,7 +82,6 @@ public:
 
 	struct Parameters {
 		u8 * CAT_RESTRICT data;			// Output data
-		int data_step_shift;			// Bytes between data write positions (for alpha)
 		u16 size_x, size_y;				// Data dimensions
 		u16 min_bits, max_bits;			// Tile size bit range to try
 		u16 num_syms;					// Number of symbols in data [0..num_syms-1]
@@ -112,6 +111,9 @@ protected:
 	EntropyDecoder<MAX_SYMS, ZRLE_SYMS> _decoder[MAX_CHAOS_LEVELS];
 	u8 *_current_row;
 
+	u16 _current_tile_y;
+	u8 *_current_tile;
+
 	void cleanup();
 
 public:
@@ -126,20 +128,14 @@ public:
 
 	int readRowHeader(u16 y, ImageReader & CAT_RESTRICT reader);
 
-	CAT_INLINE void maskedWrite(u16 x, u8 value) {
-		_chaos.zero(x);
-
-		_current_row[x << _params.data_step_shift] = value;
-	}
-
-	CAT_INLINE void maskedSkip(u16 x) {
+	CAT_INLINE void zero(u16 x) {
 		_chaos.zero(x);
 	}
 
-	u8 read(u16 x, u16 y, ImageReader & CAT_RESTRICT reader);
+	u8 read(u16 x, u16 y, u8 * CAT_RESTRICT p, ImageReader & CAT_RESTRICT reader);
 
 	// Faster top-level version, when spatial filters can be unsafe
-	u8 read_unsafe(u16 x, u16 y, ImageReader & CAT_RESTRICT reader);
+	u8 read_unsafe(u16 x, u16 y, u8 * CAT_RESTRICT p, ImageReader & CAT_RESTRICT reader);
 };
 
 
