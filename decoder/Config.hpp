@@ -32,6 +32,9 @@
 namespace cat {
 
 
+// Dump filter choices
+#define CAT_DUMP_FILTERS
+
 // Dump LZ header contents
 #define CAT_DUMP_LZ
 

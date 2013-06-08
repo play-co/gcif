@@ -55,15 +55,10 @@ namespace cat {
  * so only those are evaluated and sent.
  */
 
-// These filters are always selected
-enum FixedSpatialFilters {
-	SF_A,				// A
-	SF_FIXED,			// Number of fixed filters
-};
-
 enum SpatialFilters {
 	// Simple filters
-	SF_Z = SF_FIXED,	// 0
+	SF_A,				// A
+	SF_Z,				// 0
 	SF_B,				// B
 	SF_C,				// C
 	SF_D,				// D

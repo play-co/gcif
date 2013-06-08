@@ -157,18 +157,12 @@ void ImageRGBAWriter::designFilters() {
 		topleft_row += _size_x * 4 * _tile_size_y;
 	}
 
-	// Copy fixed functions
-	for (int jj = 0; jj < SF_FIXED; ++jj) {
-		_sf_indices[jj] = jj;
-		_sf[jj] = RGBA_FILTERS[jj];
-	}
-
 	// Sort the best awards
-	int count = MAX_FILTERS - SF_FIXED;
+	int count = MAX_FILTERS;
 	FilterScorer::Score *top = awards.getHigh(count, true);
 
 	// Initialize coverage
-	int sf_count = SF_FIXED;
+	int sf_count = 0;
 
 	// Design remaining filter functions
 	u32 coverage = 0;
@@ -179,14 +173,13 @@ void ImageRGBAWriter::designFilters() {
 
 		coverage += score;
 
-		// If this filter is not already added,
-		if (index >= SF_FIXED) {
-			_sf_indices[sf_count] = index;
-			_sf[sf_count] = RGBA_FILTERS[index];
-			++sf_count;
+		_sf_indices[sf_count] = index;
+		_sf[sf_count] = RGBA_FILTERS[index];
+		++sf_count;
 
-			//CAT_INANE("RGBA") << " - Added filter " << index << " with score " << score;
-		}
+#ifdef CAT_DUMP_FILTERS
+		CAT_INANE("RGBA") << " - Added filter " << index << " with score " << score;
+#endif
 
 		float coverage_ratio = coverage / (float)total_score;
 
@@ -735,10 +728,10 @@ int ImageRGBAWriter::writeTables(ImageWriter &writer) {
 	DESYNC_TABLE();
 
 	// Write filter choices
-	writer.writeBits(_sf_count - SF_FIXED, 5);
+	writer.writeBits(_sf_count, 5);
 	int choice_bits = 5;
 
-	for (int ii = SF_FIXED; ii < _sf_count; ++ii) {
+	for (int ii = 0; ii < _sf_count; ++ii) {
 		u16 sf = _sf_indices[ii];
 
 		writer.writeBits(sf, 7);

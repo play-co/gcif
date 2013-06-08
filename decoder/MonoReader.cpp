@@ -132,22 +132,18 @@ int MonoReader::readTables(const Parameters & CAT_RESTRICT params, ImageReader &
 
 		DESYNC_TABLE();
 
-		// Initialize fixed filters
-		for (int ii = 0; ii < SF_FIXED; ++ii) {
-			_sf[ii] = MONO_FILTERS[ii];
-		}
-
 		CAT_DEBUG_ENFORCE(MAX_FILTERS == 32);
 
 		// Read normal filters
-		_filter_count = reader.readBits(5) + SF_FIXED;
-		for (int ii = SF_FIXED, iiend = _filter_count; ii < iiend; ++ii) {
+		_filter_count = reader.readBits(5) + 1;
+		for (int ii = 0, iiend = _filter_count; ii < iiend; ++ii) {
 			u8 sf = reader.readBits(7);
 
 			// If it is a palette filter,
 			if (sf >= SF_COUNT) {
 				// Set palette entry
 				_palette[sf] = palette[sf - SF_COUNT];
+				CAT_WARN("SF") << "Palette " << (int)(sf - SF_COUNT);
 
 				// Set filter function sentinel
 				MonoFilterFuncs pal_funcs;
@@ -155,6 +151,7 @@ int MonoReader::readTables(const Parameters & CAT_RESTRICT params, ImageReader &
 				_sf[ii] = pal_funcs;
 			} else {
 				_sf[ii] = MONO_FILTERS[sf];
+				CAT_WARN("SF") << "Normal " << ii << " = " << (int)sf;
 			}
 		}
 
@@ -279,6 +276,8 @@ u8 MonoReader::read(u16 x, u16 y, ImageReader & CAT_RESTRICT reader) {
 		if (!filter) {
 			const u16 ty = y >> _tile_bits_y;
 			u8 f = _filter_decoder->read(tx, ty, reader);
+
+			CAT_WARN("FILTER") << (tx << _tile_bits_x) << ", " << (ty << _tile_bits_x) << " : " << (int)f;
 
 			// Read filter
 			MonoFilterFuncs * CAT_RESTRICT funcs = &_sf[f];

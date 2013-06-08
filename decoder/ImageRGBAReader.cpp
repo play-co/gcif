@@ -72,8 +72,8 @@ int ImageRGBAReader::readFilterTables(ImageReader & CAT_RESTRICT reader) {
 	DESYNC_TABLE();
 
 	// Read filter choices
-	_sf_count = reader.readBits(5) + SF_FIXED;
-	for (int ii = SF_FIXED; ii < _sf_count; ++ii) {
+	_sf_count = reader.readBits(5);
+	for (int ii = 0; ii < _sf_count; ++ii) {
 		u8 sf = reader.readBits(7);
 
 		if (sf >= SF_COUNT) {

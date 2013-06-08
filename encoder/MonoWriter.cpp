@@ -550,14 +550,8 @@ void MonoWriter::designFilters() {
 		topleft_row += _params.size_x * tile_size_y;
 	}
 
-	// Copy the first SF_FIXED filters
-	for (int f = 0; f < SF_FIXED; ++f) {
-		_profile->filters[f] = MONO_FILTERS[f];
-		_profile->filter_indices[f] = f;
-	}
-
 	// Decide how many filters to sort by score
-	int count = _params.max_filters + SF_FIXED;
+	int count = _params.max_filters;
 	if (count > SF_COUNT) {
 		count = SF_COUNT;
 	}
@@ -566,8 +560,8 @@ void MonoWriter::designFilters() {
 	int sympal_f = 0;
 
 	// Choose remaining filters until coverage is acceptable
-	int normal_f = SF_FIXED; // Next normal filter index
-	int filters_set = SF_FIXED; // Total filters
+	int normal_f = 0; // Next normal filter index
+	int filters_set = 0; // Total filters
 	FilterScorer::Score *top = awards.getHigh(count, true);
 
 	u8 palette[MAX_PALETTE];
@@ -584,35 +578,33 @@ void MonoWriter::designFilters() {
 		int index = top[ii].index;
 		int score = top[ii].score;
 
-		// If filter is not fixed,
-		if (index >= SF_FIXED) {
-			// If filter is a sympal,
-			if (index >= SF_COUNT) {
-				// Map it from sympal filter index to new filter index
-				int sympal_filter = index - SF_COUNT;
-				_sympal_filter_map[sympal_filter] = sympal_f;
+		// If filter is a sympal,
+		if (index >= SF_COUNT) {
+			// Map it from sympal filter index to new filter index
+			int sympal_filter = index - SF_COUNT;
+			_sympal_filter_map[sympal_filter] = sympal_f;
 
-				palette[sympal_f] = index;
-				++sympal_f;
+			palette[sympal_f] = index;
+			++sympal_f;
 
-				//CAT_INANE("Mono") << " + Added palette filter " << sympal_f << " for palette index " << sympal_filter << " Score " << score;
-			} else {
-				_profile->filters[normal_f] = MONO_FILTERS[index];
-				_profile->filter_indices[normal_f] = index;
-				++normal_f;
-
-				coverage += score;
-
-				//CAT_INANE("Mono") << " - Added filter " << normal_f << " for filter index " << index << " Score " << score << " Coverage " << coverage;
-			}
-
-			++filters_set;
-			if (filters_set >= max_filters) {
-				break;
-			}
+#ifdef CAT_DUMP_FILTERS
+			CAT_INANE("Mono") << " + Added palette filter " << sympal_f << " for palette index " << sympal_filter << " Score " << score;
+#endif
 		} else {
-			//CAT_INANE("Mono") << " - Added fixed filter " << normal_f << " for filter index " << index << " Score " << score;
+			_profile->filters[normal_f] = MONO_FILTERS[index];
+			_profile->filter_indices[normal_f] = index;
+			++normal_f;
+
 			coverage += score;
+
+#ifdef CAT_DUMP_FILTERS
+			CAT_INANE("Mono") << " - Added filter " << normal_f << " for filter index " << index << " Score " << score << " Coverage " << coverage;
+#endif
+		}
+
+		++filters_set;
+		if (filters_set >= max_filters) {
+			break;
 		}
 
 		float coverage_ratio = coverage / (float)total_score;
@@ -637,16 +629,22 @@ void MonoWriter::designFilters() {
 
 	CAT_DEBUG_ENFORCE(_profile->filter_count == _profile->normal_filter_count + _profile->sympal_filter_count);
 
-	//CAT_INANE("Mono") << " + Chose " << _profile->filter_count << " filters : " << _profile->sympal_filter_count << " of which are palettes";
+#ifdef CAT_DUMP_FILTERS
+	CAT_INANE("Mono") << " + Chose " << _profile->filter_count << " filters : " << _profile->sympal_filter_count << " of which are palettes";
+#endif
 }
 
 void MonoWriter::designPaletteTiles() {
 	if (_profile->sympal_filter_count < 0) {
-		//CAT_INANE("Mono") << "No palette filters selected";
+#ifdef CAT_DUMP_FILTERS
+		CAT_INANE("Mono") << "No palette filters selected";
+#endif
 		return;
 	}
 
-	//CAT_INANE("Mono") << "Designing palette tiles for " << _profile->tiles_x << "x" << _profile->tiles_y << "...";
+#ifdef CAT_DUMP_FILTERS
+	CAT_INANE("Mono") << "Designing palette tiles for " << _profile->tiles_x << "x" << _profile->tiles_y << "...";
+#endif
 
 	const u16 tile_size_x = _profile->tile_size_x, tile_size_y = _profile->tile_size_y;
 	const u16 size_x = _params.size_x, size_y = _params.size_y;
@@ -1409,10 +1407,11 @@ int MonoWriter::writeTables(ImageWriter &writer) {
 		// Normal filters
 		CAT_DEBUG_ENFORCE(MAX_FILTERS <= 32);
 		CAT_DEBUG_ENFORCE(SF_COUNT + MAX_PALETTE <= 128);
+		CAT_DEBUG_ENFORCE(_profile->filter_count > 0);
 
-		writer.writeBits(_profile->filter_count - SF_FIXED, 5);
+		writer.writeBits(_profile->filter_count - 1, 5);
 		Stats.basic_overhead_bits += 5;
-		for (int f = SF_FIXED, f_end = _profile->filter_count; f < f_end; ++f) {
+		for (int f = 0, f_end = _profile->filter_count; f < f_end; ++f) {
 			writer.writeBits(_profile->filter_indices[f], 7);
 			Stats.basic_overhead_bits += 7;
 		}
