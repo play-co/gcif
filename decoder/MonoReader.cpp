@@ -82,7 +82,7 @@ int MonoReader::readTables(const Parameters & CAT_RESTRICT params, ImageReader &
 		_use_row_filters = false;
 
 		// Calculate bits to represent tile bits field
-		u32 range = (_params.max_bits - _params.min_bits);
+		u32 range = _params.max_bits - _params.min_bits;
 		int bits_bc = 0;
 		if (range > 0) {
 			bits_bc = BSR32(range) + 1;
@@ -249,6 +249,8 @@ int MonoReader::readRowHeader(u16 y, ImageReader & CAT_RESTRICT reader) {
 u8 MonoReader::read(u16 x, u16 y, ImageReader & CAT_RESTRICT reader) {
 	CAT_DEBUG_ENFORCE(x < _params.size_x && y < _params.size_y);
 
+	DESYNC(x, y);
+
 	u8 *data = _current_row + (x << _params.data_step_shift);
 	u16 value;
 
@@ -282,6 +284,8 @@ u8 MonoReader::read(u16 x, u16 y, ImageReader & CAT_RESTRICT reader) {
 			MonoFilterFuncs * CAT_RESTRICT funcs = &_sf[f];
 			_filter_row[tx] = *funcs;
 			filter = funcs->safe; // Choose here
+
+			DESYNC(x, y);
 		}
 
 		// If the filter is a palette symbol,

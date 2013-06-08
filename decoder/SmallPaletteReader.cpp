@@ -108,12 +108,11 @@ int SmallPaletteReader::readPixels(ImageReader & CAT_RESTRICT reader) {
 			_lz->triggerY();
 			trigger_x_lz = _lz->getTriggerX();
 		}
+		int lz_skip = 0;
 
 		const u32 *mask_next = _mask->nextScanline();
 		int mask_left = 0;
 		u32 mask;
-
-		int lz_skip = 0;
 
 		for (int x = 0, xend = _pack_x; x < xend; ++x) {
 			// If LZ triggered,

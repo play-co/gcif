@@ -1530,6 +1530,8 @@ int MonoWriter::write(u16 x, u16 y, ImageWriter &writer) {
 	CAT_DEBUG_ENFORCE(!_params.mask(x, y));
 	CAT_DEBUG_ENFORCE(!_next_write_pixel_order || *_next_write_pixel_order++ == x);
 
+	DESYNC(x, y);
+
 	// If using row filters,
 	if (_use_row_filters) {
 		// Calculate row filter residual for filter data (filter of filters at tree leaf)
