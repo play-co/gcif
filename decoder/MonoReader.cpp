@@ -226,15 +226,17 @@ int MonoReader::readRowHeader(u16 y, ImageReader & CAT_RESTRICT reader) {
 	} else {
 		// If at the start of a tile row,
 		if ((y & _tile_mask_y) == 0) {
-			// Next tile row
-			_current_tile_y++;
-			_current_tile += _tiles_x;
-
 			// Read its header too
 			_filter_decoder->readRowHeader(_current_tile_y, reader);
 
 			// Clear filter function row
 			_filter_row.fill_00();
+
+			if (y > 0) {
+				// Next tile row
+				_current_tile_y++;
+				_current_tile += _tiles_x;
+			}
 		}
 	}
 
