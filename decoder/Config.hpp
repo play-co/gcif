@@ -32,6 +32,9 @@
 namespace cat {
 
 
+// Dump LZ header contents
+#define CAT_DUMP_LZ
+
 // Bloat the file size a lot to check for desynchronization points in decoder
 #define CAT_DESYNCH_CHECKS
 

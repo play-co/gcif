@@ -112,7 +112,9 @@ int ImageLZReader::readZones(ImageReader & CAT_RESTRICT reader) {
 			z->w = reader.readBits(8) + ZONEW;
 			z->h = reader.readBits(8) + ZONEH;
 
-			//CAT_WARN("LZ") << sx << ", " << sy << " -> " << dx << ", " << dy << " [" << z->w << ", " << z->h << "]";
+#ifdef CAT_DUMP_LZ
+			CAT_WARN("LZ") << sx << ", " << sy << " -> " << dx << ", " << dy << " [" << z->w << ", " << z->h << "]";
+#endif
 
 			// Input security checks
 			if (sy > dy || (sy == dy && sx >= dx)) {
@@ -171,7 +173,9 @@ int ImageLZReader::readZones(ImageReader & CAT_RESTRICT reader) {
 			z->dx = dx;
 			z->dy = dy;
 
-			//CAT_WARN("LZ") << sx << ", " << sy << " -> " << dx << ", " << dy << " [" << z->w << ", " << z->h << "]";
+#ifdef CAT_DUMP_LZ
+			CAT_WARN("LZ") << sx << ", " << sy << " -> " << dx << ", " << dy << " [" << z->w << ", " << z->h << "]";
+#endif
 
 			// Input security checks
 			if (sy > dy || (sy == dy && sx >= dx)) {
