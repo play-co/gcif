@@ -147,7 +147,7 @@ int SmallPaletteReader::readPixels(ImageReader & CAT_RESTRICT reader) {
 
 				CAT_WARN("Read") << (int)index << " for " << x << ", " << y;
 
-				CAT_DEBUG_ENFORCE(index < _palette_size);
+				CAT_DEBUG_ENFORCE(index < _pack_palette_size);
 			}
 
 			++p;

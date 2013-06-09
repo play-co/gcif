@@ -285,7 +285,7 @@ u8 MonoReader::read(u16 x, u16 y, u8 * CAT_RESTRICT data, ImageReader & CAT_REST
 			u8 *tp = _current_tile + tx;
 			u8 f = _filter_decoder->read(tx, ty, tp, reader);
 
-			CAT_WARN("FILTER") << (tx << _tile_bits_x) << ", " << (ty << _tile_bits_x) << " : " << (int)f;
+			CAT_WARN("FILTER") << (tx << _tile_bits_x) << ", " << (ty << _tile_bits_x) << " : " << (int)f << " at " << x << ", " << y;
 
 			// Read filter
 			MonoFilterFuncs * CAT_RESTRICT funcs = &_sf[f];
@@ -318,6 +318,8 @@ u8 MonoReader::read(u16 x, u16 y, u8 * CAT_RESTRICT data, ImageReader & CAT_REST
 
 			// Calculate predicted value
 			u16 pred = filter(data, num_syms - 1, x, y, _params.size_x);
+
+			CAT_WARN("PRED") << pred << " chaos=" << chaos << " residual=" << residual << " num_syms=" << num_syms;
 
 			CAT_DEBUG_ENFORCE(pred < num_syms);
 
