@@ -164,7 +164,7 @@ int SmallPaletteReader::unpackPixels() {
 	u32 *rgba = reinterpret_cast<u32 *>( _rgba );
 	const u8 *image = _image.get();
 
-	if (_pack_palette_size > 4) { // 3-4 bits/pixel
+	if (_palette_size > 4) { // 3-4 bits/pixel
 		CAT_DEBUG_ENFORCE(_pack_y == _size_y);
 		CAT_DEBUG_ENFORCE(_pack_x == (_size_x+1)/2);
 
@@ -194,7 +194,7 @@ int SmallPaletteReader::unpackPixels() {
 
 			rgba += _size_x;
 		}
-	} else if (_pack_palette_size > 2) { // 2 bits/pixel
+	} else if (_palette_size > 2) { // 2 bits/pixel
 		CAT_DEBUG_ENFORCE(_pack_y == (_size_y+1)/2);
 		CAT_DEBUG_ENFORCE(_pack_x == (_size_x+1)/2);
 
