@@ -97,7 +97,7 @@ int SmallPaletteReader::readTables(ImageReader & CAT_RESTRICT reader) {
 	params.size_y = _pack_y;
 	params.min_bits = 2;
 	params.max_bits = 5;
-	params.num_syms = _palette_size;
+	params.num_syms = _pack_palette_size;
 
 	return _mono_decoder.readTables(params, reader);
 }
