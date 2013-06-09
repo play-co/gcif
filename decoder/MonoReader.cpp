@@ -118,17 +118,15 @@ int MonoReader::readTables(const Parameters & CAT_RESTRICT params, ImageReader &
 		_tiles.fill_00();
 
 		// Read palette
-		u8 palette[MAX_PALETTE];
-
 		CAT_DEBUG_ENFORCE(MAX_PALETTE == 15);
-
-		const int sympal_filter_count = reader.readBits(4);
-		for (int ii = 0; ii < sympal_filter_count; ++ii) {
-			palette[ii] = reader.readBits(8);
-		}
 
 		// Clear palette so bounds checking does not need to be performed
 		CAT_OBJCLR(_palette);
+
+		const int sympal_filter_count = reader.readBits(4);
+		for (int ii = 0; ii < sympal_filter_count; ++ii) {
+			_palette[ii] = reader.readBits(8);
+		}
 
 		DESYNC_TABLE();
 
@@ -143,8 +141,9 @@ int MonoReader::readTables(const Parameters & CAT_RESTRICT params, ImageReader &
 			if (sf >= SF_COUNT) {
 				u8 pf = sf - SF_COUNT;
 
+				CAT_DEBUG_ENFORCE(pf < MAX_PALETTE);
+
 				// Set palette entry
-				_palette[sf] = palette[pf];
 				CAT_WARN("SF") << "Palette " << (int)pf;
 
 				// Set filter function sentinel
@@ -396,6 +395,7 @@ u8 MonoReader::read_unsafe(u16 x, u16 y, u8 * CAT_RESTRICT data, ImageReader & C
 		u32 pf = (u32)filter;
 #endif
 		if (pf <= MAX_PALETTE) {
+			CAT_WARN("CAT") << "Reading paletted at " << x << ", " << y;
 			value = _palette[pf];
 
 			_chaos.zero(x);

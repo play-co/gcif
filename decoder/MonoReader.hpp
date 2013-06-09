@@ -96,7 +96,7 @@ protected:
 	u16 _tile_mask_x, _tile_mask_y;
 	u16 _tiles_x, _tiles_y;
 
-	u8 _palette[MAX_FILTERS];
+	u8 _palette[MAX_PALETTE];
 	MonoFilterFuncs _sf[MAX_FILTERS];
 	int _filter_count;
 
