@@ -148,7 +148,7 @@ int MonoReader::readTables(const Parameters & CAT_RESTRICT params, ImageReader &
 
 				// Set filter function sentinel
 				MonoFilterFuncs pal_funcs;
-				pal_funcs.safe = pal_funcs.unsafe = (MonoFilterFunc)pf;
+				pal_funcs.safe = pal_funcs.unsafe = (MonoFilterFunc)(pf + 1);
 				_sf[ii] = pal_funcs;
 			} else {
 				_sf[ii] = MONO_FILTERS[sf];
@@ -394,9 +394,9 @@ u8 MonoReader::read_unsafe(u16 x, u16 y, u8 * CAT_RESTRICT data, ImageReader & C
 #else
 		u32 pf = (u32)filter;
 #endif
-		if (pf <= MAX_PALETTE) {
+		if (pf <= MAX_PALETTE+1) {
 			CAT_WARN("CAT") << "Reading paletted at " << x << ", " << y;
-			value = _palette[pf];
+			value = _palette[pf - 1];
 
 			_chaos.zero(x);
 		} else {
