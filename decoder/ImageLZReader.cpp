@@ -222,7 +222,7 @@ int ImageLZReader::triggerX(u8 * CAT_RESTRICT p, u32 * CAT_RESTRICT rgba) {
 	int offset = zi->sox + zi->soy * _size_x;
 	if (rgba) {
 		const volatile u32 *rgba_src = rgba + offset;
-		volatile u8 *rgba_dst = p;
+		volatile u32 *rgba_dst = rgba;
 		for (int jj = 0; jj < lz_left; ++jj) {
 			rgba_dst[jj] = rgba_src[jj];
 		}
