@@ -320,10 +320,10 @@ int SmallPaletteReader::unpackPixels() {
 				p = _pack_palette[p];
 
 				// Unpack byte into 8 pixels
-				pixel[0] = _palette[p >> 7]; p <<= 1;
-				pixel[1] = _palette[p >> 7]; p <<= 1;
-				pixel[2] = _palette[p >> 7]; p <<= 1;
-				pixel[3] = _palette[p >> 7];
+				pixel[0] = _palette[(p >> 7) & 1];
+				pixel[1] = _palette[(p >> 6) & 1];
+				pixel[2] = _palette[(p >> 5) & 1];
+				pixel[3] = _palette[(p >> 4) & 1];
 			}
 
 			if (_size_x & 3) {
