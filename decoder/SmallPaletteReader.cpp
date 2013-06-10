@@ -258,9 +258,6 @@ int SmallPaletteReader::unpackPixels() {
 
 		CAT_WARN("TEST") << "1 bit/pixel " << _palette_size;
 
-		CAT_WARN("PACK") << (int)_palette[0];
-		CAT_WARN("PACK") << (int)_palette[1];
-
 		int x, xlen = _size_x >> 2;
 		for (int y = 0, ylen = _size_y >> 1; y < ylen; ++y) {
 			u32 *pixel = rgba;

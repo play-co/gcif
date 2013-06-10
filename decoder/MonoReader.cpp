@@ -32,8 +32,11 @@
 #include "Filters.hpp"
 using namespace cat;
 
-#ifdef CAT_DESYNCH_CHECKS
+#ifdef CAT_COLLECT_STATS
 #include "../encoder/Log.hpp"
+#endif
+
+#ifdef CAT_DESYNCH_CHECKS
 #define DESYNC_TABLE() \
 	CAT_ENFORCE(reader.readWord() == 1234567);
 #define DESYNC(x, y) \
@@ -303,6 +306,7 @@ u8 MonoReader::read(u16 x, u16 y, u8 * CAT_RESTRICT data, ImageReader & CAT_REST
 		u32 pf = (u32)filter;
 #endif
 		if (pf <= MAX_PALETTE) {
+			CAT_WARN("CAT") << "Reading paletted at " << x << ", " << y;
 			value = _palette[pf];
 
 			_chaos.zero(x);
