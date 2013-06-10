@@ -501,7 +501,7 @@ void MonoWriter::designFilters() {
 						}
 
 						for (int f = 0; f < SF_COUNT; ++f) {
-							u8 prediction = MONO_FILTERS[f].safe(data, num_syms - 1, px, py, size_x);
+							u8 prediction = MONO_FILTERS[f].safe(data, num_syms, px, py, size_x);
 							u16 residual = value + num_syms - prediction;
 							if (residual >= num_syms) {
 								residual -= num_syms;
@@ -748,7 +748,7 @@ void MonoWriter::designTiles() {
 								if (!_params.mask(px, py)) {
 									const u8 value = *data;
 
-									u8 prediction = _profile->filters[old_filter].safe(data, num_syms - 1, px, py, size_x);
+									u8 prediction = _profile->filters[old_filter].safe(data, num_syms, px, py, size_x);
 									u16 residual = value + num_syms - prediction;
 									if (residual >= num_syms) {
 										residual -= num_syms;
@@ -783,7 +783,7 @@ void MonoWriter::designTiles() {
 							u8 *dest = codes + code_count;
 							for (int f = 0, f_end = _profile->filter_count; f < f_end; ++f) {
 								if (_profile->filter_indices[f] < SF_COUNT) {
-									u8 prediction = _profile->filters[f].safe(data, num_syms - 1, px, py, size_x);
+									u8 prediction = _profile->filters[f].safe(data, num_syms, px, py, size_x);
 									u16 residual = value + num_syms - prediction;
 									if (residual >= num_syms) {
 										residual -= num_syms;
@@ -922,7 +922,7 @@ void MonoWriter::computeResiduals() {
 				u8 value = data[x];
 
 				// Run spatial filter to arrive at a prediction
-				u8 prediction = _profile->filters[f].safe(&replay[x], num_syms - 1, x, y, size_x);
+				u8 prediction = _profile->filters[f].safe(&replay[x], num_syms, x, y, size_x);
 				u16 residual = value + num_syms - prediction;
 				if (residual >= num_syms) {
 					residual -= num_syms;
@@ -953,7 +953,7 @@ void MonoWriter::computeResiduals() {
 					u8 value = data[0];
 
 					// Run spatial filter to arrive at a prediction
-					u8 prediction = _profile->filters[f].safe(data, num_syms - 1, x, y, size_x);
+					u8 prediction = _profile->filters[f].safe(data, num_syms, x, y, size_x);
 					u16 residual = value + num_syms - prediction;
 					if (residual >= num_syms) {
 						residual -= num_syms;

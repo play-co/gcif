@@ -1403,13 +1403,13 @@ static const int DIV2_FILTER_TAPS[DIV2_TAPPED_COUNT][4] = {
 				if (x < size_x-1) { \
 					d += 4; /* D */ \
 				} \
-				static const int ta = DIV2_FILTER_TAPS[TAP][0]; \
-				static const int tb = DIV2_FILTER_TAPS[TAP][1]; \
-				static const int tc = DIV2_FILTER_TAPS[TAP][2]; \
-				static const int td = DIV2_FILTER_TAPS[TAP][3]; \
-				temp[0] = (ta*a[0] + tb*b[0] + tc*c[0] + td*d[0]) >> 1; \
-				temp[1] = (ta*a[1] + tb*b[1] + tc*c[1] + td*d[1]) >> 1; \
-				temp[2] = (ta*a[2] + tb*b[2] + tc*c[2] + td*d[2]) >> 1; \
+				static const int TA = DIV2_FILTER_TAPS[TAP][0]; \
+				static const int TB = DIV2_FILTER_TAPS[TAP][1]; \
+				static const int TC = DIV2_FILTER_TAPS[TAP][2]; \
+				static const int TD = DIV2_FILTER_TAPS[TAP][3]; \
+				temp[0] = (TA*a[0] + TB*b[0] + TC*c[0] + TD*d[0]) >> 1; \
+				temp[1] = (TA*a[1] + TB*b[1] + TC*c[1] + TD*d[1]) >> 1; \
+				temp[2] = (TA*a[2] + TB*b[2] + TC*c[2] + TD*d[2]) >> 1; \
 				return temp; \
 			} else { \
 				return a; \
@@ -1425,13 +1425,13 @@ static const int DIV2_FILTER_TAPS[DIV2_TAPPED_COUNT][4] = {
 		const u8 * CAT_RESTRICT b = p - size_x*4; \
 		const u8 * CAT_RESTRICT c = b - 4; \
 		const u8 * CAT_RESTRICT d = b + 4; \
-		static const int ta = DIV2_FILTER_TAPS[TAP][0]; \
-		static const int tb = DIV2_FILTER_TAPS[TAP][1]; \
-		static const int tc = DIV2_FILTER_TAPS[TAP][2]; \
-		static const int td = DIV2_FILTER_TAPS[TAP][3]; \
-		temp[0] = (ta*a[0] + tb*b[0] + tc*c[0] + td*d[0]) >> 1; \
-		temp[1] = (ta*a[1] + tb*b[1] + tc*c[1] + td*d[1]) >> 1; \
-		temp[2] = (ta*a[2] + tb*b[2] + tc*c[2] + td*d[2]) >> 1; \
+		static const int TA = DIV2_FILTER_TAPS[TAP][0]; \
+		static const int TB = DIV2_FILTER_TAPS[TAP][1]; \
+		static const int TC = DIV2_FILTER_TAPS[TAP][2]; \
+		static const int TD = DIV2_FILTER_TAPS[TAP][3]; \
+		temp[0] = (TA*a[0] + TB*b[0] + TC*c[0] + TD*d[0]) >> 1; \
+		temp[1] = (TA*a[1] + TB*b[1] + TC*c[1] + TD*d[1]) >> 1; \
+		temp[2] = (TA*a[2] + TB*b[2] + TC*c[2] + TD*d[2]) >> 1; \
 		return temp; \
 	}
 
@@ -2518,11 +2518,14 @@ static u8 MFFU_ED_GRAD(const u8 * CAT_RESTRICT p, u16 num_syms, int x, int y, in
 				if (x < size_x-1) { \
 					d += 1; /* D */ \
 				} \
-				static const int ta = DIV2_FILTER_TAPS[TAP][0]; \
-				static const int tb = DIV2_FILTER_TAPS[TAP][1]; \
-				static const int tc = DIV2_FILTER_TAPS[TAP][2]; \
-				static const int td = DIV2_FILTER_TAPS[TAP][3]; \
-				return (ta*a[0] + tb*b[0] + tc*c[0] + td*d[0]) >> 1; \
+				static const int TA = DIV2_FILTER_TAPS[TAP][0]; \
+				static const int TB = DIV2_FILTER_TAPS[TAP][1]; \
+				static const int TC = DIV2_FILTER_TAPS[TAP][2]; \
+				static const int TD = DIV2_FILTER_TAPS[TAP][3]; \
+				int result = (TA*a[0] + TB*b[0] + TC*c[0] + TD*d[0]) >> 1; \
+				while (result >= num_syms) result -= num_syms; \
+				while (result < 0) result += num_syms; \
+				return result; \
 			} else { \
 				return *a; \
 			} \
@@ -2537,11 +2540,14 @@ static u8 MFFU_ED_GRAD(const u8 * CAT_RESTRICT p, u16 num_syms, int x, int y, in
 		const u8 * CAT_RESTRICT b = p - size_x; \
 		const u8 * CAT_RESTRICT c = b - 1; \
 		const u8 * CAT_RESTRICT d = b + 1; \
-		static const int ta = DIV2_FILTER_TAPS[TAP][0]; \
-		static const int tb = DIV2_FILTER_TAPS[TAP][1]; \
-		static const int tc = DIV2_FILTER_TAPS[TAP][2]; \
-		static const int td = DIV2_FILTER_TAPS[TAP][3]; \
-		return (ta*a[0] + tb*b[0] + tc*c[0] + td*d[0]) >> 1; \
+		static const int TA = DIV2_FILTER_TAPS[TAP][0]; \
+		static const int TB = DIV2_FILTER_TAPS[TAP][1]; \
+		static const int TC = DIV2_FILTER_TAPS[TAP][2]; \
+		static const int TD = DIV2_FILTER_TAPS[TAP][3]; \
+		int result = (TA*a[0] + TB*b[0] + TC*c[0] + TD*d[0]) >> 1; \
+		while (result >= num_syms) result -= num_syms; \
+		while (result < 0) result += num_syms; \
+		return result; \
 	}
 
 DEFINE_TAPS( 0);DEFINE_TAPS( 1);DEFINE_TAPS( 2);DEFINE_TAPS( 3);DEFINE_TAPS( 4)
