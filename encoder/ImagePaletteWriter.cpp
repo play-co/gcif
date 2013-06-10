@@ -129,20 +129,14 @@ void ImagePaletteWriter::generateImage() {
 	u8 *image = _image.get();
 
 	for (int y = 0; y < _size_y; ++y) {
-		for (int x = 0, xend = _size_x; x < xend; ++x) {
-			u32 c = *color++;
-
-			if (_mask->masked(x, y)) {
-				*image++ = masked_palette;
-			} else {
-				*image++ = _map[c];
-			}
+		for (int x = 0, xend = _size_x; x < xend; ++x, ++image, ++color) {
+			image[0] = _mask->masked(x, y) ? masked_palette : _map[color[0]];
 		}
 	}
 }
 
 void ImagePaletteWriter::optimizeImage() {
-	CAT_INANE("Palette") << "Optimizing palette...";
+	CAT_INANE("Palette") << "Optimizing palette with " << _palette_size << " entries...";
 
 	_optimizer.process(_image.get(), _size_x, _size_y, _palette_size,
 		PaletteOptimizer::MaskDelegate::FromMember<ImagePaletteWriter, &ImagePaletteWriter::IsMasked>(this));
@@ -160,13 +154,7 @@ void ImagePaletteWriter::optimizeImage() {
 	}
 	_palette = better_palette;
 
-	// Fix map
-	_map.clear();
-
-	for (int ii = 0, iiend = (int)_palette.size(); ii < iiend; ++ii) {
-		u32 color = _palette[ii];
-		_map[color] = (u8)ii;
-	}
+	// NOTE: We leave _map dirty since it is not used again
 }
 
 void ImagePaletteWriter::generateMonoWriter() {
@@ -249,7 +237,7 @@ void ImagePaletteWriter::writeTable(ImageWriter &writer) {
 	pal_bits += 8;
 
 	// If palette is small,
-	if (_palette_size < 40) {
+	if (_palette_size < HUFF_THRESH) {
 		writer.writeBit(0);
 		++pal_bits;
 
@@ -299,15 +287,7 @@ void ImagePaletteWriter::writeTable(ImageWriter &writer) {
 		}
 
 		CAT_DEBUG_ENFORCE(CF_COUNT == 17);
-
-		if (bestCF >= 15) {
-			writer.writeBits(15, 4);
-			writer.writeBit(bestCF - 15);
-			pal_bits += 5;
-		} else {
-			writer.writeBits(bestCF, 4);
-			pal_bits += 4;
-		}
+		pal_bits += writer.write17(bestCF);
 
 		RGB2YUVFilterFunction bestFilter = RGB2YUV_FILTERS[bestCF];
 

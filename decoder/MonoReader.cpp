@@ -63,8 +63,6 @@ int MonoReader::readTables(const Parameters & CAT_RESTRICT params, ImageReader &
 
 	// If decoder is disabled,
 	if (reader.readBit() == 0) {
-		CAT_WARN("Mono") << "Reading row filter tables";
-
 		_use_row_filters = true;
 
 		// If one row filter,
@@ -79,8 +77,6 @@ int MonoReader::readTables(const Parameters & CAT_RESTRICT params, ImageReader &
 			return GCIF_RE_BAD_MONO;
 		}
 	} else {
-		CAT_WARN("Mono") << "Reading tile-based decoder tables";
-
 		// Enable decoder
 		_use_row_filters = false;
 
@@ -129,7 +125,6 @@ int MonoReader::readTables(const Parameters & CAT_RESTRICT params, ImageReader &
 		const int sympal_filter_count = reader.readBits(4);
 		for (int ii = 0; ii < sympal_filter_count; ++ii) {
 			_palette[ii] = reader.readBits(8);
-			CAT_WARN("Woo") << "Palette data " << (int)_palette[ii];
 		}
 
 		DESYNC_TABLE();
@@ -147,16 +142,12 @@ int MonoReader::readTables(const Parameters & CAT_RESTRICT params, ImageReader &
 
 				CAT_DEBUG_ENFORCE(pf < MAX_PALETTE);
 
-				// Set palette entry
-				CAT_WARN("SF") << "Palette " << (int)pf;
-
 				// Set filter function sentinel
 				MonoFilterFuncs pal_funcs;
 				pal_funcs.safe = pal_funcs.unsafe = (MonoFilterFunc)(pf + 1);
 				_sf[ii] = pal_funcs;
 			} else {
 				_sf[ii] = MONO_FILTERS[sf];
-				CAT_WARN("SF") << "Normal " << ii << " = " << (int)sf;
 			}
 		}
 
@@ -290,8 +281,6 @@ u8 MonoReader::read(u16 x, u16 y, u8 * CAT_RESTRICT data, ImageReader & CAT_REST
 			u8 *tp = _current_tile + tx;
 			u8 f = _filter_decoder->read(tx, ty, tp, reader);
 
-			CAT_WARN("FILTER") << (tx << _tile_bits_x) << ", " << (ty << _tile_bits_x) << " : " << (int)f << " at " << x << ", " << y;
-
 			// Read filter
 			MonoFilterFuncs * CAT_RESTRICT funcs = &_sf[f];
 			_filter_row[tx] = *funcs;
@@ -308,8 +297,6 @@ u8 MonoReader::read(u16 x, u16 y, u8 * CAT_RESTRICT data, ImageReader & CAT_REST
 #endif
 		if (pf <= MAX_PALETTE+1) {
 			value = _palette[pf - 1];
-			CAT_WARN("CAT") << "Reading paletted at " << x << ", " << y << " : " << pf << " = " << value;
-
 			_chaos.zero(x);
 		} else {
 			// Get chaos bin
@@ -324,8 +311,6 @@ u8 MonoReader::read(u16 x, u16 y, u8 * CAT_RESTRICT data, ImageReader & CAT_REST
 
 			// Calculate predicted value
 			u16 pred = filter(data, num_syms, x, y, _params.size_x);
-
-			CAT_WARN("PRED") << pred << " chaos=" << chaos << " residual=" << residual << " num_syms=" << num_syms;
 
 			CAT_DEBUG_ENFORCE(pred < num_syms);
 
@@ -383,8 +368,6 @@ u8 MonoReader::read_unsafe(u16 x, u16 y, u8 * CAT_RESTRICT data, ImageReader & C
 			u8 *tp = _current_tile + tx;
 			u8 f = _filter_decoder->read(tx, ty, tp, reader);
 
-			CAT_WARN("FILTER") << (tx << _tile_bits_x) << ", " << (ty << _tile_bits_x) << " : " << (int)f;
-
 			// Read filter
 			MonoFilterFuncs * CAT_RESTRICT funcs = &_sf[f];
 			_filter_row[tx] = *funcs;
@@ -401,8 +384,6 @@ u8 MonoReader::read_unsafe(u16 x, u16 y, u8 * CAT_RESTRICT data, ImageReader & C
 #endif
 		if (pf <= MAX_PALETTE+1) {
 			value = _palette[pf - 1];
-			CAT_WARN("CAT") << "Reading paletted at " << x << ", " << y << " : " << pf << " = " << value;
-
 			_chaos.zero(x);
 		} else {
 			// Get chaos bin
