@@ -33,13 +33,13 @@ namespace cat {
 
 
 // Dump filter choices
-//#define CAT_DUMP_FILTERS
+#define CAT_DUMP_FILTERS
 
 // Dump LZ header contents
-//#define CAT_DUMP_LZ
+#define CAT_DUMP_LZ
 
 // Bloat the file size a lot to check for desynchronization points in decoder
-//#define CAT_DESYNCH_CHECKS
+#define CAT_DESYNCH_CHECKS
 
 // Enable memory-mapped file IO, allows API that has a file name as input
 //#define CAT_COMPILE_MMAP

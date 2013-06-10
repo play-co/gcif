@@ -1714,7 +1714,7 @@ static u8 MFF_AVG_BD(const u8 * CAT_RESTRICT p, u8 clamp_max, int x, int y, int 
 		const u8 * CAT_RESTRICT b = p - size_x; // B
 
 		if (x > 0) {
-			const u8 * CAT_RESTRICT src = p - 1; // C
+			const u8 * CAT_RESTRICT src = b - 1; // C
 			if (x < size_x-1) {
 				src += 2; // D
 			}
@@ -1889,7 +1889,7 @@ static u8 MFF_AVG_BD1(const u8 * CAT_RESTRICT p, u8 clamp_max, int x, int y, int
 		const u8 * CAT_RESTRICT b = p - size_x; // B
 
 		if (x > 0) {
-			const u8 * CAT_RESTRICT src = p - 1; // C
+			const u8 * CAT_RESTRICT src = b - 1; // C
 			if (x < size_x-1) {
 				src += 2; // D
 			}
