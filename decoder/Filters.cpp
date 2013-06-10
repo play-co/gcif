@@ -259,7 +259,7 @@ static const u8 *SFF_AVG_BD(const u8 * CAT_RESTRICT p, u8 * CAT_RESTRICT temp, i
 		const u8 * CAT_RESTRICT b = p - size_x*4; // B
 
 		if (x > 0) {
-			const u8 * CAT_RESTRICT src = p - 4; // C
+			const u8 * CAT_RESTRICT src = b - 4; // C
 			if (x < size_x-1) {
 				src += 8; // D
 			}
@@ -470,7 +470,7 @@ static const u8 *SFF_AVG_BD1(const u8 * CAT_RESTRICT p, u8 * CAT_RESTRICT temp, 
 		const u8 * CAT_RESTRICT b = p - size_x*4; // B
 
 		if (x > 0) {
-			const u8 * CAT_RESTRICT src = p - 4; // C
+			const u8 * CAT_RESTRICT src = b - 4; // C
 			if (x < size_x-1) {
 				src += 8; // D
 			}
