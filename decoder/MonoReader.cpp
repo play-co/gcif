@@ -322,7 +322,7 @@ u8 MonoReader::read(u16 x, u16 y, u8 * CAT_RESTRICT data, ImageReader & CAT_REST
 			_chaos.store(x, residual, num_syms);
 
 			// Calculate predicted value
-			u16 pred = filter(data, num_syms - 1, x, y, _params.size_x);
+			u16 pred = filter(data, num_syms, x, y, _params.size_x);
 
 			CAT_WARN("PRED") << pred << " chaos=" << chaos << " residual=" << residual << " num_syms=" << num_syms;
 
@@ -415,7 +415,7 @@ u8 MonoReader::read_unsafe(u16 x, u16 y, u8 * CAT_RESTRICT data, ImageReader & C
 			_chaos.store(x, residual, num_syms);
 
 			// Calculate predicted value
-			u16 pred = filter(data, num_syms - 1, x, y, _params.size_x);
+			u16 pred = filter(data, num_syms, x, y, _params.size_x);
 
 			CAT_DEBUG_ENFORCE(pred < num_syms);
 

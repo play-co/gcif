@@ -136,13 +136,13 @@ extern const RGBAFilterFuncs RGBA_FILTERS[SF_COUNT];
  * Monochrome filter (Assumes data pointer is bytewise)
  *
  * p: Pointer to current monochrome pixel
- * clamp_max: Maximum value when function clamps
+ * num_syms: Number of symbols
  * x, y: Pixel location
  * width: Pixels in width of p buffer
  *
  * Returns filter prediction.
  */
-typedef u8 (*MonoFilterFunc)(const u8 * CAT_RESTRICT p, u8 clamp_max, int x, int y, int width);
+typedef u8 (*MonoFilterFunc)(const u8 * CAT_RESTRICT p, u16 num_syms, int x, int y, int width);
 
 struct MonoFilterFuncs {
 	// Safe for any input that is actually on the image
