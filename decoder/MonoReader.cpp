@@ -129,6 +129,7 @@ int MonoReader::readTables(const Parameters & CAT_RESTRICT params, ImageReader &
 		const int sympal_filter_count = reader.readBits(4);
 		for (int ii = 0; ii < sympal_filter_count; ++ii) {
 			_palette[ii] = reader.readBits(8);
+			CAT_WARN("Woo") << "Palette data " << (int)_palette[ii];
 		}
 
 		DESYNC_TABLE();
@@ -306,8 +307,8 @@ u8 MonoReader::read(u16 x, u16 y, u8 * CAT_RESTRICT data, ImageReader & CAT_REST
 		u32 pf = (u32)filter;
 #endif
 		if (pf <= MAX_PALETTE) {
-			CAT_WARN("CAT") << "Reading paletted at " << x << ", " << y;
 			value = _palette[pf];
+			CAT_WARN("CAT") << "Reading paletted at " << x << ", " << y << " : " << pf << " = " << value;
 
 			_chaos.zero(x);
 		} else {
@@ -399,8 +400,8 @@ u8 MonoReader::read_unsafe(u16 x, u16 y, u8 * CAT_RESTRICT data, ImageReader & C
 		u32 pf = (u32)filter;
 #endif
 		if (pf <= MAX_PALETTE+1) {
-			CAT_WARN("CAT") << "Reading paletted at " << x << ", " << y;
 			value = _palette[pf - 1];
+			CAT_WARN("CAT") << "Reading paletted at " << x << ", " << y << " : " << pf << " = " << value;
 
 			_chaos.zero(x);
 		} else {

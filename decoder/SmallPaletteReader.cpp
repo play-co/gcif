@@ -46,6 +46,8 @@ int SmallPaletteReader::readSmallPalette(ImageReader & CAT_RESTRICT reader) {
 
 	for (int ii = 0; ii < _palette_size; ++ii) {
 		_palette[ii] = getLE(reader.readWord());
+
+		CAT_WARN("PALETTE") << ii << " => " << (int)_palette[ii];
 	}
 
 	if (_palette_size > 4) { // 3-4 bits/pixel
@@ -81,6 +83,8 @@ int SmallPaletteReader::readPackPalette(ImageReader & CAT_RESTRICT reader) {
 
 	for (int ii = 0; ii < _pack_palette_size; ++ii) {
 		_pack_palette[ii] = reader.readBits(8);
+
+		CAT_WARN("PACK") << ii << " => " << (int)_pack_palette[ii];
 	}
 
 	return GCIF_RE_OK;

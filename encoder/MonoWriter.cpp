@@ -430,11 +430,13 @@ void MonoWriter::designPaletteFilters() {
 		u32 coverage = hist[sym];
 
 		// If filter is worth adding,
-		if (coverage >= sympal_thresh) {
+		if (coverage > 0 && coverage >= sympal_thresh) {
 			// Add it
 			_profile->sympal[sympal_count++] = (u8)sym;
 
-			//CAT_INANE("Mono") << " - Added symbol palette filter for symbol " << (int)sym;
+#ifdef CAT_DUMP_FILTERS
+			CAT_INANE("Mono") << " - Added symbol palette filter for symbol " << (int)sym;
+#endif
 
 			// If we ran out of room,
 			if (sympal_count >= MAX_PALETTE) {
