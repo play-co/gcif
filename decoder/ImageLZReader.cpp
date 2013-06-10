@@ -222,15 +222,17 @@ int ImageLZReader::triggerX(u8 * CAT_RESTRICT p, u32 * CAT_RESTRICT rgba) {
 	int offset = zi->sox + zi->soy * _size_x;
 	if (rgba) {
 		const volatile u32 *rgba_src = rgba + offset;
+		volatile u8 *rgba_dst = p;
 		for (int jj = 0; jj < lz_left; ++jj) {
-			rgba[jj] = rgba_src[jj];
+			rgba_dst[jj] = rgba_src[jj];
 		}
 	}
 
 	// Copy scanline one at a time in case the pointers are aliased
 	const volatile u8 *p_src = p + offset;
+	volatile u8 *p_dst = p;
 	for (int jj = 0; jj < lz_left; ++jj) {
-		p[jj] = p_src[jj];
+		p_dst[jj] = p_src[jj];
 	}
 
 	// Iterate ahead to next in work list
