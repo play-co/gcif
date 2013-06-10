@@ -256,6 +256,11 @@ int SmallPaletteReader::unpackPixels() {
 		CAT_DEBUG_ENFORCE(_pack_y == (_size_y+1)/2);
 		CAT_DEBUG_ENFORCE(_pack_x == (_size_x+3)/4);
 
+		CAT_WARN("TEST") << "1 bit/pixel " << _palette_size;
+
+		CAT_WARN("PACK") << (int)_palette[0];
+		CAT_WARN("PACK") << (int)_palette[1];
+
 		int x, xlen = _size_x >> 2;
 		for (int y = 0, ylen = _size_y >> 1; y < ylen; ++y) {
 			u32 *pixel = rgba;
@@ -268,15 +273,15 @@ int SmallPaletteReader::unpackPixels() {
 				p = _pack_palette[p];
 
 				// Unpack byte into 8 pixels
-				pixel[0] = _palette[p >> 7]; p <<= 1;
-				pixel[1] = _palette[p >> 7]; p <<= 1;
-				pixel[2] = _palette[p >> 7]; p <<= 1;
-				pixel[3] = _palette[p >> 7]; p <<= 1;
+				pixel[0] = _palette[(p >> 7) & 1];
+				pixel[1] = _palette[(p >> 6) & 1];
+				pixel[2] = _palette[(p >> 5) & 1];
+				pixel[3] = _palette[(p >> 4) & 1];
 				u32 *next = pixel + _size_x;
-				next[0] = _palette[p >> 7]; p <<= 1;
-				next[1] = _palette[p >> 7]; p <<= 1;
-				next[2] = _palette[p >> 7]; p <<= 1;
-				next[3] = _palette[p >> 7];
+				next[0] = _palette[(p >> 3) & 1];
+				next[1] = _palette[(p >> 2) & 1];
+				next[2] = _palette[(p >> 1) & 1];
+				next[3] = _palette[p & 1];
 			}
 
 			if (_size_x & 3) {
@@ -301,7 +306,7 @@ int SmallPaletteReader::unpackPixels() {
 				}
 			}
 
-			rgba += _size_x;
+			rgba += _size_x << 1;
 		}
 
 		if (_size_y & 1) {
