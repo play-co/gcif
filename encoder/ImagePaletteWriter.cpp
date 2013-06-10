@@ -146,13 +146,12 @@ void ImagePaletteWriter::optimizeImage() {
 	memcpy(_image.get(), src, _size_x * _size_y);
 
 	// Fix color palette array
-	vector<u32> better_palette;
-	better_palette.resize(_palette_size);
+	u32 better_palette[PALETTE_MAX];
 
 	for (int ii = 0; ii < _palette_size; ++ii) {
 		better_palette[_optimizer.forward(ii)] = _palette[ii];
 	}
-	_palette = better_palette;
+	memcpy(&_palette[0], better_palette, _palette_size * sizeof(_palette[0]));
 
 	// NOTE: We leave _map dirty since it is not used again
 }
