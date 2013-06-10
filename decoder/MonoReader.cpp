@@ -306,8 +306,8 @@ u8 MonoReader::read(u16 x, u16 y, u8 * CAT_RESTRICT data, ImageReader & CAT_REST
 #else
 		u32 pf = (u32)filter;
 #endif
-		if (pf <= MAX_PALETTE) {
-			value = _palette[pf];
+		if (pf <= MAX_PALETTE+1) {
+			value = _palette[pf - 1];
 			CAT_WARN("CAT") << "Reading paletted at " << x << ", " << y << " : " << pf << " = " << value;
 
 			_chaos.zero(x);
