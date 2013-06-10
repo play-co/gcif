@@ -65,7 +65,9 @@
  * (4) After index 8, it cares about closeness to the last 8 indices only.
  *
  * The closeness to the last index is more important than earlier indices, so
- * those are scored higher.
+ * those are scored higher.  Also, left/right neighbors are scored twice as
+ * high as other neighbors, matching the natural horizontal correlation of
+ * most images.
  */
 
 namespace cat {

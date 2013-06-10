@@ -141,6 +141,19 @@ void ImagePaletteWriter::optimizeImage() {
 	_optimizer.process(_image.get(), _size_x, _size_y, _palette_size,
 		PaletteOptimizer::MaskDelegate::FromMember<ImagePaletteWriter, &ImagePaletteWriter::IsMasked>(this));
 
+#ifdef CAT_DEBUG
+	const u8 *p = _image.get();
+	const u8 *b = _optimizer.getOptimizedImage();
+	for (int y = 0; y < _size_y; ++y) {
+		for (int x = 0; x < _size_x; ++x, ++p, ++b) {
+			u8 index = *p;
+			u8 mutated = _optimizer.forward(index);
+
+			CAT_DEBUG_ENFORCE(*b == mutated);
+		}
+	}
+#endif
+
 	// Replace palette image
 	const u8 *src = _optimizer.getOptimizedImage();
 	memcpy(_image.get(), src, _size_x * _size_y);
