@@ -727,8 +727,10 @@ int ImageRGBAWriter::writeTables(ImageWriter &writer) {
 
 	DESYNC_TABLE();
 
+	CAT_DEBUG_ENFORCE(_sf_count > 0);
+
 	// Write filter choices
-	writer.writeBits(_sf_count, 5);
+	writer.writeBits(_sf_count - 1, 5);
 	int choice_bits = 5;
 
 	for (int ii = 0; ii < _sf_count; ++ii) {
