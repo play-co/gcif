@@ -76,6 +76,9 @@ int MonoReader::readTables(const Parameters & CAT_RESTRICT params, ImageReader &
 		if CAT_UNLIKELY(!_row_filter_decoder.init(reader)) {
 			return GCIF_RE_BAD_MONO;
 		}
+
+		// NOTE: Chaos is not actually used, but it avoids an if-statement in zero()
+		_chaos.init(0, _params.size_x);
 	} else {
 		// Enable decoder
 		_use_row_filters = false;
