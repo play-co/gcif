@@ -226,6 +226,13 @@ int MonoReader::readRowHeader(u16 y, ImageReader & CAT_RESTRICT reader) {
 		// If at the start of a tile row,
 		if ((y & _tile_mask_y) == 0) {
 			if (y > 0) {
+				// For each pixel in seen row,
+				for (u16 tx = 0; tx < _tiles_x; ++tx) {
+					if (!_filter_row[tx].safe) {
+						_filter_decoder->zero(tx);
+					}
+				}
+
 				// Next tile row
 				_current_tile_y++;
 				_current_tile += _tiles_x;
