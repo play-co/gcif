@@ -166,6 +166,8 @@ void ImagePaletteWriter::optimizeImage() {
 	}
 	memcpy(&_palette[0], better_palette, _palette_size * sizeof(_palette[0]));
 
+	_masked_palette = _optimizer.forward(_masked_palette);
+
 	// NOTE: We leave _map dirty since it is not used again
 }
 
