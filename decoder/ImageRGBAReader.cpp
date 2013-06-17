@@ -267,6 +267,14 @@ int ImageRGBAReader::readPixels(ImageReader & CAT_RESTRICT reader) {
 
 		// If it is time to clear the filters data,
 		if ((y & _tile_mask_y) == 0) {
+			// Zero filter holes
+			for (u16 tx = 0; tx < _tiles_x; ++tx) {
+				if (!_filters[tx].ready()) {
+					_sf_decoder.zero(tx);
+					_cf_decoder.zero(tx);
+				}
+			}
+
 			// Clear filters data
 			_filters.fill_00();
 
