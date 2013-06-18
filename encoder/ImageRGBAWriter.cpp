@@ -849,8 +849,8 @@ bool ImageRGBAWriter::writePixels(ImageWriter &writer) {
 
 					CAT_DEBUG_ENFORCE(!IsSFMasked(tx, ty));
 
-					sf_bits += _sf_encoder.write(tx, ty, writer);
 					cf_bits += _cf_encoder.write(tx, ty, writer);
+					sf_bits += _sf_encoder.write(tx, ty, writer);
 				}
 
 				// Get chaos bin

@@ -278,9 +278,11 @@ int ImageRGBAReader::readPixels(ImageReader & CAT_RESTRICT reader) {
 			// Clear filters data
 			_filters.fill_00();
 
+			const u16 ty = y >> _tile_bits_y;
+
 			// Read row headers
-			_sf_decoder.readRowHeader(y, reader);
-			_cf_decoder.readRowHeader(y, reader);
+			_sf_decoder.readRowHeader(ty, reader);
+			_cf_decoder.readRowHeader(ty, reader);
 		}
 
 		_a_decoder.readRowHeader(y, reader);
