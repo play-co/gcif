@@ -245,8 +245,6 @@ int ImageRGBAReader::readPixels(ImageReader & CAT_RESTRICT reader) {
 				_a_decoder.zero(x);
 			} else {
 				readSafe(x, y, p, a_p, reader);
-
-				DESYNC(x, y);
 			}
 
 			// Next pixel
@@ -322,8 +320,6 @@ int ImageRGBAReader::readPixels(ImageReader & CAT_RESTRICT reader) {
 				_a_decoder.zero(x);
 			} else {
 				readSafe(x, y, p, a_p, reader);
-
-				DESYNC(x, y);
 			}
 
 			// Next pixel
@@ -365,8 +361,6 @@ int ImageRGBAReader::readPixels(ImageReader & CAT_RESTRICT reader) {
 			} else {
 				// Note: Reading with unsafe spatial filter
 				readUnsafe(x, y, p, a_p, reader);
-
-				DESYNC(x, y);
 			}
 
 			// Next pixel
@@ -407,8 +401,6 @@ int ImageRGBAReader::readPixels(ImageReader & CAT_RESTRICT reader) {
 				_a_decoder.zero(x);
 			} else {
 				readSafe(x, y, p, a_p, reader);
-
-				DESYNC(x, y);
 			}
 
 			// Next pixel
@@ -477,7 +469,6 @@ int ImageRGBAReader::read(ImageReader & CAT_RESTRICT reader, ImageMaskReader & C
 #ifdef CAT_COLLECT_STATS
 
 bool ImageRGBAReader::dumpStats() {
-	CAT_INANE("stats") << "(RGBA Decode)     Initialization : " << Stats.initUsec << " usec (" << Stats.initUsec * 100.f / Stats.overallUsec << " %total)";
 	CAT_INANE("stats") << "(RGBA Decode) Read Filter Tables : " << Stats.readFilterTablesUsec << " usec (" << Stats.readFilterTablesUsec * 100.f / Stats.overallUsec << " %total)";
 	CAT_INANE("stats") << "(RGBA Decode)   Read RGBA Tables : " << Stats.readChaosTablesUsec << " usec (" << Stats.readChaosTablesUsec * 100.f / Stats.overallUsec << " %total)";
 	CAT_INANE("stats") << "(RGBA Decode)      Decode Pixels : " << Stats.readPixelsUsec << " usec (" << Stats.readPixelsUsec * 100.f / Stats.overallUsec << " %total)";
