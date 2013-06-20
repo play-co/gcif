@@ -1573,7 +1573,6 @@ int MonoWriter::write(u16 x, u16 y, ImageWriter &writer) {
 
 		// If using sympal,
 		if (_profile->filter_indices[f] >= SF_COUNT) {
-			CAT_WARN("CAT") << "Writing paletted at " << x << ", " << y;
 			_profile->encoders->chaos.zero(x);
 		} else {
 			// Look up residual sym

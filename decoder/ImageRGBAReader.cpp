@@ -191,6 +191,8 @@ int ImageRGBAReader::readPixels(ImageReader & CAT_RESTRICT reader) {
 
 	_chaos.start();
 
+#ifdef CAT_UNROLL_READER
+
 	// Unroll y = 0 scanline
 	{
 		const int y = 0;
@@ -408,6 +410,86 @@ int ImageRGBAReader::readPixels(ImageReader & CAT_RESTRICT reader) {
 			++a_p;
 		}
 	}
+
+#else
+
+	// For each row,
+	for (int y = 0; y < _size_y; ++y) {
+		// If LZ triggered,
+		if (y == _lz->getTriggerY()) {
+			_lz->triggerY();
+			trigger_x_lz = _lz->getTriggerX();
+		}
+
+		// If it is time to clear the filters data,
+		if ((y & _tile_mask_y) == 0) {
+			if (y > 0) {
+				// Zero filter holes
+				for (u16 tx = 0; tx < _tiles_x; ++tx) {
+					if (!_filters[tx].ready()) {
+						_sf_decoder.zero(tx);
+						_cf_decoder.zero(tx);
+					}
+				}
+			}
+
+			// Clear filters data
+			_filters.fill_00();
+
+			const u16 ty = y >> _tile_bits_y;
+
+			// Read row headers
+			_sf_decoder.readRowHeader(ty, reader);
+			_cf_decoder.readRowHeader(ty, reader);
+		}
+
+		_a_decoder.readRowHeader(y, reader);
+
+		// Read mask scanline
+		const u32 * CAT_RESTRICT mask_next = _mask->nextScanline();
+		int mask_left = 0;
+		u32 mask;
+
+		// Restart for scanline
+		int lz_skip = 0;
+
+		// For each pixel,
+		for (int x = 0; x < size_x; ++x) {
+			DESYNC(x, y);
+
+			// If LZ triggered,
+			if (x == trigger_x_lz) {
+				lz_skip = _lz->triggerX(a_p, reinterpret_cast<u32 *>( p ));
+				trigger_x_lz = _lz->getTriggerX();
+			}
+
+			// Next mask word
+			if (mask_left-- <= 0) {
+				mask = *mask_next++;
+				mask_left = 31;
+			}
+
+			if (lz_skip > 0) {
+				--lz_skip;
+				_chaos.zero(x);
+				_a_decoder.zero(x);
+			} else if ((s32)mask < 0) {
+				*reinterpret_cast<u32 *>( p ) = MASK_COLOR;
+				*a_p = MASK_ALPHA;
+				_chaos.zero(x);
+				_a_decoder.zero(x);
+			} else {
+				readSafe(x, y, p, a_p, reader);
+			}
+
+			// Next pixel
+			p += 4;
+			mask <<= 1;
+			++a_p;
+		}
+	}
+
+#endif
 
 	return GCIF_RE_OK;
 }

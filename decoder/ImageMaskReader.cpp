@@ -191,8 +191,10 @@ const u32 *ImageMaskReader::nextScanline() {
 		// If first row,
 		int bitOn = 0;
 		if (_scanline_y == 0) {
-			// Set up specially
-			row[0] = 0;
+			// Initialize to all 0
+			for (int ii = 0; ii < stride; ++ii) {
+				row[ii] = 0;
+			}
 			bitOn = 1;
 		}
 
@@ -241,17 +243,8 @@ const u32 *ImageMaskReader::nextScanline() {
 					if (bitOn ^= 1) {
 						// Fill bottom bits with 0s (do nothing)
 
-						// For each intervening word and new one,
-						for (int ii = wordOffset + 1; ii < newOffset; ++ii) {
-							row[ii] = 0;
-						}
-
 						// Write a 1 at the new location
-						if (newOffset <= wordOffset) {
-							row[newOffset] |= 1 << shift;
-						} else {
-							row[newOffset] = 1 << shift;
-						}
+						row[newOffset] |= 1 << shift;
 					} else {
 						u32 bitsUsedMask = 0xffffffff >> (bitOffset & 31);
 
