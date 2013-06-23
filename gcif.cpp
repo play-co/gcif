@@ -115,8 +115,6 @@ static int benchfile(string filename) {
 	string benchfile = filename + ".gci";
 	const char *cbenchfile = benchfile.c_str();
 
-	CAT_WARN("TEST") << benchfile << " and " << image.size();
-
 	if ((err = gcif_write(&image[0], size_x, size_y, cbenchfile, compress_level))) {
 		CAT_WARN("main") << "Error while compressing the image: " << gcif_write_errstr(err) << " for " << filename;
 		return err;
@@ -132,10 +130,17 @@ static int benchfile(string filename) {
 
 	double t3 = Clock::ref()->usec();
 
-	for (u32 ii = 0; ii < size_x * size_y * 4; ++ii) {
-		if (outimage.rgba[ii] != image[ii]) {
-			CAT_WARN("main") << "Output image does not match input image for " << filename << " at " << ii;
-			break;
+	for (u32 ii = 0; ii < size_x * size_y * 4; ii += 4) {
+		if (image[ii + 3] == 0) {
+			if (*(u32*)&outimage.rgba[ii] != 0) {
+				CAT_WARN("main") << "Output image does not match input image for " << filename << " at " << ii << " (on transparency)";
+				break;
+			}
+		} else {
+			if (*(u32*)&outimage.rgba[ii] != *(u32*)&image[ii]) {
+				CAT_WARN("main") << "Output image does not match input image for " << filename << " at " << ii;
+				break;
+			}
 		}
 	}
 
