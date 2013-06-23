@@ -58,10 +58,10 @@ namespace cat {
 enum SpatialFilters {
 	// Simple filters
 	SF_A,				// A
-	SF_Z,				// 0
 	SF_B,				// B
 	SF_C,				// C
 	SF_D,				// D
+	SF_Z,				// 0
 
 	// Dual average filters (round down)
 	SF_AVG_AB,			// (A + B) / 2
