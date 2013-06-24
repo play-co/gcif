@@ -175,7 +175,7 @@ protected:
 		filter->cf(YUV, p);
 
 		// Reverse spatial filter
-		const u8 *pred = filter->sf.unsafe(p, _FPT, x, y, _size_x);
+		const u8 * CAT_RESTRICT pred = filter->sf.unsafe(p, _FPT, x, y, _size_x);
 		p[0] += pred[0];
 		p[1] += pred[1];
 		p[2] += pred[2];
