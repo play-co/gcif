@@ -154,6 +154,10 @@ int ImagePaletteReader::readPixels(ImageReader & CAT_RESTRICT reader) {
 
 	u16 trigger_x_lz = _lz->getTriggerX();
 
+#ifdef CAT_UNROLL_READER
+
+	// Unroll y = 0 scanline
+
 	for (int y = 0, yend = _size_y; y < yend; ++y) {
 		_mono_decoder.readRowHeader(y, reader);
 
@@ -204,6 +208,61 @@ int ImagePaletteReader::readPixels(ImageReader & CAT_RESTRICT reader) {
 			++p;
 		}
 	}
+
+#else
+
+	for (int y = 0, yend = _size_y; y < yend; ++y) {
+		_mono_decoder.readRowHeader(y, reader);
+
+		if (y == _lz->getTriggerY()) {
+			_lz->triggerY();
+			trigger_x_lz = _lz->getTriggerX();
+		}
+
+		const u32 *mask_next = _mask->nextScanline();
+		int mask_left = 0;
+		u32 mask;
+
+		int lz_skip = 0;
+
+		for (int x = 0, xend = _size_x; x < xend; ++x) {
+			DESYNC(x, y);
+
+			// If LZ triggered,
+			if (x == trigger_x_lz) {
+				lz_skip = _lz->triggerX(p, rgba);
+				trigger_x_lz = _lz->getTriggerX();
+			}
+
+			// Next mask word
+			if (mask_left-- <= 0) {
+				mask = *mask_next++;
+				mask_left = 31;
+			}
+
+			if (lz_skip > 0) {
+				--lz_skip;
+				_mono_decoder.masked(x);
+			} else if ((s32)mask < 0) {
+				*rgba = MASK_COLOR;
+				*p = MASK_PAL;
+				_mono_decoder.masked(x);
+			} else {
+				// TODO: Unroll to use unsafe version
+				u8 index = _mono_decoder.read(x, y, p, reader);
+
+				CAT_DEBUG_ENFORCE(index < _palette_size);
+
+				*rgba = _palette[index];
+			}
+
+			++rgba;
+			mask <<= 1;
+			++p;
+		}
+	}
+
+#endif
 
 	return GCIF_RE_OK;
 }

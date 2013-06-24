@@ -734,9 +734,9 @@ static const u8 *SFF_AVG_ABCD(const u8 * CAT_RESTRICT p, u8 * CAT_RESTRICT temp,
 				src += 4; // D
 			}
 
-			temp[0] = (a[0] + (int)b[0] + c[0] + (int)src[0]) >> 2;
-			temp[1] = (a[1] + (int)b[1] + c[1] + (int)src[1]) >> 2;
-			temp[2] = (a[2] + (int)b[2] + c[2] + (int)src[2]) >> 2;
+			temp[0] = (a[0] + (u16)b[0] + c[0] + (u16)src[0]) >> 2;
+			temp[1] = (a[1] + (u16)b[1] + c[1] + (u16)src[1]) >> 2;
+			temp[2] = (a[2] + (u16)b[2] + c[2] + (u16)src[2]) >> 2;
 			return temp;
 		} else {
 			return a;
@@ -765,9 +765,9 @@ static const u8 *SFFU_AVG_ABCD(const u8 * CAT_RESTRICT p, u8 * CAT_RESTRICT temp
 	const u8 * CAT_RESTRICT c = b - 4; // C
 	const u8 * CAT_RESTRICT d = b + 4; // D
 
-	temp[0] = (a[0] + (int)b[0] + c[0] + (int)d[0]) >> 2;
-	temp[1] = (a[1] + (int)b[1] + c[1] + (int)d[1]) >> 2;
-	temp[2] = (a[2] + (int)b[2] + c[2] + (int)d[2]) >> 2;
+	temp[0] = (a[0] + (u16)b[0] + c[0] + (u16)d[0]) >> 2;
+	temp[1] = (a[1] + (u16)b[1] + c[1] + (u16)d[1]) >> 2;
+	temp[2] = (a[2] + (u16)b[2] + c[2] + (u16)d[2]) >> 2;
 	return temp;
 }
 
@@ -787,9 +787,9 @@ static const u8 *SFF_AVG_ABCD1(const u8 * CAT_RESTRICT p, u8 * CAT_RESTRICT temp
 				src += 4; // D
 			}
 
-			temp[0] = (a[0] + (int)b[0] + c[0] + (int)src[0] + 2) >> 2;
-			temp[1] = (a[1] + (int)b[1] + c[1] + (int)src[1] + 2) >> 2;
-			temp[2] = (a[2] + (int)b[2] + c[2] + (int)src[2] + 2) >> 2;
+			temp[0] = (a[0] + (u16)b[0] + c[0] + (u16)src[0] + 2) >> 2;
+			temp[1] = (a[1] + (u16)b[1] + c[1] + (u16)src[1] + 2) >> 2;
+			temp[2] = (a[2] + (u16)b[2] + c[2] + (u16)src[2] + 2) >> 2;
 			return temp;
 		} else {
 			return a;
@@ -818,9 +818,9 @@ static const u8 *SFFU_AVG_ABCD1(const u8 * CAT_RESTRICT p, u8 * CAT_RESTRICT tem
 	const u8 * CAT_RESTRICT c = b - 4; // C
 	const u8 * CAT_RESTRICT d = b + 4; // D
 
-	temp[0] = (a[0] + (int)b[0] + c[0] + (int)d[0] + 2) >> 2;
-	temp[1] = (a[1] + (int)b[1] + c[1] + (int)d[1] + 2) >> 2;
-	temp[2] = (a[2] + (int)b[2] + c[2] + (int)d[2] + 2) >> 2;
+	temp[0] = (a[0] + (u16)b[0] + c[0] + (u16)d[0] + 2) >> 2;
+	temp[1] = (a[1] + (u16)b[1] + c[1] + (u16)d[1] + 2) >> 2;
+	temp[2] = (a[2] + (u16)b[2] + c[2] + (u16)d[2] + 2) >> 2;
 	return temp;
 }
 
@@ -1619,9 +1619,9 @@ static u8 MFFU_AVG_AB(const u8 * CAT_RESTRICT p, u16 num_syms, int x, int y, int
 	CAT_DEBUG_ENFORCE(x > 0 && y > 0 && x < size_x-1);
 
 	const u8 * CAT_RESTRICT a = p - 1; // A
-	const u8 * CAT_RESTRICT d = p - size_x + 1; // D
+	const u8 * CAT_RESTRICT b = p - size_x; // B
 
-	return (a[0] + (u16)d[0]) >> 1;
+	return (a[0] + (u16)b[0]) >> 1;
 }
 
 static u8 MFF_AVG_AC(const u8 * CAT_RESTRICT p, u16 num_syms, int x, int y, int size_x) {
@@ -1794,9 +1794,9 @@ static u8 MFFU_AVG_AB1(const u8 * CAT_RESTRICT p, u16 num_syms, int x, int y, in
 	CAT_DEBUG_ENFORCE(x > 0 && y > 0 && x < size_x-1);
 
 	const u8 * CAT_RESTRICT a = p - 1; // A
-	const u8 * CAT_RESTRICT d = p - size_x + 1; // D
+	const u8 * CAT_RESTRICT b = p - size_x; // B
 
-	return (a[0] + (u16)d[0] + 1) >> 1;
+	return (a[0] + (u16)b[0] + 1) >> 1;
 }
 
 static u8 MFF_AVG_AC1(const u8 * CAT_RESTRICT p, u16 num_syms, int x, int y, int size_x) {
@@ -1834,7 +1834,7 @@ static u8 MFF_AVG_AD1(const u8 * CAT_RESTRICT p, u16 num_syms, int x, int y, int
 		if (x > 0) {
 			const u8 * CAT_RESTRICT a = p - 1; // A
 			if (x < size_x-1) {
-				src += 2; // D
+				++src; // D
 			}
 
 			return (a[0] + (u16)src[0] + 1) >> 1;
@@ -2111,7 +2111,7 @@ static u8 MFF_AVG_ABCD(const u8 * CAT_RESTRICT p, u16 num_syms, int x, int y, in
 				src++; // D
 			}
 
-			return (a[0] + (int)b[0] + c[0] + (int)src[0]) >> 2;
+			return (a[0] + (u16)b[0] + c[0] + (u16)src[0]) >> 2;
 		} else {
 			return a[0];
 		}
@@ -2136,7 +2136,7 @@ static u8 MFFU_AVG_ABCD(const u8 * CAT_RESTRICT p, u16 num_syms, int x, int y, i
 	const u8 * CAT_RESTRICT c = b - 1; // C
 	const u8 * CAT_RESTRICT d = b + 1; // D
 
-	return (a[0] + (int)b[0] + c[0] + (int)d[0]) >> 2;
+	return (a[0] + (u16)b[0] + c[0] + (u16)d[0]) >> 2;
 }
 
 
@@ -2155,7 +2155,7 @@ static u8 MFF_AVG_ABCD1(const u8 * CAT_RESTRICT p, u16 num_syms, int x, int y, i
 				src++; // D
 			}
 
-			return (a[0] + (int)b[0] + c[0] + (int)src[0] + 2) >> 2;
+			return (a[0] + (u16)b[0] + c[0] + (u16)src[0] + 2) >> 2;
 		} else {
 			return a[0];
 		}
@@ -2180,7 +2180,7 @@ static u8 MFFU_AVG_ABCD1(const u8 * CAT_RESTRICT p, u16 num_syms, int x, int y, 
 	const u8 * CAT_RESTRICT c = b - 1; // C
 	const u8 * CAT_RESTRICT d = b + 1; // D
 
-	return (a[0] + (int)b[0] + c[0] + (int)d[0] + 2) >> 2;
+	return (a[0] + (u16)b[0] + c[0] + (u16)d[0] + 2) >> 2;
 }
 
 

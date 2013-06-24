@@ -430,7 +430,3 @@ u8 MonoReader::read_unsafe(u16 x, u16 y, u8 * CAT_RESTRICT data, ImageReader & C
 	*data = (u8)value;
 	return value;
 }
-
-//// KEEP THIS IN SYNC WITH VERSION ABOVE! ////
-
-
