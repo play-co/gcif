@@ -71,7 +71,7 @@ void PaletteOptimizer::histogramImage(MaskDelegate &mask) {
 
 	CAT_DEBUG_ENFORCE(_palette_size >= palette_size);
 
-#ifdef CAT_DEBUG
+#ifdef CAT_DUMP_FILTERS
 	if (_palette_size != palette_size) {
 		CAT_INFO("pal") << "Palette optimizer noticed the data uses " << palette_size << " palette indices of " << _palette_size;
 	}
