@@ -141,10 +141,10 @@ int SmallPaletteReader::readPixels(ImageReader & CAT_RESTRICT reader) {
 
 			if (lz_skip > 0) {
 				--lz_skip;
-				_mono_decoder.zero(x);
+				_mono_decoder.masked(x);
 			} else if ((s32)mask < 0) {
 				*p = MASK_PAL;
-				_mono_decoder.zero(x);
+				_mono_decoder.masked(x);
 			} else {
 				// TODO: Unroll to use unsafe version
 				u8 index = _mono_decoder.read(x, y, p, reader);

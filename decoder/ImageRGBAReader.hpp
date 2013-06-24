@@ -116,7 +116,7 @@ protected:
 		if (!filter->ready()) {
 			const u16 ty = y >> _tile_bits_y;
 
-			const u32 toff = tx + ty * _tile_size_x; // TODO: Optimize away
+			const u32 toff = tx + ty * _tiles_x; // TODO: Optimize away
 			u8 * CAT_RESTRICT cf_p = _cf_tiles.get() + toff;
 			u8 * CAT_RESTRICT sf_p = _sf_tiles.get() + toff;
 

@@ -128,7 +128,11 @@ public:
 
 	int readRowHeader(u16 y, ImageReader & CAT_RESTRICT reader);
 
-	CAT_INLINE void zero(u16 x) {
+	CAT_INLINE void masked(u16 x) {
+		_chaos.zero(x);
+	}
+
+	CAT_INLINE void setZero(u16 x) {
 		_chaos.zero(x);
 	}
 

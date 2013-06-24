@@ -97,6 +97,9 @@ int ImageRGBAReader::readFilterTables(ImageReader & CAT_RESTRICT reader) {
 		params.min_bits = 2;
 		params.max_bits = 5;
 
+#ifdef CAT_DUMP_FILTERS
+		CAT_WARN("TEST") << "Reading SF";
+#endif
 		if ((err = _sf_decoder.readTables(params, reader))) {
 			return err;
 		}
@@ -114,6 +117,9 @@ int ImageRGBAReader::readFilterTables(ImageReader & CAT_RESTRICT reader) {
 		params.min_bits = 2;
 		params.max_bits = 5;
 
+#ifdef CAT_DUMP_FILTERS
+		CAT_WARN("TEST") << "Reading CF";
+#endif
 		if ((err = _cf_decoder.readTables(params, reader))) {
 			return err;
 		}
@@ -140,6 +146,9 @@ int ImageRGBAReader::readRGBATables(ImageReader & CAT_RESTRICT reader) {
 		params.min_bits = 2;
 		params.max_bits = 5;
 
+#ifdef CAT_DUMP_FILTERS
+		CAT_WARN("TEST") << "Reading alpha channel";
+#endif
 		if ((err = _a_decoder.readTables(params, reader))) {
 			return err;
 		}
@@ -427,8 +436,8 @@ int ImageRGBAReader::readPixels(ImageReader & CAT_RESTRICT reader) {
 				// Zero filter holes
 				for (u16 tx = 0; tx < _tiles_x; ++tx) {
 					if (!_filters[tx].ready()) {
-						_sf_decoder.zero(tx);
-						_cf_decoder.zero(tx);
+						_sf_decoder.setZero(tx);
+						_cf_decoder.setZero(tx);
 					}
 				}
 			}
@@ -472,12 +481,12 @@ int ImageRGBAReader::readPixels(ImageReader & CAT_RESTRICT reader) {
 			if (lz_skip > 0) {
 				--lz_skip;
 				_chaos.zero(x);
-				_a_decoder.zero(x);
+				_a_decoder.masked(x);
 			} else if ((s32)mask < 0) {
 				*reinterpret_cast<u32 *>( p ) = MASK_COLOR;
 				*a_p = MASK_ALPHA;
 				_chaos.zero(x);
-				_a_decoder.zero(x);
+				_a_decoder.masked(x);
 			} else {
 				readSafe(x, y, p, a_p, reader);
 			}

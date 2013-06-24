@@ -139,6 +139,10 @@ int MonoReader::readTables(const Parameters & CAT_RESTRICT params, ImageReader &
 		for (int ii = 0, iiend = _filter_count; ii < iiend; ++ii) {
 			u8 sf = reader.readBits(7);
 
+#ifdef CAT_DUMP_FILTERS
+			CAT_WARN("Mono") << "Filter " << ii << " = " << (int)sf;
+#endif
+
 			// If it is a palette filter,
 			if (sf >= SF_COUNT) {
 				u8 pf = sf - SF_COUNT;
@@ -229,7 +233,7 @@ int MonoReader::readRowHeader(u16 y, ImageReader & CAT_RESTRICT reader) {
 				// For each pixel in seen row,
 				for (u16 tx = 0; tx < _tiles_x; ++tx) {
 					if (!_filter_row[tx].safe) {
-						_filter_decoder->zero(tx);
+						_filter_decoder->setZero(tx);
 					}
 				}
 
