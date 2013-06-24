@@ -128,6 +128,11 @@ public:
 
 	int readRowHeader(u16 y, ImageReader & CAT_RESTRICT reader);
 
+	CAT_INLINE void setupUnordered() {
+		// Set entire matrix to zero to prepare for unordered filter-based reading
+		CAT_CLR(_params.data, _params.size_x * _params.size_y);
+	}
+
 	CAT_INLINE void masked(u16 x) {
 		_chaos.zero(x);
 	}

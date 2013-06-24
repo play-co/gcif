@@ -41,6 +41,8 @@ using namespace cat;
 #include "encoder/lodepng.h"
 #include "optionparser.h"
 
+//#define CAT_BENCH_ONE /* Benchmark on one thread one file at a time to determine where in a benchmark there is a problem */
+
 
 //// Commands
 
@@ -115,6 +117,9 @@ static int benchfile(string filename) {
 	string benchfile = filename + ".gci";
 	const char *cbenchfile = benchfile.c_str();
 
+#ifdef CAT_BENCH_ONE
+	CAT_WARN("main") << "Compressing: " << filename;
+#endif
 	if ((err = gcif_write(&image[0], size_x, size_y, cbenchfile, compress_level))) {
 		CAT_WARN("main") << "Error while compressing the image: " << gcif_write_errstr(err) << " for " << filename;
 		return err;
@@ -122,6 +127,9 @@ static int benchfile(string filename) {
 
 	double t2 = Clock::ref()->usec();
 
+#ifdef CAT_BENCH_ONE
+	CAT_WARN("main") << "Decompressing: " << filename;
+#endif
 	GCIFImage outimage;
 	if ((err = gcif_read_file(cbenchfile, &outimage))) {
 		CAT_WARN("main") << "Error while decompressing the image: " << gcif_read_errstr(err) << " for " << filename;
@@ -253,6 +261,10 @@ static int benchmark(const char *path) {
 	if (cpu_count < 1) {
 		cpu_count = 1;
 	}
+
+#ifdef CAT_BENCH_ONE
+	cpu_count = 1;
+#endif
 
 	BenchThread threads[MAX_CPU_COUNT];
 	vector<string> files;

@@ -204,6 +204,9 @@ int ImageRGBAReader::readPixels(ImageReader & CAT_RESTRICT reader) {
 
 	_chaos.start();
 
+	_cf_decoder.setupUnordered();
+	_sf_decoder.setupUnordered();
+
 #ifdef CAT_UNROLL_READER
 
 	// Unroll y = 0 scanline

@@ -197,6 +197,8 @@ int MonoReader::readTables(const Parameters & CAT_RESTRICT params, ImageReader &
 			return err;
 		}
 
+		_filter_decoder->setupUnordered();
+
 		_current_tile = _tiles.get();
 		_current_tile_y = 0;
 	}
