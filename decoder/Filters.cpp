@@ -144,11 +144,11 @@ static const u8 *SFFU_AVG_AB(const u8 * CAT_RESTRICT p, u8 * CAT_RESTRICT temp, 
 	CAT_DEBUG_ENFORCE(x > 0 && y > 0 && x < size_x-1);
 
 	const u8 * CAT_RESTRICT a = p - 4; // A
-	const u8 * CAT_RESTRICT d = p - size_x*4 + 4; // D
+	const u8 * CAT_RESTRICT b = p - size_x*4; // B
 
-	temp[0] = (a[0] + (u16)d[0]) >> 1;
-	temp[1] = (a[1] + (u16)d[1]) >> 1;
-	temp[2] = (a[2] + (u16)d[2]) >> 1;
+	temp[0] = (a[0] + (u16)b[0]) >> 1;
+	temp[1] = (a[1] + (u16)b[1]) >> 1;
+	temp[2] = (a[2] + (u16)b[2]) >> 1;
 	return temp;
 }
 
