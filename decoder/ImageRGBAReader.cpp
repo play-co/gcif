@@ -180,7 +180,7 @@ int ImageRGBAReader::readRGBATables(ImageReader & CAT_RESTRICT reader) {
 int ImageRGBAReader::readPixels(ImageReader & CAT_RESTRICT reader) {
 	const int size_x = _size_x;
 	const u32 MASK_COLOR = _mask->getColor();
-	const u8 MASK_ALPHA = (u8)(getLE(MASK_COLOR) >> 24);
+	const u8 MASK_ALPHA = (u8)~(getLE(MASK_COLOR) >> 24);
 
 	// Get initial triggers
 	u16 trigger_x_lz = _lz->getTriggerX();
