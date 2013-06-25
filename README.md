@@ -1,21 +1,15 @@
 GCIF
 ====
 
-
-Currently in the middle of a large overhaul of the compressor to improve the
-architecture and average compression ratio.
-
-
-
-Game Closure Image Format : 1.0
+Game Closure Image Format : 1.1
 
 This is a lossless RGBA image format suited for mobile game sprite-sheets and
 other usage cases (such as webpages) where you want to compress tightly once,
 and then read it back many times.  For these images the expected size should be
 about 1024x1024 pixels or smaller.
 
-It typically produces files that are 70% the size of PNGCRUSH output and decode
-about 2-3x faster.
+It typically produces files that are 60% the size of PNGCRUSH output and about
+94% the size of WebP output, while decoding faster than both.
 
 The format is released under the BSD license as forever patent-free, monetarily
 free, and open-source software.  Contributions, discussions, and a healthy dose
@@ -37,16 +31,18 @@ From one of our more challenging game sprite-sheets chosen at random:
 ~~~
 -rw-r--r--  1 cat  staff   3.0M Mar 31 20:40 noalpha.bmp (original)
 -rw-r--r--@ 1 cat  staff   1.2M Apr 28 18:48 noalpha.jp2 (lossless)
--rw-r--r--  1 cat  staff   1.1M Apr 28 18:55 noalpha.png (lossless)
+-rw-r--r--  1 cat  staff   1.1M Apr 28 18:55 noalpha.png (lossless) <- PNGCRUSH
 -rw-r--r--  1 cat  staff   912K Apr 28 18:51 noalpha.webp (lossless)
 -rw-r--r--  1 cat  staff   883K Apr 29 17:01 noalpha.m6.webp (lossless)
 -rw-r--r--  1 cat  staff   877K Apr  2 14:05 noalpha.bcif (lossless)
--rw-r--r--  1 cat  staff   802K Apr 28 18:47 noalpha.gci (lossless) <- GCIF
+-rw-r--r--  1 cat  staff   803K Apr 28 18:47 noalpha.gci (lossless) <- GCIF 1.0
+-rw-r--r--  1 cat  staff   799K Jun 24 20:14 noalpha.gci (lossless) <- GCIF 1.1
 -rw-r--r--@ 1 cat  staff   682K Apr 28 18:46 noalpha.jpg (lossy)
 -rw-r--r--@ 1 cat  staff   441K Apr 28 18:46 noalpha.gif (lossy)
 ~~~
 
-In this case the result is 70% the size of the equivalent PNGCRUSH file output.
+In this case the result is 70% the size of the equivalent PNGCRUSH file output,
+and is 90% the size of the WebP file output.
 
 The compression ratio for this speed reaches for the Pareto frontier for
 lossless image compression without using any multithreading, though it is a
@@ -59,83 +55,84 @@ mmp
 PNG: 30047457
 PNGCRUSH: 29651792
 WebP: 21737180
-GCIF: 19377352
+GCIF: 18695920
 
 critter
 PNG: 9998692
 PNGCRUSH: 8770312
 WebP: 6241754
-GCIF: 6336556
+GCIF: 5865820
 
 pop
 PNG: 10755955
 PNGCRUSH: 7861910
 WebP: 5418332
-GCIF: 5251200
+GCIF: 5059436
 
 monster
 PNG: 4005287
 PNGCRUSH: 3227017
 WebP: 2211330
-GCIF: 2201064
+GCIF: 2123884
 
 chicken
 PNG: 455147
 PNGCRUSH: 452368
 WebP: 314722
-GCIF: 377540
+GCIF: 354052
 
 fruit
 PNG: 2052841
 PNGCRUSH: 1911033
 WebP: 1149780
-GCIF: 1624916
+GCIF: 1511792
 
 hippo
 PNG: 3291540
 PNGCRUSH: 3192566
 WebP: 2255838
-GCIF: 2339884
+GCIF: 2170476
 
 pudding
 PNG: 1401473
 PNGCRUSH: 1401247
 WebP: 986948
-GCIF: 1174024
+GCIF: 1113880
 
 wyvern
 PNG: 7724058
 PNGCRUSH: 6463701
 WebP: 4305978
-GCIF: 4788236
+GCIF: 4568944
 
 xxx
 PNG: 2131310
 PNGCRUSH: 1762601
 WebP: 1226082
-GCIF: 1344476
+GCIF: 1241352
 
 blob
 PNG: 2131310
 PNGCRUSH: 1762601
 WebP: 1226082
-GCIF: 1344476
+GCIF: 1263548
 
 voyager
 PNG: 50979862
 PNGCRUSH: 40413850
 WebP: 28309198
-GCIF: 27911268
+GCIF: 26950356
 
 Overall
 PNG: 124974932
 PNGCRUSH: 106870998
 WebP: 75383224
-GCIF: 73844084
+GCIF: 70919460
 
-GCIF is 60% the size of PNG.
-GCIF is 70% the size of PNGCRUSH.
-GCIF is 98% the size of WebP.
+On average,
+GCIF is 56.7% the size of PNG.
+GCIF is 66.3% the size of PNGCRUSH.
+GCIF is 94.1% the size of WebP.
 ~~~
 
 
@@ -165,7 +162,7 @@ Thomas Wang
 + Closest URL: http://burtleburtle.net/bob/hash/integer.html
 
 Google
-+ Inspiration for a few compression and format improvements
++ Recursive subresolution compression
 + WebP: https://developers.google.com/speed/webp/docs/webp_lossless_bitstream_specification
 
 
@@ -222,6 +219,9 @@ Static Huffman entropy encoding is then performed for further compression.
 
 Pixels that are in the bitmask are skipped over during encoding/decoding.
 
+If this encoding does not achieve a certain minimum compression ratio then it
+is not used.  A bit in the encoded file indicates whether or not it is used.
+
 
 ### Step 2. 2D LZ (Optional)
 
@@ -236,6 +236,9 @@ region takes 10 bytes to represent, which is then compressed with Huffman
 encoding and written to the file.  The resulting overhead is close to 5.5 bytes
 per zone, with each zone covering at least 64 bytes of original image data.
 
+If this encoding does not achieve a certain minimum compression ratio then it
+is not used.  A bit in the encoded file indicates whether or not it is used.
+
 
 ### Step 3. Palette (Optional)
 
@@ -248,75 +251,63 @@ done but color filtering is not (naturally); see the next section for more
 information about filtering.  The filter zone size is increased to 16x16 for
 paletted images.
 
+If the palette has 16 or fewer entries, then the palette indices are repacked
+into bytes: 
 
-### Step 4. Filtering
+#### For 5-16 palette entries:
 
-Spatial and color filters are applied to the input data in 4x4 pixel blocks as
-in BCIF.  The pair of filters that best estimate each block are chosen, as
-measured by the L1 norm of the resulting pixel color component values, with 0
-and 255 being the best result, and numbers around 128 being the worst.
+This is 3-4 bits/pixel, so 2 palette indices are packed into each byte in the
+resulting monochrome image.
 
-The two filters are spatial and color.  The spatial filters are:
++ Combine pairs of pixels on the same scanline together.
++ Final odd pixel in each row is encoded in the low bits.
 
-~~~
- Filter inputs:
-         E
- F C B D
-   A ?
+#### For 3-4 palette entries:
 
-	// In the order they are applied in the case of a tie:
-	SF_Z,			// 0
-	SF_D,			// D
-	SF_C,			// C
-	SF_B,			// B
-	SF_A,			// A
-	SF_AB,			// (A + B)/2
-	SF_BD,			// (B + D)/2
-	SF_CLAMP_GRAD,	// CBloom: 12: ClampedGradPredictor
-	SF_SKEW_GRAD,	// CBloom: 5: Gradient skewed towards average
-	SF_PICK_LEFT,	// New: Pick A or C based on which is closer to F
-	SF_PRED_UR,		// New: Predict gradient continues from E to D to current
-	SF_ABC_CLAMP,	// A + B - C clamped to [0, 255]
-	SF_PAETH,		// Paeth filter
-	SF_ABC_PAETH,	// If A <= C <= B, A + B - C, else Paeth filter
-	SF_PLO,			// Offset PL
-	SF_ABCD,		// (A + B + C + D + 1)/4
-	SF_AD,			// (A + D)/2
-~~~
-
-In addition to these default filters, 80 linear filters involving A,B,C, and D
-are selected to be used based on the input image, and will replace filters in
-the above table where they are preferred.
-
-And the color filters are:
+This is 2 bits/pixel, so 4 palette indices are packed into each byte in the
+resulting monochrome image.
 
 ~~~
-	// In order of preference (based on entropy scores from test images):
-	CF_GB_RG,	// from BCIF
-	CF_GR_BG,	// from BCIF
-	CF_YUVr,	// YUVr from JPEG2000
-	CF_D9,		// from the Strutz paper
-	CF_D12,		// from the Strutz paper
-	CF_D8,		// from the Strutz paper
-	CF_E2_R,	// Derived from E2 and YCgCo-R
-	CF_BG_RG,	// from BCIF (recommendation from LOCO-I paper)
-	CF_GR_BR,	// from BCIF
-	CF_D18,		// from the Strutz paper
-	CF_B_GR_R,	// A decent default filter
-	CF_D11,		// from the Strutz paper
-	CF_D14,		// from the Strutz paper
-	CF_D10,		// from the Strutz paper
-	CF_YCgCo_R,	// Malvar's YCgCo-R
-	CF_GB_RB,	// from BCIF
+Combine blocks of 4 pixels together:
+
+0 0 1 1 2 2 3
+0 0 1 1 2 2 3 <- example 7x3 image
+4 4 5 5 6 6 7
+
+Each 2x2 block is packed like so:
+0 1  -->  HI:[ 3 3 2 2 1 1 0 0 ]:LO
+2 3
 ~~~
 
-Spatial filters are applied before color filters so that the image smoothness
-does not get disturbed by the weird value-aliasing of the color filters.
+#### For 2 palette entries:
 
-The encoder exhaustively tries all of these SF+CF combinations, and the best
-are then subjected to further entropy analysis.  This additional step greatly
-improves compression by increasing the rate at which symbols are reused in the
-post-filtered data, which makes the data easier to compress.
+This is 1 bit/pixel, so 8 palette indices are packed into each byte in the
+resulting monochrome image.
+
+~~~
+Combine blocks of 8 pixels together:
+
+0 0 0 0 1 1 1 1 2 2 2
+0 0 0 0 1 1 1 1 2 2 2 <- example 11x3 image
+3 3 3 3 4 4 4 4 5 5 5
+
+Each 4x2 block is packed like so:
+0 1 2 3  -->  HI:[ 0 1 2 3 4 5 6 7 ]:LO
+4 5 6 7
+~~~
+
+#### For 1 palette entry:
+
+Only the palette color is sent, and the encoding aborts early.  The decoder can
+recover the image by reading the image size, and the single color.
+
+
+### Step 4. RGBA Compression
+
+When the image data is not paletted, spatial and color filters are applied to
+the input data in 4x4 pixel blocks as in BCIF.  The pair of filters that produce
+the lowest entropy estimate are chosen for each block, using an efficient rough
+integer approximation to entropy.
 
 The entropy analysis is accelerated by a 24-bit fixed-point approximation that
 allows us to try all of the options in an acceptable amount of time.  By being
@@ -330,21 +321,263 @@ equally well across the whole image.
 The filter selections are written out interleaved with the pixel data.  This is
 done since sometimes filter data does not need to be sent due to the LZ or mask
 steps, which make the filtering unnecessary for those pixels.  The decoder will
-keep track of whether or not filter selection has been read for each zone and
-will expect to read in the filter selection exactly when the first pixel in a
-zone is encountered.
+keep track of whether or not filter selection has been read for each 4x4 block
+and will expect to read in the filter selection exactly when the first pixel in
+a block is encountered.
+
+Spatial filters are applied before color filters so that the image smoothness
+does not get disturbed by the weird value-aliasing of the color filters.
+
+The purpose of the color filter is to decorrelate each of the RGB channels so
+that they can be treated as separate monochrome data streams.
+
+The alpha channel is treated as separate monochrome data uncorrelated with the
+RGB data and is prefiltered as (255 - A) so that 255 becomes 0, since 255 is
+the most common alpha value and 0 is much easier to compress.
+
+#### Color Filtering
+
+The color filters are taken directly from this paper by Tilo Strutz
+["ADAPTIVE SELECTION OF COLOUR TRANSFORMATIONS FOR REVERSIBLE IMAGE COMPRESSION" (2012)](http://www.eurasip.org/Proceedings/Eusipco/Eusipco2012/Conference/papers/1569551007.pdf)
+
+YUV899 kills compression performance too much so we are using aliased -but
+reversible- YUV888 transforms based on the ones from the paper where possible.
+
+We also incorporated the color filters from BCIF, JPEG2000, and YCgCo-R.
+
+These transforms apparently cover most of the ideal ways to decorrelate RGB
+color data into separate streams:
+
+~~~
+CF_GB_RG,	// from BCIF
+CF_GR_BG,	// from BCIF
+CF_YUVr,	// YUVr from JPEG2000
+CF_D9,		// from the Strutz paper
+CF_D12,		// from the Strutz paper
+CF_D8,		// from the Strutz paper
+CF_E2_R,	// Derived from E2 and YCgCo-R
+CF_BG_RG,	// from BCIF (recommendation from LOCO-I paper)
+CF_GR_BR,	// from BCIF
+CF_D18,		// from the Strutz paper
+CF_B_GR_R,	// A decent default filter
+CF_D11,		// from the Strutz paper
+CF_D14,		// from the Strutz paper
+CF_D10,		// from the Strutz paper
+CF_YCgCo_R,	// Malvar's YCgCo-R
+CF_GB_RB,	// from BCIF
+CF_NONE,	// No modification
+~~~
+
+Pseudo-code implementations:
+
+~~~
+CFF_R2Y_GB_RG:
+	Y = B;
+	U = G - B;
+	V = G - R;
+
+CFF_R2Y_GR_BG:
+	Y = G - B;
+	U = G - R;
+	V = R;
+
+CFF_R2Y_YUVr:
+	U = B - G;
+	V = R - G;
+	Y = G + (((char)U + (char)V) >> 2);
+
+CFF_R2Y_D9:
+	Y = R;
+	U = B - ((R + G*3) >> 2);
+	V = G - R;
+
+CFF_R2Y_D12:
+	Y = B;
+	U = G - ((R*3 + B) >> 2);
+	V = R - B;
+
+CFF_R2Y_D8:
+	Y = R;
+	U = B - ((R + G) >> 1);
+	V = G - R;
+
+CFF_R2Y_E2_R:
+	char Co = R - G;
+	int t = G + (Co >> 1);
+	char Cg = B - t;
+
+	Y = t + (Cg >> 1);
+	U = Cg;
+	V = Co;
+
+CFF_R2Y_BG_RG:
+	Y = G - B;
+	U = G;
+	V = G - R;
+
+CFF_R2Y_GR_BR:
+	Y = B - R;
+	U = G - R;
+	V = R;
+
+CFF_R2Y_D18:
+	Y = B;
+	U = R - ((G*3 + B) >> 2);
+	V = G - B;
+
+CFF_R2Y_B_GR_R:
+	Y = B;
+	U = G - R;
+	V = R;
+
+CFF_R2Y_D11:
+	Y = B;
+	U = G - ((R + B) >> 1);
+	V = R - B;
+
+CFF_R2Y_D14:
+	Y = R;
+	U = G - ((R + B) >> 1);
+	V = B - R;
+
+CFF_R2Y_D10:
+	Y = B;
+	U = G - ((R + B*3) >> 2);
+	V = R - B;
+
+CFF_R2Y_YCgCo_R:
+	char Co = R - B;
+	int t = B + (Co >> 1);
+	char Cg = G - t;
+
+	Y = t + (Cg >> 1);
+	U = Cg;
+	V = Co;
+
+CFF_R2Y_GB_RB:
+	Y = B;
+	U = G - B;
+	V = R - B;
+~~~
+
+These functions are all extremely fast to execute and typically excellent at decorrelation.
+
+#### Spatial Filtering
+
+Images are encoded from left to right and from top to bottom.  The spatial filters use
+previously encoded image data to predict the next image pixel to encode.  The difference
+between the prediction and the actual value is called the residual and is written out to
+the file after entropy encoding (see below for more information).
+
+We use spatial filters from BCIF, supplemented with CBloom's and our own contributions.
+
+~~~
+Filter inputs:
+        E
+F C B D
+  A ?    <-- pixel to predict
+~~~
+
+~~~
+	// Simple filters
+	SF_A,				// A
+	SF_B,				// B
+	SF_C,				// C
+	SF_D,				// D
+	SF_Z,				// 0
+
+	// Dual average filters (round down)
+	SF_AVG_AB,			// (A + B) / 2
+	SF_AVG_AC,			// (A + C) / 2
+	SF_AVG_AD,			// (A + D) / 2
+	SF_AVG_BC,			// (B + C) / 2
+	SF_AVG_BD,			// (B + D) / 2
+	SF_AVG_CD,			// (C + D) / 2
+
+	// Dual average filters (round up)
+	SF_AVG_AB1,			// (A + B + 1) / 2
+	SF_AVG_AC1,			// (A + C + 1) / 2
+	SF_AVG_AD1,			// (A + D + 1) / 2
+	SF_AVG_BC1,			// (B + C + 1) / 2
+	SF_AVG_BD1,			// (B + D + 1) / 2
+	SF_AVG_CD1,			// (C + D + 1) / 2
+
+	// Triple average filters (round down)
+	SF_AVG_ABC,			// (A + B + C) / 3
+	SF_AVG_ACD,			// (A + C + D) / 3
+	SF_AVG_ABD,			// (A + B + D) / 3
+	SF_AVG_BCD,			// (B + C + D) / 3
+
+	// Quad average filters (round down)
+	SF_AVG_ABCD,		// (A + B + C + D) / 4
+
+	// Quad average filters (round up)
+	SF_AVG_ABCD1,		// (A + B + C + D + 2) / 4
+
+	// ABCD Complex filters
+	SF_CLAMP_GRAD,		// ClampedGradPredictor (CBloom #12)
+	SF_SKEW_GRAD,		// Gradient skewed towards average (CBloom #5)
+	SF_ABC_CLAMP,		// A + B - C clamped to [0, 255] (BCIF)
+	SF_PAETH,			// Paeth (PNG)
+	SF_ABC_PAETH,		// If A <= C <= B, A + B - C, else Paeth filter (BCIF)
+	SF_PLO,				// Offset PL (BCIF)
+	SF_SELECT,			// Select (WebP)
+
+	// EF Complex filters
+	SF_SELECT_F,		// Pick A or C based on which is closer to F (New)
+	SF_ED_GRAD,			// Predict gradient continues from E to D to current (New)
+~~~
+
+In addition to the static filters defined here (which are fast to evaluate),
+there are a number of linear tapped filters based on A,B,C,D.  Usually a few
+of these are preferable to the defaults.  And the encoder transmits which
+ones are overwritten in the image file so the decoder stays in synch.
+
+We found through testing that a small list of about 80 tapped filters are
+ever preferable to one of the default filters, out of all 6544 combinations,
+so only those are evaluated and sent.
+
+See the [Filters.cpp](./decoder/Filters.cpp) file for the complete list.
 
 
-### Step 5. Order-1 Chaos Modeling and Encoding
+### Step 5. Monochrome Compression
 
-For each color plane, the BCIF "chaos" metric is used to sort each remaining
-filtered pixel into one of 8 bins.  The chaos metric is a rough approximation
-to order-1 statistics.  The metric is defined as the sum of the highest set bit
-index in the left and up post-filter values for each color plane.  Recall that
-after spatial and color filtering, the image data is mostly eliminated and
-replaced with a few values near zero.  Smaller values (and zeroes especially)
-lead to better compression, so the "chaos" of a location in the image after
-filtering is exactly how large the nearby values are.
+After all the data in the image has been reduced to a set of monochrome images,
+including the subresolution spatial filter and color filter selections, each of
+these monochrome images is submitted to a monochrome compressor that uses the
+same spatial filters as the RGBA compressor.
+
+The monochrome compressor works mechanically the same as the RGBA compressor
+described above, except that it only has to worry about one channel of input
+so there is no color filtering.
+
+Unlike the RGBA compressor, its tile sizes can vary from 4x4 up to ~32x32 and the
+tile size is selected to minimize the size of the output.
+
+It produces as output, a subresolution tiled image describing the spatial
+filters that best compress the given image data, and residuals to encode.
+The subresolution tiled image is recursively compressed with the same monochrome
+compressor until it is better to encode using simple row filters.
+
+When tile-based compression is less beneficial than encoding the input directly,
+simple row filters are employed.  These determine if the input can be compressed
+better if a "same as left" predictor is run on the data.
+
+
+### Note: Order-1 Chaos Modeling and Encoding
+
+After colors are decorrelated with the color filter, the data is essentially
+monochrome in each color plane.  And any other monochrome data that must be
+compressed is modeled using the "chaos" metric from BCIF.  We extended the
+idea quite a bit, allowing a variable number of chaos levels beyond 8.
+
+The chaos metric is a rough approximation to order-1 statistics.  The metric
+is defined as the sum of the highest set bit index in the left and up
+post-filter values for each color plane.  Recall that after spatial and color
+filtering, the image data is mostly eliminated and replaced with residuals
+near zero.  Smaller values (and zeroes especially) lead to better compression,
+so the "chaos" of a location in the image after filtering is exactly how large
+the nearby values are.
 
 Comparing this approach to order-1 statistics, that would be calculating the
 statistics for seeing a value of "0" after seeing a value of "1", "2", and so
@@ -368,29 +601,22 @@ Since most of the image data is near zero, areas where high values occur tend
 to be stored together in the statistical model, which means it can be more
 tightly tuned for that data, further improving compression.
 
-When the number of pixels to be encoded falls below a certain threshold, all 8
-chaos bins require too much overhead to make them worthwhile, so the compressor
-switches off the chaos metric to cut the overhead down to 1/8th its size.
-
-Since there are 8 chaos bins, that means 8 Huffman tables are transmitted for
-each of the RGBA color planes.  Therefore, it was essential to develop a good
-compression algorithm for the Huffman tables themselves.  So, the tables are
-filtered and compressed using the same entropy encoding used on the image data.
-This table compression is exceptionally good.  It compresses about 8KB of table
-data down into about 3KB using several tricks including truncation.
+The number of chaos levels used in the encoding is chosen so that the data
+encoding is as small as possible.
 
 
 ## Note: Order-1 Entropy Encoding with dual-Huffman zRLE
 
 Throughout the codec, a generic post-filter entropy encoder is used in several
-places.  The entropy encoder has two modes:
+places.  Each chaos level uses a different instance of the entropy encoder.
+The entropy encoder has two modes:
 
 (1) Basic Huffman encoder
 
-The basic Huffman encoder mode is what you may expect.  Statistics up to 256
+The basic Huffman encoder mode is what you may expect.  Statistics of up to 256
 symbols are collected, and then symbols are encoded bitwise.  This mode is
 chosen if the encoder decides it produces shorter output.  This feature saves
-about 1 KB on average and can only improve decoder speed.
+about 1 KB on average when it can be used and can only improve decoder speed.
 
 (2) zRLE dual-Huffman encoder.
 
