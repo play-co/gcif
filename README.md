@@ -464,12 +464,10 @@ These functions are all extremely fast to execute and typically excellent at dec
 
 #### Spatial Filtering
 
-Images are encoded from left to right and from top to bottom.  The spatial filters use
-previously encoded image data to predict the next image pixel to encode.  The difference
+Images are decoded from left to right and from top to bottom.  The spatial filters use
+previously decoded image data to predict the next image pixel to decode.  The difference
 between the prediction and the actual value is called the residual and is written out to
 the file after entropy encoding (see below for more information).
-
-We use spatial filters from BCIF, supplemented with CBloom's and our own contributions.
 
 ~~~
 Filter inputs:
@@ -477,6 +475,8 @@ Filter inputs:
 F C B D
   A ?    <-- pixel to predict
 ~~~
+
+We use spatial filters from BCIF, supplemented with CBloom's and our own contributions:
 
 ~~~
 	// Simple filters
