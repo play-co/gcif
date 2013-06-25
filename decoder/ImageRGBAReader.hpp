@@ -120,8 +120,8 @@ protected:
 			u8 * CAT_RESTRICT cf_p = _cf_tiles.get() + toff;
 			u8 * CAT_RESTRICT sf_p = _sf_tiles.get() + toff;
 
-			filter->cf = YUV2RGB_FILTERS[_cf_decoder.read(tx, ty, cf_p, reader)];
-			filter->sf = _sf[_sf_decoder.read(tx, ty, sf_p, reader)];
+			filter->cf = YUV2RGB_FILTERS[_cf_decoder.read(tx, cf_p, reader)];
+			filter->sf = _sf[_sf_decoder.read(tx, sf_p, reader)];
 		}
 
 		return filter;
@@ -152,7 +152,7 @@ protected:
 		p[2] += pred[2];
 
 		// Read alpha pixel
-		p[3] = (u8)~_a_decoder.read(x, y, a_p, reader);
+		p[3] = (u8)~_a_decoder.read(x, a_p, reader);
 
 		_chaos.store(x, YUV);
 	}
@@ -181,7 +181,7 @@ protected:
 		p[2] += pred[2];
 
 		// Read alpha pixel
-		p[3] = (u8)~_a_decoder.read_unsafe(x, y, a_p, reader);
+		p[3] = (u8)~_a_decoder.read_unsafe(x, a_p, reader);
 
 		_chaos.store(x, YUV);
 	}

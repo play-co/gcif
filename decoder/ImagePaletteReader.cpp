@@ -196,7 +196,7 @@ int ImagePaletteReader::readPixels(ImageReader & CAT_RESTRICT reader) {
 				*p = MASK_PAL;
 				_mono_decoder.masked(x);
 			} else {
-				u8 index = _mono_decoder.read(x, y, p, reader);
+				u8 index = _mono_decoder.read(x, p, reader);
 
 				CAT_DEBUG_ENFORCE(index < _palette_size);
 
@@ -248,7 +248,7 @@ int ImagePaletteReader::readPixels(ImageReader & CAT_RESTRICT reader) {
 				*p = MASK_PAL;
 				_mono_decoder.masked(x);
 			} else {
-				u8 index = _mono_decoder.read(x, y, p, reader);
+				u8 index = _mono_decoder.read(x, p, reader);
 
 				CAT_DEBUG_ENFORCE(index < _palette_size);
 
@@ -285,7 +285,7 @@ int ImagePaletteReader::readPixels(ImageReader & CAT_RESTRICT reader) {
 				*p = MASK_PAL;
 				_mono_decoder.masked(x);
 			} else {
-				u8 index = _mono_decoder.read_unsafe(x, y, p, reader);
+				u8 index = _mono_decoder.read_unsafe(x, p, reader);
 
 				CAT_DEBUG_ENFORCE(index < _palette_size);
 
@@ -325,7 +325,7 @@ int ImagePaletteReader::readPixels(ImageReader & CAT_RESTRICT reader) {
 				*p = MASK_PAL;
 				_mono_decoder.masked(x);
 			} else {
-				u8 index = _mono_decoder.read(x, y, p, reader);
+				u8 index = _mono_decoder.read(x, p, reader);
 
 				CAT_DEBUG_ENFORCE(index < _palette_size);
 
@@ -376,7 +376,7 @@ int ImagePaletteReader::readPixels(ImageReader & CAT_RESTRICT reader) {
 				*p = MASK_PAL;
 				_mono_decoder.masked(x);
 			} else {
-				u8 index = _mono_decoder.read(x, y, p, reader);
+				u8 index = _mono_decoder.read(x, p, reader);
 
 				CAT_DEBUG_ENFORCE(index < _palette_size);
 

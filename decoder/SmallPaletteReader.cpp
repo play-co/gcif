@@ -163,7 +163,7 @@ int SmallPaletteReader::readPixels(ImageReader & CAT_RESTRICT reader) {
 #ifdef CAT_DEBUG
 				u8 index =
 #endif
-				_mono_decoder.read(x, y, p, reader);
+				_mono_decoder.read(x, p, reader);
 
 				CAT_DEBUG_ENFORCE(index < _pack_palette_size);
 			}
@@ -211,7 +211,7 @@ int SmallPaletteReader::readPixels(ImageReader & CAT_RESTRICT reader) {
 #ifdef CAT_DEBUG
 				u8 index =
 #endif
-				_mono_decoder.read(x, y, p, reader);
+				_mono_decoder.read(x, p, reader);
 
 				CAT_DEBUG_ENFORCE(index < _pack_palette_size);
 			}
@@ -245,7 +245,7 @@ int SmallPaletteReader::readPixels(ImageReader & CAT_RESTRICT reader) {
 #ifdef CAT_DEBUG
 				u8 index =
 #endif
-				_mono_decoder.read_unsafe(x, y, p, reader);
+				_mono_decoder.read_unsafe(x, p, reader);
 
 				CAT_DEBUG_ENFORCE(index < _pack_palette_size);
 			}
@@ -282,7 +282,7 @@ int SmallPaletteReader::readPixels(ImageReader & CAT_RESTRICT reader) {
 #ifdef CAT_DEBUG
 				u8 index =
 #endif
-				_mono_decoder.read(x, y, p, reader);
+				_mono_decoder.read(x, p, reader);
 
 				CAT_DEBUG_ENFORCE(index < _pack_palette_size);
 			}
@@ -329,7 +329,7 @@ int SmallPaletteReader::readPixels(ImageReader & CAT_RESTRICT reader) {
 #ifdef CAT_DEBUG
 				u8 index =
 #endif
-				_mono_decoder.read(x, y, p, reader);
+				_mono_decoder.read(x, p, reader);
 
 				CAT_DEBUG_ENFORCE(index < _pack_palette_size);
 			}

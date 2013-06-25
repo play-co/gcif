@@ -200,7 +200,6 @@ int MonoReader::readTables(const Parameters & CAT_RESTRICT params, ImageReader &
 		_filter_decoder->setupUnordered();
 
 		_current_tile = _tiles.get();
-		_current_tile_y = 0;
 	}
 
 	DESYNC_TABLE();
@@ -240,17 +239,18 @@ int MonoReader::readRowHeader(u16 y, ImageReader & CAT_RESTRICT reader) {
 				}
 
 				// Next tile row
-				_current_tile_y++;
 				_current_tile += _tiles_x;
 			}
 
 			// Read its header too
-			_filter_decoder->readRowHeader(_current_tile_y, reader);
+			_filter_decoder->readRowHeader(y >> _tile_bits_y, reader);
 
 			// Clear filter function row
 			_filter_row.fill_00();
 		}
 	}
+
+	_current_y = y;
 
 	if (y > 0) {
 		_current_row += _params.size_x;
@@ -263,7 +263,11 @@ int MonoReader::readRowHeader(u16 y, ImageReader & CAT_RESTRICT reader) {
 	return GCIF_RE_OK;
 }
 
-u8 MonoReader::read(u16 x, u16 y, u8 * CAT_RESTRICT data, ImageReader & CAT_RESTRICT reader) {
+u8 MonoReader::read(u16 x, u8 * CAT_RESTRICT data, ImageReader & CAT_RESTRICT reader) {
+#ifdef CAT_DEBUG
+	const u16 y = _current_y;
+#endif
+
 	CAT_DEBUG_ENFORCE(x < _params.size_x && y < _params.size_y);
 
 	DESYNC(x, y);
@@ -293,9 +297,8 @@ u8 MonoReader::read(u16 x, u16 y, u8 * CAT_RESTRICT data, ImageReader & CAT_REST
 
 		// If filter must be read,
 		if (!filter) {
-			const u16 ty = _current_tile_y;
 			u8 *tp = _current_tile + tx;
-			u8 f = _filter_decoder->read(tx, ty, tp, reader);
+			u8 f = _filter_decoder->read(tx, tp, reader);
 
 			// Read filter
 			MonoFilterFuncs * CAT_RESTRICT funcs = &_sf[f];
@@ -317,6 +320,9 @@ u8 MonoReader::read(u16 x, u16 y, u8 * CAT_RESTRICT data, ImageReader & CAT_REST
 		} else {
 			// Get chaos bin
 			int chaos = _chaos.get(x);
+#ifndef CAT_DEBUG
+			const u16 y = _current_y;
+#endif
 
 			// Read residual from bitstream
 			u16 residual = _decoder[chaos].next(reader);
@@ -350,7 +356,11 @@ u8 MonoReader::read(u16 x, u16 y, u8 * CAT_RESTRICT data, ImageReader & CAT_REST
 //// KEEP THIS IN SYNC WITH VERSION ABOVE! ////
 // The only change should be that unsafe() is used.
 
-u8 MonoReader::read_unsafe(u16 x, u16 y, u8 * CAT_RESTRICT data, ImageReader & CAT_RESTRICT reader) {
+u8 MonoReader::read_unsafe(u16 x, u8 * CAT_RESTRICT data, ImageReader & CAT_RESTRICT reader) {
+#ifdef CAT_DEBUG
+	const u16 y = _current_y;
+#endif
+
 	CAT_DEBUG_ENFORCE(x < _params.size_x && y < _params.size_y);
 
 	DESYNC(x, y);
@@ -380,9 +390,8 @@ u8 MonoReader::read_unsafe(u16 x, u16 y, u8 * CAT_RESTRICT data, ImageReader & C
 
 		// If filter must be read,
 		if (!filter) {
-			const u16 ty = _current_tile_y;
 			u8 *tp = _current_tile + tx;
-			u8 f = _filter_decoder->read(tx, ty, tp, reader);
+			u8 f = _filter_decoder->read(tx, tp, reader);
 
 			// Read filter
 			MonoFilterFuncs * CAT_RESTRICT funcs = &_sf[f];
@@ -404,6 +413,9 @@ u8 MonoReader::read_unsafe(u16 x, u16 y, u8 * CAT_RESTRICT data, ImageReader & C
 		} else {
 			// Get chaos bin
 			int chaos = _chaos.get(x);
+#ifndef CAT_DEBUG
+			const u16 y = _current_y;
+#endif
 
 			// Read residual from bitstream
 			u16 residual = _decoder[chaos].next(reader);
