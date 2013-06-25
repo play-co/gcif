@@ -157,8 +157,9 @@ int ImagePaletteReader::readPixels(ImageReader & CAT_RESTRICT reader) {
 #ifdef CAT_UNROLL_READER
 
 	// Unroll y = 0 scanline
+	{
+		const int y = 0;
 
-	for (int y = 0, yend = _size_y; y < yend; ++y) {
 		_mono_decoder.readRowHeader(y, reader);
 
 		if (y == _lz->getTriggerY()) {
@@ -195,7 +196,6 @@ int ImagePaletteReader::readPixels(ImageReader & CAT_RESTRICT reader) {
 				*p = MASK_PAL;
 				_mono_decoder.masked(x);
 			} else {
-				// TODO: Unroll to use unsafe version
 				u8 index = _mono_decoder.read(x, y, p, reader);
 
 				CAT_DEBUG_ENFORCE(index < _palette_size);
@@ -205,6 +205,134 @@ int ImagePaletteReader::readPixels(ImageReader & CAT_RESTRICT reader) {
 
 			++rgba;
 			mask <<= 1;
+			++p;
+		}
+	}
+
+	// For each remaining scanline,
+	for (int y = 1, yend = _size_y; y < yend; ++y) {
+		_mono_decoder.readRowHeader(y, reader);
+
+		if (y == _lz->getTriggerY()) {
+			_lz->triggerY();
+			trigger_x_lz = _lz->getTriggerX();
+		}
+
+		const u32 *mask_next = _mask->nextScanline();
+		int mask_left;
+		u32 mask;
+
+		int lz_skip = 0;
+
+		// Unroll x = 0
+		{
+			const int x = 0;
+
+			DESYNC(x, y);
+
+			// If LZ triggered,
+			if (x == trigger_x_lz) {
+				lz_skip = _lz->triggerX(p, rgba);
+				trigger_x_lz = _lz->getTriggerX();
+			}
+
+			// Next mask word
+			mask = *mask_next++;
+			mask_left = 31;
+
+			if (lz_skip > 0) {
+				--lz_skip;
+				_mono_decoder.masked(x);
+			} else if ((s32)mask < 0) {
+				*rgba = MASK_COLOR;
+				*p = MASK_PAL;
+				_mono_decoder.masked(x);
+			} else {
+				u8 index = _mono_decoder.read(x, y, p, reader);
+
+				CAT_DEBUG_ENFORCE(index < _palette_size);
+
+				*rgba = _palette[index];
+			}
+
+			++rgba;
+			mask <<= 1;
+			++p;
+		}
+
+		//// THIS IS THE INNER LOOP ////
+
+		for (int x = 1, xend = (int)_size_x - 1; x < xend; ++x) {
+			DESYNC(x, y);
+
+			// If LZ triggered,
+			if (x == trigger_x_lz) {
+				lz_skip = _lz->triggerX(p, rgba);
+				trigger_x_lz = _lz->getTriggerX();
+			}
+
+			// Next mask word
+			if (mask_left-- <= 0) {
+				mask = *mask_next++;
+				mask_left = 31;
+			}
+
+			if (lz_skip > 0) {
+				--lz_skip;
+				_mono_decoder.masked(x);
+			} else if ((s32)mask < 0) {
+				*rgba = MASK_COLOR;
+				*p = MASK_PAL;
+				_mono_decoder.masked(x);
+			} else {
+				u8 index = _mono_decoder.read_unsafe(x, y, p, reader);
+
+				CAT_DEBUG_ENFORCE(index < _palette_size);
+
+				*rgba = _palette[index];
+			}
+
+			++rgba;
+			mask <<= 1;
+			++p;
+		}
+
+		//// THIS IS THE INNER LOOP ////
+
+		// Unroll x = _size_x - 1
+		{
+			const int x = _size_x - 1;
+
+			DESYNC(x, y);
+
+			// If LZ triggered,
+			if (x == trigger_x_lz) {
+				lz_skip = _lz->triggerX(p, rgba);
+				trigger_x_lz = _lz->getTriggerX();
+			}
+
+			// Next mask word
+			if (mask_left-- <= 0) {
+				mask = *mask_next++;
+				mask_left = 31;
+			}
+
+			if (lz_skip > 0) {
+				--lz_skip;
+				_mono_decoder.masked(x);
+			} else if ((s32)mask < 0) {
+				*rgba = MASK_COLOR;
+				*p = MASK_PAL;
+				_mono_decoder.masked(x);
+			} else {
+				u8 index = _mono_decoder.read(x, y, p, reader);
+
+				CAT_DEBUG_ENFORCE(index < _palette_size);
+
+				*rgba = _palette[index];
+			}
+
+			++rgba;
 			++p;
 		}
 	}

@@ -113,6 +113,177 @@ int SmallPaletteReader::readPixels(ImageReader & CAT_RESTRICT reader) {
 
 	u16 trigger_x_lz = _lz->getTriggerX();
 
+#ifdef CAT_UNROLL_READER
+
+	// Unroll y = 0 scanline
+	{
+		const int y = 0;
+
+		_mono_decoder.readRowHeader(y, reader);
+
+		if (y == _lz->getTriggerY()) {
+			_lz->triggerY();
+			trigger_x_lz = _lz->getTriggerX();
+		}
+		int lz_skip = 0;
+
+		const u32 *mask_next = _mask->nextScanline();
+		int mask_left = 0;
+		u32 mask;
+
+		for (int x = 0, xend = _pack_x; x < xend; ++x) {
+			// If LZ triggered,
+			if (x == trigger_x_lz) {
+				lz_skip = _lz->triggerX(p, 0);
+				trigger_x_lz = _lz->getTriggerX();
+			}
+
+			// Next mask word
+			if (mask_left-- <= 0) {
+				mask = *mask_next++;
+				mask_left = 31;
+			}
+
+			if (lz_skip > 0) {
+				--lz_skip;
+				_mono_decoder.masked(x);
+			} else if ((s32)mask < 0) {
+				*p = MASK_PAL;
+				_mono_decoder.masked(x);
+			} else {
+#ifdef CAT_DEBUG
+				u8 index =
+#endif
+				_mono_decoder.read(x, y, p, reader);
+
+				CAT_DEBUG_ENFORCE(index < _pack_palette_size);
+			}
+
+			++p;
+			mask <<= 1;
+		}
+	}
+
+	// For each remaining scanline,
+	for (int y = 1, yend = _pack_y; y < yend; ++y) {
+		_mono_decoder.readRowHeader(y, reader);
+
+		if (y == _lz->getTriggerY()) {
+			_lz->triggerY();
+			trigger_x_lz = _lz->getTriggerX();
+		}
+		int lz_skip = 0;
+
+		const u32 *mask_next = _mask->nextScanline();
+		int mask_left;
+		u32 mask;
+
+		// Unroll x = 0
+		{
+			const u16 x = 0;
+
+			// If LZ triggered,
+			if (x == trigger_x_lz) {
+				lz_skip = _lz->triggerX(p, 0);
+				trigger_x_lz = _lz->getTriggerX();
+			}
+
+			// Next mask word
+			mask = *mask_next++;
+			mask_left = 31;
+
+			if (lz_skip > 0) {
+				--lz_skip;
+				_mono_decoder.masked(x);
+			} else if ((s32)mask < 0) {
+				*p = MASK_PAL;
+				_mono_decoder.masked(x);
+			} else {
+#ifdef CAT_DEBUG
+				u8 index =
+#endif
+				_mono_decoder.read(x, y, p, reader);
+
+				CAT_DEBUG_ENFORCE(index < _pack_palette_size);
+			}
+
+			++p;
+			mask <<= 1;
+		}
+
+		//// THIS IS THE INNER LOOP ////
+
+		for (int x = 1, xend = (int)_pack_x - 1; x < xend; ++x) {
+			// If LZ triggered,
+			if (x == trigger_x_lz) {
+				lz_skip = _lz->triggerX(p, 0);
+				trigger_x_lz = _lz->getTriggerX();
+			}
+
+			// Next mask word
+			if (mask_left-- <= 0) {
+				mask = *mask_next++;
+				mask_left = 31;
+			}
+
+			if (lz_skip > 0) {
+				--lz_skip;
+				_mono_decoder.masked(x);
+			} else if ((s32)mask < 0) {
+				*p = MASK_PAL;
+				_mono_decoder.masked(x);
+			} else {
+#ifdef CAT_DEBUG
+				u8 index =
+#endif
+				_mono_decoder.read_unsafe(x, y, p, reader);
+
+				CAT_DEBUG_ENFORCE(index < _pack_palette_size);
+			}
+
+			++p;
+			mask <<= 1;
+		}
+
+		//// THIS IS THE INNER LOOP ////
+
+		// Unroll x = pack_x - 1
+		{
+			const int x = _pack_x - 1;
+
+			// If LZ triggered,
+			if (x == trigger_x_lz) {
+				lz_skip = _lz->triggerX(p, 0);
+				trigger_x_lz = _lz->getTriggerX();
+			}
+
+			// Next mask word
+			if (mask_left-- <= 0) {
+				mask = *mask_next++;
+				mask_left = 31;
+			}
+
+			if (lz_skip > 0) {
+				--lz_skip;
+				_mono_decoder.masked(x);
+			} else if ((s32)mask < 0) {
+				*p = MASK_PAL;
+				_mono_decoder.masked(x);
+			} else {
+#ifdef CAT_DEBUG
+				u8 index =
+#endif
+				_mono_decoder.read(x, y, p, reader);
+
+				CAT_DEBUG_ENFORCE(index < _pack_palette_size);
+			}
+
+			++p;
+		}
+	}
+
+#else
+
 	for (int y = 0, yend = _pack_y; y < yend; ++y) {
 		_mono_decoder.readRowHeader(y, reader);
 
@@ -146,10 +317,10 @@ int SmallPaletteReader::readPixels(ImageReader & CAT_RESTRICT reader) {
 				*p = MASK_PAL;
 				_mono_decoder.masked(x);
 			} else {
-				// TODO: Unroll to use unsafe version
-				u8 index = _mono_decoder.read(x, y, p, reader);
-
-				CAT_WARN("Read") << (int)index << " for " << x << ", " << y;
+#ifdef CAT_DEBUG
+				u8 index =
+#endif
+				_mono_decoder.read(x, y, p, reader);
 
 				CAT_DEBUG_ENFORCE(index < _pack_palette_size);
 			}
@@ -158,6 +329,8 @@ int SmallPaletteReader::readPixels(ImageReader & CAT_RESTRICT reader) {
 			mask <<= 1;
 		}
 	}
+
+#endif
 
 	return GCIF_RE_OK;
 }
