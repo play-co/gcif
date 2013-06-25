@@ -680,7 +680,6 @@ Example usage
 =============
 
 ~~~
-$ ./gcif
 USAGE: ./gcif [options] [output file path]
 
 Options:
@@ -693,108 +692,146 @@ Options:
   --[s]ilent                           No console output (even on errors)
   --[c]ompress <input PNG file path>   Compress the given .PNG image.
   --[d]ecompress <input GCI file path> Decompress the given .GCI image
+  --[t]est <input PNG file path>       Test compression to verify it is lossless
   --[b]enchmark <test set path>        Test compression ratio and decompression
                                        speed for a whole directory at once
   --[p]rofile <input GCI file path>    Decode same GCI file 100x to enhance
                                        profiling of decoder
+  --[r]eplace <directory path>         Compress all images in the given
+                                       directory, replacing the original if the
+                                       GCIF version is smaller without changing
+                                       file name
 
 Examples:
   ./gcif -c ./original.png test.gci
   ./gcif -d ./test.gci decoded.png
- $ ll original.png
--rw-r--r--  1 cat  staff   1.3M Mar 26 00:25 original.png
- $ ./gcif -v -c original.png test.gci
-[Apr 28 18:39] <main> Reading input PNG image file: original.png
-[Apr 28 18:39] <main> Encoding image: test.gci
-[Apr 28 18:39] <mask> Writing mask for color (0,0,0,0) ...
-[Apr 28 18:39] <stats> (Mask Encoding)      Chosen Color : (0,0,0,0) ...
-[Apr 28 18:39] <stats> (Mask Encoding)     Post-RLE Size : 24065 bytes
-[Apr 28 18:39] <stats> (Mask Encoding)      Post-LZ Size : 21211 bytes
-[Apr 28 18:39] <stats> (Mask Encoding) Post-Huffman Size : 17720 bytes (141758 bits)
-[Apr 28 18:39] <stats> (Mask Encoding)        Table Size : 56 bytes (444 bits)
-[Apr 28 18:39] <stats> (Mask Encoding)      Filtering : 117 usec (6.67047 %total)
-[Apr 28 18:39] <stats> (Mask Encoding)            RLE : 301 usec (17.1608 %total)
-[Apr 28 18:39] <stats> (Mask Encoding)             LZ : 1028 usec (58.6089 %total)
-[Apr 28 18:39] <stats> (Mask Encoding)      Histogram : 56 usec (3.1927 %total)
-[Apr 28 18:39] <stats> (Mask Encoding) Generate Table : 15 usec (0.855188 %total)
-[Apr 28 18:39] <stats> (Mask Encoding)   Encode Table : 71 usec (4.04789 %total)
-[Apr 28 18:39] <stats> (Mask Encoding)    Encode Data : 146 usec (8.32383 %total)
-[Apr 28 18:39] <stats> (Mask Encoding)        Overall : 1754 usec
-[Apr 28 18:39] <stats> (Mask Encoding) Throughput : 10.134 MBPS (output bytes)
-[Apr 28 18:39] <stats> (Mask Encoding) Compression ratio : 108.144:1 (17775 bytes used overall)
-[Apr 28 18:39] <stats> (Mask Encoding) Pixels covered : 480571 (45.8308 %total)
-[Apr 28 18:39] <LZ> Searching for matches with 262144-entry hash table...
-[Apr 28 18:39] <stats> (LZ Compress) Initial collisions : 802883
-[Apr 28 18:39] <stats> (LZ Compress) Initial matches : 15794 used 2149
-[Apr 28 18:39] <stats> (LZ Compress) Matched amount : 12.2043% of file is redundant (127971 of 1048576 pixels)
-[Apr 28 18:39] <stats> (LZ Compress) Bytes saved : 511884 bytes
-[Apr 28 18:39] <stats> (LZ Compress) Compressed overhead : 10585 bytes to transmit
-[Apr 28 18:39] <stats> (LZ Compress) Compression ratio : 48.3594:1
-[Apr 28 18:39] <CM> Designing filters...
-[Apr 28 18:39] <CM> Replacing default filter 0 with tapped filter 37 that is 8.34773x more preferable : PRED = (0A + 1B + 1C + 0D) / 2
-[Apr 28 18:39] <CM> Replacing default filter 10 with tapped filter 36 that is 3.34572x more preferable : PRED = (1A + 0B + 1C + 0D) / 2
-[Apr 28 18:39] <CM> Replacing default filter 9 with tapped filter 31 that is 1.80526x more preferable : PRED = (2A + 1B + -1C + 0D) / 2
-[Apr 28 18:39] <CM> Scoring filters using 272 entropy-based trials...
-[Apr 28 18:40] <CM> Revisiting filter selections from the top... 4096 left
-[Apr 28 18:40] <CM> Writing encoded pixel data...
-[Apr 28 18:40] <stats> (CM Compress) Spatial Filter Table Size : 110 bits (13 bytes)
-[Apr 28 18:40] <stats> (CM Compress) Spatial Filter Compressed Size : 133957 bits (16744 bytes)
-[Apr 28 18:40] <stats> (CM Compress) Color Filter Table Size : 65 bits (8 bytes)
-[Apr 28 18:40] <stats> (CM Compress) Color Filter Compressed Size : 84536 bits (10567 bytes)
-[Apr 28 18:40] <stats> (CM Compress) Y-Channel Compressed Size : 2262503 bits (282812 bytes)
-[Apr 28 18:40] <stats> (CM Compress) U-Channel Compressed Size : 2325432 bits (290679 bytes)
-[Apr 28 18:40] <stats> (CM Compress) V-Channel Compressed Size : 1462902 bits (182862 bytes)
-[Apr 28 18:40] <stats> (CM Compress) A-Channel Compressed Size : 699493 bits (87436 bytes)
-[Apr 28 18:40] <stats> (CM Compress) YUVA Overhead Size : 42441 bits (5305 bytes)
-[Apr 28 18:40] <stats> (CM Compress) Chaos pixel count : 483618 pixels
-[Apr 28 18:40] <stats> (CM Compress) Chaos compression ratio : 2.20722:1
-[Apr 28 18:40] <stats> (CM Compress) Overall size : 7238322 bits (904790 bytes)
-[Apr 28 18:40] <stats> (CM Compress) Overall compression ratio : 4.63566:1
- $ ll test.gci
--rw-r--r--  1 cat  staff   885K Apr 28 18:40 test.gci 
-$ ./gcif -v -d test.gci test.png
-[Apr 28 18:40] <main> Decoding input GCIF image file: test.gci
-[Apr 28 18:40] <stats> (Mask Decode)   Chosen Color : (0,0,0,0) ...
-[Apr 28 18:40] <stats> (Mask Decode) Initialization : 1 usec (0.338983 %total)
-[Apr 28 18:40] <stats> (Mask Decode)     Huffman+LZ : 294 usec (99.661 %total)
-[Apr 28 18:40] <stats> (Mask Decode)        Overall : 295 usec
-[Apr 28 18:40] <stats> (LZ Decode)     Initialization : 0 usec (0 %total)
-[Apr 28 18:40] <stats> (LZ Decode) Read Huffman Table : 14 usec (5.28302 %total)
-[Apr 28 18:40] <stats> (LZ Decode)         Read Zones : 251 usec (94.717 %total)
-[Apr 28 18:40] <stats> (LZ Decode)            Overall : 265 usec
-[Apr 28 18:40] <stats> (LZ Decode)         Zone Count : 2149 zones read
-[Apr 28 18:40] <stats> (CM Decode)     Initialization : 14 usec (0.035115 %total)
-[Apr 28 18:40] <stats> (CM Decode) Read Filter Tables : 3 usec (0.00752464 %total)
-[Apr 28 18:40] <stats> (CM Decode)  Read Chaos Tables : 486 usec (1.21899 %total)
-[Apr 28 18:40] <stats> (CM Decode)      Decode Pixels : 39366 usec (98.7384 %total)
-[Apr 28 18:40] <stats> (CM Decode)            Overall : 39869 usec
-[Apr 28 18:40] <stats> (CM Decode)         Throughput : 105.202 MBPS (output bytes/time)
-[Apr 28 18:40] <main> Writing output PNG image file: test.png
+~~~
+
+~~~
+ $ ./gcif -v -t natural.png
+[Jun 24 21:26] <mask> Writing mask for 4-plane color (0,0,0,0) ...
+[Jun 24 21:26] <stats> (Mask Encoding)      Chosen Color : (0,0,0,0) ...
+[Jun 24 21:26] <stats> (Mask Encoding)     Post-RLE Size : 1048 bytes
+[Jun 24 21:26] <stats> (Mask Encoding)      Post-LZ Size : 32 bytes
+[Jun 24 21:26] <stats> (Mask Encoding) Post-Huffman Size : 32 bytes (256 bits)
+[Jun 24 21:26] <stats> (Mask Encoding)        Table Size : 8 bytes (61 bits)
+[Jun 24 21:26] <stats> (Mask Encoding)      Filtering : 126 usec (30.5085 %total)
+[Jun 24 21:26] <stats> (Mask Encoding)            RLE : 64 usec (15.4964 %total)
+[Jun 24 21:26] <stats> (Mask Encoding)             LZ : 135 usec (32.6877 %total)
+[Jun 24 21:26] <stats> (Mask Encoding)      Histogram : 0 usec (0 %total)
+[Jun 24 21:26] <stats> (Mask Encoding) Generate Table : 0 usec (0 %total)
+[Jun 24 21:26] <stats> (Mask Encoding)   Encode Table : 88 usec (21.3075 %total)
+[Jun 24 21:26] <stats> (Mask Encoding)    Encode Data : 0 usec (0 %total)
+[Jun 24 21:26] <stats> (Mask Encoding)        Overall : 413 usec
+[Jun 24 21:26] <stats> (Mask Encoding) Throughput : 0.094431 MBPS (output bytes)
+[Jun 24 21:26] <stats> (Mask Encoding) Compression ratio : 19144.7:1 (39 bytes used overall)
+[Jun 24 21:26] <stats> (Mask Encoding) Pixels covered : 189652 (18.0866 %total)
+[Jun 24 21:26] <LZ> Searching for matches with 524288-entry hash table...
+[Jun 24 21:26] <stats> (LZ Compress) Initial collisions : 592298
+[Jun 24 21:26] <stats> (LZ Compress) Initial matches : 75651 used 1295
+[Jun 24 21:26] <stats> (LZ Compress) Matched amount : 20.1441% of file is redundant (211226 of 1048576 pixels)
+[Jun 24 21:26] <stats> (LZ Compress) Bytes saved : 844904 bytes
+[Jun 24 21:26] <stats> (LZ Compress) Compression ratio : 123.524:1 (6840 bytes to transmit)
+[Jun 24 21:26] <stats> (Palette) Disabled.
+[Jun 24 21:26] <RGBA> Designing spatial filters...
+[Jun 24 21:26] <RGBA> Designing SF/CF tiles for 256x256...
+[Jun 24 21:26] <RGBA> Revisiting filter selections from the top... 4096 left
+[Jun 24 21:26] <RGBA> Sorting spatial filters...
+[Jun 24 21:26] <RGBA> Executing tiles to generate residual matrix...
+[Jun 24 21:26] <RGBA> Compressing alpha channel...
+[Jun 24 21:26] <RGBA> Designing chaos...
+[Jun 24 21:26] <RGBA> Compressing spatial filter matrix...
+[Jun 24 21:26] <RGBA> Compressing color filter matrix...
+[Jun 24 21:26] <RGBA> Writing tables...
+[Jun 24 21:26] <RGBA> Writing interleaved pixel/filter data...
+[Jun 24 21:26] <stats> (RGBA Compress) Alpha channel encoder:
+[Jun 24 21:26] <Mono> Using row-filtered encoder for 1024x1024 image
+[Jun 24 21:26] <Mono>  -   Basic Overhead : 1 bits (0 bytes)
+[Jun 24 21:26] <Mono>  - Encoder Overhead : 0 bits (0 bytes)
+[Jun 24 21:26] <Mono>  -  Filter Overhead : 13 bits (1 bytes)
+[Jun 24 21:26] <Mono>  -  Monochrome Data : 0 bits (0 bytes)
+[Jun 24 21:26] <stats> (RGBA Compress) Spatial filter encoder:
+[Jun 24 21:26] <Mono> Designed monochrome writer using 32x32 tiles to express 13 (0 palette) filters for 256x256 image with 6 chaos bins
+[Jun 24 21:26] <Mono>  -   Basic Overhead : 103 bits (12 bytes)
+[Jun 24 21:26] <Mono>  - Encoder Overhead : 533 bits (66 bytes)
+[Jun 24 21:26] <Mono>  -  Filter Overhead : 1695 bits (211 bytes)
+[Jun 24 21:26] <Mono>  -  Monochrome Data : 176903 bits (22112 bytes)
+[Jun 24 21:26] <Mono>  - Recursively using filter encoder:
+[Jun 24 21:26] <Mono> Using row-filtered encoder for 32x32 image
+[Jun 24 21:26] <Mono>  -   Basic Overhead : 1 bits (0 bytes)
+[Jun 24 21:26] <Mono>  - Encoder Overhead : 0 bits (0 bytes)
+[Jun 24 21:26] <Mono>  -  Filter Overhead : 207 bits (25 bytes)
+[Jun 24 21:26] <Mono>  -  Monochrome Data : 1487 bits (185 bytes)
+[Jun 24 21:26] <stats> (RGBA Compress) Color filter encoder:
+[Jun 24 21:26] <Mono> Designed monochrome writer using 64x64 tiles to express 21 (0 palette) filters for 256x256 image with 2 chaos bins
+[Jun 24 21:26] <Mono>  -   Basic Overhead : 159 bits (19 bytes)
+[Jun 24 21:26] <Mono>  - Encoder Overhead : 474 bits (59 bytes)
+[Jun 24 21:26] <Mono>  -  Filter Overhead : 9215 bits (1151 bytes)
+[Jun 24 21:26] <Mono>  -  Monochrome Data : 132820 bits (16602 bytes)
+[Jun 24 21:26] <Mono>  - Recursively using filter encoder:
+[Jun 24 21:26] <Mono> Using row-filtered encoder for 64x64 image
+[Jun 24 21:26] <Mono>  -   Basic Overhead : 1 bits (0 bytes)
+[Jun 24 21:26] <Mono>  - Encoder Overhead : 0 bits (0 bytes)
+[Jun 24 21:26] <Mono>  -  Filter Overhead : 263 bits (32 bytes)
+[Jun 24 21:26] <Mono>  -  Monochrome Data : 8951 bits (1118 bytes)
+[Jun 24 21:26] <stats> (RGBA Compress)     Basic Overhead : 7 bits (0 bytes, 0.000140621% of RGBA) with 8 chaos bins
+[Jun 24 21:26] <stats> (RGBA Compress) SF Choice Overhead : 180 bits (22 bytes, 0.00361596% of RGBA)
+[Jun 24 21:26] <stats> (RGBA Compress)  SF Table Overhead : 844 bits (105 bytes, 0.0169548% of RGBA)
+[Jun 24 21:26] <stats> (RGBA Compress)  CF Table Overhead : 833 bits (104 bytes, 0.0167339% of RGBA)
+[Jun 24 21:26] <stats> (RGBA Compress)   Y Table Overhead : 6152 bits (769 bytes, 0.123586% of RGBA)
+[Jun 24 21:26] <stats> (RGBA Compress)   U Table Overhead : 6531 bits (816 bytes, 0.131199% of RGBA)
+[Jun 24 21:26] <stats> (RGBA Compress)   V Table Overhead : 6670 bits (833 bytes, 0.133991% of RGBA)
+[Jun 24 21:26] <stats> (RGBA Compress)   A Table Overhead : 14 bits (1 bytes, 0.000281242% of RGBA)
+[Jun 24 21:26] <stats> (RGBA Compress)      SF Compressed : 178390 bits (22298 bytes, 3.58362% of RGBA)
+[Jun 24 21:26] <stats> (RGBA Compress)      CF Compressed : 141835 bits (17729 bytes, 2.84928% of RGBA)
+[Jun 24 21:26] <stats> (RGBA Compress)       Y Compressed : 1315554 bits (164444 bytes, 26.4277% of RGBA)
+[Jun 24 21:26] <stats> (RGBA Compress)       U Compressed : 1600450 bits (200056 bytes, 32.1509% of RGBA)
+[Jun 24 21:26] <stats> (RGBA Compress)       V Compressed : 1721312 bits (215164 bytes, 34.5789% of RGBA)
+[Jun 24 21:26] <stats> (RGBA Compress)       A Compressed : 0 bits (0 bytes, 0% of RGBA)
+[Jun 24 21:26] <stats> (RGBA Compress)  Overall RGBA Data : 4977928 bits (622241 bytes, 98.9063% of total)
+[Jun 24 21:26] <stats> (RGBA Compress)   RGBA write count : 648655 pixels for 1024x1024 pixel image (61.8606 % of total)
+[Jun 24 21:26] <stats> (RGBA Compress)    RGBA Compression Ratio : 4.1698:1 compression ratio
+[Jun 24 21:26] <stats> (RGBA Compress)              Overall Size : 5032972 bits (629121 bytes)
+[Jun 24 21:26] <stats> (RGBA Compress) Overall Compression Ratio : 6.66692:1
+[Jun 24 21:26] <stats> (Mask Decode)   Chosen Color : (0,0,0,0) ...
+[Jun 24 21:26] <stats> (Mask Decode) Initialization : 2 usec (28.5714 %total)
+[Jun 24 21:26] <stats> (Mask Decode)     Huffman+LZ : 5 usec (71.4286 %total)
+[Jun 24 21:26] <stats> (Mask Decode)        Overall : 7 usec
+[Jun 24 21:26] <stats> (LZ Decode) Read Huffman Table : 17 usec (6.71937 %total)
+[Jun 24 21:26] <stats> (LZ Decode)         Read Zones : 236 usec (93.2806 %total)
+[Jun 24 21:26] <stats> (LZ Decode)            Overall : 253 usec
+[Jun 24 21:26] <stats> (LZ Decode)         Zone Count : 1295 zones read
+[Jun 24 21:26] <stats> (Palette Decode)    Disabled.
+[Jun 24 21:26] <stats> (RGBA Decode) Read Filter Tables : 72 usec (0.0978726 %total)
+[Jun 24 21:26] <stats> (RGBA Decode)   Read RGBA Tables : 240 usec (0.326242 %total)
+[Jun 24 21:26] <stats> (RGBA Decode)      Decode Pixels : 73253 usec (99.5759 %total)
+[Jun 24 21:26] <stats> (RGBA Decode)            Overall : 73565 usec
+[Jun 24 21:26] <stats> (RGBA Decode)         Throughput : 57.0149 MBPS (output bytes/time)
+[Jun 24 21:26] <stats> (RGBA Decode)   Image Dimensions : 1024 x 1024 pixels
+[Jun 24 21:26] <main> natural.png => 2.87318x smaller than PNG and decompresses 1.53324x faster
 ~~~
 
 
-Future plans
-============
+Road Map
+========
 
-Immediately:
+For version 1.1 tagged release:
+
++ Optimization
+
++ Generate Static Library for Distribution
+
++ Integrate with DevKit
+
+After 1.1 release:
 
 + Benchmarking
 
 + Whitepaper
 
-Slated for inclusion in version 1.1 of the file format:
+Slated for inclusion in version 1.2 of the file format:
 
 + Use strong file hash in new verification mode for command-line tool.
-
-+ Support scanline spatial and color filters.
--- Define one filter pair for an entire row.
--- Compare the result of doing this with tightly tuned filters; send the best.
-
-+ Support LZ at the scanline level.
--- Make post-filter LZ a part of the scanline filter mode.
--- This is exciting because right now LZ is useless with the post-filter data.
--- WILL be better for some computer-generated images I am looking at.
--- WILL make us better than PNG for ALL images rather than just the majority.
 
 + A new spritesheet generator that uses GCIF as an in/output file format.
 -- Even better image compression by eliminating a lot of image data.
@@ -802,8 +839,3 @@ Slated for inclusion in version 1.1 of the file format:
 -- Incorporate it into the GCIF codebase to make it a one-stop shop for games.
 
 + Java version of the encoder.
-
-+ Support for images as large as 65536x65536 with custom memory allocator and
-a container format that breaks the image into smaller chunks that are each GCIF
-compressed.
-
