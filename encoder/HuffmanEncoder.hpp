@@ -225,6 +225,7 @@ public:
 		} else {
 			u16 code = _codes[sym];
 			u8 codelen = _codelens[sym];
+			CAT_DEBUG_ENFORCE(codelen > 0);
 
 			writer.writeBits(code, codelen);
 			return codelen;
@@ -238,6 +239,7 @@ public:
 			return 0;
 		} else {
 			u8 codelen = _codelens[sym];
+			CAT_DEBUG_ENFORCE(codelen > 0);
 			return codelen;
 		}
 	}

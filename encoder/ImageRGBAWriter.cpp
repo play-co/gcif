@@ -51,6 +51,8 @@ using namespace std;
 #define DESYNC(x, y)
 #endif
 
+//#define CAT_DUMP_RESIDUALS
+
 
 //// ImageRGBAWriter
 
@@ -510,6 +512,84 @@ void ImageRGBAWriter::computeResiduals() {
 
 		topleft_row += _size_x * 4 * _tile_size_y;
 	}
+
+#ifdef CAT_DUMP_RESIDUALS
+	SmartArray<u8> a, b, c;
+	a.resize(_size_x * _size_y);
+	b.resize(_size_x * _size_y);
+	c.resize(_size_x * _size_y);
+
+	for (u16 y = 0; y < size_y; ++y) {
+		for (u16 x = 0; x < size_x; ++x) {
+			int off = x + y * size_x;
+
+			a[off] = _residuals.get()[off * 4 + 0];
+			b[off] = _residuals.get()[off * 4 + 1];
+			c[off] = _residuals.get()[off * 4 + 2];
+		}
+	}
+
+	lodepng_encode_file("R.png", a.get(), size_x, size_y, LCT_GREY, 8);
+	lodepng_encode_file("G.png", b.get(), size_x, size_y, LCT_GREY, 8);
+	lodepng_encode_file("B.png", c.get(), size_x, size_y, LCT_GREY, 8);
+
+	const int size = size_x * size_y;
+	SmartArray<u8> la, lb, lc;
+	la.resize(LZ4_compressBound(size));
+	lb.resize(LZ4_compressBound(size));
+	lc.resize(LZ4_compressBound(size));
+
+	int las = LZ4_compressHC((char*)a.get(), (char*)la.get(), size);
+	int lbs = LZ4_compressHC((char*)b.get(), (char*)lb.get(), size);
+	int lcs = LZ4_compressHC((char*)c.get(), (char*)lc.get(), size);
+
+	CAT_WARN("TEST") << "R LZ = " << las << " bytes";
+	CAT_WARN("TEST") << "G LZ = " << lbs << " bytes";
+	CAT_WARN("TEST") << "B LZ = " << lcs << " bytes";
+
+	FreqHistogram<256> ha;
+	FreqHistogram<256> hb;
+	FreqHistogram<256> hc;
+
+	ha.init();
+	hb.init();
+	hc.init();
+
+	for (int ii = 0; ii < las; ++ii) {
+		ha.add(la[ii]);
+	}
+
+	for (int ii = 0; ii < lbs; ++ii) {
+		hb.add(lb[ii]);
+	}
+
+	for (int ii = 0; ii < lcs; ++ii) {
+		hc.add(lc[ii]);
+	}
+
+	HuffmanEncoder<256> ea;
+	HuffmanEncoder<256> eb;
+	HuffmanEncoder<256> ec;
+
+	ea.init(ha);
+	eb.init(hb);
+	ec.init(hc);
+
+	int bas = 0, bbs = 0, bcs = 0;
+	for (int ii = 0; ii < las; ++ii) {
+		bas += ea.simulateWrite(la[ii]);
+	}
+	for (int ii = 0; ii < lbs; ++ii) {
+		bbs += eb.simulateWrite(lb[ii]);
+	}
+	for (int ii = 0; ii < lcs; ++ii) {
+		bcs += ec.simulateWrite(lc[ii]);
+	}
+
+	CAT_WARN("TEST") << "R = " << bas/8 << " by";
+	CAT_WARN("TEST") << "G = " << bbs/8 << " by";
+	CAT_WARN("TEST") << "B = " << bcs/8 << " by";
+#endif
 }
 
 void ImageRGBAWriter::designChaos() {
