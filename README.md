@@ -564,6 +564,48 @@ simple row filters are employed.  These determine if the input can be compressed
 better if a "same as left" predictor is run on the data.
 
 
+### Note: Palette sorting
+
+In various places in the image compression, a palette of values is used to
+represent a large 2D image.  For instance, the spatial filter selections for
+each tile of the image, or the colors corresponding to each color in a palette
+mode image.
+
+Choosing the palette index for each of the <= 256 colors is essential for
+producing good compression results using a PNG-like filter-based approach.
+
+Palette index assignment does not affect LZ or mask results, nor any
+direct improvement in entropy encoding.
+
+However, when neighboring pixels have similar values, the filters are more
+effective at predicting them, which increases the number of post-filter zero
+pixels and reduces overall entropy.
+
+A simple approximation to good choices is to just sort by luminance, so the
+brighest pixels get the highest palette index.  However you can do better,
+and luminance cannot be measured for filter matrices.
+
+Since this is designed to improve filter effectiveness, the criterion for a
+good palette selection is based on how close each pixel index is to its up,
+up-left, left, and up-right neighbor pixel indices.  If you also include the
+reverse relation, all 8 pixels around the center pixel should be scored.
+
+The algorithm is:
+
++ (1) Assign each palette index by popularity, most popular gets index 0.
++ (2) From palette index 1:
++ *** (1) Score each color by how often palette index 0 appears in filter zone.
++ *** (2) Add in how often the color appears in index 0's filter zone.
++ *** (3) Choose the one that scores highest to be index 1.
++ (3) For palette index 2+, score by filter zone closeness for index 0 and 1.
++ (4) After index 8, it cares about closeness to the last 8 indices only.
+
+The closeness to the last index is more important than earlier indices, so
+those are scored higher.  Also, left/right neighbors are scored twice as
+high as other neighbors, matching the natural horizontal correlation of
+most images.
+
+
 ### Note: Order-1 Chaos Modeling and Encoding
 
 After colors are decorrelated with the color filter, the data is essentially
