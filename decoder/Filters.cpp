@@ -153,21 +153,21 @@ static const u8 *SFFU_AVG_AB(const u8 * CAT_RESTRICT p, u8 * CAT_RESTRICT temp, 
 }
 
 static const u8 *SFF_AVG_AC(const u8 * CAT_RESTRICT p, u8 * CAT_RESTRICT temp, int x, int y, int size_x) {
-	if (y > 0) {
-		const u8 * CAT_RESTRICT b = p - size_x*4; // B
+	if (x > 0) {
+		const u8 * CAT_RESTRICT a = p - 4; // A
 
-		if (x > 0) {
-			const u8 * CAT_RESTRICT a = p - 4; // A
-			const u8 * CAT_RESTRICT c = b - 4; // C
+		if (y > 0) {
+			const u8 * CAT_RESTRICT c = a - size_x*4; // C
 
 			temp[0] = (a[0] + (u16)c[0]) >> 1;
 			temp[1] = (a[1] + (u16)c[1]) >> 1;
 			temp[2] = (a[2] + (u16)c[2]) >> 1;
+			return temp;
 		} else {
-			return b; // B
+			return a; // A
 		}
-	} else if (x > 0) {
-		return p - 4; // A
+	} else if (y > 0) {
+		return p - size_x*4; // B
 	}
 
 	return FPZ;
@@ -177,7 +177,7 @@ static const u8 *SFFU_AVG_AC(const u8 * CAT_RESTRICT p, u8 * CAT_RESTRICT temp, 
 	CAT_DEBUG_ENFORCE(x > 0 && y > 0 && x < size_x-1);
 
 	const u8 * CAT_RESTRICT a = p - 4; // A
-	const u8 * CAT_RESTRICT c = p - size_x*4 - 4; // C
+	const u8 * CAT_RESTRICT c = a - size_x*4; // C
 
 	temp[0] = (a[0] + (u16)c[0]) >> 1;
 	temp[1] = (a[1] + (u16)c[1]) >> 1;
