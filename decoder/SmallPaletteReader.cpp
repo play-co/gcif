@@ -46,6 +46,7 @@ int SmallPaletteReader::readSmallPalette(ImageReader & CAT_RESTRICT reader) {
 
 	for (int ii = 0; ii < _palette_size; ++ii) {
 		_palette[ii] = getLE(reader.readWord());
+		CAT_WARN("PAL") << (int)_palette[ii];
 	}
 
 	if (_palette_size > 4) { // 3-4 bits/pixel
@@ -54,17 +55,28 @@ int SmallPaletteReader::readSmallPalette(ImageReader & CAT_RESTRICT reader) {
 	} else if (_palette_size > 2) { // 2 bits/pixel
 		_pack_x = (_size_x + 1) >> 1;
 		_pack_y = (_size_y + 1) >> 1;
-	} else if (_palette_size > 1) {
+	} else if (_palette_size > 1) { // 1 bit/pixel
 		_pack_x = (_size_x + 3) >> 2;
 		_pack_y = (_size_y + 1) >> 1;
 	} else {
 		// Just emit that single color and done!
-		u32 color = _palette[0];
-		u32 *rgba = reinterpret_cast<u32 *>( _rgba );
-		for (int y = 0; y < _size_y; ++y) {
-			for (int x = 0, xend = _size_x; x < xend; ++x) {
-				*rgba++ = color;
-			}
+		int count = _size_y * _size_x;
+		const u32 COLOR = _palette[0];
+		u32 * CAT_RESTRICT rgba = reinterpret_cast<u32 *>( _rgba );
+
+		// Unroll sets of 4 words for this incredibly important case
+		while (count >= 4) {
+			rgba[0] = COLOR;
+			rgba[1] = COLOR;
+			rgba[2] = COLOR;
+			rgba[3] = COLOR;
+			rgba += 4;
+			count -= 4;
+		}
+
+		while (count > 0) {
+			*rgba++ = COLOR;
+			--count;
 		}
 	}
 
@@ -75,12 +87,16 @@ int SmallPaletteReader::readPackPalette(ImageReader & CAT_RESTRICT reader) {
 	// If mask is enabled,
 	if (_mask->enabled()) {
 		_mask_palette = reader.readBits(8);
+		CAT_WARN("TEST") << (int)_mask_palette;
+	} else {
+		_mask_palette = 0;
 	}
 
 	_pack_palette_size = reader.readBits(8) + 1;
 
 	for (int ii = 0; ii < _pack_palette_size; ++ii) {
 		_pack_palette[ii] = reader.readBits(8);
+		CAT_WARN("TEST") << (int)_pack_palette[ii];
 	}
 
 	return GCIF_RE_OK;
@@ -317,6 +333,8 @@ int SmallPaletteReader::readPixels(ImageReader & CAT_RESTRICT reader) {
 				u8 index =
 #endif
 				_mono_decoder.read(x, y, p, reader);
+
+				CAT_WARN("TEST") << x << "," << y << " = " << (int)index;
 
 				CAT_DEBUG_ENFORCE(index < _pack_palette_size);
 			}

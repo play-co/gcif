@@ -359,10 +359,7 @@ void Masker::write(ImageWriter &writer) {
 		writer.writeWord(_color);
 		table_bits += 32;
 	} else {
-		CAT_INANE("mask") << "Writing mask for 1-plane color (" << _color << ") ...";
-
-		writer.writeBits(_color, 8);
-		table_bits += 8;
+		CAT_INANE("mask") << "Writing mask for 1-plane";
 	}
 
 	table_bits += writer.write9((u32)_rle.size());

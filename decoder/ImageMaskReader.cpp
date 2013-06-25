@@ -137,7 +137,7 @@ int ImageMaskReader::read(ImageReader & CAT_RESTRICT reader, int planes, int siz
 		if (planes == 4) {
 			_color = getLE(reader.readWord());
 		} else {
-			_color = getLE(reader.readBits(8));
+			_color = 0;
 		}
 
 		if ((err = decodeLZ(reader))) {

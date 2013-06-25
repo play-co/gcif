@@ -369,22 +369,26 @@ int SmallPaletteWriter::compress(ImageMaskWriter &mask, ImageLZWriter &lz) {
 void SmallPaletteWriter::writePackPalette(ImageWriter &writer) {
 	int bits = 0;
 
-	// If using mask,
 	if (_mask->enabled()) {
-		u32 maskColor = _mask->getColor();
+		u8 mask_color = _mask->getColor();
+		int mask_index = -1;
 
-		CAT_DEBUG_ENFORCE(maskColor < 256);
+		for (int ii = 0; ii < _pack_palette_size; ++ii) {
+			if (_pack_palette[ii] == mask_color) {
+				mask_index = ii;
+			}
+		}
 
-		writer.writeBits(maskColor, 8);
+		CAT_DEBUG_ENFORCE(mask_index >= 0);
+
+		writer.writeBits(mask_index, 8);
 	}
 
 	writer.writeBits(_pack_palette_size - 1, 8);
 	bits += 8;
 
 	for (int ii = 0; ii < _pack_palette_size; ++ii) {
-		u8 packed = _pack_palette[ii];
-
-		writer.writeBits(packed, 8);
+		writer.writeBits(_pack_palette[ii], 8);
 		bits += 8;
 	}
 
