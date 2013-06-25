@@ -71,7 +71,7 @@ public:
 #endif // CAT_COLLECT_STATS
 
 public:
-	int read(ImageReader & CAT_RESTRICT reader, int size_x, int size_y);
+	int read(ImageReader & CAT_RESTRICT reader, int planes, int size_x, int size_y);
 
 	// Returns bitmask for scanline, MSB = first pixel
 	const u32 *nextScanline();

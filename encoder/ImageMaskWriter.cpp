@@ -371,7 +371,7 @@ void Masker::write(ImageWriter &writer) {
 	++table_bits;
 
 	if (_using_encoder) {
-		table_bits = _encoder.writeTable(writer);
+		table_bits += _encoder.writeTable(writer);
 	}
 
 #ifdef CAT_COLLECT_STATS

@@ -209,7 +209,6 @@ public:
 					}
 
 					if (hasFile) {
-						CAT_WARN("TEST") << filename;
 						benchfile(filename);
 					} else {
 						break;
@@ -504,6 +503,77 @@ static int replace(const char *path) {
 
 
 
+static int testfile(string filename) {
+	vector<unsigned char> image;
+	unsigned size_x, size_y;
+
+	const int compress_level = 9999;
+
+	double t0 = Clock::ref()->usec();
+
+	unsigned error = lodepng::decode(image, size_x, size_y, filename);
+
+	double t1 = Clock::ref()->usec();
+
+	if (error) {
+		CAT_WARN("main") << "PNG read error " << error << ": " << lodepng_error_text(error) << " for " << filename;
+		return 0;
+		//return error;
+	}
+
+	int err;
+
+	string benchfile = filename + ".gci";
+	const char *cbenchfile = benchfile.c_str();
+
+	if ((err = gcif_write(&image[0], size_x, size_y, cbenchfile, compress_level))) {
+		CAT_WARN("main") << "Error while compressing the image: " << gcif_write_errstr(err) << " for " << filename;
+		return err;
+	}
+
+	double t2 = Clock::ref()->usec();
+
+	GCIFImage outimage;
+	if ((err = gcif_read_file(cbenchfile, &outimage))) {
+		CAT_WARN("main") << "Error while decompressing the image: " << gcif_read_errstr(err) << " for " << filename;
+		return err;
+	}
+
+	double t3 = Clock::ref()->usec();
+
+	for (u32 ii = 0; ii < size_x * size_y * 4; ii += 4) {
+		if (image[ii + 3] == 0) {
+			if (*(u32*)&outimage.rgba[ii] != 0) {
+				CAT_WARN("main") << "Output image does not match input image for " << filename << " at " << ii << " (on transparency)";
+				break;
+			}
+		} else {
+			if (*(u32*)&outimage.rgba[ii] != *(u32*)&image[ii]) {
+				CAT_WARN("main") << "Output image does not match input image for " << filename << " at " << ii;
+				break;
+			}
+		}
+	}
+
+	struct stat png, gci;
+	const char *cfilename = filename.c_str();
+	stat(cfilename, &png);
+	stat(cbenchfile, &gci);
+
+	u32 pngBytes = png.st_size;
+	u32 gciBytes = gci.st_size;
+	double gcipngrat = pngBytes / (double)gciBytes;
+
+	double pngtime = t1 - t0;
+	double gcitime = t3 - t2;
+	double gcipngtime = pngtime / gcitime;
+
+	CAT_WARN("main") << filename << " => " << gcipngrat << "x smaller than PNG and decompresses " << gcipngtime << "x faster";
+
+	free(outimage.rgba);
+
+	return GCIF_RE_OK;
+}
 
 
 
@@ -530,7 +600,7 @@ static int profileit(const char *filename) {
 
 //// Command-line parameter parsing
 
-enum  optionIndex { UNKNOWN, HELP, L0, L1, L2, L3, VERBOSE, SILENT, COMPRESS, DECOMPRESS, /*TEST,*/ BENCHMARK, PROFILE, REPLACE };
+enum  optionIndex { UNKNOWN, HELP, L0, L1, L2, L3, VERBOSE, SILENT, COMPRESS, DECOMPRESS, TEST, BENCHMARK, PROFILE, REPLACE };
 const option::Descriptor usage[] =
 {
   {UNKNOWN, 0,"" , ""    ,option::Arg::None, "USAGE: ./gcif [options] [output file path]\n\n"
@@ -544,7 +614,7 @@ const option::Descriptor usage[] =
   {SILENT,0,"s" , "silent",option::Arg::None, "  --[s]ilent \tNo console output (even on errors)" },
   {COMPRESS,0,"c" , "compress",option::Arg::Optional, "  --[c]ompress <input PNG file path> \tCompress the given .PNG image." },
   {DECOMPRESS,0,"d" , "decompress",option::Arg::Optional, "  --[d]ecompress <input GCI file path> \tDecompress the given .GCI image" },
-/*  {TEST,0,"t" , "test",option::Arg::Optional, "  --[t]est <input PNG file path> \tTest compression to verify it is lossless" }, */
+  {TEST,0,"t" , "test",option::Arg::Optional, "  --[t]est <input PNG file path> \tTest compression to verify it is lossless" },
   {BENCHMARK,0,"b" , "benchmark",option::Arg::Optional, "  --[b]enchmark <test set path> \tTest compression ratio and decompression speed for a whole directory at once" },
   {PROFILE,0,"p" , "profile",option::Arg::Optional, "  --[p]rofile <input GCI file path> \tDecode same GCI file 100x to enhance profiling of decoder" },
   {REPLACE,0,"r" , "replace",option::Arg::Optional, "  --[r]eplace <directory path> \tCompress all images in the given directory, replacing the original if the GCIF version is smaller without changing file name" },
@@ -611,8 +681,20 @@ int processParameters(option::Parser &parse, option::Option options[]) {
 
 			return 0;
 		}
-/*	} else if (options[TEST]) {
-		CAT_FATAL("main") << "TODO";*/
+	} else if (options[TEST]) {
+		if (parse.nonOptionsCount() != 1) {
+			CAT_WARN("main") << "Input error: Please provide input file path";
+		} else {
+			const char *inFilePath = parse.nonOption(0);
+			int err;
+
+			if ((err = testfile(inFilePath))) {
+				CAT_INFO("main") << "Error during conversion [retcode:" << err << "]";
+				return err;
+			}
+
+			return 0;
+		}
 	} else if (options[BENCHMARK]) {
 		if (parse.nonOptionsCount() != 1) {
 			CAT_WARN("main") << "Input error: Please provide input directory path";

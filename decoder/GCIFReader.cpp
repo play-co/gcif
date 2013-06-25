@@ -82,7 +82,7 @@ static int gcif_read(ImageReader &reader, GCIFImage *image) {
 
 			// Color Mask
 			ImageMaskReader imageMaskReader;
-			if ((err = imageMaskReader.read(reader,  pack_x, pack_y))) {
+			if ((err = imageMaskReader.read(reader, 1, pack_x, pack_y))) {
 				return err;
 			}
 			imageMaskReader.dumpStats();
@@ -94,6 +94,7 @@ static int gcif_read(ImageReader &reader, GCIFImage *image) {
 			}
 			imageLZReader.dumpStats();
 
+			// Finish reading small paletted image
 			if ((err = smallPaletteReader.readTail(reader, imageMaskReader, imageLZReader))) {
 				return err;
 			}
@@ -102,7 +103,7 @@ static int gcif_read(ImageReader &reader, GCIFImage *image) {
 	} else {
 		// Color Mask
 		ImageMaskReader imageMaskReader;
-		if ((err = imageMaskReader.read(reader, image->size_x, image->size_y))) {
+		if ((err = imageMaskReader.read(reader, 4, image->size_x, image->size_y))) {
 			return err;
 		}
 		imageMaskReader.dumpStats();

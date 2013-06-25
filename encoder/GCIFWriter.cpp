@@ -64,7 +64,7 @@ static const GCIFKnobs DEFAULT_KNOBS[COMPRESS_LEVELS] = {
 		40,			// mask_minColorRat
 		60,			// mask_huffThresh
 
-		15,			// lz_huffThresh
+		60,			// lz_huffThresh
 		16,			// lz_minScore4
 		64,			// lz_minScore1
 		4,			// lz_nonzeroCoeff
@@ -85,7 +85,7 @@ static const GCIFKnobs DEFAULT_KNOBS[COMPRESS_LEVELS] = {
 		40,			// mask_minColorRat
 		60,			// mask_huffThresh
 
-		15,			// lz_huffThresh
+		60,			// lz_huffThresh
 		16,			// lz_minScore4
 		64,			// lz_minScore1
 		4,			// lz_nonzeroCoeff
@@ -106,7 +106,7 @@ static const GCIFKnobs DEFAULT_KNOBS[COMPRESS_LEVELS] = {
 		40,			// mask_minColorRat
 		60,			// mask_huffThresh
 
-		15,			// lz_huffThresh
+		60,			// lz_huffThresh
 		16,			// lz_minScore4
 		64,			// lz_minScore1
 		4,			// lz_nonzeroCoeff
@@ -127,7 +127,7 @@ static const GCIFKnobs DEFAULT_KNOBS[COMPRESS_LEVELS] = {
 		40,			// mask_minColorRat
 		60,			// mask_huffThresh
 
-		15,			// lz_huffThresh
+		60,			// lz_huffThresh
 		16,			// lz_minScore4
 		64,			// lz_minScore1
 		4,			// lz_nonzeroCoeff

@@ -252,6 +252,7 @@ void SmallPaletteWriter::writeHead(ImageWriter &writer) {
 void SmallPaletteWriter::writeSmallPalette(ImageWriter &writer) {
 	int bits = 0;
 
+	CAT_DEBUG_ENFORCE(_palette_size >= 1);
 	CAT_DEBUG_ENFORCE(SMALL_PALETTE_MAX <= 16);
 
 	writer.writeBits(_palette_size - 1, 4);
@@ -417,6 +418,8 @@ void SmallPaletteWriter::writePixels(ImageWriter &writer) {
 	Stats.pixel_bits = bits;
 	Stats.packed_pixels = pixels;
 	Stats.total_bits = Stats.small_palette_bits + Stats.pack_palette_bits + Stats.pixel_bits;
+	Stats.total_bits += _lz->Stats.huff_bits;
+	Stats.total_bits += _mask->Stats.compressedDataBits;
 	Stats.compression_ratio = _size_x * _size_y * 32 / (double)Stats.total_bits;
 #endif
 }

@@ -115,7 +115,7 @@ int ImageMaskReader::init(int size_x, int size_y) {
 	return GCIF_RE_OK;
 }
 
-int ImageMaskReader::read(ImageReader & CAT_RESTRICT reader, int size_x, int size_y) {
+int ImageMaskReader::read(ImageReader & CAT_RESTRICT reader, int planes, int size_x, int size_y) {
 #ifdef CAT_COLLECT_STATS
 	m_clock = Clock::ref();
 
@@ -134,7 +134,11 @@ int ImageMaskReader::read(ImageReader & CAT_RESTRICT reader, int size_x, int siz
 
 	_enabled = reader.readBit() != 0;
 	if (_enabled) {
-		_color = getLE(reader.readWord());
+		if (planes == 4) {
+			_color = getLE(reader.readWord());
+		} else {
+			_color = getLE(reader.readBits(8));
+		}
 
 		if ((err = decodeLZ(reader))) {
 			return err;
