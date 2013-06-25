@@ -137,10 +137,6 @@ public:
 		_chaos.zero(x);
 	}
 
-	CAT_INLINE void setZero(u16 x) {
-		_chaos.zero(x);
-	}
-
 	u8 read(u16 x, u16 y, u8 * CAT_RESTRICT p, ImageReader & CAT_RESTRICT reader);
 
 	// Faster top-level version, when spatial filters can be unsafe

@@ -286,8 +286,8 @@ int ImageRGBAReader::readPixels(ImageReader & CAT_RESTRICT reader) {
 			// Zero filter holes
 			for (u16 tx = 0; tx < _tiles_x; ++tx) {
 				if (!_filters[tx].ready()) {
-					_sf_decoder.setZero(tx);
-					_cf_decoder.setZero(tx);
+					_sf_decoder.masked(tx);
+					_cf_decoder.masked(tx);
 				}
 			}
 
@@ -443,8 +443,8 @@ int ImageRGBAReader::readPixels(ImageReader & CAT_RESTRICT reader) {
 				// Zero filter holes
 				for (u16 tx = 0; tx < _tiles_x; ++tx) {
 					if (!_filters[tx].ready()) {
-						_sf_decoder.setZero(tx);
-						_cf_decoder.setZero(tx);
+						_sf_decoder.masked(tx);
+						_cf_decoder.masked(tx);
 					}
 				}
 			}
