@@ -469,15 +469,19 @@ static const u8 *SFF_AVG_BD1(const u8 * CAT_RESTRICT p, u8 * CAT_RESTRICT temp, 
 	if (y > 0) {
 		const u8 * CAT_RESTRICT b = p - size_x*4; // B
 
-		if (x > 0) {
-			const u8 * CAT_RESTRICT src = b - 4; // C
-			if (x < size_x-1) {
-				src += 8; // D
-			}
+		if (x < size_x-1) {
+			const u8 * CAT_RESTRICT d = b + 4; // D
 
-			temp[0] = (b[0] + (u16)src[0] + 1) >> 1;
-			temp[1] = (b[1] + (u16)src[1] + 1) >> 1;
-			temp[2] = (b[2] + (u16)src[2] + 1) >> 1;
+			temp[0] = (b[0] + (u16)d[0] + 1) >> 1;
+			temp[1] = (b[1] + (u16)d[1] + 1) >> 1;
+			temp[2] = (b[2] + (u16)d[2] + 1) >> 1;
+			return temp;
+		} else if (x > 0) {
+			const u8 * CAT_RESTRICT c = b - 4; // C
+
+			temp[0] = (b[0] + (u16)c[0] + 1) >> 1;
+			temp[1] = (b[1] + (u16)c[1] + 1) >> 1;
+			temp[2] = (b[2] + (u16)c[2] + 1) >> 1;
 			return temp;
 		} else {
 			return b; // B
@@ -1746,7 +1750,7 @@ static u8 MFF_AVG_CD(const u8 * CAT_RESTRICT p, u16 num_syms, int x, int y, int 
 		if (x > 0) {
 			const u8 * CAT_RESTRICT c = src - 1; // C
 			if (x < size_x-1) {
-				src += 2; // D
+				++src; // D
 			}
 
 			return (c[0] + (u16)src[0]) >> 1;
@@ -1888,13 +1892,12 @@ static u8 MFF_AVG_BD1(const u8 * CAT_RESTRICT p, u16 num_syms, int x, int y, int
 	if (y > 0) {
 		const u8 * CAT_RESTRICT b = p - size_x; // B
 
-		if (x > 0) {
-			const u8 * CAT_RESTRICT src = b - 1; // C
-			if (x < size_x-1) {
-				src += 2; // D
-			}
-
-			return (b[0] + (u16)src[0] + 1) >> 1;
+		if (x < size_x-1) {
+			const u8 * CAT_RESTRICT d = b + 1; // D
+			return (b[0] + (u16)d[0] + 1) >> 1;
+		} else if (x > 0) {
+			const u8 * CAT_RESTRICT c = b - 1; // C
+			return (b[0] + (u16)c[0] + 1) >> 1;
 		} else {
 			return b[0]; // B
 		}
@@ -1921,7 +1924,7 @@ static u8 MFF_AVG_CD1(const u8 * CAT_RESTRICT p, u16 num_syms, int x, int y, int
 		if (x > 0) {
 			const u8 * CAT_RESTRICT c = src - 1; // C
 			if (x < size_x-1) {
-				src += 2; // D
+				++src; // D
 			}
 
 			return (c[0] + (u16)src[0] + 1) >> 1;
