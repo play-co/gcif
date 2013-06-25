@@ -109,8 +109,9 @@ protected:
 
 	MonoChaos _chaos;
 	EntropyDecoder<MAX_SYMS, ZRLE_SYMS> _decoder[MAX_CHAOS_LEVELS];
-	u8 *_current_row;
 
+	// Decoder state
+	u8 *_current_row;
 	u16 _current_y;
 	u8 *_current_tile;
 
@@ -137,10 +138,14 @@ public:
 		_chaos.zero(x);
 	}
 
-	u8 read(u16 x, u8 * CAT_RESTRICT p, ImageReader & CAT_RESTRICT reader);
+	CAT_INLINE u8 *currentRow() {
+		return _current_row;
+	}
+
+	u8 read(u16 x, ImageReader & CAT_RESTRICT reader);
 
 	// Faster top-level version, when spatial filters can be unsafe
-	u8 read_unsafe(u16 x, u8 * CAT_RESTRICT p, ImageReader & CAT_RESTRICT reader);
+	u8 read_unsafe(u16 x, ImageReader & CAT_RESTRICT reader);
 };
 
 

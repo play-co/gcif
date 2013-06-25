@@ -118,8 +118,6 @@ int SmallPaletteReader::readTables(ImageReader & CAT_RESTRICT reader) {
 int SmallPaletteReader::readPixels(ImageReader & CAT_RESTRICT reader) {
 	const u8 MASK_PAL = _mask_palette;
 
-	u8 * CAT_RESTRICT p = _image.get();
-
 	u16 trigger_x_lz = _lz->getTriggerX();
 
 #ifdef CAT_UNROLL_READER
@@ -143,6 +141,7 @@ int SmallPaletteReader::readPixels(ImageReader & CAT_RESTRICT reader) {
 		for (int x = 0, xend = _pack_x; x < xend; ++x) {
 			// If LZ triggered,
 			if (x == trigger_x_lz) {
+				u8 *p = _mono_decoder.currentRow() + x;
 				lz_skip = _lz->triggerX(p, 0);
 				trigger_x_lz = _lz->getTriggerX();
 			}
@@ -157,18 +156,18 @@ int SmallPaletteReader::readPixels(ImageReader & CAT_RESTRICT reader) {
 				--lz_skip;
 				_mono_decoder.masked(x);
 			} else if ((s32)mask < 0) {
-				*p = MASK_PAL;
+				u8 *p = _mono_decoder.currentRow() + x;
 				_mono_decoder.masked(x);
+				*p = MASK_PAL;
 			} else {
 #ifdef CAT_DEBUG
 				u8 index =
 #endif
-				_mono_decoder.read(x, p, reader);
+				_mono_decoder.read(x, reader);
 
 				CAT_DEBUG_ENFORCE(index < _pack_palette_size);
 			}
 
-			++p;
 			mask <<= 1;
 		}
 	}
@@ -193,6 +192,7 @@ int SmallPaletteReader::readPixels(ImageReader & CAT_RESTRICT reader) {
 
 			// If LZ triggered,
 			if (x == trigger_x_lz) {
+				u8 *p = _mono_decoder.currentRow() + x;
 				lz_skip = _lz->triggerX(p, 0);
 				trigger_x_lz = _lz->getTriggerX();
 			}
@@ -205,18 +205,18 @@ int SmallPaletteReader::readPixels(ImageReader & CAT_RESTRICT reader) {
 				--lz_skip;
 				_mono_decoder.masked(x);
 			} else if ((s32)mask < 0) {
-				*p = MASK_PAL;
+				u8 *p = _mono_decoder.currentRow() + x;
 				_mono_decoder.masked(x);
+				*p = MASK_PAL;
 			} else {
 #ifdef CAT_DEBUG
 				u8 index =
 #endif
-				_mono_decoder.read(x, p, reader);
+				_mono_decoder.read(x, reader);
 
 				CAT_DEBUG_ENFORCE(index < _pack_palette_size);
 			}
 
-			++p;
 			mask <<= 1;
 		}
 
@@ -225,6 +225,7 @@ int SmallPaletteReader::readPixels(ImageReader & CAT_RESTRICT reader) {
 		for (int x = 1, xend = (int)_pack_x - 1; x < xend; ++x) {
 			// If LZ triggered,
 			if (x == trigger_x_lz) {
+				u8 *p = _mono_decoder.currentRow() + x;
 				lz_skip = _lz->triggerX(p, 0);
 				trigger_x_lz = _lz->getTriggerX();
 			}
@@ -239,18 +240,18 @@ int SmallPaletteReader::readPixels(ImageReader & CAT_RESTRICT reader) {
 				--lz_skip;
 				_mono_decoder.masked(x);
 			} else if ((s32)mask < 0) {
-				*p = MASK_PAL;
+				u8 *p = _mono_decoder.currentRow() + x;
 				_mono_decoder.masked(x);
+				*p = MASK_PAL;
 			} else {
 #ifdef CAT_DEBUG
 				u8 index =
 #endif
-				_mono_decoder.read_unsafe(x, p, reader);
+				_mono_decoder.read_unsafe(x, reader);
 
 				CAT_DEBUG_ENFORCE(index < _pack_palette_size);
 			}
 
-			++p;
 			mask <<= 1;
 		}
 
@@ -262,6 +263,7 @@ int SmallPaletteReader::readPixels(ImageReader & CAT_RESTRICT reader) {
 
 			// If LZ triggered,
 			if (x == trigger_x_lz) {
+				u8 *p = _mono_decoder.currentRow() + x;
 				lz_skip = _lz->triggerX(p, 0);
 				trigger_x_lz = _lz->getTriggerX();
 			}
@@ -276,18 +278,17 @@ int SmallPaletteReader::readPixels(ImageReader & CAT_RESTRICT reader) {
 				--lz_skip;
 				_mono_decoder.masked(x);
 			} else if ((s32)mask < 0) {
-				*p = MASK_PAL;
+				u8 *p = _mono_decoder.currentRow() + x;
 				_mono_decoder.masked(x);
+				*p = MASK_PAL;
 			} else {
 #ifdef CAT_DEBUG
 				u8 index =
 #endif
-				_mono_decoder.read(x, p, reader);
+				_mono_decoder.read(x, reader);
 
 				CAT_DEBUG_ENFORCE(index < _pack_palette_size);
 			}
-
-			++p;
 		}
 	}
 
@@ -309,6 +310,7 @@ int SmallPaletteReader::readPixels(ImageReader & CAT_RESTRICT reader) {
 		for (int x = 0, xend = _pack_x; x < xend; ++x) {
 			// If LZ triggered,
 			if (x == trigger_x_lz) {
+				u8 *p = _mono_decoder.currentRow() + x;
 				lz_skip = _lz->triggerX(p, 0);
 				trigger_x_lz = _lz->getTriggerX();
 			}
@@ -323,18 +325,18 @@ int SmallPaletteReader::readPixels(ImageReader & CAT_RESTRICT reader) {
 				--lz_skip;
 				_mono_decoder.masked(x);
 			} else if ((s32)mask < 0) {
-				*p = MASK_PAL;
+				u8 *p = _mono_decoder.currentRow() + x;
 				_mono_decoder.masked(x);
+				*p = MASK_PAL;
 			} else {
 #ifdef CAT_DEBUG
 				u8 index =
 #endif
-				_mono_decoder.read(x, p, reader);
+				_mono_decoder.read(x, reader);
 
 				CAT_DEBUG_ENFORCE(index < _pack_palette_size);
 			}
 
-			++p;
 			mask <<= 1;
 		}
 	}
@@ -493,7 +495,7 @@ int SmallPaletteReader::unpackPixels() {
 		if (_size_y & 1) {
 			u32 *pixel = rgba;
 
-			for (int x = 0, xlen = _size_x >> 2; x < xlen; ++x, pixel += 4) {
+			for (x = 0, xlen = _size_x >> 2; x < xlen; ++x, pixel += 4) {
 				u8 p = *image++;
 
 				CAT_DEBUG_ENFORCE(p < _pack_palette_size);

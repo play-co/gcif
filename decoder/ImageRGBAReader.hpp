@@ -114,14 +114,8 @@ protected:
 		FilterSelection * CAT_RESTRICT filter = &_filters[tx];
 
 		if (!filter->ready()) {
-			const u16 ty = y >> _tile_bits_y;
-
-			const u32 toff = tx + ty * _tiles_x; // TODO: Optimize away
-			u8 * CAT_RESTRICT cf_p = _cf_tiles.get() + toff;
-			u8 * CAT_RESTRICT sf_p = _sf_tiles.get() + toff;
-
-			filter->cf = YUV2RGB_FILTERS[_cf_decoder.read(tx, cf_p, reader)];
-			filter->sf = _sf[_sf_decoder.read(tx, sf_p, reader)];
+			filter->cf = YUV2RGB_FILTERS[_cf_decoder.read(tx, reader)];
+			filter->sf = _sf[_sf_decoder.read(tx, reader)];
 		}
 
 		return filter;
@@ -129,7 +123,7 @@ protected:
 
 	u8 _FPT[3];
 
-	CAT_INLINE void readSafe(u16 x, u16 y, u8 * CAT_RESTRICT p, u8 * CAT_RESTRICT a_p, ImageReader & CAT_RESTRICT reader) {
+	CAT_INLINE void readSafe(u16 x, u16 y, u8 * CAT_RESTRICT p, ImageReader & CAT_RESTRICT reader) {
 		FilterSelection *filter = readFilter(x, y, reader);
 
 		// Calculate YUV chaos
@@ -152,13 +146,13 @@ protected:
 		p[2] += pred[2];
 
 		// Read alpha pixel
-		p[3] = (u8)~_a_decoder.read(x, a_p, reader);
+		p[3] = (u8)~_a_decoder.read(x, reader);
 
 		_chaos.store(x, YUV);
 	}
 
 	// WARNING: Should be exactly the same as above, except call unsafe()
-	CAT_INLINE void readUnsafe(u16 x, u16 y, u8 * CAT_RESTRICT p, u8 * CAT_RESTRICT a_p, ImageReader & CAT_RESTRICT reader) {
+	CAT_INLINE void readUnsafe(u16 x, u16 y, u8 * CAT_RESTRICT p, ImageReader & CAT_RESTRICT reader) {
 		FilterSelection *filter = readFilter(x, y, reader);
 
 		// Calculate YUV chaos
@@ -181,7 +175,7 @@ protected:
 		p[2] += pred[2];
 
 		// Read alpha pixel
-		p[3] = (u8)~_a_decoder.read_unsafe(x, a_p, reader);
+		p[3] = (u8)~_a_decoder.read_unsafe(x, reader);
 
 		_chaos.store(x, YUV);
 	}

@@ -263,10 +263,12 @@ int MonoReader::readRowHeader(u16 y, ImageReader & CAT_RESTRICT reader) {
 	return GCIF_RE_OK;
 }
 
-u8 MonoReader::read(u16 x, u8 * CAT_RESTRICT data, ImageReader & CAT_RESTRICT reader) {
+u8 MonoReader::read(u16 x, ImageReader & CAT_RESTRICT reader) {
 #ifdef CAT_DEBUG
 	const u16 y = _current_y;
 #endif
+
+	u8 *data = _current_row + x;
 
 	CAT_DEBUG_ENFORCE(x < _params.size_x && y < _params.size_y);
 
@@ -297,8 +299,7 @@ u8 MonoReader::read(u16 x, u8 * CAT_RESTRICT data, ImageReader & CAT_RESTRICT re
 
 		// If filter must be read,
 		if (!filter) {
-			u8 *tp = _current_tile + tx;
-			u8 f = _filter_decoder->read(tx, tp, reader);
+			const u8 f = _filter_decoder->read(tx, reader);
 
 			// Read filter
 			MonoFilterFuncs * CAT_RESTRICT funcs = &_sf[f];
@@ -310,29 +311,29 @@ u8 MonoReader::read(u16 x, u8 * CAT_RESTRICT data, ImageReader & CAT_RESTRICT re
 
 		// If the filter is a palette symbol,
 #ifdef CAT_WORD_64
-		u64 pf = (u64)filter;
+		const u64 pf = (u64)filter;
 #else
-		u32 pf = (u32)filter;
+		const u32 pf = (u32)filter;
 #endif
 		if (pf <= MAX_PALETTE+1) {
 			value = _palette[pf - 1];
 			_chaos.zero(x);
 		} else {
 			// Get chaos bin
-			int chaos = _chaos.get(x);
+			const int chaos = _chaos.get(x);
 #ifndef CAT_DEBUG
 			const u16 y = _current_y;
 #endif
 
 			// Read residual from bitstream
-			u16 residual = _decoder[chaos].next(reader);
+			const u16 residual = _decoder[chaos].next(reader);
 
 			// Store for next chaos lookup
 			const u16 num_syms = _params.num_syms;
 			_chaos.store(x, residual, num_syms);
 
 			// Calculate predicted value
-			u16 pred = filter(data, num_syms, x, y, _params.size_x);
+			const u16 pred = filter(data, num_syms, x, y, _params.size_x);
 
 			CAT_DEBUG_ENFORCE(pred < num_syms);
 
@@ -356,10 +357,12 @@ u8 MonoReader::read(u16 x, u8 * CAT_RESTRICT data, ImageReader & CAT_RESTRICT re
 //// KEEP THIS IN SYNC WITH VERSION ABOVE! ////
 // The only change should be that unsafe() is used.
 
-u8 MonoReader::read_unsafe(u16 x, u8 * CAT_RESTRICT data, ImageReader & CAT_RESTRICT reader) {
+u8 MonoReader::read_unsafe(u16 x, ImageReader & CAT_RESTRICT reader) {
 #ifdef CAT_DEBUG
 	const u16 y = _current_y;
 #endif
+
+	u8 *data = _current_row + x;
 
 	CAT_DEBUG_ENFORCE(x < _params.size_x && y < _params.size_y);
 
@@ -390,8 +393,7 @@ u8 MonoReader::read_unsafe(u16 x, u8 * CAT_RESTRICT data, ImageReader & CAT_REST
 
 		// If filter must be read,
 		if (!filter) {
-			u8 *tp = _current_tile + tx;
-			u8 f = _filter_decoder->read(tx, tp, reader);
+			const u8 f = _filter_decoder->read(tx, reader);
 
 			// Read filter
 			MonoFilterFuncs * CAT_RESTRICT funcs = &_sf[f];
@@ -403,29 +405,29 @@ u8 MonoReader::read_unsafe(u16 x, u8 * CAT_RESTRICT data, ImageReader & CAT_REST
 
 		// If the filter is a palette symbol,
 #ifdef CAT_WORD_64
-		u64 pf = (u64)filter;
+		const u64 pf = (u64)filter;
 #else
-		u32 pf = (u32)filter;
+		const u32 pf = (u32)filter;
 #endif
 		if (pf <= MAX_PALETTE+1) {
 			value = _palette[pf - 1];
 			_chaos.zero(x);
 		} else {
 			// Get chaos bin
-			int chaos = _chaos.get(x);
+			const int chaos = _chaos.get(x);
 #ifndef CAT_DEBUG
 			const u16 y = _current_y;
 #endif
 
 			// Read residual from bitstream
-			u16 residual = _decoder[chaos].next(reader);
+			const u16 residual = _decoder[chaos].next(reader);
 
 			// Store for next chaos lookup
 			const u16 num_syms = _params.num_syms;
 			_chaos.store(x, residual, num_syms);
 
 			// Calculate predicted value
-			u16 pred = filter(data, num_syms, x, y, _params.size_x);
+			const u16 pred = filter(data, num_syms, x, y, _params.size_x);
 
 			CAT_DEBUG_ENFORCE(pred < num_syms);
 

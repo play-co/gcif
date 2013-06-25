@@ -200,7 +200,6 @@ int ImageRGBAReader::readPixels(ImageReader & CAT_RESTRICT reader) {
 
 	// Start from upper-left of image
 	u8 * CAT_RESTRICT p = _rgba;
-	u8 * CAT_RESTRICT a_p = _a_tiles.get();
 
 	_chaos.start();
 
@@ -242,7 +241,8 @@ int ImageRGBAReader::readPixels(ImageReader & CAT_RESTRICT reader) {
 
 			// If LZ triggered,
 			if (x == trigger_x_lz) {
-				lz_skip = _lz->triggerX(a_p, reinterpret_cast<u32 *>( p ));
+				u8 *Ap = _a_decoder.currentRow() + x;
+				lz_skip = _lz->triggerX(Ap, reinterpret_cast<u32 *>( p ));
 				trigger_x_lz = _lz->getTriggerX();
 			}
 
@@ -258,17 +258,17 @@ int ImageRGBAReader::readPixels(ImageReader & CAT_RESTRICT reader) {
 				_a_decoder.masked(x);
 			} else if ((s32)mask < 0) {
 				*reinterpret_cast<u32 *>( p ) = MASK_COLOR;
-				*a_p = MASK_ALPHA;
+				u8 *Ap = _a_decoder.currentRow() + x;
+				*Ap = MASK_ALPHA;
 				_chaos.zero(x);
 				_a_decoder.masked(x);
 			} else {
-				readSafe(x, y, p, a_p, reader);
+				readSafe(x, y, p, reader);
 			}
 
 			// Next pixel
 			p += 4;
 			mask <<= 1;
-			++a_p;
 		}
 	}
 
@@ -318,7 +318,8 @@ int ImageRGBAReader::readPixels(ImageReader & CAT_RESTRICT reader) {
 
 			// If LZ triggered,
 			if (x == trigger_x_lz) {
-				lz_skip = _lz->triggerX(a_p, reinterpret_cast<u32 *>( p ));
+				u8 *Ap = _a_decoder.currentRow() + x;
+				lz_skip = _lz->triggerX(Ap, reinterpret_cast<u32 *>( p ));
 				trigger_x_lz = _lz->getTriggerX();
 			}
 
@@ -333,17 +334,17 @@ int ImageRGBAReader::readPixels(ImageReader & CAT_RESTRICT reader) {
 				_a_decoder.masked(x);
 			} else if ((s32)mask < 0) {
 				*reinterpret_cast<u32 *>( p ) = MASK_COLOR;
-				*a_p = MASK_ALPHA;
+				u8 *Ap = _a_decoder.currentRow() + x;
+				*Ap = MASK_ALPHA;
 				_chaos.zero(x);
 				_a_decoder.masked(x);
 			} else {
-				readSafe(x, y, p, a_p, reader);
+				readSafe(x, y, p, reader);
 			}
 
 			// Next pixel
 			p += 4;
 			mask <<= 1;
-			++a_p;
 		}
 
 
@@ -356,7 +357,8 @@ int ImageRGBAReader::readPixels(ImageReader & CAT_RESTRICT reader) {
 
 			// If LZ triggered,
 			if (x == trigger_x_lz) {
-				lz_skip = _lz->triggerX(a_p, reinterpret_cast<u32 *>( p ));
+				u8 *Ap = _a_decoder.currentRow() + x;
+				lz_skip = _lz->triggerX(Ap, reinterpret_cast<u32 *>( p ));
 				trigger_x_lz = _lz->getTriggerX();
 			}
 
@@ -373,16 +375,16 @@ int ImageRGBAReader::readPixels(ImageReader & CAT_RESTRICT reader) {
 				_a_decoder.masked(x);
 			} else if ((s32)mask < 0) {
 				*reinterpret_cast<u32 *>( p ) = MASK_COLOR;
-				*a_p = MASK_ALPHA;
+				u8 *Ap = _a_decoder.currentRow() + x;
+				*Ap = MASK_ALPHA;
 				_chaos.zero(x);
 				_a_decoder.masked(x);
 			} else {
 				// Note: Reading with unsafe spatial filter
-				readUnsafe(x, y, p, a_p, reader);
+				readUnsafe(x, y, p, reader);
 			}
 
 			// Next pixel
-			++a_p;
 			p += 4;
 			mask <<= 1;
 		}
@@ -398,7 +400,8 @@ int ImageRGBAReader::readPixels(ImageReader & CAT_RESTRICT reader) {
 
 			// If LZ triggered,
 			if (x == trigger_x_lz) {
-				lz_skip = _lz->triggerX(a_p, reinterpret_cast<u32 *>( p ));
+				u8 *Ap = _a_decoder.currentRow() + x;
+				lz_skip = _lz->triggerX(Ap, reinterpret_cast<u32 *>( p ));
 				trigger_x_lz = _lz->getTriggerX();
 			}
 
@@ -414,16 +417,16 @@ int ImageRGBAReader::readPixels(ImageReader & CAT_RESTRICT reader) {
 				_a_decoder.masked(x);
 			} else if ((s32)mask < 0) {
 				*reinterpret_cast<u32 *>( p ) = MASK_COLOR;
-				*a_p = MASK_ALPHA;
+				u8 *Ap = _a_decoder.currentRow() + x;
+				*Ap = MASK_ALPHA;
 				_chaos.zero(x);
 				_a_decoder.masked(x);
 			} else {
-				readSafe(x, y, p, a_p, reader);
+				readSafe(x, y, p, reader);
 			}
 
 			// Next pixel
 			p += 4;
-			++a_p;
 		}
 	}
 
@@ -475,7 +478,8 @@ int ImageRGBAReader::readPixels(ImageReader & CAT_RESTRICT reader) {
 
 			// If LZ triggered,
 			if (x == trigger_x_lz) {
-				lz_skip = _lz->triggerX(a_p, reinterpret_cast<u32 *>( p ));
+				u8 *Ap = _a_decoder.currentRow() + x;
+				lz_skip = _lz->triggerX(Ap, reinterpret_cast<u32 *>( p ));
 				trigger_x_lz = _lz->getTriggerX();
 			}
 
@@ -491,17 +495,17 @@ int ImageRGBAReader::readPixels(ImageReader & CAT_RESTRICT reader) {
 				_a_decoder.masked(x);
 			} else if ((s32)mask < 0) {
 				*reinterpret_cast<u32 *>( p ) = MASK_COLOR;
-				*a_p = MASK_ALPHA;
+				u8 *Ap = _a_decoder.currentRow() + x;
+				*Ap = MASK_ALPHA;
 				_chaos.zero(x);
 				_a_decoder.masked(x);
 			} else {
-				readSafe(x, y, p, a_p, reader);
+				readSafe(x, y, p, reader);
 			}
 
 			// Next pixel
 			p += 4;
 			mask <<= 1;
-			++a_p;
 		}
 	}
 

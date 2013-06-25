@@ -150,7 +150,6 @@ int ImagePaletteReader::readPixels(ImageReader & CAT_RESTRICT reader) {
 	const u8 MASK_PAL = _mask_palette;
 
 	u32 * CAT_RESTRICT rgba = reinterpret_cast<u32 *>( _rgba );
-	u8 * CAT_RESTRICT p = _image.get();
 
 	u16 trigger_x_lz = _lz->getTriggerX();
 
@@ -178,6 +177,7 @@ int ImagePaletteReader::readPixels(ImageReader & CAT_RESTRICT reader) {
 
 			// If LZ triggered,
 			if (x == trigger_x_lz) {
+				u8 *p = _mono_decoder.currentRow() + x;
 				lz_skip = _lz->triggerX(p, rgba);
 				trigger_x_lz = _lz->getTriggerX();
 			}
@@ -193,10 +193,11 @@ int ImagePaletteReader::readPixels(ImageReader & CAT_RESTRICT reader) {
 				_mono_decoder.masked(x);
 			} else if ((s32)mask < 0) {
 				*rgba = MASK_COLOR;
+				u8 *p = _mono_decoder.currentRow() + x;
 				*p = MASK_PAL;
 				_mono_decoder.masked(x);
 			} else {
-				u8 index = _mono_decoder.read(x, p, reader);
+				u8 index = _mono_decoder.read(x, reader);
 
 				CAT_DEBUG_ENFORCE(index < _palette_size);
 
@@ -205,7 +206,6 @@ int ImagePaletteReader::readPixels(ImageReader & CAT_RESTRICT reader) {
 
 			++rgba;
 			mask <<= 1;
-			++p;
 		}
 	}
 
@@ -232,6 +232,7 @@ int ImagePaletteReader::readPixels(ImageReader & CAT_RESTRICT reader) {
 
 			// If LZ triggered,
 			if (x == trigger_x_lz) {
+				u8 *p = _mono_decoder.currentRow() + x;
 				lz_skip = _lz->triggerX(p, rgba);
 				trigger_x_lz = _lz->getTriggerX();
 			}
@@ -245,10 +246,11 @@ int ImagePaletteReader::readPixels(ImageReader & CAT_RESTRICT reader) {
 				_mono_decoder.masked(x);
 			} else if ((s32)mask < 0) {
 				*rgba = MASK_COLOR;
+				u8 *p = _mono_decoder.currentRow() + x;
 				*p = MASK_PAL;
 				_mono_decoder.masked(x);
 			} else {
-				u8 index = _mono_decoder.read(x, p, reader);
+				u8 index = _mono_decoder.read(x, reader);
 
 				CAT_DEBUG_ENFORCE(index < _palette_size);
 
@@ -257,7 +259,6 @@ int ImagePaletteReader::readPixels(ImageReader & CAT_RESTRICT reader) {
 
 			++rgba;
 			mask <<= 1;
-			++p;
 		}
 
 		//// THIS IS THE INNER LOOP ////
@@ -267,6 +268,7 @@ int ImagePaletteReader::readPixels(ImageReader & CAT_RESTRICT reader) {
 
 			// If LZ triggered,
 			if (x == trigger_x_lz) {
+				u8 *p = _mono_decoder.currentRow() + x;
 				lz_skip = _lz->triggerX(p, rgba);
 				trigger_x_lz = _lz->getTriggerX();
 			}
@@ -282,10 +284,11 @@ int ImagePaletteReader::readPixels(ImageReader & CAT_RESTRICT reader) {
 				_mono_decoder.masked(x);
 			} else if ((s32)mask < 0) {
 				*rgba = MASK_COLOR;
+				u8 *p = _mono_decoder.currentRow() + x;
 				*p = MASK_PAL;
 				_mono_decoder.masked(x);
 			} else {
-				u8 index = _mono_decoder.read_unsafe(x, p, reader);
+				u8 index = _mono_decoder.read_unsafe(x, reader);
 
 				CAT_DEBUG_ENFORCE(index < _palette_size);
 
@@ -294,7 +297,6 @@ int ImagePaletteReader::readPixels(ImageReader & CAT_RESTRICT reader) {
 
 			++rgba;
 			mask <<= 1;
-			++p;
 		}
 
 		//// THIS IS THE INNER LOOP ////
@@ -307,6 +309,7 @@ int ImagePaletteReader::readPixels(ImageReader & CAT_RESTRICT reader) {
 
 			// If LZ triggered,
 			if (x == trigger_x_lz) {
+				u8 *p = _mono_decoder.currentRow() + x;
 				lz_skip = _lz->triggerX(p, rgba);
 				trigger_x_lz = _lz->getTriggerX();
 			}
@@ -322,10 +325,11 @@ int ImagePaletteReader::readPixels(ImageReader & CAT_RESTRICT reader) {
 				_mono_decoder.masked(x);
 			} else if ((s32)mask < 0) {
 				*rgba = MASK_COLOR;
+				u8 *p = _mono_decoder.currentRow() + x;
 				*p = MASK_PAL;
 				_mono_decoder.masked(x);
 			} else {
-				u8 index = _mono_decoder.read(x, p, reader);
+				u8 index = _mono_decoder.read(x, reader);
 
 				CAT_DEBUG_ENFORCE(index < _palette_size);
 
@@ -333,7 +337,6 @@ int ImagePaletteReader::readPixels(ImageReader & CAT_RESTRICT reader) {
 			}
 
 			++rgba;
-			++p;
 		}
 	}
 
@@ -358,6 +361,7 @@ int ImagePaletteReader::readPixels(ImageReader & CAT_RESTRICT reader) {
 
 			// If LZ triggered,
 			if (x == trigger_x_lz) {
+				u8 *p = _mono_decoder.currentRow() + x;
 				lz_skip = _lz->triggerX(p, rgba);
 				trigger_x_lz = _lz->getTriggerX();
 			}
@@ -373,10 +377,11 @@ int ImagePaletteReader::readPixels(ImageReader & CAT_RESTRICT reader) {
 				_mono_decoder.masked(x);
 			} else if ((s32)mask < 0) {
 				*rgba = MASK_COLOR;
+				u8 *p = _mono_decoder.currentRow() + x;
 				*p = MASK_PAL;
 				_mono_decoder.masked(x);
 			} else {
-				u8 index = _mono_decoder.read(x, p, reader);
+				u8 index = _mono_decoder.read(x, reader);
 
 				CAT_DEBUG_ENFORCE(index < _palette_size);
 
@@ -385,7 +390,6 @@ int ImagePaletteReader::readPixels(ImageReader & CAT_RESTRICT reader) {
 
 			++rgba;
 			mask <<= 1;
-			++p;
 		}
 	}
 
