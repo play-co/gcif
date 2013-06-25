@@ -245,11 +245,8 @@ is not used.  A bit in the encoded file indicates whether or not it is used.
 If 256 or fewer colors comprise the image, then it is attempted to be sent as a
 paletted image, since this guarantees a compression ratio of at least 4:1.
 
-The palette is sorted based on the luminance of each palette color, with the
-hope that the image is somewhat smooth in brightness.  Spatial filtering is
-done but color filtering is not (naturally); see the next section for more
-information about filtering.  The filter zone size is increased to 16x16 for
-paletted images.
+The assignment of colors to palette indices is chosen to improve the
+compression ratio.  For more on palette sorting, see the section below.
 
 If the palette has 16 or fewer entries, then the palette indices are repacked
 into bytes: 
@@ -334,6 +331,7 @@ that they can be treated as separate monochrome data streams.
 The alpha channel is treated as separate monochrome data uncorrelated with the
 RGB data and is prefiltered as (255 - A) so that 255 becomes 0, since 255 is
 the most common alpha value and 0 is much easier to compress.
+
 
 #### Color Filtering
 
@@ -462,6 +460,7 @@ CFF_R2Y_GB_RB:
 
 These functions are all extremely fast to execute and typically excellent at decorrelation.
 
+
 #### Spatial Filtering
 
 Images are decoded from left to right and from top to bottom.  The spatial filters use
@@ -551,17 +550,19 @@ The monochrome compressor works mechanically the same as the RGBA compressor
 described above, except that it only has to worry about one channel of input
 so there is no color filtering.
 
-Unlike the RGBA compressor, its tile sizes can vary from 4x4 up to ~32x32 and the
-tile size is selected to minimize the size of the output.
+Unlike the RGBA compressor, its tile sizes can vary from 4x4 up to ~32x32 and
+the tile size is selected to minimize the size of the output.
 
 It produces as output, a subresolution tiled image describing the spatial
 filters that best compress the given image data, and residuals to encode.
-The subresolution tiled image is recursively compressed with the same monochrome
-compressor until it is better to encode using simple row filters.
+The subresolution tiled image is recursively compressed with the same
+monochrome compressor until it is better to encode using simple row filters,
+similar to how WebP works.
 
 When tile-based compression is less beneficial than encoding the input directly,
 simple row filters are employed.  These determine if the input can be compressed
-better if a "same as left" predictor is run on the data.
+better when a "same as left" predictor is run on the data.  This choice is made
+per-scanline with a single bit.
 
 
 ### Note: Palette sorting
