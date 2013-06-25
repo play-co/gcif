@@ -102,7 +102,7 @@ int ImageRGBAReader::readFilterTables(ImageReader & CAT_RESTRICT reader) {
 		params.max_bits = 5;
 
 #ifdef CAT_DUMP_FILTERS
-		CAT_WARN("TEST") << "Reading SF";
+		CAT_WARN("RGBA") << "Reading SF";
 #endif
 		if ((err = _sf_decoder.readTables(params, reader))) {
 			return err;
@@ -122,7 +122,7 @@ int ImageRGBAReader::readFilterTables(ImageReader & CAT_RESTRICT reader) {
 		params.max_bits = 5;
 
 #ifdef CAT_DUMP_FILTERS
-		CAT_WARN("TEST") << "Reading CF";
+		CAT_WARN("RGBA") << "Reading CF";
 #endif
 		if ((err = _cf_decoder.readTables(params, reader))) {
 			return err;
@@ -151,7 +151,7 @@ int ImageRGBAReader::readRGBATables(ImageReader & CAT_RESTRICT reader) {
 		params.max_bits = 5;
 
 #ifdef CAT_DUMP_FILTERS
-		CAT_WARN("TEST") << "Reading alpha channel";
+		CAT_WARN("RGBA") << "Reading alpha channel";
 #endif
 		if ((err = _a_decoder.readTables(params, reader))) {
 			return err;

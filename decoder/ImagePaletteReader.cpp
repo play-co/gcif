@@ -376,7 +376,6 @@ int ImagePaletteReader::readPixels(ImageReader & CAT_RESTRICT reader) {
 				*p = MASK_PAL;
 				_mono_decoder.masked(x);
 			} else {
-				// TODO: Unroll to use unsafe version
 				u8 index = _mono_decoder.read(x, y, p, reader);
 
 				CAT_DEBUG_ENFORCE(index < _palette_size);

@@ -46,7 +46,6 @@ int SmallPaletteReader::readSmallPalette(ImageReader & CAT_RESTRICT reader) {
 
 	for (int ii = 0; ii < _palette_size; ++ii) {
 		_palette[ii] = getLE(reader.readWord());
-		CAT_WARN("PAL") << (int)_palette[ii];
 	}
 
 	if (_palette_size > 4) { // 3-4 bits/pixel
@@ -87,7 +86,6 @@ int SmallPaletteReader::readPackPalette(ImageReader & CAT_RESTRICT reader) {
 	// If mask is enabled,
 	if (_mask->enabled()) {
 		_mask_palette = reader.readBits(8);
-		CAT_WARN("TEST") << (int)_mask_palette;
 	} else {
 		_mask_palette = 0;
 	}
@@ -96,7 +94,6 @@ int SmallPaletteReader::readPackPalette(ImageReader & CAT_RESTRICT reader) {
 
 	for (int ii = 0; ii < _pack_palette_size; ++ii) {
 		_pack_palette[ii] = reader.readBits(8);
-		CAT_WARN("TEST") << (int)_pack_palette[ii];
 	}
 
 	return GCIF_RE_OK;
@@ -333,8 +330,6 @@ int SmallPaletteReader::readPixels(ImageReader & CAT_RESTRICT reader) {
 				u8 index =
 #endif
 				_mono_decoder.read(x, y, p, reader);
-
-				CAT_WARN("TEST") << x << "," << y << " = " << (int)index;
 
 				CAT_DEBUG_ENFORCE(index < _pack_palette_size);
 			}
