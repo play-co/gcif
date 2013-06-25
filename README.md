@@ -8,7 +8,7 @@ other usage cases (such as webpages) where you want to compress tightly once,
 and then read it back many times.  For these images the expected size should be
 about 1024x1024 pixels or smaller.
 
-It typically produces files that are 60% the size of PNGCRUSH output and about
+It typically produces files that are 66% the size of PNGCRUSH output and about
 94% the size of WebP output, while decoding faster than both.
 
 The format is released under the BSD license as forever patent-free, monetarily
