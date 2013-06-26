@@ -107,11 +107,16 @@ protected:
 	// Write state
 	SmartArray<u8> _residuals, _seen_filter;
 
+	// Palette LUT
+	u16 _pal_lut_bits;
+	SmartArray<u32> _pal_lut;
+	SmartArray<u16> _lut_residuals;
+
 	// RGB encoders
 	struct Encoders {
 		RGBChaos chaos;
 
-		EntropyEncoder<MAX_SYMS, ZRLE_SYMS> y[MAX_CHAOS_LEVELS];
+		EntropyEncoder<MAX_SYMS + PAL_LUT_SIZE, ZRLE_SYMS> y[MAX_CHAOS_LEVELS];
 		EntropyEncoder<MAX_SYMS, ZRLE_SYMS> u[MAX_CHAOS_LEVELS];
 		EntropyEncoder<MAX_SYMS, ZRLE_SYMS> v[MAX_CHAOS_LEVELS];
 	} *_encoders;
@@ -127,6 +132,7 @@ protected:
 	bool IsMasked(u16 x, u16 y);
 	bool IsSFMasked(u16 x, u16 y);
 
+	void designRecent();
 	void maskTiles();
 	void designFilters();
 	void designTiles();
@@ -146,7 +152,7 @@ public:
 	struct _Stats {
 		int basic_overhead_bits, sf_choice_bits;
 		int sf_table_bits, cf_table_bits, y_table_bits, u_table_bits, v_table_bits, a_table_bits;
-		int sf_bits, cf_bits, y_bits, u_bits, v_bits, a_bits;
+		int sf_bits, cf_bits, y_bits, u_bits, v_bits, a_bits, lut_bits;
 
 		int rgba_bits, total_bits; // Total includes LZ, mask overhead
 
