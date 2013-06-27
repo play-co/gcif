@@ -190,7 +190,7 @@ public:
 
 		int basic_cost = 0;
 		for (int ii = 0, iiend = (int)_basic_syms.size(); ii < iiend; ++ii) {
-			u8 symbol = (u8)_basic_syms[ii];
+			u16 symbol = _basic_syms[ii];
 
 			basic_cost += _basic.simulateWrite(symbol);
 		}
@@ -199,7 +199,7 @@ public:
 		int run = 0;
 		int readIndex = 0;
 		for (int ii = 0, iiend = (int)_basic_syms.size(); ii < iiend; ++ii) {
-			u8 symbol = (u8)_basic_syms[ii];
+			u16 symbol = _basic_syms[ii];
 
 			// If zero,
 			if (symbol == 0) {
@@ -255,13 +255,11 @@ public:
 	}
 
 	int simulateAll() {
-		CAT_DEBUG_ENFORCE(_num_syms <= 256);
-
 		reset();
 
 		int bits = 0;
 		for (int ii = 0, len = (int)_basic_syms.size(); ii < len; ++ii) {
-			u8 sym = _basic_syms[ii];
+			u16 sym = _basic_syms[ii];
 
 			bits += simulate(sym);
 		}

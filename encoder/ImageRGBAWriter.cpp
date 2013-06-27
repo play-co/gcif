@@ -639,19 +639,28 @@ void ImageRGBAWriter::designChaos() {
 
 		// For each chaos level,
 		for (int ii = 0; ii < chaos_levels; ++ii) {
-			encoders->y[ii].init(MAX_SYMS, ZRLE_SYMS);
+			encoders->y[ii].init(MAX_SYMS + _pal_lut.size(), ZRLE_SYMS);
 			encoders->u[ii].init(MAX_SYMS, ZRLE_SYMS);
 			encoders->v[ii].init(MAX_SYMS, ZRLE_SYMS);
 		}
 
 		// For each row,
 		const u8 *residuals = _residuals.get();
+		const u16 *lut_residuals = _lut_residuals.get();
 		for (int y = 0; y < _size_y; ++y) {
 			// For each column,
-			for (int x = 0; x < _size_x; ++x) {
+			for (int x = 0; x < _size_x; ++x, ++lut_residuals) {
 				// If masked,
 				if (IsMasked(x, y)) {
 					encoders->chaos.zero(x);
+
+					u16 recent = lut_residuals[0];
+					if (recent != 0xffff) {
+						// Get chaos bin
+						u8 cy, cu, cv;
+						encoders->chaos.get(x, cy, cu, cv);
+						encoders->y[cy].add(256 + recent);
+					}
 				} else {
 					// Get chaos bin
 					u8 cy, cu, cv;
