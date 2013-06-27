@@ -79,18 +79,39 @@ struct sym_freq
 };
 
 
-struct huffman_work_tables {
-	enum { cMaxInternalNodes = HuffmanDecoder::MAX_SYMS };
+class HuffmanWorkTables {
+	SmartArray<sym_freq> syms0, syms1;
 
-	sym_freq syms0[HuffmanDecoder::MAX_SYMS + 1 + cMaxInternalNodes];
-	sym_freq syms1[HuffmanDecoder::MAX_SYMS + 1 + cMaxInternalNodes];
+public:
+	void init(int num_syms) {
+		int size = num_syms * 2 + 1;
+
+		syms0.resize(size);
+		syms1.resize(size);
+	}
+
+	CAT_INLINE sym_freq &get0(int x) {
+		return syms0[x];
+	}
+
+	CAT_INLINE sym_freq &get1(int x) {
+		return syms1[x];
+	}
+
+	CAT_INLINE sym_freq *ptr0() {
+		return &syms0[0];
+	}
+
+	CAT_INLINE sym_freq *ptr1() {
+		return &syms1[0];
+	}
 };
 
 
 //// Huffman functions from LZHAM
 
 // Modified: one_sym is set as nonzero symbol+1 when there is just one symbol to avoid writing bits for these
-bool generate_huffman_codes(huffman_work_tables *state, u32 num_syms, const u16 *pFreq, u8 *pCodesizes,
+bool generate_huffman_codes(HuffmanWorkTables &state, u32 num_syms, const u16 *pFreq, u8 *pCodesizes,
 							u32 &max_code_size, u32 &total_freq_ret, u32 &one_sym);
 
 bool limit_max_code_size(u32 num_syms, u8 *pCodesizes, u32 max_code_size);
@@ -111,14 +132,19 @@ int writeCompressedHuffmanTable(int num_syms, u8 codelens[], ImageWriter &writer
 
 //// FreqHistogram
 
-template<int NUM_SYMS> class FreqHistogram {
+class FreqHistogram {
 public:
-	u32 hist[NUM_SYMS];
+	SmartArray<u32> hist;
 	u32 max_freq;
 
-	CAT_INLINE void init() {
-		CAT_OBJCLR(hist);
+	CAT_INLINE void init(int num_syms) {
+		hist.resize(num_syms);
+		hist.fill_00();
 		max_freq = 0;
+	}
+
+	CAT_INLINE int size() {
+		return hist.size();
 	}
 
 	CAT_INLINE void add(u32 symbol) {
@@ -142,7 +168,7 @@ public:
 		u32 peak_sym = 0;
 
 		// For each remaining symbol,
-		for (u32 sym = 1; sym < NUM_SYMS; ++sym) {
+		for (u32 sym = 1, num_syms = hist.size(); sym < num_syms; ++sym) {
 			// If it is higher,
 			if (highest < hist[sym]) {
 				// Remember it well
@@ -154,30 +180,36 @@ public:
 		return peak_sym;
 	}
 
-	CAT_INLINE void normalize(u16 freqs[NUM_SYMS]) {
-		normalizeFreqs(max_freq, NUM_SYMS, hist, freqs);
+	CAT_INLINE void normalize(u16 *freqs, int num_syms) {
+		CAT_DEBUG_ENFORCE(num_syms == hist.size());
+
+		normalizeFreqs(max_freq, num_syms, hist.get(), freqs);
 	}
 };
 
 
 //// HuffmanEncoder
 
-template<int NUM_SYMS> class HuffmanEncoder {
+class HuffmanEncoder {
 public:
-	u16 _codes[NUM_SYMS];
-	u8 _codelens[NUM_SYMS];
+	SmartArray<u16> _codes;
+	SmartArray<u8> _codelens;
 	u32 _one_sym;
 
-	CAT_INLINE bool init(FreqHistogram<NUM_SYMS> &hist) {
-		u16 freqs[NUM_SYMS];
+	CAT_INLINE bool init(FreqHistogram &hist) {
+		SmartArray<u16> freqs;
+		freqs.resize(hist.size());
 
-		hist.normalize(freqs);
+		hist.normalize(freqs.get(), freqs.size());
 
-		return init(freqs);
+		return init(freqs.get(), freqs.size());
 	}
 
-	CAT_INLINE bool init(u16 freqs[]) {
-		if (!initCodelens(freqs)) {
+	CAT_INLINE bool init(u16 freqs[], int num_syms) {
+		_codes.resize(num_syms);
+		_codelens.resize(num_syms);
+
+		if (!initCodelens(freqs, num_syms)) {
 			CAT_EXCEPTION();
 			return false;
 		}
@@ -187,18 +219,21 @@ public:
 	}
 
 	// Split this up because you can simulate writes without generating full codes
-	CAT_INLINE bool initCodelens(u16 freqs[]) {
-		huffman::huffman_work_tables state;
+	CAT_INLINE bool initCodelens(u16 freqs[], int num_syms) {
+		_codes.resize(num_syms);
+		_codelens.resize(num_syms);
+
+		huffman::HuffmanWorkTables state;
 		u32 max_code_size, total_freq;
 
-		if (!huffman::generate_huffman_codes(&state, NUM_SYMS, freqs, _codelens, max_code_size, total_freq, _one_sym)) {
+		if (!huffman::generate_huffman_codes(state, num_syms, freqs, _codelens.get(), max_code_size, total_freq, _one_sym)) {
 			CAT_EXCEPTION();
 			return false;
 		}
 
 		if (!_one_sym) {
 			if (max_code_size > HuffmanDecoder::MAX_CODE_SIZE) {
-				huffman::limit_max_code_size(NUM_SYMS, _codelens, HuffmanDecoder::MAX_CODE_SIZE);
+				huffman::limit_max_code_size(num_syms, _codelens.get(), HuffmanDecoder::MAX_CODE_SIZE);
 			}
 		}
 
@@ -206,15 +241,15 @@ public:
 	}
 	CAT_INLINE void initCodes() {
 		if (!_one_sym) {
-			huffman::generate_codes(NUM_SYMS, _codelens, _codes);
+			huffman::generate_codes(_codelens.size(), _codelens.get(), _codes.get());
 		} else {
-			CAT_OBJCLR(_codelens);
+			_codelens.fill_00();
 			_codelens[_one_sym - 1] = 1;
 		}
 	}
 
 	CAT_INLINE int writeTable(ImageWriter &writer) {
-		return writeCompressedHuffmanTable(NUM_SYMS, _codelens, writer);
+		return writeCompressedHuffmanTable(_codelens.size(), _codelens.get(), writer);
 	}
 
 	CAT_INLINE int writeSymbol(u32 sym, ImageWriter &writer) {
@@ -254,9 +289,9 @@ public:
 	static const int BZ_SYMS = NUM_SYMS;
 
 protected:
-	FreqHistogram<BZ_SYMS> _bz_hist;
+	FreqHistogram _bz_hist;
 
-	HuffmanEncoder<BZ_SYMS> _bz;
+	HuffmanEncoder _bz;
 
 	int _zeroRun;
 	std::vector<int> _runList;

@@ -170,7 +170,7 @@ protected:
 	// Row filter mode
 	SmartArray<u8> _row_filters;			// Selected row filters
 	u32 _row_filter_entropy;				// Calculated entropy from using row filters
-	EntropyEncoder<MAX_SYMS, ZRLE_SYMS> _row_filter_encoder;
+	EntropyEncoder _row_filter_encoder;
 	bool _use_row_filters;					// Using row filters?
 	bool _one_row_filter;					// Only one row filter?
 
@@ -289,7 +289,7 @@ class MonoWriterProfile {
 	struct Encoders {
 		u32 bits;							// Bits required to encode residuals
 		MonoChaos chaos;					// Chaos bin lookup table
-		EntropyEncoder<MAX_SYMS, ZRLE_SYMS> encoder[MAX_CHAOS_LEVELS];
+		EntropyEncoder encoder[MAX_CHAOS_LEVELS];
 	} *encoders;
 
 	void cleanup();

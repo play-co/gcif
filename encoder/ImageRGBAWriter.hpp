@@ -116,9 +116,9 @@ protected:
 	struct Encoders {
 		RGBChaos chaos;
 
-		EntropyEncoder<MAX_SYMS + PAL_LUT_SIZE, ZRLE_SYMS> y[MAX_CHAOS_LEVELS];
-		EntropyEncoder<MAX_SYMS, ZRLE_SYMS> u[MAX_CHAOS_LEVELS];
-		EntropyEncoder<MAX_SYMS, ZRLE_SYMS> v[MAX_CHAOS_LEVELS];
+		EntropyEncoder y[MAX_CHAOS_LEVELS];
+		EntropyEncoder u[MAX_CHAOS_LEVELS];
+		EntropyEncoder v[MAX_CHAOS_LEVELS];
 	} *_encoders;
 
 	// Filter encoders

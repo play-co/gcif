@@ -202,7 +202,7 @@ void MonoWriter::designRowFilters() {
 
 	// Initialize row encoder
 	{
-		_row_filter_encoder.init();
+		_row_filter_encoder.init(MAX_SYMS, ZRLE_SYMS);
 
 		const u16 *order = _params.write_order;
 		const u8 *data = _params.data;
@@ -1127,7 +1127,7 @@ void MonoWriter::designChaos() {
 
 		// For each chaos level,
 		for (int ii = 0; ii < chaos_levels; ++ii) {
-			encoders->encoder[ii].init();
+			encoders->encoder[ii].init(MAX_SYMS, ZRLE_SYMS);
 		}
 
 		// For each row,

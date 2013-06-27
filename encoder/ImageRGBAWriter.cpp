@@ -639,9 +639,9 @@ void ImageRGBAWriter::designChaos() {
 
 		// For each chaos level,
 		for (int ii = 0; ii < chaos_levels; ++ii) {
-			encoders->y[ii].init();
-			encoders->u[ii].init();
-			encoders->v[ii].init();
+			encoders->y[ii].init(MAX_SYMS, ZRLE_SYMS);
+			encoders->u[ii].init(MAX_SYMS, ZRLE_SYMS);
+			encoders->v[ii].init(MAX_SYMS, ZRLE_SYMS);
 		}
 
 		// For each row,

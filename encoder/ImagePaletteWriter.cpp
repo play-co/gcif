@@ -305,8 +305,8 @@ void ImagePaletteWriter::writeTable(ImageWriter &writer) {
 
 		RGB2YUVFilterFunction bestFilter = RGB2YUV_FILTERS[bestCF];
 
-		EntropyEncoder<PALETTE_MAX, ENCODER_ZRLE_SYMS> encoder;
-		encoder.init();
+		EntropyEncoder encoder;
+		encoder.init(PALETTE_MAX, ENCODER_ZRLE_SYMS);
 
 		// Train
 		for (int ii = 0; ii < _palette_size; ++ii) {

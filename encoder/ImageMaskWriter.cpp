@@ -282,7 +282,7 @@ bool Masker::evaluate() {
 #endif // CAT_COLLECT_STATS
 
 	if (_using_encoder) {
-		CAT_ENFORCE(_encoder.init(freqs));
+		CAT_ENFORCE(_encoder.init(freqs, 256));
 	}
 
 #ifdef CAT_COLLECT_STATS

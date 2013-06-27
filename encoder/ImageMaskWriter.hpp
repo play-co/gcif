@@ -89,7 +89,7 @@ class Masker {
 	u32 _color_mask;		// Portion of color value that must match
 
 	std::vector<u8> _lz, _rle;
-	HuffmanEncoder<256> _encoder;
+	HuffmanEncoder _encoder; // 256 symbols
 
 	void applyFilter();
 	void performRLE();
