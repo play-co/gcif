@@ -57,8 +57,9 @@ using namespace std;
 //// ImageRGBAWriter
 
 void ImageRGBAWriter::maskTiles() {
-	// SF tiles are filled with zeroes for masked tiles
-	_sf_tiles.fill_00();
+	const int tiles_size = _tiles_x * _tiles_y;
+	_sf_tiles.resizeZero(tiles_size);
+	_cf_tiles.resizeZero(tiles_size);
 
 	const u16 tile_size_x = _tile_size_x, tile_size_y = _tile_size_y;
 	const u16 size_x = _size_x, size_y = _size_y;
@@ -76,7 +77,7 @@ void ImageRGBAWriter::maskTiles() {
 					// If it is not masked,
 					if (!IsMasked(px, py)) {
 						// We need to do this tile
-						*cf = TODO_TILE;
+						//*cf = TODO_TILE; (already 0)
 						goto next_tile;
 					}
 					++px;
@@ -776,10 +777,6 @@ int ImageRGBAWriter::init(const u8 *rgba, int size_x, int size_y, ImageMaskWrite
 	_tile_size_y = 1 << _tile_bits_y;
 	_tiles_x = (_size_x + _tile_size_x - 1) >> _tile_bits_x;
 	_tiles_y = (_size_y + _tile_size_y - 1) >> _tile_bits_y;
-
-	const int tiles_size = _tiles_x * _tiles_y;
-	_sf_tiles.resize(tiles_size);
-	_cf_tiles.resize(tiles_size);
 
 	maskTiles();
 	designFilters();

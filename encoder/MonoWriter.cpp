@@ -68,8 +68,7 @@ void MonoWriterProfile::init(u16 size_x, u16 size_y, u16 bits) {
 
 	// Allocate tile memory
 	tiles_count = tiles_x * tiles_y;
-	tiles.resize(tiles_count);
-	tiles.fill_00();
+	tiles.resizeZero(tiles_count);
 	mask.resize(tiles_count);
 
 	// Allocate residual memory
@@ -898,8 +897,7 @@ void MonoWriter::computeResiduals() {
 	// If random-access input data,
 	if (order) {
 		// Initialize replay matrix
-		_replay.resize(_params.size_x * _params.size_y);
-		_replay.fill_00();
+		_replay.resizeZero(_params.size_x * _params.size_y);
 
 		replay = _replay.get();
 	}
