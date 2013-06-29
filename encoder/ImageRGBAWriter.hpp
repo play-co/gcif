@@ -107,11 +107,6 @@ protected:
 	// Write state
 	SmartArray<u8> _residuals, _seen_filter;
 
-	// Palette LUT
-	u16 _pal_lut_bits;
-	SmartArray<u32> _pal_lut;
-	SmartArray<u16> _lut_residuals;
-
 	// RGB encoders
 	struct Encoders {
 		RGBChaos chaos;
@@ -132,7 +127,7 @@ protected:
 	bool IsMasked(u16 x, u16 y);
 	bool IsSFMasked(u16 x, u16 y);
 
-	void designRecent();
+	void designLZ();
 	void maskTiles();
 	void designFilters();
 	void designTiles();

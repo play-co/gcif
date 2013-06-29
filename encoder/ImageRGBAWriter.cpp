@@ -56,20 +56,11 @@ using namespace std;
 
 //// ImageRGBAWriter
 
-void ImageRGBAWriter::designRecent() {
-	_pal_lut_bits = 9;
-	const int lut_size = 1 << _pal_lut_bits;
-
-	_pal_lut.resize(lut_size);
-	_pal_lut.fill_00();
-	_lut_residuals.resize(_size_x * _size_y);
-
+void ImageRGBAWriter::designLZ() {
 	const u32 *rgba = reinterpret_cast<const u32 *>( _rgba );
 
-	u16 *residuals = _lut_residuals.get();
-
 	for (u16 y = 0; y < _size_y; ++y) {
-		for (u16 x = 0; x < _size_x; ++x, ++rgba, ++residuals) {
+		for (u16 x = 0; x < _size_x; ++x, ++rgba) {
 			const u32 color = getLE(*rgba);
 			const u32 hash = (0x1e35a7bd * color) >> (32 - _pal_lut_bits);
 
@@ -824,7 +815,7 @@ int ImageRGBAWriter::init(const u8 *rgba, int size_x, int size_y, ImageMaskWrite
 	_sf_tiles.resize(tiles_size);
 	_cf_tiles.resize(tiles_size);
 
-	designRecent();
+	designLZ();
 	maskTiles();
 	designFilters();
 	designTiles();
