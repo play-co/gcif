@@ -44,7 +44,14 @@ namespace cat {
 //// LZMatchFinder
 
 class LZMatchFinder {
+	static const int MIN_MATCH = 2; // pixels
+	static const int MAX_MATCH = 4096; // pixels
+	static const int WIN_SIZE = 1024 * 1024; // pixels
+
+	static const int APPROX_PREFIX_COST = 4; // bits
+
 	static const int HASH_BITS = 18;
+	static const int HASH_SIZE = 1 << HASH_BITS;
 	static const u64 HASH_MULT = 0xc6a4a7935bd1e995ULL;
 
 	// Returns hash for provided pixel and the following one
@@ -53,11 +60,10 @@ class LZMatchFinder {
 	}
 
 	SmartArray<u32> _table;
-	SmartArray<u16> _chain;
-	int _pixels;
+	SmartArray<u32> _chain;
 
 public:
-	void scanRGBA(const u32 * CAT_RESTRICT rgba, int pixels);
+	void scanRGBA(const u32 * CAT_RESTRICT rgba, int xsize, int ysize);
 };
 
 
