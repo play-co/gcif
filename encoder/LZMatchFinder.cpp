@@ -26,42 +26,19 @@
 	POSSIBILITY OF SUCH DAMAGE.
 */
 
-#ifndef LZ_MATCH_FINDER_HPP
-#define LZ_MATCH_FINDER_HPP
+#include "LZMatchFinder.hpp"
+using namespace cat;
 
-#include "../decoder/Platform.hpp"
-#include "../decoder/SmartArray.hpp"
+void LZMatchFinder::scanRGBA(const u32 *rgba, int pixels) {
+	_pixels = pixels;
 
-/*
- * LZ Match Finder
- *
- * This LZ system is only designed for RGBA data at this time.
- */
+	// Allocate and zero the table and chain
+	_table.resizeZero(pixels);
+	_chain.resizeZero(pixels);
 
-namespace cat {
-
-
-//// LZMatchFinder
-
-class LZMatchFinder {
-	static const int HASH_BITS = 18;
-	static const u64 HASH_MULT = 0xc6a4a7935bd1e995ULL;
-
-	// Returns hash for provided pixel and the following one
-	static CAT_INLINE u32 HashPixels(const u32 * CAT_RESTRICT rgba) {
-		(u32)( ( ((u64)rgba[0] << 32) | rgba[1] ) * HASH_MULT >> (64 - HASH_BITS) );
+	// For each pixel, stopping just before the last pixel:
+	while (--pixels > 0) {
+		u32 hash = HashPixels(rgba);
 	}
-
-	SmartArray<u32> _table;
-	SmartArray<u16> _chain;
-	int _pixels;
-
-public:
-	void scanRGBA(const u32 * CAT_RESTRICT rgba, int pixels);
-};
-
-
-} // namespace cat
-
-#endif // LZ_MATCH_FINDER_HPP
+}
 

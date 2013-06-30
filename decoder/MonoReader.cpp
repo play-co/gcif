@@ -116,8 +116,7 @@ int MonoReader::readTables(const Parameters & CAT_RESTRICT params, ImageReader &
 
 		_filter_row.resize(_tiles_x);
 
-		_tiles.resize(_tiles_x * _tiles_y);
-		_tiles.fill_00();
+		_tiles.resizeZero(_tiles_x * _tiles_y);
 
 		// Read palette
 		CAT_DEBUG_ENFORCE(MAX_PALETTE == 15);

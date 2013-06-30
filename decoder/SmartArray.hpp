@@ -64,6 +64,27 @@ template<class T> class SmartArray {
 		return (T *)data;
 	}
 
+	// This version uses calloc to initialize the data
+	static T *aligned_malloc_zero(int size) {
+		// Allocate memory
+		u8 *data = (u8 *)calloc(8 + sizeof(T) * size, 1);
+
+		// Get pointer offset residual
+#ifdef CAT_WORD_64
+		int offset = (u32)(u64)data & 7;
+#else
+		int offset = (u32)data & 7;
+#endif
+
+		// Bump data pointer up to the next multiple of 8 bytes
+		data += 8 - offset;
+
+		// Record the offset right before start of data
+		data[-1] = offset;
+
+		return (T *)data;
+	}
+
 	static void aligned_free(void *data) {
 		u8 *orig = (u8 *)data;
 
@@ -88,6 +109,21 @@ protected:
 		alloc(size);
 	}
 
+	// Versions that call aligned_malloc_zero instead:
+
+	void allocZero(int size) {
+		_data = aligned_malloc_zero(size);
+		_alloc = size;
+	}
+
+	void growZero(int size) {
+		if (_data) {
+			aligned_free(_data);
+		}
+
+		allocZero(size);
+	}
+
 public:
 	CAT_INLINE SmartArray() {
 		_data = 0;
@@ -105,6 +141,20 @@ public:
 			alloc(size);
 		} else if (size > _alloc) {
 			grow(size);
+		}
+
+		_size = size;
+	}
+
+	// Resize and ensure it is zero (can be faster than just resizing)
+	CAT_INLINE void resizeZero(int size) {
+		if (!_data) {
+			allocZero(size);
+		} else if (size > _alloc) {
+			growZero(size);
+		} else {
+			void * CAT_RESTRICT data = _data;
+			memset(data, 0x00, size * sizeof(T));
 		}
 
 		_size = size;
