@@ -136,6 +136,14 @@ GCIF is 94.1% the size of WebP.
 ~~~
 
 
+Comparisons With Other Competitors
+==================================
+
+QualVisual's Lucid2 (latest from their site) produces files at quantization 0
+(lossless mode) that are typically 1.25 (photographic) - 1.6 (computer art)
+times larger than GCIF output, from a small game art test set.
+
+
 Credit Where It's Due
 =====================
 
