@@ -48,22 +48,56 @@ class LZMatchFinder {
 	static const int MAX_MATCH = 4096; // pixels
 	static const int WIN_SIZE = 1024 * 1024; // pixels
 
-	static const int APPROX_PREFIX_COST = 4; // bits
+	static const int DIST_PREFIX_COST = 7; // bits
+	static const int LEN_PREFIX_COST = 5; // bits
+	static const int SAVED_PIXEL_BITS = 9; // bits
 
 	static const int HASH_BITS = 18;
 	static const int HASH_SIZE = 1 << HASH_BITS;
 	static const u64 HASH_MULT = 0xc6a4a7935bd1e995ULL;
+
+	static const u32 GUARD_OFFSET = 0xffffffff;
 
 	// Returns hash for provided pixel and the following one
 	static CAT_INLINE u32 HashPixels(const u32 * CAT_RESTRICT rgba) {
 		(u32)( ( ((u64)rgba[0] << 32) | rgba[1] ) * HASH_MULT >> (64 - HASH_BITS) );
 	}
 
+	// Hash Chain search structure
 	SmartArray<u32> _table;
 	SmartArray<u32> _chain;
 
+	// Match list, with guard at end
+	struct LZMatch {
+		u32 offset;
+		u32 distance;
+		u16 length;
+
+		CAT_INLINE LZMatch(u32 offset, u32 distance, u16 length) {
+			this->offset = offset;
+			this->distance = distance;
+			this->length = length;
+		}
+	};
+
+	vector<LZMatch> _matches;
+	LZMatch *_next_match;
+
 public:
 	void scanRGBA(const u32 * CAT_RESTRICT rgba, int xsize, int ysize);
+
+	CAT_INLINE int size() {
+		return static_cast<int>( _matches.size() );
+	}
+
+	// Once the guard offset is hit, pops should be avoided
+	CAT_INLINE u32 peekOffset() {
+		return _next_match->offset;
+	}
+
+	CAT_INLINE LZMatch *pop() {
+		return _next_match++;
+	}
 };
 
 
