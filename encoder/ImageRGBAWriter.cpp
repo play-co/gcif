@@ -59,26 +59,6 @@ using namespace std;
 void ImageRGBAWriter::designLZ() {
 	const u32 *rgba = reinterpret_cast<const u32 *>( _rgba );
 
-	for (u16 y = 0; y < _size_y; ++y) {
-		for (u16 x = 0; x < _size_x; ++x, ++rgba) {
-			const u32 color = getLE(*rgba);
-			const u32 hash = (0x1e35a7bd * color) >> (32 - _pal_lut_bits);
-
-			if (_mask->masked(x, y) || _lz->visited(x, y)) {
-				residuals[0] = 0xffff;
-			} else {
-				CAT_DEBUG_ENFORCE(hash < lut_size);
-
-				if (color == _pal_lut[hash]) {
-					residuals[0] = hash;
-				} else {
-					residuals[0] = 0xffff;
-				}
-			}
-
-			_pal_lut[hash] = color;
-		}
-	}
 }
 
 void ImageRGBAWriter::maskTiles() {

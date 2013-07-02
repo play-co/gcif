@@ -48,6 +48,22 @@ class LZMatchFinder {
 	static const int MAX_MATCH = 4096; // pixels
 	static const int WIN_SIZE = 1024 * 1024; // pixels
 
+	/*
+	 * Encoding cost in bits:
+	 * ~LEN_PREFIX_COST bits for Y-channel escape code and length bit range
+	 * ~log2(length)-K bits for length extension bits
+	 * log2(40) ~= DIST_PREFIX_COST bits for distance bit range
+	 * ~log2(distance)-K bits for the distance extension bits
+	 *
+	 * Assuming the normal compression ratio of a 32-bit RGBA pixel is 3.6:1,
+	 * it saves about SAVED_PIXEL_BITS bits per RGBA pixel that we can copy.
+	 *
+	 * Two pixels is about breaking even, though it can be a win if it's
+	 * from the local neighborhood.  For decoding speed it is preferred to
+	 * use LZ since it avoids a bunch of Huffman decodes.  And most of the
+	 * big LZ wins are on computer-generated artwork where neighboring
+	 * scanlines can be copied, so two-pixel copies are often useful.
+	 */
 	static const int DIST_PREFIX_COST = 7; // bits
 	static const int LEN_PREFIX_COST = 5; // bits
 	static const int SAVED_PIXEL_BITS = 9; // bits
