@@ -30,19 +30,89 @@
 #include "../decoder/BitMath.hpp"
 using namespace cat;
 
-void LZMatchFinder::scanRGBA(const u32 *rgba, int xsize, int ysize) {
+bool LZMatchFinder::scanRGBA(const u32 *rgba, int xsize, int ysize) {
 	const int pixels = xsize * ysize;
 
 	// Allocate and zero the table and chain
-	_table.resizeZero(HASH_SIZE);
+	_table.resizeZero(RGBA_HASH_SIZE);
 	_chain.resizeZero(pixels);
 
 	// For each pixel, stopping just before the last pixel:
 	const u32 *rgba_now = rgba;
-	for (int ii = 0, iiend = pixels - 1; ii < iiend; ++ii, ++rgba_now) {
+	for (int ii = 0, iiend = pixels - 1; ii < iiend; ++rgba_now) {
 		const u32 hash = HashPixels(rgba_now);
-		u16 best_length = 0;
-		u16 min_match = MIN_MATCH;
+		u16 best_length = RGBA_MIN_MATCH;
+		u32 best_distance = 0;
+		u32 best_score = 0;
+
+		// For each hash collision,
+		for (u32 node = _table[hash]; node != 0; node = _chain[node]) {
+			--node; // Fix node from table data
+
+			// If distance is beyond the window size,
+			u32 distance = ii - node;
+			if (distance > WIN_SIZE) {
+				// Stop searching here
+				break;
+			}
+
+			// Find match length
+			int match_len = 0;
+			const u32 *rgba_node = rgba + node;
+			for (; match_len < RGBA_MAX_MATCH && rgba_node[match_len] == rgba_now[match_len]; ++match_len);
+
+			// Future matches will be farther away (more expensive in distance)
+			// so they should be at least as long as previous matches to be considered
+			if (match_len >= best_length) {
+				// Calculate saved bit count
+				const s32 distance_bits = distance < 8 ? 0 : BSR32(distance >> 2);
+				const s32 saved_bits = match_len * RGBA_SAVED_PIXEL_BITS;
+				const s32 length_bits = match_len < 8 ? 0 : BSR32(match_len >> 2);
+				const s32 cost_bits = RGBA_DIST_PREFIX_COST + distance_bits + RGBA_LEN_PREFIX_COST + length_bits;
+				const s32 score = saved_bits - cost_bits;
+
+				// If it has the best score,
+				if (best_score < score) {
+					// Use this one
+					best_score = score;
+					best_distance = distance + 1;
+					best_length = match_len;
+				}
+			}
+		}
+
+		// If a best node was found,
+		if (best_distance > 0) {
+			_matches.push_back(LZMatch(ii, best_distance, best_length));
+			CAT_WARN("TEST") << ii << " : " << best_distance << ", " << best_length;
+		} else {
+			// Set the length to prevent inserting pixels twice below
+			best_length = 1;
+		}
+
+		// Insert current and any matched pixels
+		for (int jj = ii, jjend = ii + best_length; jj < jjend; ++jj) {
+			_chain[ii] = _table[hash] + 1;
+			_table[hash] = ii;
+		}
+
+		// Skip to next pixel
+		ii += best_length;
+	}
+}
+
+void LZMatchFinder::scanMono(const u8 *mono, int xsize, int ysize) {
+	const int pixels = xsize * ysize;
+
+	// Allocate and zero the table and chain
+	_table.resizeZero(MONO_HASH_SIZE);
+	_chain.resizeZero(pixels);
+
+	// For each pixel, stopping just before the last pixel:
+	const u8 *rgba_now = mono;
+	for (int ii = 0, iiend = pixels - 1; ii < iiend; ++rgba_now) {
+		const u32 hash = HashPixels(rgba_now);
+		u16 best_length = MONO_MIN_MATCH;
 		u32 best_distance = 0;
 		u32 best_score = 0;
 
@@ -62,27 +132,13 @@ void LZMatchFinder::scanRGBA(const u32 *rgba, int xsize, int ysize) {
 			const u32 *rgba_node = rgba + node;
 			for (; match_len < MAX_MATCH && rgba_node[match_len] == rgba_now[match_len]; ++match_len);
 
-			// If match is at least as long as required,
-			if (match_len >= min_match) {
-				/*
-				 * Encoding cost in bits:
-				 * ~LEN_PREFIX_COST bits for Y-channel escape code and length bit range
-				 * ~log2(length)-K bits for length extension bits
-				 * log2(40) ~= DIST_PREFIX_COST bits for distance bit range
-				 * ~log2(distance)-K bits for the distance extension bits
-				 *
-				 * Assuming the normal compression ratio of a 32-bit RGBA pixel is 3.6:1,
-				 * it saves about SAVED_PIXEL_BITS bits per RGBA pixel that we can copy.
-				 *
-				 * Two pixels is about breaking even, though it can be a win if it's
-				 * from the local neighborhood.  For decoding speed it is preferred to
-				 * use LZ since it avoids a bunch of Huffman decodes.  And most of the
-				 * big LZ wins are on computer-generated artwork where neighboring
-				 * scanlines can be copied, so two-pixel copies are often useful.
-				 */
-				const s32 distance_bits = BSR32(distance) - 2;
+			// Future matches will be farther away (more expensive in distance)
+			// so they should be at least as long as previous matches to be considered
+			if (match_len >= best_length) {
+				// Calculate saved bit count
+				const s32 distance_bits = distance < 8 ? 0 : BSR32(distance >> 2);
 				const s32 saved_bits = match_len * SAVED_PIXEL_BITS;
-				const s32 length_bits = BSR32(match_len) - 2;
+				const s32 length_bits = match_len < 8 ? 0 : BSR32(match_len >> 2);
 				const s32 cost_bits = DIST_PREFIX_COST + distance_bits + LEN_PREFIX_COST + length_bits;
 				const s32 score = saved_bits - cost_bits;
 
@@ -90,24 +146,28 @@ void LZMatchFinder::scanRGBA(const u32 *rgba, int xsize, int ysize) {
 				if (best_score < score) {
 					// Use this one
 					best_score = score;
-					min_match = match_len;
-					best_node = node;
+					best_distance = distance + 1;
+					best_length = match_len;
 				}
 			}
 		}
 
 		// If a best node was found,
-		if (best_length > 0) {
+		if (best_distance > 0) {
 			_matches.push_back(LZMatch(ii, best_distance, best_length));
+			CAT_WARN("TEST") << ii << " : " << best_distance << ", " << best_length;
+		} else {
+			// Set the length to prevent inserting pixels twice below
+			best_length = 1;
 		}
 
 		// Insert current and any matched pixels
-		for (int jj = ii, jjend = ii + best_length; jj <= jjend; ++jj) {
+		for (int jj = ii, jjend = ii + best_length; jj < jjend; ++jj) {
 			_chain[ii] = _table[hash] + 1;
 			_table[hash] = ii;
 		}
 
-		// Skip matched pixels
+		// Skip to next pixel
 		ii += best_length;
 	}
 }

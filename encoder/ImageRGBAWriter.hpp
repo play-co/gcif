@@ -31,7 +31,6 @@
 
 #include "ImageWriter.hpp"
 #include "ImageMaskWriter.hpp"
-#include "ImageLZWriter.hpp"
 #include "ImagePaletteWriter.hpp"
 #include "../decoder/ImageRGBAReader.hpp"
 #include "EntropyEncoder.hpp"
@@ -39,6 +38,7 @@
 #include "../decoder/Filters.hpp"
 #include "GCIFWriter.h"
 #include "PaletteOptimizer.hpp"
+#include "LZMatchFinder.hpp"
 
 #include <vector>
 
@@ -50,17 +50,18 @@
  * http://www.dsi.unifi.it/DRIIA/RaccoltaTesi/Brocchi.pdf
  *
  * Notable improvements:
- * + Much better compression ratios
+ * + Much better compression ratios and decoding speed
  * + Maintainable codebase for future improvements
- * + 2D LZ Exact Matc, Dominant Color Mask, and Global Palette integration
+ * + Alpha channel, LZ, Dominant Color Mask, and Palette modes
  * + Uses 4x4 tiles instead of 8x8
  * + More/better non-linear spatial and more color filters supported
- * + Linear spatial filters tuned to image where improvement is found
- * + Chaos metric is order-1 stats, so do not fuzz them, and use just 8 levels
+ * + Spatial filters tuned to image
+ * + Simpler Chaos metric with variable levels for context modeling / order-1 stats
  * + Encodes zero runs > ~256 without emitting more symbols for better AZ stats
- * + Better, context-modeled Huffman table compression
- * + Faster entropy estimation allows us to run entropy analysis exhaustively
+ * + Better Huffman table compression
+ * + Faster entropy estimation allows us to brute force entropy analysis of all options
  * + Revisit top of image after choosing filters for better selection
+ * + Palette optimization for improved subresolution monochrome data compression
  */
 
 namespace cat {
@@ -84,11 +85,13 @@ protected:
 
 	// Subsystems
 	ImageMaskWriter *_mask;
-	ImageLZWriter *_lz;
 
 	// RGBA image
 	const u8 *_rgba;
 	u16 _size_x, _size_y;
+
+	// LZ subsystem
+	LZMatchFinder _lz;
 
 	// Filter tiles
 	u16 _tile_bits_x, _tile_bits_y;
@@ -149,17 +152,17 @@ public:
 		int sf_table_bits, cf_table_bits, y_table_bits, u_table_bits, v_table_bits, a_table_bits;
 		int sf_bits, cf_bits, y_bits, u_bits, v_bits, a_bits;
 
-		int rgba_bits, lut_bits, total_bits; // Total includes LZ, mask overhead
+		int rgba_bits, lz_bits, total_bits; // Total includes LZ, mask overhead
 
 		u32 rgba_count, lut_count, chaos_bins;
-		double rgba_compression_ratio, lut_compression_ratio;
+		double rgba_compression_ratio, lz_compression_ratio;
 
 		double overall_compression_ratio;
 	} Stats;
 #endif // CAT_COLLECT_STATS
 
 public:
-	int init(const u8 *rgba, int size_x, int size_y, ImageMaskWriter &mask, ImageLZWriter &lz, const GCIFKnobs *knobs);
+	int init(const u8 *rgba, int size_x, int size_y, ImageMaskWriter &mask, const GCIFKnobs *knobs);
 
 	void write(ImageWriter &writer);
 
