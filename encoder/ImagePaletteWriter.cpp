@@ -198,13 +198,12 @@ void ImagePaletteWriter::generateMonoWriter() {
 	_mono_writer.init(params);
 }
 
-int ImagePaletteWriter::init(const u8 *rgba, int size_x, int size_y, const GCIFKnobs *knobs, ImageMaskWriter &mask, ImageLZWriter &lz) {
+int ImagePaletteWriter::init(const u8 *rgba, int size_x, int size_y, const GCIFKnobs *knobs, ImageMaskWriter &mask) {
 	_knobs = knobs;
 	_rgba = rgba;
 	_size_x = size_x;
 	_size_y = size_y;
 	_mask = &mask;
-	_lz = &lz;
 
 	// Off by default
 	_palette_size = 0;

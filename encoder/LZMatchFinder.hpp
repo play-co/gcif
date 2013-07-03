@@ -44,12 +44,12 @@ namespace cat {
 //// LZMatchFinder
 
 class LZMatchFinder {
-	static const int MIN_MATCH = 2; // pixels
 	static const int MAX_MATCH = 4096; // pixels
 	static const int WIN_SIZE = 1024 * 1024; // pixels
 
 	/*
-	 * Encoding cost in bits:
+	 * Encoding cost in bits for RGBA data:
+	 *
 	 * ~LEN_PREFIX_COST bits for Y-channel escape code and length bit range
 	 * ~log2(length)-K bits for length extension bits
 	 * log2(40) ~= DIST_PREFIX_COST bits for distance bit range
@@ -64,20 +64,38 @@ class LZMatchFinder {
 	 * big LZ wins are on computer-generated artwork where neighboring
 	 * scanlines can be copied, so two-pixel copies are often useful.
 	 */
-	static const int DIST_PREFIX_COST = 7; // bits
-	static const int LEN_PREFIX_COST = 5; // bits
-	static const int SAVED_PIXEL_BITS = 9; // bits
+	static const int RGBA_MIN_MATCH = 2; // pixels
+	static const int RGBA_DIST_PREFIX_COST = 7; // bits
+	static const int RGBA_LEN_PREFIX_COST = 5; // bits
+	static const int RGBA_SAVED_PIXEL_BITS = 9; // bits
 
-	static const int HASH_BITS = 18;
-	static const int HASH_SIZE = 1 << HASH_BITS;
-	static const u64 HASH_MULT = 0xc6a4a7935bd1e995ULL;
+	static const int RGBA_HASH_BITS = 18;
+	static const int RGBA_HASH_SIZE = 1 << RGBA_HASH_BITS;
+	static const u64 RGBA_HASH_MULT = 0xc6a4a7935bd1e995ULL;
+
+	// Returns hash for RGBA_MIN_MATCH pixels
+	static CAT_INLINE u32 HashRGBA(const u32 * CAT_RESTRICT rgba) {
+		(u32)( ( ((u64)rgba[0] << 32) | rgba[1] ) * RGBA_HASH_MULT >> (64 - RGBA_HASH_BITS) );
+	}
+
+	/*
+	 * Encoding cost in bits for monochrome data:
+	 */
+	static const int MONO_MIN_MATCH = 6; // pixels
+	static const int MONO_DIST_PREFIX_COST = 7; // bits
+	static const int MONO_LEN_PREFIX_COST = 5; // bits
+	static const int MONO_SAVED_PIXEL_BITS = 2; // bits
+
+	static const int MONO_HASH_BITS = 18;
+	static const int MONO_HASH_SIZE = 1 << MONO_HASH_BITS;
+	static const u64 MONO_HASH_MULT = 0xc6a4a7935bd1e995ULL;
+
+	// Returns hash for MONO_MIN_MATCH pixels
+	static CAT_INLINE u32 HashMono(const u8 * CAT_RESTRICT mono) {
+		(u32)( ( ((u64)rgba[0] << 32) | rgba[1] ) * RGBA_HASH_MULT >> (64 - RGBA_HASH_BITS) );
+	}
 
 	static const u32 GUARD_OFFSET = 0xffffffff;
-
-	// Returns hash for provided pixel and the following one
-	static CAT_INLINE u32 HashPixels(const u32 * CAT_RESTRICT rgba) {
-		(u32)( ( ((u64)rgba[0] << 32) | rgba[1] ) * HASH_MULT >> (64 - HASH_BITS) );
-	}
 
 	// Hash Chain search structure
 	SmartArray<u32> _table;
@@ -100,10 +118,15 @@ class LZMatchFinder {
 	LZMatch *_next_match;
 
 public:
-	void scanRGBA(const u32 * CAT_RESTRICT rgba, int xsize, int ysize);
+	bool scanRGBA(const u32 * CAT_RESTRICT rgba, int xsize, int ysize);
+	bool scanMono(const u8 * CAT_RESTRICT mono, int xsize, int ysize);
 
 	CAT_INLINE int size() {
 		return static_cast<int>( _matches.size() );
+	}
+
+	CAT_INLINE void reset() {
+		_next_match = &_matches[0];
 	}
 
 	// Once the guard offset is hit, pops should be avoided
