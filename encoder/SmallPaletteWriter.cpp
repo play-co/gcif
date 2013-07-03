@@ -271,7 +271,7 @@ void SmallPaletteWriter::writeSmallPalette(ImageWriter &writer) {
 }
 
 bool SmallPaletteWriter::IsMasked(u16 x, u16 y) {
-	return _mask->masked(x, y) || _lz->visited(x, y);
+	return _mask->masked(x, y);
 }
 
 void SmallPaletteWriter::convertPacked() {
@@ -353,9 +353,8 @@ void SmallPaletteWriter::generateMonoWriter() {
 	_mono_writer.init(params);
 }
 
-int SmallPaletteWriter::compress(ImageMaskWriter &mask, ImageLZWriter &lz) {
+int SmallPaletteWriter::compress(ImageMaskWriter &mask) {
 	_mask = &mask;
-	_lz = &lz;
 
 	CAT_DEBUG_ENFORCE(enabled());
 
@@ -422,7 +421,6 @@ void SmallPaletteWriter::writePixels(ImageWriter &writer) {
 	Stats.pixel_bits = bits;
 	Stats.packed_pixels = pixels;
 	Stats.total_bits = Stats.small_palette_bits + Stats.pack_palette_bits + Stats.pixel_bits;
-	Stats.total_bits += _lz->Stats.huff_bits;
 	Stats.total_bits += _mask->Stats.compressedDataBits;
 	Stats.compression_ratio = _size_x * _size_y * 32 / (double)Stats.total_bits;
 #endif

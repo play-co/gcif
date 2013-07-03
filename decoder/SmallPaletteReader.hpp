@@ -33,7 +33,6 @@
 #include "GCIFReader.h"
 #include "ImageReader.hpp"
 #include "ImageMaskReader.hpp"
-#include "ImageLZReader.hpp"
 #include "MonoReader.hpp"
 
 #include <vector>
@@ -59,7 +58,6 @@ protected:
 	int _palette_size;
 
 	ImageMaskReader * CAT_RESTRICT _mask;
-	ImageLZReader * CAT_RESTRICT _lz;
 
 	u8 * CAT_RESTRICT _rgba;
 	u16 _size_x, _size_y, _pack_x, _pack_y;
@@ -101,7 +99,7 @@ public:
 	}
 
 	int readHead(ImageReader & CAT_RESTRICT reader, u8 * CAT_RESTRICT rgba);
-	int readTail(ImageReader & CAT_RESTRICT reader, ImageMaskReader & CAT_RESTRICT mask, ImageLZReader & CAT_RESTRICT lz);
+	int readTail(ImageReader & CAT_RESTRICT reader, ImageMaskReader & CAT_RESTRICT mask);
 
 	CAT_INLINE u16 getPackX() {
 		return _pack_x;

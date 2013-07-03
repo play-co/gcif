@@ -33,7 +33,6 @@
 #include "Enforcer.hpp"
 #include "MonoReader.hpp"
 #include "ImageMaskReader.hpp"
-#include "ImageLZReader.hpp"
 #include "SmartArray.hpp"
 
 /*
@@ -56,7 +55,6 @@ protected:
 	u8 _mask_palette;	// Masked palette index
 
 	ImageMaskReader * CAT_RESTRICT _mask;
-	ImageLZReader * CAT_RESTRICT _lz;
 
 	u8 * CAT_RESTRICT _rgba;
 	u16 _size_x, _size_y;
@@ -85,7 +83,7 @@ public:
 		return _palette_size > 0;
 	}
 
-	int read(ImageReader & CAT_RESTRICT reader, ImageMaskReader & CAT_RESTRICT mask, ImageLZReader & CAT_RESTRICT lz, GCIFImage * CAT_RESTRICT image);
+	int read(ImageReader & CAT_RESTRICT reader, ImageMaskReader & CAT_RESTRICT mask, GCIFImage * CAT_RESTRICT image);
 
 #ifdef CAT_COLLECT_STATS
 	bool dumpStats();

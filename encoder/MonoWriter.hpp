@@ -38,6 +38,7 @@
 #include "../decoder/Delegates.hpp"
 #include "../decoder/SmartArray.hpp"
 #include "PaletteOptimizer.hpp"
+#include "LZMatchFinder.hpp"
 
 #include <vector>
 
@@ -161,6 +162,7 @@ protected:
 	int _tile_bits_field_bc;				// Bits for tile bits field
 	u8 _sympal_filter_map[MAX_PALETTE];		// Filter index for this palette entry
 	u8 _prev_filter;						// Previous filter for row encoding
+	MonoMatchFinder _lz;					// LZ match finder
 	PaletteOptimizer _optimizer;			// Optimizer for filter indices
 	u32 _residual_entropy;					// Calculated entropy of residuals
 	SmartArray<u8> _ecodes;					// Used when evaluating options

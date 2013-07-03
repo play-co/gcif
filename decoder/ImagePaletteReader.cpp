@@ -151,8 +151,6 @@ int ImagePaletteReader::readPixels(ImageReader & CAT_RESTRICT reader) {
 
 	u32 * CAT_RESTRICT rgba = reinterpret_cast<u32 *>( _rgba );
 
-	u16 trigger_x_lz = _lz->getTriggerX();
-
 #ifdef CAT_UNROLL_READER
 
 	// Unroll y = 0 scanline
@@ -161,26 +159,12 @@ int ImagePaletteReader::readPixels(ImageReader & CAT_RESTRICT reader) {
 
 		_mono_decoder.readRowHeader(y, reader);
 
-		if (y == _lz->getTriggerY()) {
-			_lz->triggerY();
-			trigger_x_lz = _lz->getTriggerX();
-		}
-
 		const u32 *mask_next = _mask->nextScanline();
 		int mask_left = 0;
 		u32 mask;
 
-		int lz_skip = 0;
-
 		for (int x = 0, xend = _size_x; x < xend; ++x) {
 			DESYNC(x, y);
-
-			// If LZ triggered,
-			if (x == trigger_x_lz) {
-				u8 *p = _mono_decoder.currentRow() + x;
-				lz_skip = _lz->triggerX(p, rgba);
-				trigger_x_lz = _lz->getTriggerX();
-			}
 
 			// Next mask word
 			if (mask_left-- <= 0) {
@@ -188,10 +172,7 @@ int ImagePaletteReader::readPixels(ImageReader & CAT_RESTRICT reader) {
 				mask_left = 31;
 			}
 
-			if (lz_skip > 0) {
-				--lz_skip;
-				_mono_decoder.masked(x);
-			} else if ((s32)mask < 0) {
+			if ((s32)mask < 0) {
 				*rgba = MASK_COLOR;
 				u8 *p = _mono_decoder.currentRow() + x;
 				*p = MASK_PAL;
@@ -213,16 +194,9 @@ int ImagePaletteReader::readPixels(ImageReader & CAT_RESTRICT reader) {
 	for (int y = 1, yend = _size_y; y < yend; ++y) {
 		_mono_decoder.readRowHeader(y, reader);
 
-		if (y == _lz->getTriggerY()) {
-			_lz->triggerY();
-			trigger_x_lz = _lz->getTriggerX();
-		}
-
 		const u32 *mask_next = _mask->nextScanline();
 		int mask_left;
 		u32 mask;
-
-		int lz_skip = 0;
 
 		// Unroll x = 0
 		{
@@ -230,21 +204,11 @@ int ImagePaletteReader::readPixels(ImageReader & CAT_RESTRICT reader) {
 
 			DESYNC(x, y);
 
-			// If LZ triggered,
-			if (x == trigger_x_lz) {
-				u8 *p = _mono_decoder.currentRow() + x;
-				lz_skip = _lz->triggerX(p, rgba);
-				trigger_x_lz = _lz->getTriggerX();
-			}
-
 			// Next mask word
 			mask = *mask_next++;
 			mask_left = 31;
 
-			if (lz_skip > 0) {
-				--lz_skip;
-				_mono_decoder.masked(x);
-			} else if ((s32)mask < 0) {
+			if ((s32)mask < 0) {
 				*rgba = MASK_COLOR;
 				u8 *p = _mono_decoder.currentRow() + x;
 				*p = MASK_PAL;
@@ -266,23 +230,13 @@ int ImagePaletteReader::readPixels(ImageReader & CAT_RESTRICT reader) {
 		for (int x = 1, xend = (int)_size_x - 1; x < xend; ++x) {
 			DESYNC(x, y);
 
-			// If LZ triggered,
-			if (x == trigger_x_lz) {
-				u8 *p = _mono_decoder.currentRow() + x;
-				lz_skip = _lz->triggerX(p, rgba);
-				trigger_x_lz = _lz->getTriggerX();
-			}
-
 			// Next mask word
 			if (mask_left-- <= 0) {
 				mask = *mask_next++;
 				mask_left = 31;
 			}
 
-			if (lz_skip > 0) {
-				--lz_skip;
-				_mono_decoder.masked(x);
-			} else if ((s32)mask < 0) {
+			if ((s32)mask < 0) {
 				*rgba = MASK_COLOR;
 				u8 *p = _mono_decoder.currentRow() + x;
 				*p = MASK_PAL;
@@ -307,23 +261,13 @@ int ImagePaletteReader::readPixels(ImageReader & CAT_RESTRICT reader) {
 
 			DESYNC(x, y);
 
-			// If LZ triggered,
-			if (x == trigger_x_lz) {
-				u8 *p = _mono_decoder.currentRow() + x;
-				lz_skip = _lz->triggerX(p, rgba);
-				trigger_x_lz = _lz->getTriggerX();
-			}
-
 			// Next mask word
 			if (mask_left-- <= 0) {
 				mask = *mask_next++;
 				mask_left = 31;
 			}
 
-			if (lz_skip > 0) {
-				--lz_skip;
-				_mono_decoder.masked(x);
-			} else if ((s32)mask < 0) {
+			if ((s32)mask < 0) {
 				*rgba = MASK_COLOR;
 				u8 *p = _mono_decoder.currentRow() + x;
 				*p = MASK_PAL;
@@ -345,26 +289,12 @@ int ImagePaletteReader::readPixels(ImageReader & CAT_RESTRICT reader) {
 	for (int y = 0, yend = _size_y; y < yend; ++y) {
 		_mono_decoder.readRowHeader(y, reader);
 
-		if (y == _lz->getTriggerY()) {
-			_lz->triggerY();
-			trigger_x_lz = _lz->getTriggerX();
-		}
-
 		const u32 *mask_next = _mask->nextScanline();
 		int mask_left = 0;
 		u32 mask;
 
-		int lz_skip = 0;
-
 		for (int x = 0, xend = _size_x; x < xend; ++x) {
 			DESYNC(x, y);
-
-			// If LZ triggered,
-			if (x == trigger_x_lz) {
-				u8 *p = _mono_decoder.currentRow() + x;
-				lz_skip = _lz->triggerX(p, rgba);
-				trigger_x_lz = _lz->getTriggerX();
-			}
 
 			// Next mask word
 			if (mask_left-- <= 0) {
@@ -372,10 +302,7 @@ int ImagePaletteReader::readPixels(ImageReader & CAT_RESTRICT reader) {
 				mask_left = 31;
 			}
 
-			if (lz_skip > 0) {
-				--lz_skip;
-				_mono_decoder.masked(x);
-			} else if ((s32)mask < 0) {
+			if ((s32)mask < 0) {
 				*rgba = MASK_COLOR;
 				u8 *p = _mono_decoder.currentRow() + x;
 				*p = MASK_PAL;
@@ -398,7 +325,7 @@ int ImagePaletteReader::readPixels(ImageReader & CAT_RESTRICT reader) {
 	return GCIF_RE_OK;
 }
 
-int ImagePaletteReader::read(ImageReader & CAT_RESTRICT reader, ImageMaskReader & CAT_RESTRICT mask, ImageLZReader & CAT_RESTRICT lz, GCIFImage * CAT_RESTRICT image) {
+int ImagePaletteReader::read(ImageReader & CAT_RESTRICT reader, ImageMaskReader & CAT_RESTRICT mask, GCIFImage * CAT_RESTRICT image) {
 #ifdef CAT_COLLECT_STATS
 	m_clock = Clock::ref();
 
@@ -423,7 +350,6 @@ int ImagePaletteReader::read(ImageReader & CAT_RESTRICT reader, ImageMaskReader 
 	_size_x = image->size_x;
 	_size_y = image->size_y;
 	_mask = &mask;
-	_lz = &lz;
 
 	if ((err = readTables(reader))) {
 		return err;

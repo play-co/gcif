@@ -34,7 +34,6 @@
 #include "GCIFWriter.h"
 #include "ImageWriter.hpp"
 #include "ImageMaskWriter.hpp"
-#include "ImageLZWriter.hpp"
 #include "PaletteOptimizer.hpp"
 #include "MonoWriter.hpp"
 #include "../decoder/SmallPaletteReader.hpp"
@@ -77,7 +76,6 @@ class SmallPaletteWriter {
 	SmartArray<u8> _image;	// Repacked image
 
 	ImageMaskWriter *_mask;
-	ImageLZWriter *_lz;
 	PaletteOptimizer _optimizer;
 
 	int _palette_size;		// Number of palette entries (> 0 : enabled)
@@ -127,7 +125,7 @@ public:
 
 public:
 	int init(const u8 *rgba, int size_x, int size_y, const GCIFKnobs *knobs);
-	int compress(ImageMaskWriter &mask, ImageLZWriter &lz);
+	int compress(ImageMaskWriter &mask);
 
 	CAT_INLINE bool enabled() {
 		return _palette_size > 0;

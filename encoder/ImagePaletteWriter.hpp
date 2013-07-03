@@ -32,7 +32,6 @@
 #include "../decoder/Platform.hpp"
 #include "ImageWriter.hpp"
 #include "GCIFWriter.h"
-#include "ImageLZWriter.hpp"
 #include "ImageMaskWriter.hpp"
 #include "../decoder/ImagePaletteReader.hpp"
 #include "MonoWriter.hpp"
@@ -74,7 +73,6 @@ class ImagePaletteWriter {
 	u16 _masked_palette;	// Palette index for the mask
 
 	ImageMaskWriter *_mask;
-	ImageLZWriter *_lz;
 
 	PaletteOptimizer _optimizer;
 	std::vector<u32> _palette;		// Map index => color
@@ -107,7 +105,7 @@ public:
 #endif
 
 public:
-	int init(const u8 *rgba, int size_x, int size_y, const GCIFKnobs *knobs, ImageMaskWriter &mask, ImageLZWriter &lz);
+	int init(const u8 *rgba, int size_x, int size_y, const GCIFKnobs *knobs, ImageMaskWriter &mask);
 
 	CAT_INLINE bool enabled() {
 		return _palette_size > 0;

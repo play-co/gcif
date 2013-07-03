@@ -30,7 +30,7 @@
 #include "../decoder/BitMath.hpp"
 using namespace cat;
 
-bool LZMatchFinder::scanRGBA(const u32 *rgba, int xsize, int ysize) {
+bool RGBAMatchFinder::findMatches(const u32 *rgba, int xsize, int ysize) {
 	const int pixels = xsize * ysize;
 
 	// Allocate and zero the table and chain
@@ -40,7 +40,7 @@ bool LZMatchFinder::scanRGBA(const u32 *rgba, int xsize, int ysize) {
 	// For each pixel, stopping just before the last pixel:
 	const u32 *rgba_now = rgba;
 	for (int ii = 0, iiend = pixels - 1; ii < iiend; ++rgba_now) {
-		const u32 hash = HashPixels(rgba_now);
+		const u32 hash = HashRGBA(rgba_now);
 		u16 best_length = RGBA_MIN_MATCH;
 		u32 best_distance = 0;
 		u32 best_score = 0;
@@ -101,7 +101,7 @@ bool LZMatchFinder::scanRGBA(const u32 *rgba, int xsize, int ysize) {
 	}
 }
 
-void LZMatchFinder::scanMono(const u8 *mono, int xsize, int ysize) {
+void MonoMatchFinder::findMatches(const u8 *mono, int xsize, int ysize) {
 	const int pixels = xsize * ysize;
 
 	// Allocate and zero the table and chain

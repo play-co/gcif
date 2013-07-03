@@ -224,7 +224,7 @@ int ImagePaletteWriter::init(const u8 *rgba, int size_x, int size_y, const GCIFK
 }
 
 bool ImagePaletteWriter::IsMasked(u16 x, u16 y) {
-	return _mask->masked(x, y) || _lz->visited(x, y);
+	return _mask->masked(x, y);
 }
 
 void ImagePaletteWriter::write(ImageWriter &writer) {
@@ -389,7 +389,7 @@ void ImagePaletteWriter::writePixels(ImageWriter &writer) {
 	Stats.mono_bits = bits;
 	Stats.total_bits = Stats.pal_overhead_bits + Stats.pal_table_bits + Stats.mono_overhead_bits + bits;
 	Stats.pixel_count = pixels;
-	Stats.file_bits = Stats.total_bits + _lz->Stats.huff_bits + _mask->Stats.compressedDataBits;
+	Stats.file_bits = Stats.total_bits + _mask->Stats.compressedDataBits;
 	Stats.original_bits = Stats.pixel_count * 32;
 	Stats.pixel_compression_ratio = Stats.original_bits / (float)Stats.total_bits;
 	Stats.file_compression_ratio = _size_x * _size_y * 32 / (float)Stats.file_bits;
