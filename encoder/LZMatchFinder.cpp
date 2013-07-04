@@ -40,14 +40,13 @@ bool RGBAMatchFinder::findMatches(const u32 *rgba, int xsize, int ysize, MaskDel
 
 	// For each pixel, stopping just before the last pixel:
 	const u32 *rgba_now = rgba;
-	for (int ii = 0, iiend = pixels - 1; ii < iiend; ++rgba_now) {
+	for (int ii = 0, iiend = pixels - 1; ii < iiend;) {
 		const u32 hash = HashPixels(rgba_now);
 		u16 best_length = MIN_MATCH;
 		u32 best_distance = 0;
-		u32 best_score = 0;
 
 		// For each hash collision,
-		for (u32 node = _table[hash]; node != 0; node = _chain[node]) {
+		for (u32 node = _table[hash]; node != 0; node = _chain[node - 1]) {
 			--node; // Fix node from table data
 
 			// If distance is beyond the window size,
@@ -57,48 +56,60 @@ bool RGBAMatchFinder::findMatches(const u32 *rgba, int xsize, int ysize, MaskDel
 				break;
 			}
 
+			// Fast reject potential matches that are too short
+			const u32 *rgba_node = rgba + node;
+			if (rgba_node[best_length - 1] != rgba_now[best_length - 1]) {
+				continue;
+			}
+
 			// Find match length
 			int match_len = 0;
-			const u32 *rgba_node = rgba + node;
 			for (; match_len < MAX_MATCH && rgba_node[match_len] == rgba_now[match_len]; ++match_len);
 
 			// Future matches will be farther away (more expensive in distance)
 			// so they should be at least as long as previous matches to be considered
 			if (match_len >= best_length) {
-				// Calculate saved bit count
-				const s32 distance_bits = distance < 8 ? 0 : BSR32(distance >> 2);
-				const s32 saved_bits = match_len * SAVED_PIXEL_BITS;
-				const s32 length_bits = match_len < 8 ? 0 : BSR32(match_len >> 2);
-				const s32 cost_bits = DIST_PREFIX_COST + distance_bits + LEN_PREFIX_COST + length_bits;
-				const s32 score = saved_bits - cost_bits;
+				best_distance = distance;
+				best_length = match_len;
 
-				// If it has the best score,
-				if (best_score < score) {
-					// Use this one
-					best_score = score;
-					best_distance = distance + 1;
-					best_length = match_len;
+				// If length is at the limit,
+				if (match_len >= MAX_MATCH) {
+					// Stop here
+					break;
 				}
 			}
 		}
 
+		// Insert current pixel
+		_chain[ii] = _table[hash] + 1;
+		_table[hash] = ++ii;
+		++rgba_now;
+
 		// If a best node was found,
 		if (best_distance > 0) {
-			_matches.push_back(LZMatch(ii, best_distance, best_length));
-			CAT_WARN("RGBATEST") << ii << " : " << best_distance << ", " << best_length;
-		} else {
-			// Set the length to prevent inserting pixels twice below
-			best_length = 1;
-		}
+			const int offset = ii - 1;
 
-		// Insert current and any matched pixels
-		for (int jj = ii, jjend = ii + best_length; jj < jjend; ++jj) {
-			_chain[ii] = _table[hash] + 1;
-			_table[hash] = ii;
-		}
+			// Calculate saved bit count
+			const s32 distance_bits = best_distance < 8 ? 0 : BSR32(best_distance >> 2);
+			const s32 saved_bits = best_length * SAVED_PIXEL_BITS;
+			const s32 length_bits = best_length < 8 ? 0 : BSR32(best_length >> 2);
+			const s32 cost_bits = DIST_PREFIX_COST + distance_bits + LEN_PREFIX_COST + length_bits;
+			const s32 score = saved_bits - cost_bits;
 
-		// Skip to next pixel
-		ii += best_length;
+			// If score is good,
+			if (score > 0) {
+				_matches.push_back(LZMatch(offset, best_distance, best_length));
+				CAT_WARN("RGBATEST") << offset << " : " << best_distance << ", " << best_length;
+
+				// Insert matched pixels
+				for (int jj = 1; jj < best_length; ++jj) {
+					const u32 matched_hash = HashPixels(rgba_now);
+					_chain[ii] = _table[matched_hash] + 1;
+					_table[matched_hash] = ++ii;
+					++rgba_now;
+				}
+			}
+		}
 	}
 
 	_matches.push_back(LZMatch(GUARD_OFFSET, 0, 0));
@@ -122,7 +133,7 @@ bool MonoMatchFinder::findMatches(const u8 *mono, int xsize, int ysize, MaskDele
 		u32 best_score = 0;
 
 		// For each hash collision,
-		for (u32 node = _table[hash]; node != 0; node = _chain[node]) {
+		for (u32 node = _table[hash]; node != 0; node = _chain[node - 1]) {
 			--node; // Fix node from table data
 
 			// If distance is beyond the window size,
@@ -151,29 +162,32 @@ bool MonoMatchFinder::findMatches(const u8 *mono, int xsize, int ysize, MaskDele
 				if (best_score < score) {
 					// Use this one
 					best_score = score;
-					best_distance = distance + 1;
+					best_distance = distance;
 					best_length = match_len;
 				}
 			}
 		}
 
+		const int offset = ii;
+
+		// Insert current pixel
+		_chain[ii] = _table[hash] + 1;
+		_table[hash] = ++ii;
+		++mono_now;
+
 		// If a best node was found,
 		if (best_distance > 0) {
-			_matches.push_back(LZMatch(ii, best_distance, best_length));
-			CAT_WARN("MONOTEST") << ii << " : " << best_distance << ", " << best_length;
-		} else {
-			// Set the length to prevent inserting pixels twice below
-			best_length = 1;
-		}
+			_matches.push_back(LZMatch(offset, best_distance, best_length));
+			CAT_WARN("RGBATEST") << offset << " : " << best_distance << ", " << best_length;
 
-		// Insert current and any matched pixels
-		for (int jj = ii, jjend = ii + best_length; jj < jjend; ++jj) {
-			_chain[ii] = _table[hash] + 1;
-			_table[hash] = ii;
+			// Insert matched pixels
+			for (int jj = 1; jj < best_length; ++jj) {
+				const u32 matched_hash = HashPixels(mono_now);
+				_chain[ii] = _table[matched_hash] + 1;
+				_table[matched_hash] = ++ii;
+				++mono_now;
+			}
 		}
-
-		// Skip to next pixel
-		ii += best_length;
 	}
 
 	_matches.push_back(LZMatch(GUARD_OFFSET, 0, 0));
