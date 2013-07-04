@@ -77,8 +77,8 @@ int ImagePaletteReader::readPalette(ImageReader & CAT_RESTRICT reader) {
 		YUV2RGBFilterFunction filter = YUV2RGB_FILTERS[cf];
 
 		// Initialize the decoder
-		EntropyDecoder<PALETTE_MAX, ENCODER_ZRLE_SYMS> decoder;
-		if (!decoder.init(reader)) {
+		EntropyDecoder decoder;
+		if (!decoder.init(PALETTE_MAX, ENCODER_ZRLE_SYMS, HUFF_LUT_BITS, reader)) {
 			return GCIF_RE_BAD_PAL;
 		}
 

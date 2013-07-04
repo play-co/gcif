@@ -57,6 +57,7 @@ public:
 	static const int MAX_PALETTE = 15;
 	static const int MAX_SYMS = 256;
 	static const int ZRLE_SYMS = 16;
+	static const int HUFF_LUT_BITS = 7;
 
 	enum RowFilters {
 		RF_NOOP,		// Pass-through filter

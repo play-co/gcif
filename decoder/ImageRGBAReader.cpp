@@ -168,19 +168,19 @@ int ImageRGBAReader::readRGBATables(ImageReader & CAT_RESTRICT reader) {
 	// For each chaos level,
 	for (int jj = 0; jj < chaos_levels; ++jj) {
 		// Read the decoder tables
-		if (!_y_decoder[jj].init(reader)) {
+		if (!_y_decoder[jj].init(NUM_Y_SYMS, NUM_ZRLE_SYMS, HUFF_LUT_BITS, reader)) {
 			CAT_DEBUG_EXCEPTION();
 			return GCIF_RE_BAD_RGBA;
 		}
 		DESYNC_TABLE();
 
-		if (!_u_decoder[jj].init(reader)) {
+		if (!_u_decoder[jj].init(NUM_U_SYMS, NUM_ZRLE_SYMS, HUFF_LUT_BITS, reader)) {
 			CAT_DEBUG_EXCEPTION();
 			return GCIF_RE_BAD_RGBA;
 		}
 		DESYNC_TABLE();
 
-		if (!_v_decoder[jj].init(reader)) {
+		if (!_v_decoder[jj].init(NUM_V_SYMS, NUM_ZRLE_SYMS, HUFF_LUT_BITS, reader)) {
 			CAT_DEBUG_EXCEPTION();
 			return GCIF_RE_BAD_RGBA;
 		}

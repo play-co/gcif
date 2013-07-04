@@ -25,78 +25,72 @@
 	ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 	POSSIBILITY OF SUCH DAMAGE.
 */
+#include "EntropyDecoder.hpp"
+using namespace cat;
 
-#ifndef IMAGE_PALETTE_READER_HPP
-#define IMAGE_PALETTE_READER_HPP
+bool EntropyDecoder::init(int num_syms, int zrle_syms, int huff_lut_bits, ImageReader &reader) {
+	_num_syms = num_syms;
 
-#include "ImageReader.hpp"
-#include "Enforcer.hpp"
-#include "MonoReader.hpp"
-#include "ImageMaskReader.hpp"
-#include "SmartArray.hpp"
+	CAT_DEBUG_ENFORCE(num_syms > 0 && zrle_syms > 0);
 
-/*
- * Game Closure Global Palette Decompression
- */
+	// If using AZ symbols,
+	if (reader.readBit()) {
+		_zrle_offset = zrle_syms - 1;
 
-namespace cat {
+		if (!_az.init(num_syms, reader, huff_lut_bits)) {
+			return false;
+		}
 
-
-//// ImagePaletteReader
-
-class ImagePaletteReader {
-public:
-	static const int PALETTE_MAX = 256;
-	static const int ENCODER_ZRLE_SYMS = 16;
-	static const int HUFF_LUT_BITS = 7;
-
-protected:
-	u32 _palette[PALETTE_MAX];
-	int _palette_size;
-	u8 _mask_palette;	// Masked palette index
-
-	ImageMaskReader * CAT_RESTRICT _mask;
-
-	u8 * CAT_RESTRICT _rgba;
-	u16 _size_x, _size_y;
-
-	SmartArray<u8> _image;
-
-	MonoReader _mono_decoder;
-
-	int readPalette(ImageReader & CAT_RESTRICT reader);
-	int readTables(ImageReader & CAT_RESTRICT reader);
-	int readPixels(ImageReader & CAT_RESTRICT reader);
-
-#ifdef CAT_COLLECT_STATS
-public:
-	struct _Stats {
-		double paletteUsec;
-		double tablesUsec;
-		double pixelsUsec;
-
-		int colorCount;
-	} Stats;
-#endif
-
-public:
-	CAT_INLINE bool enabled() {
-		return _palette_size > 0;
+		if (!_bz.init(num_syms + zrle_syms, reader, huff_lut_bits)) {
+			return false;
+		}
+	} else {
+		// Cool: Does not slow down decoder to conditionally turn off zRLE!
+		if (!_bz.init(num_syms, reader, huff_lut_bits)) {
+			return false;
+		}
 	}
 
-	int read(ImageReader & CAT_RESTRICT reader, ImageMaskReader & CAT_RESTRICT mask, GCIFImage * CAT_RESTRICT image);
+	_afterZero = false;
+	_zeroRun = 0;
 
-#ifdef CAT_COLLECT_STATS
-	bool dumpStats();
-#else
-	CAT_INLINE bool dumpStats() {
-		return false;
+	return true;
+}
+
+u16 EntropyDecoder::next(ImageReader &reader) {
+	// If in a zero run,
+	if (_zeroRun > 0) {
+		--_zeroRun;
+		return 0;
 	}
-#endif
-};
 
+	// If after zero,
+	if (_afterZero) {
+		_afterZero = false;
+		return _az.next(reader);
+	}
 
-} // namespace cat
+	// Read before-zero symbol
+	const int num_syms = _num_syms;
+	u16 sym = (u16)_bz.next(reader);
 
-#endif // IMAGE_PALETTE_READER_HPP
+	// If not a zero run,
+	if (sym < num_syms) {
+		return sym;
+	}
+
+	// Decode zero run
+	u32 zeroRun = sym - num_syms;
+
+	// If extra bits were used,
+	if (sym >= _zrle_offset) {
+		CAT_DEBUG_ENFORCE(sym == _zrle_offset);
+
+		zeroRun += reader.read255255();
+	}
+
+	_zeroRun = zeroRun;
+	_afterZero = true;
+	return 0;
+}
 

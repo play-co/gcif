@@ -47,6 +47,7 @@ namespace cat {
 //// LZMatchFinder
 
 class LZMatchFinder {
+protected:
 	static const u32 GUARD_OFFSET = 0xffffffff;
 
 	// Hash Chain search structure
@@ -100,9 +101,6 @@ public:
 	static const int MAX_MATCH = 4096; // pixels
 	static const int WIN_SIZE = 1024 * 1024; // pixels
 
-	static const int ENCODE_LEN_SYMBOLS = 24;
-	static const int ENCODE_DIST_SYMBOLS = 40;
-
 	/*
 	 * Encoding cost in bits for RGBA data:
 	 *
@@ -145,9 +143,6 @@ public:
 	static const int MIN_MATCH = 6; // pixels
 	static const int MAX_MATCH = 4096; // pixels
 	static const int WIN_SIZE = 1024 * 1024; // pixels
-
-	static const int ENCODE_LEN_SYMBOLS = 24;
-	static const int ENCODE_DIST_SYMBOLS = 40;
 
 	/*
 	 * Encoding cost in bits for monochrome data:

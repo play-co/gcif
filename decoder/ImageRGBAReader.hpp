@@ -68,9 +68,19 @@ public:
 	static const int MAX_FILTERS = 32;
 	static const int ZRLE_SYMS = 128;
 
-protected:
 	static const int NUM_COLORS = 256;
+	static const int LZ_LEN_SYMBOLS = 24;
+	static const int LZ_DIST_SYMBOLS = 40;
 
+	static const int NUM_LIT_SYMS = NUM_COLORS;
+	static const int NUM_Y_SYMS = NUM_LIT_SYMS + LZ_LEN_SYMBOLS;
+	static const int NUM_U_SYMS = NUM_LIT_SYMS;
+	static const int NUM_V_SYMS = NUM_LIT_SYMS;
+	static const int NUM_ZRLE_SYMS = 128;
+
+	static const int HUFF_LUT_BITS = 7;
+
+protected:
 	ImageMaskReader * CAT_RESTRICT _mask;
 
 	// RGBA output data

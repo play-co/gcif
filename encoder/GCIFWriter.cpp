@@ -236,7 +236,7 @@ extern "C" int gcif_write_ex(const void *rgba, int size_x, int size_y, const cha
 		if (!imagePaletteWriter.enabled()) {
 			// Context Modeling Decompression
 			ImageRGBAWriter imageRGBAWriter;
-			if ((err = imageRGBAWriter.init(image.get(), size_x, size_y, imageMaskWriter, imageLZWriter, knobs))) {
+			if ((err = imageRGBAWriter.init(image.get(), size_x, size_y, imageMaskWriter, knobs))) {
 				return err;
 			}
 

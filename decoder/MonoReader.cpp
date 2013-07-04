@@ -73,7 +73,7 @@ int MonoReader::readTables(const Parameters & CAT_RESTRICT params, ImageReader &
 			_one_row_filter = false;
 		}
 
-		if CAT_UNLIKELY(!_row_filter_decoder.init(reader)) {
+		if CAT_UNLIKELY(!_row_filter_decoder.init(MAX_SYMS, ZRLE_SYMS, HUFF_LUT_BITS, reader)) {
 			return GCIF_RE_BAD_MONO;
 		}
 
@@ -170,7 +170,7 @@ int MonoReader::readTables(const Parameters & CAT_RESTRICT params, ImageReader &
 
 		// For each chaos level,
 		for (int ii = 0; ii < chaos_levels; ++ii) {
-			if CAT_UNLIKELY(!_decoder[ii].init(reader)) {
+			if CAT_UNLIKELY(!_decoder[ii].init(MAX_SYMS, ZRLE_SYMS, HUFF_LUT_BITS, reader)) {
 				CAT_DEBUG_EXCEPTION();
 				return GCIF_RE_BAD_MONO;
 			}

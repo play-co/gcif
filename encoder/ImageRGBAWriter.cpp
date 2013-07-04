@@ -613,9 +613,9 @@ void ImageRGBAWriter::designChaos() {
 
 		// For each chaos level,
 		for (int ii = 0; ii < chaos_levels; ++ii) {
-			encoders->y[ii].init(MAX_SYMS + RGBAMatchFinder::ENCODE_LEN_SYMBOLS, ZRLE_SYMS);
-			encoders->u[ii].init(MAX_SYMS, ZRLE_SYMS);
-			encoders->v[ii].init(MAX_SYMS, ZRLE_SYMS);
+			encoders->y[ii].init(ImageRGBAReader::NUM_Y_SYMS, ImageRGBAReader::NUM_ZRLE_SYMS);
+			encoders->u[ii].init(ImageRGBAReader::NUM_U_SYMS, ImageRGBAReader::NUM_ZRLE_SYMS);
+			encoders->v[ii].init(ImageRGBAReader::NUM_V_SYMS, ImageRGBAReader::NUM_ZRLE_SYMS);
 		}
 
 		// For each row,
@@ -877,7 +877,7 @@ bool ImageRGBAWriter::writePixels(ImageWriter &writer) {
 	CAT_INANE("RGBA") << "Writing interleaved pixel/filter data...";
 
 #ifdef CAT_COLLECT_STATS
-	int sf_bits = 0, cf_bits = 0, y_bits = 0, u_bits = 0, v_bits = 0, a_bits = 0, rgba_count = 0, lut_bits = 0, lut_count = 0;
+	int sf_bits = 0, cf_bits = 0, y_bits = 0, u_bits = 0, v_bits = 0, a_bits = 0, rgba_count = 0;
 #endif
 
 	_seen_filter.resize(_tiles_x);
