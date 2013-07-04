@@ -50,10 +50,6 @@ class LZMatchFinder {
 protected:
 	static const u32 GUARD_OFFSET = 0xffffffff;
 
-	// Hash Chain search structure
-	SmartArray<u32> _table;
-	SmartArray<u32> _chain;
-
 	// Match list, with guard at end
 	struct LZMatch {
 		u32 offset;
@@ -70,7 +66,19 @@ protected:
 	std::vector<LZMatch> _matches;
 	LZMatch *_next_match;
 
+	SmartArray<u32> _mask;
+	int _size_x;
+
+	CAT_INLINE void mask(u32 off) {
+		_mask[off >> 5] |= 1 << (off & 31);
+	}
+
 public:
+	CAT_INLINE bool masked(u16 x, u16 y) {
+		const int off = x + y * _size_x;
+		return ( _mask[off >> 5] & (1 << (off & 31)) ) != 0;
+	}
+
 	CAT_INLINE int size() {
 		return static_cast<int>( _matches.size() );
 	}

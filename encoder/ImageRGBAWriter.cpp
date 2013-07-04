@@ -55,6 +55,8 @@ using namespace std;
 //// ImageRGBAWriter
 
 void ImageRGBAWriter::designLZ() {
+	CAT_INANE("RGBA") << "Finding LZ77 matches...";
+
 	const u32 *rgba = reinterpret_cast<const u32 *>( _rgba );
 
 	_lz.findMatches(rgba, _size_x, _size_y, _mask);
