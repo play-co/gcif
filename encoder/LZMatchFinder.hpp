@@ -31,7 +31,7 @@
 
 #include "../decoder/Platform.hpp"
 #include "../decoder/SmartArray.hpp"
-#include "../decoder/Delegates.hpp"
+#include "ImageMaskWriter.hpp"
 
 #include <vector>
 
@@ -71,8 +71,6 @@ protected:
 	LZMatch *_next_match;
 
 public:
-	typedef Delegate2<bool, u16, u16> MaskDelegate;
-
 	CAT_INLINE int size() {
 		return static_cast<int>( _matches.size() );
 	}
@@ -131,7 +129,7 @@ public:
 		return (u32)( ( ((u64)rgba[0] << 32) | rgba[1] ) * HASH_MULT >> (64 - HASH_BITS) );
 	}
 
-	bool findMatches(const u32 * CAT_RESTRICT rgba, int xsize, int ysize, LZMatchFinder::MaskDelegate mask);
+	bool findMatches(const u32 * CAT_RESTRICT rgba, int xsize, int ysize, ImageMaskWriter *mask);
 };
 
 
@@ -165,7 +163,7 @@ public:
 		return (u32)( ( ((u64)word1 << 32) | *word0 ) * HASH_MULT >> (64 - HASH_BITS) );
 	}
 
-	bool findMatches(const u8 * CAT_RESTRICT mono, int xsize, int ysize, LZMatchFinder::MaskDelegate mask);
+	bool findMatches(const u8 * CAT_RESTRICT mono, int xsize, int ysize, ImageMaskWriter *mask);
 };
 
 

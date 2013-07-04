@@ -57,8 +57,7 @@ using namespace std;
 void ImageRGBAWriter::designLZ() {
 	const u32 *rgba = reinterpret_cast<const u32 *>( _rgba );
 
-	_lz.findMatches(rgba, _size_x, _size_y,
-			LZMatchFinder::MaskDelegate::FromMember<ImageRGBAWriter, &ImageRGBAWriter::IsMasked>(this));
+	_lz.findMatches(rgba, _size_x, _size_y, _mask);
 }
 
 void ImageRGBAWriter::maskTiles() {
