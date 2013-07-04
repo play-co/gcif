@@ -421,7 +421,7 @@ void MonoWriter::designPaletteFilters() {
 	}
 
 	// Determine threshold
-	u32 sympal_thresh = _params.sympal_thresh * _profile->tiles_count;
+	u32 sympal_thresh = static_cast<u32>( _params.sympal_thresh * _profile->tiles_count);
 	int sympal_count = 0;
 
 	// For each histogram bin,
@@ -507,7 +507,7 @@ void MonoWriter::designFilters() {
 							if (residual >= num_syms) {
 								residual -= num_syms;
 							}
-							u8 score = MonoChaos::ResidualScore(residual, num_syms); // lower = better
+							u8 score = MonoChaos::ResidualScore(static_cast<u8>( residual ), num_syms); // lower = better
 
 							scores.add(f, score);
 						}
@@ -755,7 +755,7 @@ void MonoWriter::designTiles() {
 										residual -= num_syms;
 									}
 
-									codes[code_count++] = residual;
+									codes[code_count++] = static_cast<u8>( residual );
 								}
 								++px;
 								++data;
@@ -790,7 +790,7 @@ void MonoWriter::designTiles() {
 										residual -= num_syms;
 									}
 
-									*dest = residual;
+									*dest = static_cast<u8>( residual );
 								}
 
 								dest += code_stride;
@@ -930,7 +930,7 @@ void MonoWriter::computeResiduals() {
 
 				// Store residual
 				replay[x] = value;
-				residuals[x] = residual;
+				residuals[x] = static_cast<u8>( residual );
 			}
 
 			data += size_x;
@@ -960,7 +960,7 @@ void MonoWriter::computeResiduals() {
 					}
 
 					// Store residual
-					residuals[0] = residual;
+					residuals[0] = static_cast<u8>( residual );
 				}
 			}
 		}

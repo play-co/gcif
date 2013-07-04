@@ -111,7 +111,7 @@ bool ImagePaletteWriter::generatePalette() {
 
 void ImagePaletteWriter::generateImage() {
 	// Choose the most common color as the mask color, if it is not found
-	u16 masked_palette = _most_common;
+	u8 masked_palette = _most_common;
 	if (_mask->enabled()) {
 		u32 maskColor = _mask->getColor();
 
@@ -184,9 +184,9 @@ void ImagePaletteWriter::generateMonoWriter() {
 	params.max_filters = 32;
 	params.min_bits = 2;
 	params.max_bits = 5;
-	params.sympal_thresh = 0.1;
-	params.filter_cover_thresh = 0.6;
-	params.filter_inc_thresh = 0.05;
+	params.sympal_thresh = 0.1f;
+	params.filter_cover_thresh = 0.6f;
+	params.filter_inc_thresh = 0.05f;
 	params.mask.SetMember<ImagePaletteWriter, &ImagePaletteWriter::IsMasked>(this);
 	params.AWARDS[0] = 5;
 	params.AWARDS[1] = 3;

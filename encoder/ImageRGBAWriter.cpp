@@ -1047,7 +1047,7 @@ bool ImageRGBAWriter::dumpStats() {
 	CAT_INANE("stats") << "(RGBA Compress)          RGBA Data : " << Stats.rgba_bits << " bits (" << Stats.rgba_bits/8 << " bytes, " << Stats.rgba_bits * 100.f / Stats.total_bits << "% of total)";
 	CAT_INANE("stats") << "(RGBA Compress)         RGBA Count : " << Stats.rgba_count << " pixels for " << _size_x << "x" << _size_y << " pixel image (" << Stats.rgba_count * 100.f / (_size_x * _size_y) << " % of total)";
 	CAT_INANE("stats") << "(RGBA Compress)   RGBA Compression : " << Stats.rgba_compression_ratio << ":1 compression ratio";
-	CAT_INANE("stats") << "(RGBA Compress)          RGBA Data : " << Stats.lz_bits << " bits (" << Stats.lz_bits/8 << " bytes, " << Stats.lz_bits * 100.f / Stats.total_bits << "% of total)";
+	CAT_INANE("stats") << "(RGBA Compress)            LZ Data : " << Stats.lz_bits << " bits (" << Stats.lz_bits/8 << " bytes, " << Stats.lz_bits * 100.f / Stats.total_bits << "% of total)";
 	CAT_INANE("stats") << "(RGBA Compress)           LZ Count : " << Stats.lz_count << " pixels for " << _size_x << "x" << _size_y << " pixel image (" << Stats.lz_count * 100.f / (_size_x * _size_y) << " % of total)";
 	CAT_INANE("stats") << "(RGBA Compress)     LZ Compression : " << Stats.lz_compression_ratio << ":1 compression ratio";
 	CAT_INANE("stats") << "(RGBA Compress)              Overall Size : " << Stats.total_bits << " bits (" << Stats.total_bits/8 << " bytes)";

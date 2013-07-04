@@ -69,14 +69,14 @@ class ImagePaletteWriter {
 	SmartArray<u8> _image;	// Palette-encoded image
 	int _size_x, _size_y;	// In pixels
 	int _palette_size;		// Number of palette entries
-	u8 _most_common;
-	u16 _masked_palette;	// Palette index for the mask
+	u8 _most_common;		// Most common palette index
+	u8 _masked_palette;		// Palette index for the mask
 
 	ImageMaskWriter *_mask;
 
 	PaletteOptimizer _optimizer;
 	std::vector<u32> _palette;		// Map index => color
-	std::map<u32, u8> _map;		// Map color => index
+	std::map<u32, u8> _map;			// Map color => index
 
 	MonoWriter _mono_writer;
 

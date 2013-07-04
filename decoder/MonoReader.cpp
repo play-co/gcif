@@ -287,7 +287,7 @@ u8 MonoReader::read(u16 x, ImageReader & CAT_RESTRICT reader) {
 			if (value >= num_syms) {
 				value -= num_syms;
 			}
-			_prev_filter = value;
+			_prev_filter = static_cast<u8>( value );
 		}
 	} else {
 		// Check cached filter
@@ -327,9 +327,11 @@ u8 MonoReader::read(u16 x, ImageReader & CAT_RESTRICT reader) {
 			// Read residual from bitstream
 			const u16 residual = _decoder[chaos].next(reader);
 
+			// TODO: LZ
+
 			// Store for next chaos lookup
 			const u16 num_syms = _params.num_syms;
-			_chaos.store(x, residual, num_syms);
+			_chaos.store(x, static_cast<u8>( residual ), num_syms);
 
 			// Calculate predicted value
 			const u16 pred = filter(data, num_syms, x, y, _params.size_x);
@@ -348,8 +350,7 @@ u8 MonoReader::read(u16 x, ImageReader & CAT_RESTRICT reader) {
 
 	CAT_DEBUG_ENFORCE(!reader.eof());
 
-	*data = (u8)value;
-	return value;
+	return ( *data = static_cast<u8>( value ) );
 }
 
 
@@ -381,7 +382,7 @@ u8 MonoReader::read_unsafe(u16 x, ImageReader & CAT_RESTRICT reader) {
 			if (value >= num_syms) {
 				value -= num_syms;
 			}
-			_prev_filter = value;
+			_prev_filter = static_cast<u8>( value );
 		}
 	} else {
 		// Check cached filter
@@ -421,9 +422,11 @@ u8 MonoReader::read_unsafe(u16 x, ImageReader & CAT_RESTRICT reader) {
 			// Read residual from bitstream
 			const u16 residual = _decoder[chaos].next(reader);
 
+			// TODO: LZ
+
 			// Store for next chaos lookup
 			const u16 num_syms = _params.num_syms;
-			_chaos.store(x, residual, num_syms);
+			_chaos.store(x, static_cast<u8>( residual ), num_syms);
 
 			// Calculate predicted value
 			const u16 pred = filter(data, num_syms, x, y, _params.size_x);
@@ -442,6 +445,5 @@ u8 MonoReader::read_unsafe(u16 x, ImageReader & CAT_RESTRICT reader) {
 
 	CAT_DEBUG_ENFORCE(!reader.eof());
 
-	*data = (u8)value;
-	return value;
+	return ( *data = static_cast<u8>( value ) );
 }

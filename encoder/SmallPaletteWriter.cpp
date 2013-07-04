@@ -339,9 +339,9 @@ void SmallPaletteWriter::generateMonoWriter() {
 	params.max_filters = 32;
 	params.min_bits = 2;
 	params.max_bits = 5;
-	params.sympal_thresh = 0.1;
-	params.filter_cover_thresh = 0.6;
-	params.filter_inc_thresh = 0.05;
+	params.sympal_thresh = 0.1f;
+	params.filter_cover_thresh = 0.6f;
+	params.filter_inc_thresh = 0.05f;
 	params.mask.SetMember<SmallPaletteWriter, &SmallPaletteWriter::IsMasked>(this);
 	params.AWARDS[0] = 5;
 	params.AWARDS[1] = 3;

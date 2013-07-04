@@ -221,8 +221,8 @@ void Masker::performLZ() {
 	_lz.resize(lzSize);
 
 #ifdef CAT_COLLECT_STATS
-	Stats.rleBytes = _rle.size();
-	Stats.lzBytes = _lz.size();
+	Stats.rleBytes = static_cast<int>( _rle.size() );
+	Stats.lzBytes = static_cast<int>( _lz.size() );
 #endif // CAT_COLLECT_STATS
 
 	// Determine if encoder should be used

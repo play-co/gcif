@@ -86,10 +86,10 @@ int ImagePaletteReader::readPalette(ImageReader & CAT_RESTRICT reader) {
 		for (int ii = 0, iiend = _palette_size; ii < iiend; ++ii) {
 			// Decode
 			u8 yuv[3];
-			yuv[0] = decoder.next(reader);
-			yuv[1] = decoder.next(reader);
-			yuv[2] = decoder.next(reader);
-			u8 a = 255 - decoder.next(reader);
+			yuv[0] = static_cast<u8>( decoder.next(reader) );
+			yuv[1] = static_cast<u8>( decoder.next(reader) );
+			yuv[2] = static_cast<u8>( decoder.next(reader) );
+			u8 a = 255 - static_cast<u8>( decoder.next(reader) );
 
 			// Unfilter
 			u8 rgb[3];

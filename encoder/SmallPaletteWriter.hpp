@@ -81,7 +81,7 @@ class SmallPaletteWriter {
 	int _palette_size;		// Number of palette entries (> 0 : enabled)
 
 	std::vector<u32> _palette;		// Map index => color
-	std::map<u32, u16> _map;		// Map color => index
+	std::map<u32, u8> _map;		// Map color => index
 
 	int _pack_palette_size;	// Palette size for repacked bytes
 	u8 _pack_palette[MAX_SYMS];
