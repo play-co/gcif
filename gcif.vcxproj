@@ -22,14 +22,17 @@
     <ClInclude Include="decoder\BitMath.hpp" />
     <ClInclude Include="decoder\Config.hpp" />
     <ClInclude Include="decoder\EndianNeutral.hpp" />
+    <ClInclude Include="decoder\Enforcer.hpp" />
     <ClInclude Include="decoder\EntropyDecoder.hpp" />
     <ClInclude Include="decoder\Filters.hpp" />
     <ClInclude Include="decoder\GCIFReader.h" />
     <ClInclude Include="decoder\HotRodHash.hpp" />
     <ClInclude Include="decoder\HuffmanDecoder.hpp" />
     <ClInclude Include="decoder\ImageCMReader.hpp" />
+    <ClInclude Include="decoder\ImageCMReaderPal.hpp" />
     <ClInclude Include="decoder\ImageLZReader.hpp" />
     <ClInclude Include="decoder\ImageMaskReader.hpp" />
+    <ClInclude Include="decoder\ImagePaletteReader.hpp" />
     <ClInclude Include="decoder\ImageReader.hpp" />
     <ClInclude Include="decoder\lz4.h" />
     <ClInclude Include="decoder\MappedFile.hpp" />
@@ -54,23 +57,24 @@
     <ClInclude Include="encoder\SystemInfo.hpp" />
     <ClInclude Include="encoder\Thread.hpp" />
     <ClInclude Include="encoder\WaitableFlag.hpp" />
+    <ClInclude Include="msvc\dirent.h" />
     <ClInclude Include="msvc\Precompiled.hpp" />
+    <ClInclude Include="optionparser.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="decoder\EndianNeutral.cpp" />
+    <ClCompile Include="decoder\Enforcer.cpp" />
     <ClCompile Include="decoder\Filters.cpp" />
     <ClCompile Include="decoder\GCIFReader.cpp" />
     <ClCompile Include="decoder\HotRodHash.cpp" />
     <ClCompile Include="decoder\HuffmanDecoder.cpp" />
     <ClCompile Include="decoder\ImageCMReader.cpp" />
+    <ClCompile Include="decoder\ImageCMReaderPal.cpp" />
     <ClCompile Include="decoder\ImageLZReader.cpp" />
     <ClCompile Include="decoder\ImageMaskReader.cpp" />
+    <ClCompile Include="decoder\ImagePaletteReader.cpp" />
     <ClCompile Include="decoder\ImageReader.cpp" />
     <ClCompile Include="decoder\lz4.c">
-      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">NotUsing</PrecompiledHeader>
-      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">NotUsing</PrecompiledHeader>
-      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">NotUsing</PrecompiledHeader>
-      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">NotUsing</PrecompiledHeader>
       <ForcedIncludeFiles Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
       </ForcedIncludeFiles>
       <ForcedIncludeFiles Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
@@ -79,6 +83,10 @@
       </ForcedIncludeFiles>
       <ForcedIncludeFiles Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
       </ForcedIncludeFiles>
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">NotUsing</PrecompiledHeader>
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">NotUsing</PrecompiledHeader>
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">NotUsing</PrecompiledHeader>
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">NotUsing</PrecompiledHeader>
     </ClCompile>
     <ClCompile Include="decoder\MappedFile.cpp" />
     <ClCompile Include="encoder\Clock.cpp" />
@@ -93,10 +101,6 @@
     <ClCompile Include="encoder\lodepng.cpp" />
     <ClCompile Include="encoder\Log.cpp" />
     <ClCompile Include="encoder\lz4hc.c">
-      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">NotUsing</PrecompiledHeader>
-      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">NotUsing</PrecompiledHeader>
-      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">NotUsing</PrecompiledHeader>
-      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">NotUsing</PrecompiledHeader>
       <ForcedIncludeFiles Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
       </ForcedIncludeFiles>
       <ForcedIncludeFiles Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
@@ -105,6 +109,10 @@
       </ForcedIncludeFiles>
       <ForcedIncludeFiles Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
       </ForcedIncludeFiles>
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">NotUsing</PrecompiledHeader>
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">NotUsing</PrecompiledHeader>
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">NotUsing</PrecompiledHeader>
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">NotUsing</PrecompiledHeader>
     </ClCompile>
     <ClCompile Include="encoder\Mutex.cpp" />
     <ClCompile Include="encoder\SystemInfo.cpp" />
@@ -112,18 +120,10 @@
     <ClCompile Include="encoder\WaitableFlag.cpp" />
     <ClCompile Include="gcif.cpp" />
     <ClCompile Include="msvc\Precompiled.cpp">
-      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Create</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Create</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Create</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Create</PrecompiledHeader>
-      <ForcedIncludeFiles Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
-      </ForcedIncludeFiles>
-      <ForcedIncludeFiles Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
-      </ForcedIncludeFiles>
-      <ForcedIncludeFiles Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
-      </ForcedIncludeFiles>
-      <ForcedIncludeFiles Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
-      </ForcedIncludeFiles>
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Create</PrecompiledHeader>
     </ClCompile>
   </ItemGroup>
   <PropertyGroup Label="Globals">
