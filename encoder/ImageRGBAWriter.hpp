@@ -151,10 +151,11 @@ public:
 		int basic_overhead_bits, sf_choice_bits;
 		int sf_table_bits, cf_table_bits, y_table_bits, u_table_bits, v_table_bits, a_table_bits;
 		int sf_bits, cf_bits, y_bits, u_bits, v_bits, a_bits;
+		int lz_bits;
 
 		int rgba_bits, total_bits; // Total includes mask overhead
 
-		u32 rgba_count, chaos_bins;
+		u32 rgba_count, lz_count, chaos_bins;
 		double rgba_compression_ratio;
 
 		double overall_compression_ratio;

@@ -752,7 +752,7 @@ bool ImageRGBAWriter::compressCF() {
 bool ImageRGBAWriter::IsMasked(u16 x, u16 y) {
 	CAT_DEBUG_ENFORCE(x < _size_x && y < _size_y);
 
-	return _mask->masked(x, y);
+	return _mask->masked(x, y) || _lz.masked(x, y);
 }
 
 bool ImageRGBAWriter::IsSFMasked(u16 x, u16 y) {
@@ -878,7 +878,7 @@ bool ImageRGBAWriter::writePixels(ImageWriter &writer) {
 	CAT_INANE("RGBA") << "Writing interleaved pixel/filter data...";
 
 #ifdef CAT_COLLECT_STATS
-	int sf_bits = 0, cf_bits = 0, y_bits = 0, u_bits = 0, v_bits = 0, a_bits = 0, rgba_count = 0;
+	int sf_bits = 0, cf_bits = 0, y_bits = 0, u_bits = 0, v_bits = 0, a_bits = 0, rgba_count = 0, lz_count = 0, lz_bits;
 #endif
 
 	_seen_filter.resize(_tiles_x);
@@ -923,9 +923,19 @@ bool ImageRGBAWriter::writePixels(ImageWriter &writer) {
 			DESYNC(x, y);
 
 			// If masked,
-			if (IsMasked(x, y)) {
+			if (_mask->masked(x, y)) {
 				_encoders->chaos.zero(x);
 				_a_encoder.zero(x);
+			} else if (_lz.masked(x, y)) {
+				_encoders->chaos.zero(x);
+				_a_encoder.zero(x);
+
+				// Get chaos bin
+				u8 cy, cu, cv;
+				_encoders->chaos.get(x, cy, cu, cv);
+
+				lz_bits += _encoders->y[cy].write(256 + dist_code, writer);
+				++lz_count;
 			} else {
 				// If filter needs to be written,
 				u16 tx = x >> _tile_bits_x;
