@@ -47,7 +47,7 @@ namespace cat {
 //// LZMatchFinder
 
 class LZMatchFinder {
-protected:
+public:
 	static const u32 GUARD_OFFSET = 0xffffffff;
 
 	// Match list, with guard at end
@@ -63,6 +63,7 @@ protected:
 		}
 	};
 
+protected:
 	std::vector<LZMatch> _matches;
 	LZMatch *_next_match;
 
@@ -104,7 +105,7 @@ class RGBAMatchFinder : public LZMatchFinder {
 public:
 	// Not worth matching less than MIN_MATCH
 	static const int MIN_MATCH = 2; // pixels
-	static const int MAX_MATCH = 4096; // pixels
+	static const int MAX_MATCH = 256; // pixels
 	static const int WIN_SIZE = 1024 * 1024; // pixels
 
 	/*

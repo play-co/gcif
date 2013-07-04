@@ -519,84 +519,6 @@ void ImageRGBAWriter::computeResiduals() {
 
 		topleft_row += _size_x * 4 * _tile_size_y;
 	}
-
-#ifdef CAT_DUMP_RESIDUALS
-	SmartArray<u8> a, b, c;
-	a.resize(_size_x * _size_y);
-	b.resize(_size_x * _size_y);
-	c.resize(_size_x * _size_y);
-
-	for (u16 y = 0; y < size_y; ++y) {
-		for (u16 x = 0; x < size_x; ++x) {
-			int off = x + y * size_x;
-
-			a[off] = _residuals.get()[off * 4 + 0];
-			b[off] = _residuals.get()[off * 4 + 1];
-			c[off] = _residuals.get()[off * 4 + 2];
-		}
-	}
-
-	lodepng_encode_file("R.png", a.get(), size_x, size_y, LCT_GREY, 8);
-	lodepng_encode_file("G.png", b.get(), size_x, size_y, LCT_GREY, 8);
-	lodepng_encode_file("B.png", c.get(), size_x, size_y, LCT_GREY, 8);
-
-	const int size = size_x * size_y;
-	SmartArray<u8> la, lb, lc;
-	la.resize(LZ4_compressBound(size));
-	lb.resize(LZ4_compressBound(size));
-	lc.resize(LZ4_compressBound(size));
-
-	int las = LZ4_compressHC((char*)a.get(), (char*)la.get(), size);
-	int lbs = LZ4_compressHC((char*)b.get(), (char*)lb.get(), size);
-	int lcs = LZ4_compressHC((char*)c.get(), (char*)lc.get(), size);
-
-	CAT_WARN("TEST") << "R LZ = " << las << " bytes";
-	CAT_WARN("TEST") << "G LZ = " << lbs << " bytes";
-	CAT_WARN("TEST") << "B LZ = " << lcs << " bytes";
-
-	FreqHistogram<256> ha;
-	FreqHistogram<256> hb;
-	FreqHistogram<256> hc;
-
-	ha.init();
-	hb.init();
-	hc.init();
-
-	for (int ii = 0; ii < las; ++ii) {
-		ha.add(la[ii]);
-	}
-
-	for (int ii = 0; ii < lbs; ++ii) {
-		hb.add(lb[ii]);
-	}
-
-	for (int ii = 0; ii < lcs; ++ii) {
-		hc.add(lc[ii]);
-	}
-
-	HuffmanEncoder<256> ea;
-	HuffmanEncoder<256> eb;
-	HuffmanEncoder<256> ec;
-
-	ea.init(ha);
-	eb.init(hb);
-	ec.init(hc);
-
-	int bas = 0, bbs = 0, bcs = 0;
-	for (int ii = 0; ii < las; ++ii) {
-		bas += ea.simulateWrite(la[ii]);
-	}
-	for (int ii = 0; ii < lbs; ++ii) {
-		bbs += eb.simulateWrite(lb[ii]);
-	}
-	for (int ii = 0; ii < lcs; ++ii) {
-		bcs += ec.simulateWrite(lc[ii]);
-	}
-
-	CAT_WARN("TEST") << "R = " << bas/8 << " by";
-	CAT_WARN("TEST") << "G = " << bbs/8 << " by";
-	CAT_WARN("TEST") << "B = " << bcs/8 << " by";
-#endif
 }
 
 void ImageRGBAWriter::designChaos() {
@@ -619,13 +541,30 @@ void ImageRGBAWriter::designChaos() {
 			encoders->v[ii].init(ImageRGBAReader::NUM_V_SYMS, ImageRGBAReader::NUM_ZRLE_SYMS);
 		}
 
+		// Reset LZ
+		u32 offset = 0;
+		_lz.reset();
+
 		// For each row,
 		const u8 *residuals = _residuals.get();
 		for (int y = 0; y < _size_y; ++y) {
 			// For each column,
-			for (int x = 0; x < _size_x; ++x) {
-				// If masked,
-				if (IsMasked(x, y)) {
+			for (int x = 0; x < _size_x; ++x, ++offset) {
+				// If we just hit the start of the next LZ copy region,
+				if (offset == _lz.peekOffset()) {
+					encoders->chaos.zero(x);
+
+					// Get chaos bin
+					u8 cy, cu, cv;
+					encoders->chaos.get(x, cy, cu, cv);
+
+					LZMatchFinder::LZMatch *match = _lz.pop();
+					u16 length_code = 256 + LZLengthCode(match->length);
+
+					// Add to histogram for this chaos bin
+					encoders->y[cy].add(length_code);
+				} else if (IsMasked(x, y)) {
+					// Will eat LZ pixels too
 					encoders->chaos.zero(x);
 				} else {
 					// Get chaos bin
@@ -634,8 +573,6 @@ void ImageRGBAWriter::designChaos() {
 
 					// Update chaos
 					encoders->chaos.store(x, residuals);
-
-					// TODO: LZ here
 
 					// Add to histogram for this chaos bin
 					encoders->y[cy].add(residuals[0]);
@@ -670,7 +607,7 @@ void ImageRGBAWriter::designChaos() {
 			}
 		}
 
-		// If we have not found a better one in 4 moves,
+		// If we have not found a better one in 2 moves,
 		if (chaos_levels - best->chaos.getBinCount() >= 2) {
 			// Stop early to save time
 			break;
@@ -893,6 +830,10 @@ bool ImageRGBAWriter::writePixels(ImageWriter &writer) {
 	const u8 *residuals = _residuals.get();
 	const u16 tile_mask_y = _tile_size_y - 1;
 
+	// Reset LZ
+	u32 offset = 0;
+	_lz.reset();
+
 	// For each scanline,
 	for (u16 y = 0; y < _size_y; ++y) {
 		const u16 ty = y >> _tile_bits_y;
@@ -919,23 +860,35 @@ bool ImageRGBAWriter::writePixels(ImageWriter &writer) {
 		_a_encoder.writeRowHeader(y, writer);
 
 		// For each pixel,
-		for (u16 x = 0, size_x = _size_x; x < size_x; ++x) {
+		for (u16 x = 0, size_x = _size_x; x < size_x; ++x, ++offset) {
 			DESYNC(x, y);
 
-			// If masked,
-			if (_mask->masked(x, y)) {
+			// If we just hit the start of the next LZ copy region,
+			if (offset == _lz.peekOffset()) {
 				_encoders->chaos.zero(x);
-				_a_encoder.zero(x);
-			} else if (_lz.masked(x, y)) {
-				_encoders->chaos.zero(x);
-				_a_encoder.zero(x);
 
 				// Get chaos bin
 				u8 cy, cu, cv;
 				_encoders->chaos.get(x, cy, cu, cv);
 
-				//lz_bits += _encoders->y[cy].write(256 + dist_code, writer);
-				++lz_count;
+				LZMatchFinder::LZMatch *match = _lz.pop();
+				u16 extra_count, extra_data;
+				u16 length_code = 256 + LZLengthCodeAndExtra(match->length, extra_count, extra_data);
+
+				// Add to histogram for this chaos bin
+				_encoders->y[cy].write(length_code, writer);
+
+				if (extra_count > 0) {
+					writer.writeBits(extra_data, extra_count);
+				}
+
+				_lz_dist_encoder.writeSymbol()
+			}
+
+			// If masked,
+			if (IsMasked(x, y)) {
+				_encoders->chaos.zero(x);
+				_a_encoder.zero(x);
 			} else {
 				// If filter needs to be written,
 				u16 tx = x >> _tile_bits_x;

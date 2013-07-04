@@ -92,6 +92,54 @@ protected:
 
 	// LZ subsystem
 	RGBAMatchFinder _lz;
+	HuffmanEncoder _lz_dist_encoder;
+
+	static CAT_INLINE u16 LZLengthCode(u16 length) {
+		u16 code = length - RGBAMatchFinder::MIN_MATCH;
+		return code < ImageRGBAReader::LZ_LEN_LITS ? code
+			: (BSR32(code - (ImageRGBAReader::LZ_LEN_LITS + 1)) + ImageRGBAReader::LZ_LEN_LITS);
+	}
+
+	static CAT_INLINE u16 LZLengthCodeAndExtra(u16 length, u16 &extra_count, u16 &extra_data) {
+		u16 code = length - RGBAMatchFinder::MIN_MATCH;
+		if (code < ImageRGBAReader::LZ_LEN_LITS) {
+			extra_count = 0;
+			return code;
+		} else {
+			extra_count = BSR32(code - (ImageRGBAReader::LZ_LEN_LITS + 1));
+			extra_data = length & ((1 << extra_count) - 1);
+			return extra_count + ImageRGBAReader::LZ_LEN_LITS;
+		}
+	}
+
+	CAT_INLINE u32 LZDistanceTransform(u16 x, u16 y, u32 distance) {
+		// Calculate source pixel x,y
+		u16 dx = static_cast<u16>( distance % _size_x );
+		u16 dy = static_cast<u16>( distance / _size_x );
+		CAT_DEBUG_ENFORCE(y >= dy);
+		u16 sy = y - dy;
+		u16 sx;
+		if (dx > x) {
+			CAT_DEBUG_ENFORCE(sy > 0);
+			--sy;
+			dx -= x;
+			sx = _size_x - dx;
+		} else {
+			sx = x - dx;
+		}
+	}
+
+	static CAT_INLINE u16 LZDistanceCodeAndExtra(u32 distance, u16 &extra_count, u16 &extra_data) {
+		u32 code = distance;
+		if (code < ImageRGBAReader::LZ_DIST_LITS) {
+			extra_count = 0;
+			return code;
+		} else {
+			extra_count = BSR32(code - ImageRGBAReader::LZ_DIST_LITS + 1);
+			extra_data = distance & ((1 << extra_count) - 1);
+			return extra_count + ImageRGBAReader::LZ_DIST_LITS;
+		}
+	}
 
 	// Filter tiles
 	u16 _tile_bits_x, _tile_bits_y;

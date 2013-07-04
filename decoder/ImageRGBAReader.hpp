@@ -69,11 +69,13 @@ public:
 	static const int ZRLE_SYMS = 128;
 
 	static const int NUM_COLORS = 256;
-	static const int LZ_LEN_SYMBOLS = 24;
-	static const int LZ_DIST_SYMBOLS = 40;
+	static const int LZ_LEN_SYMS = 16;
+	static const int LZ_LEN_LITS = 8;
+	static const int LZ_DIST_SYMS = 40;
+	static const int LZ_DIST_LITS = 8;
 
 	static const int NUM_LIT_SYMS = NUM_COLORS;
-	static const int NUM_Y_SYMS = NUM_LIT_SYMS + LZ_LEN_SYMBOLS;
+	static const int NUM_Y_SYMS = NUM_LIT_SYMS + LZ_LEN_SYMS;
 	static const int NUM_U_SYMS = NUM_LIT_SYMS;
 	static const int NUM_V_SYMS = NUM_LIT_SYMS;
 	static const int NUM_ZRLE_SYMS = 128;
