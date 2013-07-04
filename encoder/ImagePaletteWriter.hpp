@@ -76,7 +76,7 @@ class ImagePaletteWriter {
 
 	PaletteOptimizer _optimizer;
 	std::vector<u32> _palette;		// Map index => color
-	std::map<u32, u16> _map;		// Map color => index
+	std::map<u32, u8> _map;		// Map color => index
 
 	MonoWriter _mono_writer;
 
@@ -111,7 +111,7 @@ public:
 		return _palette_size > 0;
 	}
 
-	CAT_INLINE u8 getPaletteFromColor(u32 color) {
+	CAT_INLINE u16 getPaletteFromColor(u32 color) {
 		return _map[color];
 	}
 

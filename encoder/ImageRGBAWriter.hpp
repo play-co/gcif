@@ -157,7 +157,7 @@ public:
 
 		u32 rgba_count, lz_count, chaos_bins;
 		double rgba_compression_ratio;
-
+		double lz_compression_ratio;
 		double overall_compression_ratio;
 	} Stats;
 #endif // CAT_COLLECT_STATS

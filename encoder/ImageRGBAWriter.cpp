@@ -441,9 +441,9 @@ bool ImageRGBAWriter::compressAlpha() {
 	params.max_filters = 32;
 	params.min_bits = 2;
 	params.max_bits = 5;
-	params.sympal_thresh = 0.1;
-	params.filter_cover_thresh = 0.6;
-	params.filter_inc_thresh = 0.05;
+	params.sympal_thresh = 0.1f;
+	params.filter_cover_thresh = 0.6f;
+	params.filter_inc_thresh = 0.05f;
 	params.mask.SetMember<ImageRGBAWriter, &ImageRGBAWriter::IsMasked>(this);
 	params.AWARDS[0] = 5;
 	params.AWARDS[1] = 3;
@@ -703,9 +703,9 @@ bool ImageRGBAWriter::compressSF() {
 	params.max_filters = 32;
 	params.min_bits = 2;
 	params.max_bits = 5;
-	params.sympal_thresh = 0.1;
-	params.filter_cover_thresh = 0.6;
-	params.filter_inc_thresh = 0.05;
+	params.sympal_thresh = 0.1f;
+	params.filter_cover_thresh = 0.6f;
+	params.filter_inc_thresh = 0.05f;
 	params.mask.SetMember<ImageRGBAWriter, &ImageRGBAWriter::IsSFMasked>(this);
 	params.AWARDS[0] = 5;
 	params.AWARDS[1] = 3;
@@ -731,9 +731,9 @@ bool ImageRGBAWriter::compressCF() {
 	params.max_filters = 32;
 	params.min_bits = 2;
 	params.max_bits = 5;
-	params.sympal_thresh = 0.1;
-	params.filter_cover_thresh = 0.6;
-	params.filter_inc_thresh = 0.05;
+	params.sympal_thresh = 0.1f;
+	params.filter_cover_thresh = 0.6f;
+	params.filter_inc_thresh = 0.05f;
 	params.mask.SetMember<ImageRGBAWriter, &ImageRGBAWriter::IsSFMasked>(this);
 	params.AWARDS[0] = 5;
 	params.AWARDS[1] = 3;
@@ -878,7 +878,7 @@ bool ImageRGBAWriter::writePixels(ImageWriter &writer) {
 	CAT_INANE("RGBA") << "Writing interleaved pixel/filter data...";
 
 #ifdef CAT_COLLECT_STATS
-	int sf_bits = 0, cf_bits = 0, y_bits = 0, u_bits = 0, v_bits = 0, a_bits = 0, rgba_count = 0, lz_count = 0, lz_bits;
+	int sf_bits = 0, cf_bits = 0, y_bits = 0, u_bits = 0, v_bits = 0, a_bits = 0, rgba_count = 0, lz_count = 0, lz_bits = 0;
 #endif
 
 	_seen_filter.resize(_tiles_x);
@@ -934,7 +934,7 @@ bool ImageRGBAWriter::writePixels(ImageWriter &writer) {
 				u8 cy, cu, cv;
 				_encoders->chaos.get(x, cy, cu, cv);
 
-				lz_bits += _encoders->y[cy].write(256 + dist_code, writer);
+				//lz_bits += _encoders->y[cy].write(256 + dist_code, writer);
 				++lz_count;
 			} else {
 				// If filter needs to be written,
@@ -972,6 +972,8 @@ bool ImageRGBAWriter::writePixels(ImageWriter &writer) {
 	}
 
 #ifdef CAT_COLLECT_STATS
+	Stats.lz_bits = lz_bits;
+	Stats.lz_count = lz_count;
 	Stats.rgba_count = rgba_count;
 	Stats.sf_bits = sf_bits;
 	Stats.cf_bits = cf_bits;
@@ -1008,10 +1010,11 @@ void ImageRGBAWriter::write(ImageWriter &writer) {
 	rgba_total += Stats.a_bits;
 	Stats.rgba_bits = rgba_total;
 
-	int total = rgba_total;
+	int total = rgba_total + Stats.lz_bits;
 	total += _mask->Stats.compressedDataBits;
 	Stats.total_bits = total;
 
+	Stats.lz_compression_ratio = Stats.lz_count * 32 / (double)Stats.lz_bits;
 	Stats.rgba_compression_ratio = Stats.rgba_count * 32 / (double)Stats.rgba_bits;
 	Stats.overall_compression_ratio = _size_x * _size_y * 32 / (double)Stats.total_bits;
 #endif
@@ -1041,9 +1044,12 @@ bool ImageRGBAWriter::dumpStats() {
 	CAT_INANE("stats") << "(RGBA Compress)       U Compressed : " << Stats.u_bits << " bits (" << Stats.u_bits/8 << " bytes, " << Stats.u_bits * 100.f / Stats.rgba_bits << "% of RGBA)";
 	CAT_INANE("stats") << "(RGBA Compress)       V Compressed : " << Stats.v_bits << " bits (" << Stats.v_bits/8 << " bytes, " << Stats.v_bits * 100.f / Stats.rgba_bits << "% of RGBA)";
 	CAT_INANE("stats") << "(RGBA Compress)       A Compressed : " << Stats.a_bits << " bits (" << Stats.a_bits/8 << " bytes, " << Stats.a_bits * 100.f / Stats.rgba_bits << "% of RGBA)";
-	CAT_INANE("stats") << "(RGBA Compress)  Overall RGBA Data : " << Stats.rgba_bits << " bits (" << Stats.rgba_bits/8 << " bytes, " << Stats.rgba_bits * 100.f / Stats.total_bits << "% of total)";
-	CAT_INANE("stats") << "(RGBA Compress)   RGBA write count : " << Stats.rgba_count << " pixels for " << _size_x << "x" << _size_y << " pixel image (" << Stats.rgba_count * 100.f / (_size_x * _size_y) << " % of total)";
-	CAT_INANE("stats") << "(RGBA Compress)    RGBA Compression Ratio : " << Stats.rgba_compression_ratio << ":1 compression ratio";
+	CAT_INANE("stats") << "(RGBA Compress)          RGBA Data : " << Stats.rgba_bits << " bits (" << Stats.rgba_bits/8 << " bytes, " << Stats.rgba_bits * 100.f / Stats.total_bits << "% of total)";
+	CAT_INANE("stats") << "(RGBA Compress)         RGBA Count : " << Stats.rgba_count << " pixels for " << _size_x << "x" << _size_y << " pixel image (" << Stats.rgba_count * 100.f / (_size_x * _size_y) << " % of total)";
+	CAT_INANE("stats") << "(RGBA Compress)   RGBA Compression : " << Stats.rgba_compression_ratio << ":1 compression ratio";
+	CAT_INANE("stats") << "(RGBA Compress)          RGBA Data : " << Stats.lz_bits << " bits (" << Stats.lz_bits/8 << " bytes, " << Stats.lz_bits * 100.f / Stats.total_bits << "% of total)";
+	CAT_INANE("stats") << "(RGBA Compress)           LZ Count : " << Stats.lz_count << " pixels for " << _size_x << "x" << _size_y << " pixel image (" << Stats.lz_count * 100.f / (_size_x * _size_y) << " % of total)";
+	CAT_INANE("stats") << "(RGBA Compress)     LZ Compression : " << Stats.lz_compression_ratio << ":1 compression ratio";
 	CAT_INANE("stats") << "(RGBA Compress)              Overall Size : " << Stats.total_bits << " bits (" << Stats.total_bits/8 << " bytes)";
 	CAT_INANE("stats") << "(RGBA Compress) Overall Compression Ratio : " << Stats.overall_compression_ratio << ":1";
 

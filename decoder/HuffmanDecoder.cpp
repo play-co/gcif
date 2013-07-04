@@ -135,7 +135,7 @@ bool HuffmanDecoder::init(int count, const u8 * CAT_RESTRICT codelens, u32 table
 	_table_bits = table_bits;
 
 	if (table_bits > 0) {
-		u32 table_size = 1 << table_bits;
+		s32 table_size = 1 << table_bits;
 		if (_lookup.size() < table_size) {
 			_lookup.resize(table_size);
 		}
