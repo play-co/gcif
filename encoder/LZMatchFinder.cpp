@@ -42,7 +42,7 @@ bool RGBAMatchFinder::findMatches(const u32 *rgba, int xsize, int ysize, MaskDel
 	const u32 *rgba_now = rgba;
 	for (int ii = 0, iiend = pixels - 1; ii < iiend;) {
 		const u32 hash = HashPixels(rgba_now);
-		u16 best_length = MIN_MATCH;
+		u16 best_length = MIN_MATCH - 1;
 		u32 best_distance = 0;
 
 		// For each hash collision,
@@ -68,7 +68,7 @@ bool RGBAMatchFinder::findMatches(const u32 *rgba, int xsize, int ysize, MaskDel
 
 			// Future matches will be farther away (more expensive in distance)
 			// so they should be at least as long as previous matches to be considered
-			if (match_len >= best_length) {
+			if (match_len > best_length) {
 				best_distance = distance;
 				best_length = match_len;
 
@@ -128,7 +128,7 @@ bool MonoMatchFinder::findMatches(const u8 *mono, int xsize, int ysize, MaskDele
 	const u8 *mono_now = mono;
 	for (int ii = 0, iiend = pixels - 1; ii < iiend; ++mono_now) {
 		const u32 hash = HashPixels(mono_now);
-		u16 best_length = MIN_MATCH;
+		u16 best_length = MIN_MATCH - 1;
 		u32 best_distance = 0;
 		u32 best_score = 0;
 
@@ -150,7 +150,7 @@ bool MonoMatchFinder::findMatches(const u8 *mono, int xsize, int ysize, MaskDele
 
 			// Future matches will be farther away (more expensive in distance)
 			// so they should be at least as long as previous matches to be considered
-			if (match_len >= best_length) {
+			if (match_len > best_length) {
 				// Calculate saved bit count
 				const s32 distance_bits = distance < 8 ? 0 : BSR32(distance >> 2);
 				const s32 saved_bits = match_len * SAVED_PIXEL_BITS;
