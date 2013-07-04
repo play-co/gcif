@@ -30,7 +30,7 @@
 #include "../decoder/BitMath.hpp"
 using namespace cat;
 
-bool RGBAMatchFinder::findMatches(const u32 *rgba, int xsize, int ysize) {
+bool RGBAMatchFinder::findMatches(const u32 *rgba, int xsize, int ysize, MaskDelegate mask) {
 	const int pixels = xsize * ysize;
 
 	// Allocate and zero the table and chain
@@ -101,7 +101,7 @@ bool RGBAMatchFinder::findMatches(const u32 *rgba, int xsize, int ysize) {
 	}
 }
 
-void MonoMatchFinder::findMatches(const u8 *mono, int xsize, int ysize) {
+bool MonoMatchFinder::findMatches(const u8 *mono, int xsize, int ysize, MaskDelegate mask) {
 	const int pixels = xsize * ysize;
 
 	// Allocate and zero the table and chain

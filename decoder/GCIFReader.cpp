@@ -30,7 +30,6 @@
 #include "ImageReader.hpp"
 #include "SmallPaletteReader.hpp"
 #include "ImageMaskReader.hpp"
-#include "ImageLZReader.hpp"
 #include "ImagePaletteReader.hpp"
 #include "ImageRGBAReader.hpp"
 #include "EndianNeutral.hpp"
@@ -87,15 +86,8 @@ static int gcif_read(ImageReader &reader, GCIFImage *image) {
 			}
 			imageMaskReader.dumpStats();
 
-			// 2D-LZ Exact Match
-			ImageLZReader imageLZReader;
-			if ((err = imageLZReader.read(reader, pack_x, pack_y))) {
-				return err;
-			}
-			imageLZReader.dumpStats();
-
 			// Finish reading small paletted image
-			if ((err = smallPaletteReader.readTail(reader, imageMaskReader, imageLZReader))) {
+			if ((err = smallPaletteReader.readTail(reader, imageMaskReader))) {
 				return err;
 			}
 			smallPaletteReader.dumpStats();
@@ -108,16 +100,9 @@ static int gcif_read(ImageReader &reader, GCIFImage *image) {
 		}
 		imageMaskReader.dumpStats();
 
-		// 2D-LZ Exact Match
-		ImageLZReader imageLZReader;
-		if ((err = imageLZReader.read(reader, image->size_x, image->size_y))) {
-			return err;
-		}
-		imageLZReader.dumpStats();
-
 		// Global Palette Decompression
 		ImagePaletteReader imagePaletteReader;
-		if ((err = imagePaletteReader.read(reader, imageMaskReader, imageLZReader, image))) {
+		if ((err = imagePaletteReader.read(reader, imageMaskReader, image))) {
 			return err;
 		}
 		imagePaletteReader.dumpStats();
@@ -125,7 +110,7 @@ static int gcif_read(ImageReader &reader, GCIFImage *image) {
 		if (!imagePaletteReader.enabled()) {
 			// RGBA Decompression
 			ImageRGBAReader imageRGBAReader;
-			if ((err = imageRGBAReader.read(reader, imageMaskReader, imageLZReader, image))) {
+			if ((err = imageRGBAReader.read(reader, imageMaskReader, image))) {
 				return err;
 			}
 			imageRGBAReader.dumpStats();

@@ -31,7 +31,6 @@
 
 #include "ImageReader.hpp"
 #include "ImageMaskReader.hpp"
-#include "ImageLZReader.hpp"
 #include "GCIFReader.h"
 #include "Filters.hpp"
 #include "EntropyDecoder.hpp"
@@ -73,7 +72,6 @@ protected:
 	static const int NUM_COLORS = 256;
 
 	ImageMaskReader * CAT_RESTRICT _mask;
-	ImageLZReader * CAT_RESTRICT _lz;
 
 	// RGBA output data
 	u8 * CAT_RESTRICT _rgba;
@@ -105,9 +103,9 @@ protected:
 
 	// RGB decoders
 	RGBChaos _chaos;
-	EntropyDecoder<NUM_COLORS, ZRLE_SYMS> _y_decoder[MAX_CHAOS_LEVELS];
-	EntropyDecoder<NUM_COLORS, ZRLE_SYMS> _u_decoder[MAX_CHAOS_LEVELS];
-	EntropyDecoder<NUM_COLORS, ZRLE_SYMS> _v_decoder[MAX_CHAOS_LEVELS];
+	EntropyDecoder _y_decoder[MAX_CHAOS_LEVELS];
+	EntropyDecoder _u_decoder[MAX_CHAOS_LEVELS];
+	EntropyDecoder _v_decoder[MAX_CHAOS_LEVELS];
 
 	CAT_INLINE FilterSelection *readFilter(u16 x, u16 y, ImageReader & CAT_RESTRICT reader) {
 		const u16 tx = x >> _tile_bits_x;
@@ -131,24 +129,32 @@ protected:
 		_chaos.get(x, cy, cu, cv);
 
 		// Read YUV filtered pixel
-		u8 YUV[3];
-		YUV[0] = (u8)_y_decoder[cy].next(reader);
-		YUV[1] = (u8)_u_decoder[cu].next(reader);
-		YUV[2] = (u8)_v_decoder[cv].next(reader);
+		u16 pixel_code = _y_decoder[cy].next(reader); 
 
-		// Reverse color filter
-		filter->cf(YUV, p);
+		if (pixel_code >= 256) {
+			// Read LZ code
+			// TODO
+		} else {
+			// Read literal RGBA pixel
+			u8 YUV[3];
+			YUV[0] = (u8)pixel_code;
+			YUV[1] = (u8)_u_decoder[cu].next(reader);
+			YUV[2] = (u8)_v_decoder[cv].next(reader);
 
-		// Reverse spatial filter
-		const u8 * CAT_RESTRICT pred = filter->sf.safe(p, _FPT, x, y, _size_x);
-		p[0] += pred[0];
-		p[1] += pred[1];
-		p[2] += pred[2];
+			// Reverse color filter
+			filter->cf(YUV, p);
 
-		// Read alpha pixel
-		p[3] = (u8)~_a_decoder.read(x, reader);
+			// Reverse spatial filter
+			const u8 * CAT_RESTRICT pred = filter->sf.safe(p, _FPT, x, y, _size_x);
+			p[0] += pred[0];
+			p[1] += pred[1];
+			p[2] += pred[2];
 
-		_chaos.store(x, YUV);
+			// Read alpha pixel
+			p[3] = (u8)~_a_decoder.read(x, reader);
+
+			_chaos.store(x, YUV);
+		}
 	}
 
 	// WARNING: Should be exactly the same as above, except call unsafe()
@@ -160,24 +166,32 @@ protected:
 		_chaos.get(x, cy, cu, cv);
 
 		// Read YUV filtered pixel
-		u8 YUV[3];
-		YUV[0] = (u8)_y_decoder[cy].next(reader);
-		YUV[1] = (u8)_u_decoder[cu].next(reader);
-		YUV[2] = (u8)_v_decoder[cv].next(reader);
+		u16 pixel_code = _y_decoder[cy].next(reader); 
 
-		// Reverse color filter
-		filter->cf(YUV, p);
+		if (pixel_code >= 256) {
+			// Read LZ code
+			// TODO
+		} else {
+			// Read literal RGBA pixel
+			u8 YUV[3];
+			YUV[0] = (u8)pixel_code;
+			YUV[1] = (u8)_u_decoder[cu].next(reader);
+			YUV[2] = (u8)_v_decoder[cv].next(reader);
 
-		// Reverse spatial filter
-		const u8 * CAT_RESTRICT pred = filter->sf.unsafe(p, _FPT, x, y, _size_x);
-		p[0] += pred[0];
-		p[1] += pred[1];
-		p[2] += pred[2];
+			// Reverse color filter
+			filter->cf(YUV, p);
 
-		// Read alpha pixel
-		p[3] = (u8)~_a_decoder.read_unsafe(x, reader);
+			// Reverse spatial filter
+			const u8 * CAT_RESTRICT pred = filter->sf.unsafe(p, _FPT, x, y, _size_x);
+			p[0] += pred[0];
+			p[1] += pred[1];
+			p[2] += pred[2];
 
-		_chaos.store(x, YUV);
+			// Read alpha pixel
+			p[3] = (u8)~_a_decoder.read_unsafe(x, reader);
+
+			_chaos.store(x, YUV);
+		}
 	}
 
 	int readFilterTables(ImageReader & CAT_RESTRICT reader);
@@ -193,7 +207,7 @@ public:
 #endif
 
 public:
-	int read(ImageReader & CAT_RESTRICT reader, ImageMaskReader & CAT_RESTRICT maskReader, ImageLZReader & CAT_RESTRICT lzReader, GCIFImage * CAT_RESTRICT image);
+	int read(ImageReader & CAT_RESTRICT reader, ImageMaskReader & CAT_RESTRICT maskReader, GCIFImage * CAT_RESTRICT image);
 
 #ifdef CAT_COLLECT_STATS
 	bool dumpStats();

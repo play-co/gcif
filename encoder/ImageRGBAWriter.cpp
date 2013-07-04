@@ -31,17 +31,15 @@
 #include "../decoder/Filters.hpp"
 #include "EntropyEstimator.hpp"
 #include "Log.hpp"
-#include "ImageLZWriter.hpp"
-using namespace cat;
-
-#include <vector>
-using namespace std;
 
 #include "../decoder/lz4.h"
 #include "lz4hc.h"
 #include "Log.hpp"
 #include "HuffmanEncoder.hpp"
 #include "lodepng.h"
+
+using namespace cat;
+using namespace std;
 
 #ifdef CAT_DESYNCH_CHECKS
 #define DESYNC_TABLE() writer.writeWord(1234567);
@@ -59,6 +57,8 @@ using namespace std;
 void ImageRGBAWriter::designLZ() {
 	const u32 *rgba = reinterpret_cast<const u32 *>( _rgba );
 
+	_lz.findMatches(rgba, _size_x, _size_y,
+			LZMatchFinder::MaskDelegate::FromMember<ImageRGBAWriter, &ImageRGBAWriter::IsMasked>(this));
 }
 
 void ImageRGBAWriter::maskTiles() {
@@ -613,28 +613,19 @@ void ImageRGBAWriter::designChaos() {
 
 		// For each chaos level,
 		for (int ii = 0; ii < chaos_levels; ++ii) {
-			encoders->y[ii].init(MAX_SYMS + _pal_lut.size(), ZRLE_SYMS);
+			encoders->y[ii].init(MAX_SYMS + RGBAMatchFinder::ENCODE_LEN_SYMBOLS, ZRLE_SYMS);
 			encoders->u[ii].init(MAX_SYMS, ZRLE_SYMS);
 			encoders->v[ii].init(MAX_SYMS, ZRLE_SYMS);
 		}
 
 		// For each row,
 		const u8 *residuals = _residuals.get();
-		const u16 *lut_residuals = _lut_residuals.get();
 		for (int y = 0; y < _size_y; ++y) {
 			// For each column,
-			for (int x = 0; x < _size_x; ++x, ++lut_residuals) {
+			for (int x = 0; x < _size_x; ++x) {
 				// If masked,
 				if (IsMasked(x, y)) {
 					encoders->chaos.zero(x);
-
-					u16 recent = lut_residuals[0];
-					if (recent != 0xffff) {
-						// Get chaos bin
-						u8 cy, cu, cv;
-						encoders->chaos.get(x, cy, cu, cv);
-						encoders->y[cy].add(256 + recent);
-					}
 				} else {
 					// Get chaos bin
 					u8 cy, cu, cv;
@@ -642,6 +633,8 @@ void ImageRGBAWriter::designChaos() {
 
 					// Update chaos
 					encoders->chaos.store(x, residuals);
+
+					// TODO: LZ here
 
 					// Add to histogram for this chaos bin
 					encoders->y[cy].add(residuals[0]);
@@ -758,7 +751,7 @@ bool ImageRGBAWriter::compressCF() {
 bool ImageRGBAWriter::IsMasked(u16 x, u16 y) {
 	CAT_DEBUG_ENFORCE(x < _size_x && y < _size_y);
 
-	return _mask->masked(x, y) || _lz->visited(x, y) || (_lut_residuals[x + y * _size_x] != 0xffff);
+	return _mask->masked(x, y);
 }
 
 bool ImageRGBAWriter::IsSFMasked(u16 x, u16 y) {
@@ -767,11 +760,10 @@ bool ImageRGBAWriter::IsSFMasked(u16 x, u16 y) {
 	return _cf_tiles[x + _tiles_x * y] == MASK_TILE;
 }
 
-int ImageRGBAWriter::init(const u8 *rgba, int size_x, int size_y, ImageMaskWriter &mask, ImageLZWriter &lz, const GCIFKnobs *knobs) {
+int ImageRGBAWriter::init(const u8 *rgba, int size_x, int size_y, ImageMaskWriter &mask, const GCIFKnobs *knobs) {
 	_knobs = knobs;
 	_rgba = rgba;
 	_mask = &mask;
-	_lz = &lz;
 
 	if (size_x < 0 || size_y < 0) {
 		return GCIF_WE_BAD_DIMS;
@@ -899,7 +891,6 @@ bool ImageRGBAWriter::writePixels(ImageWriter &writer) {
 
 	const u8 *residuals = _residuals.get();
 	const u16 tile_mask_y = _tile_size_y - 1;
-	const u16 *lut_residuals = _lut_residuals.get();
 
 	// For each scanline,
 	for (u16 y = 0; y < _size_y; ++y) {
@@ -927,22 +918,13 @@ bool ImageRGBAWriter::writePixels(ImageWriter &writer) {
 		_a_encoder.writeRowHeader(y, writer);
 
 		// For each pixel,
-		for (u16 x = 0, size_x = _size_x; x < size_x; ++x, ++lut_residuals) {
+		for (u16 x = 0, size_x = _size_x; x < size_x; ++x) {
 			DESYNC(x, y);
 
 			// If masked,
 			if (IsMasked(x, y)) {
 				_encoders->chaos.zero(x);
 				_a_encoder.zero(x);
-
-				u16 recent = lut_residuals[0];
-				if (recent != 0xffff) {
-					// Get chaos bin
-					u8 cy, cu, cv;
-					_encoders->chaos.get(x, cy, cu, cv);
-					lut_bits += _encoders->y[cy].write(256 + recent, writer);
-					++lut_count;
-				}
 			} else {
 				// If filter needs to be written,
 				u16 tx = x >> _tile_bits_x;
@@ -980,14 +962,12 @@ bool ImageRGBAWriter::writePixels(ImageWriter &writer) {
 
 #ifdef CAT_COLLECT_STATS
 	Stats.rgba_count = rgba_count;
-	Stats.lut_count = lut_count;
 	Stats.sf_bits = sf_bits;
 	Stats.cf_bits = cf_bits;
 	Stats.y_bits = y_bits;
 	Stats.u_bits = u_bits;
 	Stats.v_bits = v_bits;
 	Stats.a_bits = a_bits;
-	Stats.lut_bits = lut_bits;
 #endif
 
 	return true;
@@ -1017,13 +997,11 @@ void ImageRGBAWriter::write(ImageWriter &writer) {
 	rgba_total += Stats.a_bits;
 	Stats.rgba_bits = rgba_total;
 
-	int total = rgba_total + Stats.lut_bits;
-	total += _lz->Stats.huff_bits;
+	int total = rgba_total;
 	total += _mask->Stats.compressedDataBits;
 	Stats.total_bits = total;
 
 	Stats.rgba_compression_ratio = Stats.rgba_count * 32 / (double)Stats.rgba_bits;
-	Stats.lut_compression_ratio = Stats.lut_count * 32 / (double)Stats.lut_bits;
 	Stats.overall_compression_ratio = _size_x * _size_y * 32 / (double)Stats.total_bits;
 #endif
 }
@@ -1052,12 +1030,9 @@ bool ImageRGBAWriter::dumpStats() {
 	CAT_INANE("stats") << "(RGBA Compress)       U Compressed : " << Stats.u_bits << " bits (" << Stats.u_bits/8 << " bytes, " << Stats.u_bits * 100.f / Stats.rgba_bits << "% of RGBA)";
 	CAT_INANE("stats") << "(RGBA Compress)       V Compressed : " << Stats.v_bits << " bits (" << Stats.v_bits/8 << " bytes, " << Stats.v_bits * 100.f / Stats.rgba_bits << "% of RGBA)";
 	CAT_INANE("stats") << "(RGBA Compress)       A Compressed : " << Stats.a_bits << " bits (" << Stats.a_bits/8 << " bytes, " << Stats.a_bits * 100.f / Stats.rgba_bits << "% of RGBA)";
-	CAT_INANE("stats") << "(RGBA Compress)        Palette LUT : " << Stats.lut_bits << " bits (" << Stats.lut_bits/8 << " bytes, " << Stats.lut_bits * 100.f / Stats.rgba_bits << "% of RGBA)";
 	CAT_INANE("stats") << "(RGBA Compress)  Overall RGBA Data : " << Stats.rgba_bits << " bits (" << Stats.rgba_bits/8 << " bytes, " << Stats.rgba_bits * 100.f / Stats.total_bits << "% of total)";
 	CAT_INANE("stats") << "(RGBA Compress)   RGBA write count : " << Stats.rgba_count << " pixels for " << _size_x << "x" << _size_y << " pixel image (" << Stats.rgba_count * 100.f / (_size_x * _size_y) << " % of total)";
-	CAT_INANE("stats") << "(RGBA Compress) PalLUT write count : " << Stats.lut_count << " pixels for " << _size_x << "x" << _size_y << " pixel image (" << Stats.lut_count * 100.f / (_size_x * _size_y) << " % of total)";
 	CAT_INANE("stats") << "(RGBA Compress)    RGBA Compression Ratio : " << Stats.rgba_compression_ratio << ":1 compression ratio";
-	CAT_INANE("stats") << "(RGBA Compress)  PalLUT Compression Ratio : " << Stats.lut_compression_ratio << ":1 compression ratio";
 	CAT_INANE("stats") << "(RGBA Compress)              Overall Size : " << Stats.total_bits << " bits (" << Stats.total_bits/8 << " bytes)";
 	CAT_INANE("stats") << "(RGBA Compress) Overall Compression Ratio : " << Stats.overall_compression_ratio << ":1";
 

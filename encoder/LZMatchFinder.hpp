@@ -31,6 +31,9 @@
 
 #include "../decoder/Platform.hpp"
 #include "../decoder/SmartArray.hpp"
+#include "../decoder/Delegates.hpp"
+
+#include <vector>
 
 /*
  * LZ Match Finder
@@ -63,7 +66,7 @@ class LZMatchFinder {
 		}
 	};
 
-	vector<LZMatch> _matches;
+	std::vector<LZMatch> _matches;
 	LZMatch *_next_match;
 
 public:
@@ -91,10 +94,14 @@ public:
 //// RGBAMatchFinder
 
 class RGBAMatchFinder : public LZMatchFinder {
+public:
 	// Not worth matching less than MIN_MATCH
 	static const int MIN_MATCH = 2; // pixels
 	static const int MAX_MATCH = 4096; // pixels
 	static const int WIN_SIZE = 1024 * 1024; // pixels
+
+	static const int ENCODE_LEN_SYMBOLS = 24;
+	static const int ENCODE_DIST_SYMBOLS = 40;
 
 	/*
 	 * Encoding cost in bits for RGBA data:
@@ -118,26 +125,29 @@ class RGBAMatchFinder : public LZMatchFinder {
 	static const int SAVED_PIXEL_BITS = 9; // bits
 
 	static const int HASH_BITS = 18;
-	static const int HASH_SIZE = 1 << RGBA_HASH_BITS;
+	static const int HASH_SIZE = 1 << HASH_BITS;
 	static const u64 HASH_MULT = 0xc6a4a7935bd1e995ULL;
 
 	// Returns hash for MIN_MATCH pixels
 	static CAT_INLINE u32 HashPixels(const u32 * CAT_RESTRICT rgba) {
-		(u32)( ( ((u64)rgba[0] << 32) | rgba[1] ) * HASH_MULT >> (64 - HASH_BITS) );
+		return (u32)( ( ((u64)rgba[0] << 32) | rgba[1] ) * HASH_MULT >> (64 - HASH_BITS) );
 	}
 
-public:
-	bool findMatches(const u32 * CAT_RESTRICT rgba, MaskDelegate mask, int xsize, int ysize);
+	bool findMatches(const u32 * CAT_RESTRICT rgba, int xsize, int ysize, LZMatchFinder::MaskDelegate mask);
 };
 
 
 //// MonoMatchFinder
 
-class MonoMatchFinder {
+class MonoMatchFinder : public LZMatchFinder {
+public:
 	// Not worth matching less than MIN_MATCH
 	static const int MIN_MATCH = 6; // pixels
 	static const int MAX_MATCH = 4096; // pixels
 	static const int WIN_SIZE = 1024 * 1024; // pixels
+
+	static const int ENCODE_LEN_SYMBOLS = 24;
+	static const int ENCODE_DIST_SYMBOLS = 40;
 
 	/*
 	 * Encoding cost in bits for monochrome data:
@@ -146,22 +156,21 @@ class MonoMatchFinder {
 	static const int LEN_PREFIX_COST = 5; // bits
 	static const int SAVED_PIXEL_BITS = 2; // bits
 
-	static const int HASH_BITS = 16;
-	static const int HASH_SIZE = 1 << MONO_HASH_BITS;
+	static const int HASH_BITS = 18;
+	static const int HASH_SIZE = 1 << HASH_BITS;
 	static const u64 HASH_MULT = 0xc6a4a7935bd1e995ULL;
 
 	// Returns hash for MIN_MATCH pixels
 	static CAT_INLINE u32 HashPixels(const u8 * CAT_RESTRICT mono) {
-		const u16 word1 = mono[4];
+		u16 word1 = mono[4];
 		word1 |= static_cast<u16>( mono[5] ) << 8;
 
-		const u32 *word0 = reinterpret_cast<const u32 *>( mono );
+		const u32 * CAT_RESTRICT word0 = reinterpret_cast<const u32 *>( mono );
 
-		(u32)( ( ((u64)word1 << 32) | *word0 ) * HASH_MULT >> (64 - HASH_BITS) );
+		return (u32)( ( ((u64)word1 << 32) | *word0 ) * HASH_MULT >> (64 - HASH_BITS) );
 	}
 
-public:
-	bool findMatches(const u8 * CAT_RESTRICT mono, MaskDelegate mask, int xsize, int ysize);
+	bool findMatches(const u8 * CAT_RESTRICT mono, int xsize, int ysize, LZMatchFinder::MaskDelegate mask);
 };
 
 

@@ -105,10 +105,10 @@ protected:
 
 	bool _use_row_filters, _one_row_filter;
 	u8 _row_filter, _prev_filter;
-	EntropyDecoder<MAX_SYMS, ZRLE_SYMS> _row_filter_decoder;
+	EntropyDecoder _row_filter_decoder;
 
 	MonoChaos _chaos;
-	EntropyDecoder<MAX_SYMS, ZRLE_SYMS> _decoder[MAX_CHAOS_LEVELS];
+	EntropyDecoder _decoder[MAX_CHAOS_LEVELS];
 
 	// Decoder state
 	u8 *_current_row;

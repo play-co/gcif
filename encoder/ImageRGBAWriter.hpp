@@ -91,7 +91,7 @@ protected:
 	u16 _size_x, _size_y;
 
 	// LZ subsystem
-	LZMatchFinder _lz;
+	RGBAMatchFinder _lz;
 
 	// Filter tiles
 	u16 _tile_bits_x, _tile_bits_y;
@@ -152,10 +152,10 @@ public:
 		int sf_table_bits, cf_table_bits, y_table_bits, u_table_bits, v_table_bits, a_table_bits;
 		int sf_bits, cf_bits, y_bits, u_bits, v_bits, a_bits;
 
-		int rgba_bits, lz_bits, total_bits; // Total includes LZ, mask overhead
+		int rgba_bits, total_bits; // Total includes mask overhead
 
-		u32 rgba_count, lut_count, chaos_bins;
-		double rgba_compression_ratio, lz_compression_ratio;
+		u32 rgba_count, chaos_bins;
+		double rgba_compression_ratio;
 
 		double overall_compression_ratio;
 	} Stats;
