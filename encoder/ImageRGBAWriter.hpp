@@ -112,8 +112,14 @@ protected:
 		}
 	}
 
-	CAT_INLINE u32 LZDistanceTransform(u16 x, u16 y, u32 distance) {
-		// Calculate source pixel x,y
+	void LZTransformInit() {
+		// TODO: Recent recent distances (4)
+	}
+
+	CAT_INLINE u32 LZDistanceTransform(u32 offset, u32 distance) {
+		// TODO: Lookup table for local region
+		return distance - 1;
+/*		// Calculate source pixel x,y
 		u16 dx = static_cast<u16>( distance % _size_x );
 		u16 dy = static_cast<u16>( distance / _size_x );
 		CAT_DEBUG_ENFORCE(y >= dy);
@@ -126,7 +132,7 @@ protected:
 			sx = _size_x - dx;
 		} else {
 			sx = x - dx;
-		}
+		}*/
 	}
 
 	static CAT_INLINE u16 LZDistanceCodeAndExtra(u32 distance, u16 &extra_count, u16 &extra_data) {

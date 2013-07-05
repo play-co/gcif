@@ -57,9 +57,35 @@ using namespace std;
 void ImageRGBAWriter::designLZ() {
 	CAT_INANE("RGBA") << "Finding LZ77 matches...";
 
+	// Find LZ matches
 	const u32 *rgba = reinterpret_cast<const u32 *>( _rgba );
-
 	_lz.findMatches(rgba, _size_x, _size_y, _mask);
+
+	// Reset state
+	_lz.reset();
+	LZTransformInit();
+
+	// Collect LZ distance symbol statistics
+	FreqHistogram lz_dist_hist;
+	lz_dist_hist.init(ImageRGBAReader::LZ_DIST_SYMS);
+
+	// While not at the end of the match list,
+	while (_lz.peekOffset() != LZMatchFinder::GUARD_OFFSET) {
+		LZMatchFinder::LZMatch *match = _lz.pop();
+
+		// Transform distance into a (likely) shorter code
+		u32 tdist = LZDistanceTransform(match->offset, match->distance);
+
+		// Encode distance and length
+		match->dist_code = LZDistanceCodeAndExtra(tdist, match->dist_extra_bits, match->dist_extra);
+		match->len_code = MAX_SYMS + LZLengthCodeAndExtra(match->length, match->len_extra_bits, match->len_extra);
+
+		// Record symbol instance
+		lz_dist_hist.add(match->dist_code);
+	}
+
+	// Initialize the LZ distance encoder
+	_lz_dist_encoder.init(lz_dist_hist);
 }
 
 void ImageRGBAWriter::maskTiles() {
@@ -558,11 +584,11 @@ void ImageRGBAWriter::designChaos() {
 					u8 cy, cu, cv;
 					encoders->chaos.get(x, cy, cu, cv);
 
+					// Get LZ match information
 					LZMatchFinder::LZMatch *match = _lz.pop();
-					u16 length_code = 256 + LZLengthCode(match->length);
 
 					// Add to histogram for this chaos bin
-					encoders->y[cy].add(length_code);
+					encoders->y[cy].add(match->len_code);
 				} else if (IsMasked(x, y)) {
 					// Will eat LZ pixels too
 					encoders->chaos.zero(x);
@@ -871,18 +897,25 @@ bool ImageRGBAWriter::writePixels(ImageWriter &writer) {
 				u8 cy, cu, cv;
 				_encoders->chaos.get(x, cy, cu, cv);
 
+				// Get LZ match information
 				LZMatchFinder::LZMatch *match = _lz.pop();
-				u16 extra_count, extra_data;
-				u16 length_code = 256 + LZLengthCodeAndExtra(match->length, extra_count, extra_data);
 
-				// Add to histogram for this chaos bin
-				_encoders->y[cy].write(length_code, writer);
-
-				if (extra_count > 0) {
-					writer.writeBits(extra_data, extra_count);
+				// Write length code
+				lz_bits += _encoders->y[cy].write(match->len_code, writer);
+				if (match->len_extra_bits > 0) {
+					writer.writeBits(match->len_extra, match->len_extra_bits);
+					lz_bits += match->len_extra_bits;
 				}
 
-				_lz_dist_encoder.writeSymbol()
+				// Write distance code
+				lz_bits += _lz_dist_encoder.writeSymbol(match->dist_code, writer);
+				if (match->dist_extra_bits > 0) {
+					writer.writeBits(match->dist_extra, match->dist_extra_bits);
+					lz_bits += match->dist_extra_bits;
+				}
+
+				// Increment LZ match count
+				++lz_count;
 			}
 
 			// If masked,

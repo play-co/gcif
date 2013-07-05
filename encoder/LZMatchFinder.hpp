@@ -52,9 +52,13 @@ public:
 
 	// Match list, with guard at end
 	struct LZMatch {
-		u32 offset;
-		u32 distance;
+		// Initial found match
+		u32 offset, distance;
 		u16 length;
+
+		// Encoding workspace
+		u16 len_code, len_extra_bits, len_extra;
+		u16 dist_code, dist_extra_bits, dist_extra;
 
 		CAT_INLINE LZMatch(u32 offset, u32 distance, u16 length) {
 			this->offset = offset;
