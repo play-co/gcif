@@ -32,6 +32,7 @@
 #include "../decoder/Platform.hpp"
 #include "../decoder/SmartArray.hpp"
 #include "ImageMaskWriter.hpp"
+#include "EntropyEncoder.hpp"
 
 #include <vector>
 
@@ -106,6 +107,19 @@ public:
 //// RGBAMatchFinder
 
 class RGBAMatchFinder : public LZMatchFinder {
+protected:
+	HuffmanEncoder _lz_dist_encoder;
+
+	u32 _lz_dist_last[4];
+	int _lz_dist_index;
+
+	void LZTransformInit();
+	u16 LZLengthCodeAndExtra(u16 length, u16 &extra_count, u16 &extra_data);
+	u32 LZDistanceTransform(u32 offset, u32 distance);
+	u16 LZDistanceCodeAndExtra(u32 distance, u16 &extra_count, u16 &extra_data);
+
+	bool findMatches(const u32 * CAT_RESTRICT rgba, int xsize, int ysize, ImageMaskWriter *mask);
+
 public:
 	// Not worth matching less than MIN_MATCH
 	static const int MIN_MATCH = 2; // pixels
@@ -142,13 +156,17 @@ public:
 		return (u32)( ( ((u64)rgba[0] << 32) | rgba[1] ) * HASH_MULT >> (64 - HASH_BITS) );
 	}
 
-	bool findMatches(const u32 * CAT_RESTRICT rgba, int xsize, int ysize, ImageMaskWriter *mask);
+	bool init(const u32 * CAT_RESTRICT rgba, int xsize, int ysize, ImageMaskWriter *mask);
+	int write(EntropyEncoder &ee, ImageWriter &writer);
 };
 
 
 //// MonoMatchFinder
 
 class MonoMatchFinder : public LZMatchFinder {
+protected:
+	bool findMatches(const u8 * CAT_RESTRICT mono, int xsize, int ysize, ImageMaskWriter *mask);
+
 public:
 	// Not worth matching less than MIN_MATCH
 	static const int MIN_MATCH = 6; // pixels
@@ -176,7 +194,7 @@ public:
 		return (u32)( ( ((u64)word1 << 32) | *word0 ) * HASH_MULT >> (64 - HASH_BITS) );
 	}
 
-	bool findMatches(const u8 * CAT_RESTRICT mono, int xsize, int ysize, ImageMaskWriter *mask);
+	bool init(const u32 * CAT_RESTRICT rgba, int xsize, int ysize, ImageMaskWriter *mask);
 };
 
 
