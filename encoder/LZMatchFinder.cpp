@@ -157,7 +157,7 @@ u16 RGBAMatchFinder::LZLengthCodeAndExtra(u16 length, u16 &extra_count, u16 &ext
 		extra_count = 0;
 		return code;
 	} else {
-		extra_count = BSR32(code - (ImageRGBAReader::LZ_LEN_LITS + 1));
+		extra_count = BSR32(code - ImageRGBAReader::LZ_LEN_LITS + 1);
 		extra_data = length & ((1 << extra_count) - 1);
 		return extra_count + ImageRGBAReader::LZ_LEN_LITS;
 	}
@@ -169,9 +169,32 @@ void RGBAMatchFinder::LZTransformInit() {
 }
 
 u32 RGBAMatchFinder::LZDistanceTransform(u32 offset, u32 distance) {
-	// TODO: Lookup for recent distances
+	u32 code;
+
+	// If distance has been seen recently,
+	if (distance == _lz_dist_last[(_lz_dist_index + 3) & 3]) {
+		code = 0;
+	} else if (distance == _lz_dist_last[(_lz_dist_index + 2) & 3]) {
+		code = 1;
+	} else if (distance == _lz_dist_last[(_lz_dist_index + 1) & 3]) {
+		code = 2;
+	} else if (distance == _lz_dist_last[_lz_dist_index]) {
+		code = 3;
+	} else {
+		code = 4 + (distance - 1);
+	}
+
+	// Store distance
+	_lz_dist_last[_lz_dist_index] = distance;
+	if (_lz_dist_index >= 3) {
+		_lz_dist_index = 0;
+	} else {
+		_lz_dist_index++;
+	}
+
 	// TODO: Lookup table for local region
-	return distance - 1;
+
+	return code;
 	/*		// Calculate source pixel x,y
 			u16 dx = static_cast<u16>( distance % _size_x );
 			u16 dy = static_cast<u16>( distance / _size_x );

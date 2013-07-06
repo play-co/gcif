@@ -59,7 +59,7 @@ void ImageRGBAWriter::designLZ() {
 
 	// Find LZ matches
 	const u32 *rgba = reinterpret_cast<const u32 *>( _rgba );
-	CAT_DEBUG_ENFORCE(_lz.init(rgba, _size_x, _size_y, _mask));
+	_lz.init(rgba, _size_x, _size_y, _mask);
 }
 
 void ImageRGBAWriter::maskTiles() {
