@@ -800,12 +800,17 @@ int ImageRGBAWriter::writeTables(ImageWriter &writer) {
 #endif // CAT_COLLECT_STATS
 	}
 
+	int lz_table_bits = _lz.writeTables(writer);
+
+	DESYNC_TABLE();
+
 #ifdef CAT_COLLECT_STATS
 	Stats.basic_overhead_bits = basic_bits;
 	Stats.sf_choice_bits = choice_bits;
 	Stats.sf_table_bits = sf_table_bits;
 	Stats.cf_table_bits = cf_table_bits;
 	Stats.a_table_bits = a_table_bits;
+	Stats.lz_table_bits = lz_table_bits;
 #endif // CAT_COLLECT_STATS
 
 	return GCIF_WE_OK;
@@ -983,6 +988,7 @@ bool ImageRGBAWriter::dumpStats() {
 	CAT_INANE("stats") << "(RGBA Compress)   U Table Overhead : " << Stats.u_table_bits << " bits (" << Stats.u_table_bits/8 << " bytes, " << Stats.u_table_bits * 100.f / Stats.rgba_bits << "% of RGBA)";
 	CAT_INANE("stats") << "(RGBA Compress)   V Table Overhead : " << Stats.v_table_bits << " bits (" << Stats.v_table_bits/8 << " bytes, " << Stats.v_table_bits * 100.f / Stats.rgba_bits << "% of RGBA)";
 	CAT_INANE("stats") << "(RGBA Compress)   A Table Overhead : " << Stats.a_table_bits << " bits (" << Stats.a_table_bits/8 << " bytes, " << Stats.a_table_bits * 100.f / Stats.rgba_bits << "% of RGBA)";
+	CAT_INANE("stats") << "(RGBA Compress)  LZ Table Overhead : " << Stats.lz_table_bits << " bits (" << Stats.lz_table_bits/8 << " bytes, " << Stats.lz_table_bits * 100.f / Stats.total_bits << "% of Total)";
 	CAT_INANE("stats") << "(RGBA Compress)      SF Compressed : " << Stats.sf_bits << " bits (" << Stats.sf_bits/8 << " bytes, " << Stats.sf_bits * 100.f / Stats.rgba_bits << "% of RGBA)";
 	CAT_INANE("stats") << "(RGBA Compress)      CF Compressed : " << Stats.cf_bits << " bits (" << Stats.cf_bits/8 << " bytes, " << Stats.cf_bits * 100.f / Stats.rgba_bits << "% of RGBA)";
 	CAT_INANE("stats") << "(RGBA Compress)       Y Compressed : " << Stats.y_bits << " bits (" << Stats.y_bits/8 << " bytes, " << Stats.y_bits * 100.f / Stats.rgba_bits << "% of RGBA)";

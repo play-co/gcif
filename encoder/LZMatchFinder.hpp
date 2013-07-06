@@ -38,8 +38,6 @@
 
 /*
  * LZ Match Finder
- *
- * This LZ system is only designed for RGBA data at this time.
  */
 
 namespace cat {
@@ -99,6 +97,8 @@ public:
 	}
 
 	CAT_INLINE LZMatch *pop() {
+		CAT_DEBUG_ENFORCE(peekOffset() != GUARD_OFFSET);
+
 		return _next_match++;
 	}
 };
@@ -157,6 +157,8 @@ public:
 	}
 
 	bool init(const u32 * CAT_RESTRICT rgba, int xsize, int ysize, ImageMaskWriter *mask);
+
+	int writeTables(ImageWriter &writer);
 	int write(EntropyEncoder &ee, ImageWriter &writer);
 };
 
@@ -195,6 +197,9 @@ public:
 	}
 
 	bool init(const u32 * CAT_RESTRICT rgba, int xsize, int ysize, ImageMaskWriter *mask);
+
+	int writeTables(ImageWriter &writer);
+	int write(EntropyEncoder &ee, ImageWriter &writer);
 };
 
 

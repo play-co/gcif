@@ -234,6 +234,10 @@ bool RGBAMatchFinder::init(const u32 * CAT_RESTRICT rgba, int xsize, int ysize, 
 	return true;
 }
 
+int RGBAMatchFinder::writeTables(ImageWriter &writer) {
+	return _lz_dist_encoder.writeTable(writer);
+}
+
 int RGBAMatchFinder::write(EntropyEncoder &ee, ImageWriter &writer) {
 	int bits = 0;
 
@@ -374,5 +378,15 @@ bool MonoMatchFinder::findMatches(const u8 *mono, int xsize, int ysize, ImageMas
 }
 
 bool MonoMatchFinder::init(const u32 * CAT_RESTRICT rgba, int xsize, int ysize, ImageMaskWriter *mask) {
+	CAT_DEBUG_EXCEPTION(); // TODO
+	return true;
+}
+
+int MonoMatchFinder::writeTables(ImageWriter &writer) {
+	return 0;
+}
+
+int MonoMatchFinder::write(EntropyEncoder &ee, ImageWriter &writer) {
+	return 0;
 }
 
