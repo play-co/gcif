@@ -159,12 +159,16 @@ u16 RGBAMatchFinder::LZLengthCodeAndExtra(u16 length, u16 &extra_count, u16 &ext
 	u16 code = length - RGBAMatchFinder::MIN_MATCH;
 	if (code < ImageRGBAReader::LZ_LEN_LITS) {
 		extra_count = 0;
-		return code;
 	} else {
-		extra_count = BSR32(code - ImageRGBAReader::LZ_LEN_LITS + 1);
-		extra_data = length & ((1 << extra_count) - 1);
-		return extra_count + ImageRGBAReader::LZ_LEN_LITS;
+		u32 extra = code - ImageRGBAReader::LZ_LEN_LITS;
+		extra_count = BSR32(extra + 1) + 1;
+		extra_data = extra;
+		CAT_DEBUG_ENFORCE(extra_data < (1 << extra_count));
+		code = extra_count - 1 + ImageRGBAReader::LZ_LEN_LITS;
+		CAT_DEBUG_ENFORCE(code < ImageRGBAReader::LZ_LEN_SYMS);
 	}
+
+	return code;
 }
 
 void RGBAMatchFinder::LZTransformInit() {

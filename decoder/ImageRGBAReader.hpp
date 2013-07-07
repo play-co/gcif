@@ -69,8 +69,9 @@ public:
 	static const int ZRLE_SYMS = 128;
 
 	static const int NUM_COLORS = 256;
-	static const int LZ_LEN_SYMS = 16;
 	static const int LZ_LEN_LITS = 8;
+	static const int LZ_LEN_PREFIX_SYMS = 8;
+	static const int LZ_LEN_SYMS = LZ_LEN_LITS + LZ_LEN_PREFIX_SYMS;
 
 	static const int LZ_DIST_LAST_COUNT = 4; // number of previous distances to encode
 	static const int LZ_DIST_ROW_X = 16; // number of x positions on current row to store as literals
