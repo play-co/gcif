@@ -139,6 +139,7 @@ public:
 		int encoder_overhead_bits;
 		int filter_overhead_bits;
 		int data_bits;
+		int lz_bits, lz_table_bits;
 	} Stats;
 
 protected:

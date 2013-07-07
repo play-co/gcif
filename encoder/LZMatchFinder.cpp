@@ -57,7 +57,7 @@ bool RGBAMatchFinder::findMatches(const u32 *rgba, int xsize, int ysize, ImageMa
 	// For each pixel, stopping just before the last pixel:
 	const u32 *rgba_now = rgba;
 	u16 x = 0, y = 0;
-	for (int ii = 0, iiend = pixels - 1; ii < iiend;) {
+	for (int ii = 0, iiend = pixels - MIN_MATCH; ii <= iiend;) {
 		const u32 hash = HashPixels(rgba_now);
 		u16 best_length = MIN_MATCH - 1;
 		u32 best_distance = 0;
@@ -314,7 +314,7 @@ bool MonoMatchFinder::findMatches(const u8 *mono, int xsize, int ysize, MonoMatc
 	// For each pixel, stopping just before the last pixel:
 	const u8 *mono_now = mono;
 	u16 x = 0, y = 0;
-	for (int ii = 0, iiend = pixels - 1; ii < iiend; ++mono_now) {
+	for (int ii = 0, iiend = pixels - MIN_MATCH; ii <= iiend;) {
 		const u32 hash = HashPixels(mono_now);
 		u16 best_length = MIN_MATCH - 1;
 		u32 best_distance = 0;
@@ -381,7 +381,7 @@ bool MonoMatchFinder::findMatches(const u8 *mono, int xsize, int ysize, MonoMatc
 			// If score is good,
 			if (score > 0) {
 				_matches.push_back(LZMatch(offset, best_distance, best_length));
-				CAT_WARN("MONOTEST") << offset << " : " << best_distance << ", " << best_length;
+				//CAT_WARN("MONOTEST") << offset << " : " << best_distance << ", " << best_length;
 
 				mask(offset);
 

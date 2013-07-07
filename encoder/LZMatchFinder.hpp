@@ -203,12 +203,12 @@ protected:
 
 	// Returns hash for MIN_MATCH pixels
 	static CAT_INLINE u32 HashPixels(const u8 * CAT_RESTRICT mono) {
+		const u32 word0 = *reinterpret_cast<const u32 *>( mono );
+
 		u16 word1 = mono[4];
 		word1 |= static_cast<u16>( mono[5] ) << 8;
 
-		const u32 * CAT_RESTRICT word0 = reinterpret_cast<const u32 *>( mono );
-
-		return (u32)( ( ((u64)word1 << 32) | *word0 ) * HASH_MULT >> (64 - HASH_BITS) );
+		return (u32)( ( ((u64)word1 << 32) | word0 ) * HASH_MULT >> (64 - HASH_BITS) );
 	}
 
 public:

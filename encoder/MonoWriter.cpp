@@ -211,7 +211,7 @@ void MonoWriter::designRowFilters() {
 
 	// Initialize row encoder
 	{
-		_row_filter_encoder.init(MAX_SYMS, ZRLE_SYMS);
+		_row_filter_encoder.init(_params.num_syms + MonoReader::LZ_LEN_SYMS, ZRLE_SYMS);
 
 		const u16 *order = _params.write_order;
 		const u8 *data = _params.data;
@@ -356,7 +356,7 @@ void MonoWriter::maskTiles() {
 				while (cx-- > 0 && px < size_x) {
 					// If it is not masked,
 					if (!_params.mask(px, py)) {
-						if (_params.order || !_lz.masked(px, py)) {
+						if (_params.write_order || !_lz.masked(px, py)) {
 							// We need to do this tile
 							*m = 0;
 							goto next_tile;
@@ -405,7 +405,7 @@ void MonoWriter::designPaletteFilters() {
 				while (cx-- > 0 && px < size_x) {
 					// If element is not masked,
 					if (!_params.mask(px, py)) {
-						if (_params.order || !_lz.masked(px, py)) {
+						if (_params.write_order || !_lz.masked(px, py)) {
 							const u8 value = *data;
 
 							if (!seen) {
@@ -506,24 +506,26 @@ void MonoWriter::designFilters() {
 				while (cx-- > 0 && px < size_x) {
 					// If element is not masked,
 					if (!_params.mask(px, py)) {
-						const u8 value = *data;
+						if (_params.write_order || !_lz.masked(px, py)) {
+							const u8 value = *data;
 
-						if (!seen) {
-							uniform_value = value;
-							seen = true;
-						} else if (value != uniform_value) {
-							uniform = false;
-						}
-
-						for (int f = 0; f < SF_COUNT; ++f) {
-							u8 prediction = MONO_FILTERS[f].safe(data, num_syms, px, py, size_x);
-							u16 residual = value + num_syms - prediction;
-							if (residual >= num_syms) {
-								residual -= num_syms;
+							if (!seen) {
+								uniform_value = value;
+								seen = true;
+							} else if (value != uniform_value) {
+								uniform = false;
 							}
-							u8 score = MonoChaos::ResidualScore(static_cast<u8>( residual ), num_syms); // lower = better
 
-							scores.add(f, score);
+							for (int f = 0; f < SF_COUNT; ++f) {
+								u8 prediction = MONO_FILTERS[f].safe(data, num_syms, px, py, size_x);
+								u16 residual = value + num_syms - prediction;
+								if (residual >= num_syms) {
+									residual -= num_syms;
+								}
+								u8 score = MonoChaos::ResidualScore(static_cast<u8>( residual ), num_syms); // lower = better
+
+								scores.add(f, score);
+							}
 						}
 					}
 					++px;
@@ -761,15 +763,17 @@ void MonoWriter::designTiles() {
 							while (cx-- > 0 && px < size_x) {
 								// If element is not masked,
 								if (!_params.mask(px, py)) {
-									const u8 value = *data;
+									if (_params.write_order || !_lz.masked(px, py)) {
+										const u8 value = *data;
 
-									u8 prediction = _profile->filters[old_filter].safe(data, num_syms, px, py, size_x);
-									u16 residual = value + num_syms - prediction;
-									if (residual >= num_syms) {
-										residual -= num_syms;
+										u8 prediction = _profile->filters[old_filter].safe(data, num_syms, px, py, size_x);
+										u16 residual = value + num_syms - prediction;
+										if (residual >= num_syms) {
+											residual -= num_syms;
+										}
+
+										codes[code_count++] = static_cast<u8>( residual );
 									}
-
-									codes[code_count++] = static_cast<u8>( residual );
 								}
 								++px;
 								++data;
@@ -793,24 +797,26 @@ void MonoWriter::designTiles() {
 					while (cx-- > 0 && px < size_x) {
 						// If element is not masked,
 						if (!_params.mask(px, py)) {
-							const u8 value = *data;
+							if (_params.write_order || !_lz.masked(px, py)) {
+								const u8 value = *data;
 
-							u8 *dest = codes + code_count;
-							for (int f = 0, f_end = _profile->filter_count; f < f_end; ++f) {
-								if (_profile->filter_indices[f] < SF_COUNT) {
-									u8 prediction = _profile->filters[f].safe(data, num_syms, px, py, size_x);
-									u16 residual = value + num_syms - prediction;
-									if (residual >= num_syms) {
-										residual -= num_syms;
+								u8 *dest = codes + code_count;
+								for (int f = 0, f_end = _profile->filter_count; f < f_end; ++f) {
+									if (_profile->filter_indices[f] < SF_COUNT) {
+										u8 prediction = _profile->filters[f].safe(data, num_syms, px, py, size_x);
+										u16 residual = value + num_syms - prediction;
+										if (residual >= num_syms) {
+											residual -= num_syms;
+										}
+
+										*dest = static_cast<u8>( residual );
 									}
 
-									*dest = static_cast<u8>( residual );
+									dest += code_stride;
 								}
 
-								dest += code_stride;
+								++code_count;
 							}
-
-							++code_count;
 						}
 						++px;
 						++data;
@@ -953,7 +959,7 @@ void MonoWriter::computeResiduals() {
 		} else {
 			for (u16 x = 0; x < size_x; ++x, ++residuals, ++data) {
 				// If element is not masked,
-				if (!_params.mask(x, y)) {
+				if (!_params.mask(x, y) && !_lz.masked(x, y)) {
 					// Grab filter for this tile
 					u16 tx = x >> tile_bits_x;
 					u8 f = _profile->getTile(tx, ty);
@@ -1083,7 +1089,7 @@ void MonoWriter::generateWriteOrder() {
 			// For each pixel,
 			for (u16 x = 0, size_x = _params.size_x; x < size_x; ++x) {
 				// If pixel is not masked out,
-				if (!_params.mask(x, y)) {
+				if (!_params.mask(x, y) && !_lz.masked(x, y)) {
 					// If tile seen for the first time,
 					u16 tx = x >> tile_bits_x;
 					if (_tile_seen[tx] == 0) {
@@ -1139,8 +1145,13 @@ void MonoWriter::designChaos() {
 
 		// For each chaos level,
 		for (int ii = 0; ii < chaos_levels; ++ii) {
-			encoders->encoder[ii].init(MAX_SYMS, ZRLE_SYMS);
+			encoders->encoder[ii].init(_params.num_syms + MonoReader::LZ_DIST_SYMS, ZRLE_SYMS);
 		}
+
+		if (!order) {
+			_lz.reset();
+		}
+		int offset = 0;
 
 		// For each row,
 		for (u16 y = 0; y < _params.size_y; ++y) {
@@ -1187,11 +1198,18 @@ void MonoWriter::designChaos() {
 				residuals += _params.size_x;
 			} else {
 				// For each column,
-				for (u16 x = 0; x < _params.size_x; ++x, ++residuals) {
+				for (u16 x = 0; x < _params.size_x; ++x, ++residuals, ++offset) {
 					const u16 tx = x >> _profile->tile_bits_x;
 					CAT_DEBUG_ENFORCE(tx < _profile->tiles_x);
 
-					if (_params.mask(x, y)) {
+					if (offset == _lz.peekOffset()) {
+						LZMatchFinder::LZMatch *match = _lz.pop();
+
+						int chaos = encoders->chaos.get(x);
+						encoders->encoder[chaos].add(_params.num_syms + match->len_code);
+					}
+
+					if (_params.mask(x, y) || _lz.masked(x, y)) {
 						encoders->chaos.zero(x);
 					} else {
 						const u8 f = _profile->getTile(tx, ty);
@@ -1377,6 +1395,7 @@ int MonoWriter::writeTables(ImageWriter &writer) {
 	Stats.encoder_overhead_bits = 0;
 	Stats.filter_overhead_bits = 0;
 	Stats.data_bits = 0;
+	Stats.lz_bits = 0;
 
 #ifdef CAT_DEBUG
 	_next_write_pixel_order = _params.write_order;
@@ -1470,7 +1489,16 @@ int MonoWriter::writeTables(ImageWriter &writer) {
 
 	DESYNC_TABLE();
 
-	return Stats.encoder_overhead_bits + Stats.basic_overhead_bits + Stats.filter_overhead_bits;
+	if (!_params.write_order) {
+		Stats.lz_table_bits = _lz.writeTables(writer);
+		_lz.reset();
+	} else {
+		Stats.lz_table_bits = 0;
+	}
+
+	DESYNC_TABLE();
+
+	return Stats.encoder_overhead_bits + Stats.basic_overhead_bits + Stats.filter_overhead_bits + Stats.lz_table_bits;
 }
 
 int MonoWriter::writeRowHeader(u16 y, ImageWriter &writer) {
@@ -1548,6 +1576,36 @@ int MonoWriter::write(u16 x, u16 y, ImageWriter &writer) {
 
 	DESYNC(x, y);
 
+	// If not random write order,
+	if (!_params.write_order) {
+		// If next match is here,
+		if (_lz.peekOffset() == x + _params.size_x * y) {
+			int lz_bits;
+
+			// If using row filters,
+			if (_use_row_filters) {
+				lz_bits = _lz.write(_params.num_syms, _row_filter_encoder, writer);
+			} else {
+				int chaos = _profile->encoders->chaos.get(x);
+				_profile->encoders->chaos.zero(x);
+				lz_bits = _lz.write(_params.num_syms, _profile->encoders->encoder[chaos], writer);
+			}
+
+			DESYNC(x, y);
+
+			Stats.lz_bits += lz_bits;
+
+			return lz_bits;
+		}
+
+		// If this is a masked byte,
+		if (_lz.masked(x, y)) {
+			DESYNC(x, y);
+
+			return 0;
+		}
+	}
+
 	// If using row filters,
 	if (_use_row_filters) {
 		// Calculate row filter residual for filter data (filter of filters at tree leaf)
@@ -1622,6 +1680,8 @@ void MonoWriter::dumpStats() {
 	CAT_INANE("Mono") << " - Encoder Overhead : " << Stats.encoder_overhead_bits << " bits (" << Stats.encoder_overhead_bits/8 << " bytes)";
 	CAT_INANE("Mono") << " -  Filter Overhead : " << Stats.filter_overhead_bits << " bits (" << Stats.filter_overhead_bits/8 << " bytes)";
 	CAT_INANE("Mono") << " -  Monochrome Data : " << Stats.data_bits << " bits (" << Stats.data_bits/8 << " bytes)";
+	CAT_INANE("Mono") << " -         LZ Table : " << Stats.lz_table_bits << " bits (" << Stats.lz_table_bits/8 << " bytes)";
+	CAT_INANE("Mono") << " -          LZ Data : " << Stats.lz_bits << " bits (" << Stats.lz_bits/8 << " bytes)";
 
 	if (!_use_row_filters) {
 		CAT_INANE("Mono") << " - Recursively using filter encoder:";
