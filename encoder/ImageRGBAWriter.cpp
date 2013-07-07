@@ -877,15 +877,16 @@ bool ImageRGBAWriter::writePixels(ImageWriter &writer) {
 				_encoders->chaos.get(x, cy, cu, cv);
 
 				lz_bits += _lz.write(_encoders->y[cy], writer);
-
-				// Increment LZ match count
-				++lz_count;
 			}
 
 			// If masked,
 			if (IsMasked(x, y)) {
 				_encoders->chaos.zero(x);
 				_a_encoder.zero(x);
+
+				if (_lz.masked(x, y)) {
+					++lz_count;
+				}
 			} else {
 				// If filter needs to be written,
 				u16 tx = x >> _tile_bits_x;
