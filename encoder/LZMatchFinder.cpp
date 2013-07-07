@@ -32,6 +32,10 @@
 #include "Log.hpp"
 using namespace cat;
 
+#include <iostream>
+#include <iomanip>
+using namespace std;
+
 
 //// RGBAMatchFinder
 
@@ -168,63 +172,63 @@ void RGBAMatchFinder::LZTransformInit() {
 	CAT_OBJCLR(_lz_dist_last);
 }
 
-u32 RGBAMatchFinder::LZDistanceTransform(u32 offset, u32 distance) {
-	u32 code;
+void RGBAMatchFinder::LZDistanceTransform(LZMatch *match) {
+	const u32 distance = match->distance;
+
+	CAT_DEBUG_ENFORCE(match->offset >= distance);
+
+	// Encode distance
+	u16 code;
+	match->dist_extra_bits = 0;
 
 	// If distance has been seen recently,
-	if (distance == _lz_dist_last[(_lz_dist_index + 3) & 3]) {
-		code = 0;
-	} else if (distance == _lz_dist_last[(_lz_dist_index + 2) & 3]) {
-		code = 1;
-	} else if (distance == _lz_dist_last[(_lz_dist_index + 1) & 3]) {
-		code = 2;
-	} else if (distance == _lz_dist_last[_lz_dist_index]) {
-		code = 3;
-	} else {
-		code = 4 + (distance - 1);
+	static const int LAST_COUNT = ImageRGBAReader::LZ_DIST_LAST_COUNT;
+	for (int ii = 0; ii < LAST_COUNT; ++ii) {
+		if (distance == _lz_dist_last[(_lz_dist_index + LAST_COUNT - 1 - ii) % LAST_COUNT]) {
+			code = ii;
+			goto found;
+		}
 	}
+
+	static const int ROW_X = ImageRGBAReader::LZ_DIST_ROW_X;
+	if (distance <= ROW_X) {
+		code = LAST_COUNT + (distance - 1);
+	} else {
+		code = LAST_COUNT + ROW_X;
+		for (int dy = 1; dy <= ImageRGBAReader::LZ_DIST_LIT_Y; ++dy) {
+			for (int dx = ImageRGBAReader::LZ_DIST_LIT_X0; dx <= ImageRGBAReader::LZ_DIST_LIT_X1; ++dx, ++code) {
+				int coff = dy * _size_x + dx;
+
+				if (distance == coff) {
+					goto found;
+				}
+			}
+		}
+
+		// Calculate extra bits
+		const int delta = distance - LAST_COUNT;
+		CAT_DEBUG_ENFORCE(delta >= 1);
+		match->dist_extra_bits = BSR32(delta) + 1;
+		match->dist_extra = delta - 1;
+		CAT_DEBUG_ENFORCE(match->dist_extra < (1 << match->dist_extra_bits));
+	}
+
+found:
 
 	// Store distance
 	_lz_dist_last[_lz_dist_index] = distance;
-	if (_lz_dist_index >= 3) {
+	if (_lz_dist_index >= LAST_COUNT - 1) {
 		_lz_dist_index = 0;
 	} else {
 		_lz_dist_index++;
 	}
 
-	// TODO: Lookup table for local region
-
-	return code;
-	/*		// Calculate source pixel x,y
-			u16 dx = static_cast<u16>( distance % _size_x );
-			u16 dy = static_cast<u16>( distance / _size_x );
-			CAT_DEBUG_ENFORCE(y >= dy);
-			u16 sy = y - dy;
-			u16 sx;
-			if (dx > x) {
-			CAT_DEBUG_ENFORCE(sy > 0);
-			--sy;
-			dx -= x;
-			sx = _size_x - dx;
-			} else {
-			sx = x - dx;
-			}*/
+	match->dist_code = code;
 }
-
-u16 RGBAMatchFinder::LZDistanceCodeAndExtra(u32 distance, u16 &extra_count, u16 &extra_data) {
-	u32 code = distance;
-	if (code < ImageRGBAReader::LZ_DIST_LITS) {
-		extra_count = 0;
-		return code;
-	} else {
-		extra_count = BSR32(code - ImageRGBAReader::LZ_DIST_LITS + 1);
-		extra_data = distance & ((1 << extra_count) - 1);
-		return extra_count + ImageRGBAReader::LZ_DIST_LITS;
-	}
-}
-
 
 bool RGBAMatchFinder::init(const u32 * CAT_RESTRICT rgba, int xsize, int ysize, ImageMaskWriter *mask) {
+	_xsize = xsize;
+
 	if (!findMatches(rgba, xsize, ysize, mask)) {
 		return false;
 	}
@@ -240,12 +244,11 @@ bool RGBAMatchFinder::init(const u32 * CAT_RESTRICT rgba, int xsize, int ysize, 
 	while (peekOffset() != LZMatchFinder::GUARD_OFFSET) {
 		LZMatch *match = pop();
 
-		// Transform distance into a (likely) shorter code
-		u32 tdist = LZDistanceTransform(match->offset, match->distance);
-
-		// Encode distance and length
-		match->dist_code = LZDistanceCodeAndExtra(tdist, match->dist_extra_bits, match->dist_extra);
+		// Encode length
 		match->len_code = ImageRGBAReader::NUM_LIT_SYMS + LZLengthCodeAndExtra(match->length, match->len_extra_bits, match->len_extra);
+
+		// Encode distance
+		LZDistanceTransform(match);
 
 		// Record symbol instance
 		lz_dist_hist.add(match->dist_code);

@@ -33,6 +33,7 @@
 #include "../decoder/SmartArray.hpp"
 #include "ImageMaskWriter.hpp"
 #include "EntropyEncoder.hpp"
+#include "../decoder/ImageRGBAReader.hpp"
 
 #include <vector>
 
@@ -108,15 +109,15 @@ public:
 
 class RGBAMatchFinder : public LZMatchFinder {
 protected:
+	int _xsize;
 	HuffmanEncoder _lz_dist_encoder;
 
-	u32 _lz_dist_last[4];
+	u32 _lz_dist_last[ImageRGBAReader::LZ_DIST_LAST_COUNT];
 	int _lz_dist_index;
 
 	void LZTransformInit();
 	u16 LZLengthCodeAndExtra(u16 length, u16 &extra_count, u16 &extra_data);
-	u32 LZDistanceTransform(u32 offset, u32 distance);
-	u16 LZDistanceCodeAndExtra(u32 distance, u16 &extra_count, u16 &extra_data);
+	void LZDistanceTransform(LZMatch *match);
 
 	bool findMatches(const u32 * CAT_RESTRICT rgba, int xsize, int ysize, ImageMaskWriter *mask);
 
