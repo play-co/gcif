@@ -67,8 +67,8 @@ public:
 	static const int MAX_CHAOS_LEVELS = 32;
 	static const int MAX_FILTERS = 32;
 	static const int ZRLE_SYMS = 128;
-
 	static const int NUM_COLORS = 256;
+
 	static const int LZ_LEN_LITS = 8;
 	static const int LZ_LEN_PREFIX_SYMS = 8;
 	static const int LZ_LEN_SYMS = LZ_LEN_LITS + LZ_LEN_PREFIX_SYMS;

@@ -34,6 +34,7 @@
 #include "ImageMaskWriter.hpp"
 #include "EntropyEncoder.hpp"
 #include "../decoder/ImageRGBAReader.hpp"
+#include "../decoder/MonoReader.hpp"
 
 #include <vector>
 
@@ -167,14 +168,27 @@ public:
 //// MonoMatchFinder
 
 class MonoMatchFinder : public LZMatchFinder {
-protected:
-	bool findMatches(const u8 * CAT_RESTRICT mono, int xsize, int ysize, ImageMaskWriter *mask);
-
 public:
+	// bool IsMasked(u16 x, u16 y)
+	typedef Delegate2<bool, u16, u16> MaskDelegate;
+
 	// Not worth matching less than MIN_MATCH
 	static const int MIN_MATCH = 6; // pixels
-	static const int MAX_MATCH = 4096; // pixels
-	static const int WIN_SIZE = 1024 * 1024; // pixels
+	static const int MAX_MATCH = 256; // pixels
+	static const int WIN_SIZE = 512 * 512; // pixels
+
+protected:
+	int _xsize;
+	HuffmanEncoder _lz_dist_encoder;
+
+	u32 _lz_dist_last[ImageRGBAReader::LZ_DIST_LAST_COUNT];
+	int _lz_dist_index;
+
+	void LZTransformInit();
+	u16 LZLengthCodeAndExtra(u16 length, u16 &extra_count, u16 &extra_data);
+	void LZDistanceTransform(LZMatch *match);
+
+	bool findMatches(const u8 * CAT_RESTRICT mono, int xsize, int ysize, MonoMatchFinder::MaskDelegate mask);
 
 	/*
 	 * Encoding cost in bits for monochrome data:
@@ -197,10 +211,11 @@ public:
 		return (u32)( ( ((u64)word1 << 32) | *word0 ) * HASH_MULT >> (64 - HASH_BITS) );
 	}
 
-	bool init(const u32 * CAT_RESTRICT rgba, int xsize, int ysize, ImageMaskWriter *mask);
+public:
+	bool init(const u8 * CAT_RESTRICT mono, int xsize, int ysize, MonoMatchFinder::MaskDelegate mask);
 
 	int writeTables(ImageWriter &writer);
-	int write(EntropyEncoder &ee, ImageWriter &writer);
+	int write(int num_syms, EntropyEncoder &ee, ImageWriter &writer);
 };
 
 

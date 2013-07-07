@@ -88,6 +88,13 @@ void MonoWriter::cleanup() {
 	}
 }
 
+void MonoWriter::designLZ() {
+	//CAT_INANE("Mono") << "Finding LZ77 matches for " << _params.size_x << "x" << _params.size_y << "...";
+
+	// Find LZ matches
+	_lz.init(_params.data, _params.size_x, _params.size_y, _params.mask);
+}
+
 void MonoWriter::designRowFilters() {
 	//CAT_INANE("Mono") << "Designing row filters for " << _params.size_x << "x" << _params.size_y << "...";
 

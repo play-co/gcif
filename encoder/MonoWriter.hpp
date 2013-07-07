@@ -179,6 +179,9 @@ protected:
 	// Mask function for child instance
 	bool IsMasked(u16 x, u16 y);
 
+	// Check for LZ matches
+	void designLZ();
+
 	// Try out a simple row filter for input data
 	void designRowFilters();
 

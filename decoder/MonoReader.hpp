@@ -59,6 +59,19 @@ public:
 	static const int ZRLE_SYMS = 16;
 	static const int HUFF_LUT_BITS = 7;
 
+	static const int LZ_LEN_LITS = 8;
+	static const int LZ_LEN_PREFIX_SYMS = 8;
+	static const int LZ_LEN_SYMS = LZ_LEN_LITS + LZ_LEN_PREFIX_SYMS;
+
+	static const int LZ_DIST_LAST_COUNT = 4; // number of previous distances to encode
+	static const int LZ_DIST_ROW_X = 16; // number of x positions on current row to store as literals
+	static const int LZ_DIST_LIT_X0 = -8; // number of x positions to store as literals on each side
+	static const int LZ_DIST_LIT_X1 = 8; // number of x positions to store as literals on each side
+	static const int LZ_DIST_LIT_Y = 8; // number of y positions to store as literals
+	static const int LZ_DIST_LITS = LZ_DIST_LAST_COUNT + LZ_DIST_ROW_X + (LZ_DIST_LIT_X1 - LZ_DIST_LIT_X0 + 1) * LZ_DIST_LIT_Y;
+	static const int LZ_DIST_PREFIX_SYMS = 20;
+	static const int LZ_DIST_SYMS = LZ_DIST_LITS + LZ_DIST_PREFIX_SYMS;
+
 	enum RowFilters {
 		RF_NOOP,		// Pass-through filter
 		RF_PREV,		// Predict same as previously emitted spatial filter
