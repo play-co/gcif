@@ -209,8 +209,11 @@ void RGBAMatchFinder::LZDistanceTransform(LZMatch *match) {
 		const int delta = distance - LAST_COUNT;
 		CAT_DEBUG_ENFORCE(delta >= 1);
 		match->dist_extra_bits = BSR32(delta) + 1;
+		CAT_DEBUG_ENFORCE(match->dist_extra_bits <= ImageRGBAReader::LZ_DIST_PREFIX_SYMS);
 		match->dist_extra = delta - 1;
 		CAT_DEBUG_ENFORCE(match->dist_extra < (1 << match->dist_extra_bits));
+		code += match->dist_extra_bits - 1;
+		CAT_DEBUG_ENFORCE(code < ImageRGBAReader::LZ_DIST_SYMS);
 	}
 
 found:

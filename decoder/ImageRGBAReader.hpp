@@ -78,7 +78,7 @@ public:
 	static const int LZ_DIST_LIT_X1 = 8; // number of x positions to store as literals on each side
 	static const int LZ_DIST_LIT_Y = 8; // number of y positions to store as literals
 	static const int LZ_DIST_LITS = LZ_DIST_LAST_COUNT + LZ_DIST_ROW_X + (LZ_DIST_LIT_X1 - LZ_DIST_LIT_X0 + 1) * LZ_DIST_LIT_Y;
-	static const int LZ_DIST_PREFIX_SYMS = 40; // TODO
+	static const int LZ_DIST_PREFIX_SYMS = 20;
 	static const int LZ_DIST_SYMS = LZ_DIST_LITS + LZ_DIST_PREFIX_SYMS;
 
 	static const int NUM_LIT_SYMS = NUM_COLORS;
