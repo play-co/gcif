@@ -383,8 +383,11 @@ bool MonoMatchFinder::findMatches(const u8 *mono, int xsize, int ysize, MonoMatc
 				_matches.push_back(LZMatch(offset, best_distance, best_length));
 				CAT_WARN("MONOTEST") << offset << " : " << best_distance << ", " << best_length;
 
+				mask(offset);
+
 				// Insert matched pixels
 				for (int jj = 1; jj < best_length; ++jj) {
+					mask(ii);
 					const u32 matched_hash = HashPixels(mono_now);
 					chain[ii] = table[matched_hash] + 1;
 					table[matched_hash] = ++ii;

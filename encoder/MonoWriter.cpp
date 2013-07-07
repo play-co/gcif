@@ -89,10 +89,13 @@ void MonoWriter::cleanup() {
 }
 
 void MonoWriter::designLZ() {
-	//CAT_INANE("Mono") << "Finding LZ77 matches for " << _params.size_x << "x" << _params.size_y << "...";
+	// If not writing in random order,
+	if (!_params.write_order) {
+		//CAT_INANE("Mono") << "Finding LZ77 matches for " << _params.size_x << "x" << _params.size_y << "...";
 
-	// Find LZ matches
-	_lz.init(_params.data, _params.size_x, _params.size_y, _params.mask);
+		// Find LZ matches
+		_lz.init(_params.data, _params.size_x, _params.size_y, _params.mask);
+	}
 }
 
 void MonoWriter::designRowFilters() {
@@ -150,7 +153,7 @@ void MonoWriter::designRowFilters() {
 				for (u16 x = 0; x < size_x; ++x, ++data) {
 					u8 p = data[0];
 
-					if (!_params.mask(x, y)) {
+					if (!_params.mask(x, y) && !_lz.masked(x, y)) {
 						// RF_NOOP
 						codes[code_count] = p;
 
@@ -241,7 +244,7 @@ void MonoWriter::designRowFilters() {
 				data += size_x;
 			} else {
 				for (u16 x = 0; x < size_x; ++x, ++data) {
-					if (!_params.mask(x, y)) {
+					if (!_params.mask(x, y) && !_lz.masked(x, y)) {
 						u8 p = data[0];
 
 						// If filtered,
@@ -302,7 +305,7 @@ void MonoWriter::designRowFilters() {
 				data += size_x;
 			} else {
 				for (u16 x = 0; x < size_x; ++x, ++data) {
-					if (!_params.mask(x, y)) {
+					if (!_params.mask(x, y) && !_lz.masked(x, y)) {
 						u8 p = data[0];
 
 						// If filtered,
@@ -353,9 +356,11 @@ void MonoWriter::maskTiles() {
 				while (cx-- > 0 && px < size_x) {
 					// If it is not masked,
 					if (!_params.mask(px, py)) {
-						// We need to do this tile
-						*m = 0;
-						goto next_tile;
+						if (_params.order || !_lz.masked(px, py)) {
+							// We need to do this tile
+							*m = 0;
+							goto next_tile;
+						}
 					}
 					++px;
 				}
@@ -400,15 +405,17 @@ void MonoWriter::designPaletteFilters() {
 				while (cx-- > 0 && px < size_x) {
 					// If element is not masked,
 					if (!_params.mask(px, py)) {
-						const u8 value = *data;
+						if (_params.order || !_lz.masked(px, py)) {
+							const u8 value = *data;
 
-						if (!seen) {
-							uniform_value = value;
-							seen = true;
-						} else if (value != uniform_value) {
-							uniform = false;
-							cy = 0;
-							break;
+							if (!seen) {
+								uniform_value = value;
+								seen = true;
+							} else if (value != uniform_value) {
+								uniform = false;
+								cy = 0;
+								break;
+							}
 						}
 					}
 					++px;
@@ -1299,6 +1306,9 @@ void MonoWriter::init(const Parameters &params) {
 	MonoWriterProfile *profile = new MonoWriterProfile;
 	u32 best_entropy = 0x7fffffff;
 	MonoWriterProfile *best_profile = 0;
+
+	// Find LZ77 matches in input data and mask those out
+	designLZ();
 
 	// Try simple row filter first
 	designRowFilters();
