@@ -211,10 +211,15 @@ void MonoWriter::designRowFilters() {
 
 	// Initialize row encoder
 	{
-		_row_filter_encoder.init(_params.num_syms + MonoReader::LZ_LEN_SYMS, ZRLE_SYMS);
-
 		const u16 *order = _params.write_order;
 		const u8 *data = _params.data;
+
+		_row_filter_encoder.init(_params.num_syms + (!order ? MonoReader::LZ_LEN_SYMS : 0), ZRLE_SYMS);
+
+		if (!order) {
+			_lz.reset();
+		}
+		int offset = 0;
 
 		// For each tile,
 		for (u16 y = 0; y < size_y; ++y) {
@@ -243,8 +248,13 @@ void MonoWriter::designRowFilters() {
 
 				data += size_x;
 			} else {
-				for (u16 x = 0; x < size_x; ++x, ++data) {
-					if (!_params.mask(x, y) && !_lz.masked(x, y)) {
+				for (u16 x = 0; x < size_x; ++x, ++data, ++offset) {
+					if (offset == _lz.peekOffset()) {
+						LZMatchFinder::LZMatch *match = _lz.pop();
+						_row_filter_encoder.add(_params.num_syms + match->len_code);
+					}
+
+					if (!_params.mask(x, y) || !_lz.masked(x, y)) {
 						u8 p = data[0];
 
 						// If filtered,
@@ -276,6 +286,11 @@ void MonoWriter::designRowFilters() {
 		const u16 *order = _params.write_order;
 		const u8 *data = _params.data;
 
+		int offset = 0;
+		if (!order) {
+			_lz.reset();
+		}
+
 		// For each tile,
 		for (u16 y = 0; y < size_y; ++y) {
 			u8 prev = 0;
@@ -304,7 +319,12 @@ void MonoWriter::designRowFilters() {
 
 				data += size_x;
 			} else {
-				for (u16 x = 0; x < size_x; ++x, ++data) {
+				for (u16 x = 0; x < size_x; ++x, ++data, ++offset) {
+					if (offset == _lz.peekOffset()) {
+						LZMatchFinder::LZMatch *match = _lz.pop();
+						_row_filter_encoder.simulate(num_syms + match->len_code);
+					}
+
 					if (!_params.mask(x, y) && !_lz.masked(x, y)) {
 						u8 p = data[0];
 
