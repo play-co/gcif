@@ -587,12 +587,9 @@ void ImageRGBAWriter::designChaos() {
 		// For each chaos level,
 		u32 entropy = 0;
 		for (int ii = 0; ii < chaos_levels; ++ii) {
-			encoders->y[ii].finalize();
-			entropy += encoders->y[ii].simulateAll();
-			encoders->u[ii].finalize();
-			entropy += encoders->u[ii].simulateAll();
-			encoders->v[ii].finalize();
-			entropy += encoders->v[ii].simulateAll();
+			entropy += encoders->y[ii].finalize();
+			entropy += encoders->u[ii].finalize();
+			entropy += encoders->v[ii].finalize();
 		}
 
 		// If this is the best chaos levels so far,

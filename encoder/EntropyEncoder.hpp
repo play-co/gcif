@@ -161,7 +161,7 @@ public:
 		}
 	}
 
-	void finalize() {
+	int finalize() {
 		const int zeroRun = _zeroRun;
 
 		// If a zero run is in progress at the end,
@@ -227,6 +227,9 @@ public:
 
 		if (basic_cost < az_cost + 64) {
 			_using_basic = true;
+			return basic_cost;
+		} else {
+			return az_cost;
 		}
 	}
 
@@ -252,19 +255,6 @@ public:
 
 		// Set the run list read index for writing
 		_runListReadIndex = 0;
-	}
-
-	int simulateAll() {
-		reset();
-
-		int bits = 0;
-		for (int ii = 0, len = (int)_basic_syms.size(); ii < len; ++ii) {
-			u16 sym = _basic_syms[ii];
-
-			bits += simulate(sym);
-		}
-
-		return bits;
 	}
 
 	int simulate(u16 symbol) {

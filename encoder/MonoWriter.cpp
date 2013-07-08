@@ -275,89 +275,9 @@ void MonoWriter::designRowFilters() {
 			}
 		}
 
-		_row_filter_encoder.finalize();
+		// Finalize the row filter encoder
+		_row_filter_entropy = _row_filter_encoder.finalize();
 	}
-
-	// Simulate encoding
-	u32 bits = 0;
-	u8 seen[256] = {0};
-	CAT_DEBUG_ENFORCE(num_syms <= 256);
-	{
-		const u16 *order = _params.write_order;
-		const u8 *data = _params.data;
-
-		int offset = 0;
-		if (!order) {
-			_lz.reset();
-		}
-
-		// For each tile,
-		for (u16 y = 0; y < ysize; ++y) {
-			u8 prev = 0;
-			const u8 rf = _row_filters[y];
-
-			if (order) {
-				u16 x;
-				while ((x = *order++) != ORDER_SENTINEL) {
-					u8 p = data[x];
-
-					// If filtered,
-					if (rf == MonoReader::RF_PREV) {
-						u16 pprev = p + num_syms - prev;
-						if (pprev >= num_syms) {
-							pprev -= num_syms;
-						}
-						prev = p;
-						p = (u8)pprev;
-					}
-
-					CAT_DEBUG_ENFORCE(p < num_syms);
-
-					bits += _row_filter_encoder.simulate(p);
-					seen[p] = 1;
-				}
-
-				data += xsize;
-			} else {
-				for (u16 x = 0; x < xsize; ++x, ++data, ++offset) {
-					if (offset == _lz.peekOffset()) {
-						LZMatchFinder::LZMatch *match = _lz.pop();
-						_row_filter_encoder.simulate(num_syms + match->len_code);
-					}
-
-					if (!_params.mask(x, y) && !_lz.masked(x, y)) {
-						u8 p = data[0];
-
-						// If filtered,
-						if (rf == MonoReader::RF_PREV) {
-							u16 pprev = p + num_syms - prev;
-							if (pprev >= num_syms) {
-								pprev -= num_syms;
-							}
-							prev = p;
-							p = (u8)pprev;
-						}
-
-						CAT_DEBUG_ENFORCE(p < num_syms);
-
-						bits += _row_filter_encoder.simulate(p);
-						seen[p] = 1;
-					}
-				}
-			}
-		}
-
-		_row_filter_encoder.reset();
-	}
-
-	// Add in overhead
-	for (int ii = 0; ii < num_syms; ++ii) {
-		if (seen[ii]) {
-			bits += 2;
-		}
-	}
-
-	_row_filter_entropy = bits;
 }
 
 void MonoWriter::maskTiles() {
@@ -1257,8 +1177,7 @@ void MonoWriter::designChaos() {
 		// For each chaos level,
 		u32 entropy = 0;
 		for (int ii = 0; ii < chaos_levels; ++ii) {
-			encoders->encoder[ii].finalize();
-			entropy += encoders->encoder[ii].simulateAll();
+			entropy += encoders->encoder[ii].finalize();
 		}
 
 		//CAT_WARN("CHAOS") << chaos_levels << " -> " << entropy;
