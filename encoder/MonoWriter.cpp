@@ -90,7 +90,7 @@ void MonoWriter::cleanup() {
 
 void MonoWriter::designLZ() {
 	// If not writing in random order,
-	if (!_params.write_order) {
+	if (_params.enable_lz) {
 		//CAT_INANE("Mono") << "Finding LZ77 matches for " << _params.xsize << "x" << _params.ysize << "...";
 
 		// Find LZ matches
@@ -151,9 +151,14 @@ void MonoWriter::designRowFilters() {
 				data += xsize;
 			} else {
 				for (u16 x = 0; x < xsize; ++x, ++data) {
+					// If pixel is LZ-masked,
+					if (_params.enable_lz && _lz.masked(x, y)) {
+						continue;
+					}
+
 					u8 p = data[0];
 
-					if (!_params.mask(x, y) && !_lz.masked(x, y)) {
+					if (!_params.mask(x, y)) {
 						// RF_NOOP
 						codes[code_count] = p;
 
@@ -216,7 +221,7 @@ void MonoWriter::designRowFilters() {
 
 		_row_filter_encoder.init(_params.num_syms + (!order ? MonoReader::LZ_LEN_SYMS : 0), ZRLE_SYMS);
 
-		if (!order) {
+		if (!_params.enable_lz) {
 			_lz.reset();
 		}
 		int offset = 0;
@@ -249,12 +254,21 @@ void MonoWriter::designRowFilters() {
 				data += xsize;
 			} else {
 				for (u16 x = 0; x < xsize; ++x, ++data, ++offset) {
-					if (offset == _lz.peekOffset()) {
-						LZMatchFinder::LZMatch *match = _lz.pop();
-						_row_filter_encoder.add(num_syms + match->len_code);
+					// If using LZ,
+					if (_params.enable_lz) {
+						// If LZ match is here,
+						if (offset == _lz.peekOffset()) {
+							LZMatchFinder::LZMatch *match = _lz.pop();
+							_row_filter_encoder.add(num_syms + match->len_code);
+						}
+
+						// If pixel is LZ masked,
+						if (_lz.masked(x, y)) {
+							continue;
+						}
 					}
 
-					if (!_params.mask(x, y) || !_lz.masked(x, y)) {
+					if (!_params.mask(x, y)) {
 						u8 p = data[0];
 
 						// If filtered,
@@ -296,7 +310,7 @@ void MonoWriter::maskTiles() {
 				while (cx-- > 0 && px < xsize) {
 					// If it is not masked,
 					if (!_params.mask(px, py)) {
-						if (_params.write_order || !_lz.masked(px, py)) {
+						if (!_params.enable_lz || !_lz.masked(px, py)) {
 							// We need to do this tile
 							*m = 0;
 							goto next_tile;
@@ -345,7 +359,7 @@ void MonoWriter::designPaletteFilters() {
 				while (cx-- > 0 && px < xsize) {
 					// If element is not masked,
 					if (!_params.mask(px, py)) {
-						if (_params.write_order || !_lz.masked(px, py)) {
+						if (!_params.enable_lz || !_lz.masked(px, py)) {
 							const u8 value = *data;
 
 							if (!seen) {
@@ -446,7 +460,7 @@ void MonoWriter::designFilters() {
 				while (cx-- > 0 && px < xsize) {
 					// If element is not masked,
 					if (!_params.mask(px, py)) {
-						if (_params.write_order || !_lz.masked(px, py)) {
+						if (!_params.enable_lz || !_lz.masked(px, py)) {
 							const u8 value = *data;
 
 							if (!seen) {
@@ -703,7 +717,7 @@ void MonoWriter::designTiles() {
 							while (cx-- > 0 && px < xsize) {
 								// If element is not masked,
 								if (!_params.mask(px, py)) {
-									if (_params.write_order || !_lz.masked(px, py)) {
+									if (!_params.enable_lz || !_lz.masked(px, py)) {
 										const u8 value = *data;
 
 										u8 prediction = _profile->filters[old_filter].safe(data, num_syms, px, py, xsize);
@@ -737,7 +751,7 @@ void MonoWriter::designTiles() {
 					while (cx-- > 0 && px < xsize) {
 						// If element is not masked,
 						if (!_params.mask(px, py)) {
-							if (_params.write_order || !_lz.masked(px, py)) {
+							if (!_params.enable_lz || !_lz.masked(px, py)) {
 								const u8 value = *data;
 
 								u8 *dest = codes + code_count;
@@ -898,8 +912,13 @@ void MonoWriter::computeResiduals() {
 			residuals += xsize;
 		} else {
 			for (u16 x = 0; x < xsize; ++x, ++residuals, ++data) {
+				// If pixel is LZ masked,
+				if (_params.enable_lz && _lz.masked(x, y)) {
+					continue;
+				}
+
 				// If element is not masked,
-				if (!_params.mask(x, y) && !_lz.masked(x, y)) {
+				if (!_params.mask(x, y)) {
 					// Grab filter for this tile
 					u16 tx = x >> tile_bits_x;
 					u8 f = _profile->getTile(tx, ty);
@@ -1028,8 +1047,13 @@ void MonoWriter::generateWriteOrder() {
 		} else {
 			// For each pixel,
 			for (u16 x = 0, xsize = _params.xsize; x < xsize; ++x) {
+				// If pixel is LZ matched,
+				if (_params.enable_lz && _lz.masked(x, y)) {
+					continue;
+				}
+
 				// If pixel is not masked out,
-				if (!_params.mask(x, y) && !_lz.masked(x, y)) {
+				if (!_params.mask(x, y)) {
 					// If tile seen for the first time,
 					u16 tx = x >> tile_bits_x;
 					if (_tile_seen[tx] == 0) {
@@ -1088,7 +1112,7 @@ void MonoWriter::designChaos() {
 			encoders->encoder[ii].init(_params.num_syms + MonoReader::LZ_DIST_SYMS, ZRLE_SYMS);
 		}
 
-		if (!order) {
+		if (_params.enable_lz) {
 			_lz.reset();
 		}
 		int offset = 0;
@@ -1139,17 +1163,26 @@ void MonoWriter::designChaos() {
 			} else {
 				// For each column,
 				for (u16 x = 0; x < _params.xsize; ++x, ++residuals, ++offset) {
+					// If using LZ,
+					if (_params.enable_lz) {
+						// If LZ match is here,
+						if (offset == _lz.peekOffset()) {
+							LZMatchFinder::LZMatch *match = _lz.pop();
+							int chaos = encoders->chaos.get(x);
+							encoders->encoder[chaos].add(_params.num_syms + match->len_code);
+						}
+
+						// If pixel is LZ masked,
+						if (_lz.masked(x, y)) {
+							encoders->chaos.zero(x);
+							continue;
+						}
+					}
+
 					const u16 tx = x >> _profile->tile_bits_x;
 					CAT_DEBUG_ENFORCE(tx < _profile->tiles_x);
 
-					if (offset == _lz.peekOffset()) {
-						LZMatchFinder::LZMatch *match = _lz.pop();
-
-						int chaos = encoders->chaos.get(x);
-						encoders->encoder[chaos].add(_params.num_syms + match->len_code);
-					}
-
-					if (_params.mask(x, y) || _lz.masked(x, y)) {
+					if (_params.mask(x, y)) {
 						encoders->chaos.zero(x);
 					} else {
 						const u8 f = _profile->getTile(tx, ty);
@@ -1428,7 +1461,7 @@ int MonoWriter::writeTables(ImageWriter &writer) {
 
 	DESYNC_TABLE();
 
-	if (!_params.write_order) {
+	if (_params.enable_lz) {
 		Stats.lz_table_bits = _lz.writeTables(writer);
 		_lz.reset();
 	} else {
@@ -1515,8 +1548,8 @@ int MonoWriter::write(u16 x, u16 y, ImageWriter &writer) {
 
 	DESYNC(x, y);
 
-	// If not random write order,
-	if (!_params.write_order) {
+	// If using LZ,
+	if (_params.enable_lz) {
 		// If next match is here,
 		if (_lz.peekOffset() == x + _params.xsize * y) {
 			int lz_bits;

@@ -121,6 +121,7 @@ public:
 		u16 min_bits, max_bits;			// Tile size bit range to try
 		MaskDelegate mask;				// Function to call to determine if an element is masked out
 		u16 num_syms;					// Number of symbols in data [0..num_syms-1]
+		bool enable_lz;					// Enable LZ encoder
 
 		// Encoder-only
 		const GCIFKnobs *knobs;			// Global knobs
