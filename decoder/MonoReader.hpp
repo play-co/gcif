@@ -96,7 +96,7 @@ public:
 
 	struct Parameters {
 		u8 * CAT_RESTRICT data;			// Output data
-		u16 size_x, size_y;				// Data dimensions
+		u16 xsize, ysize;				// Data dimensions
 		u16 min_bits, max_bits;			// Tile size bit range to try
 		u16 num_syms;					// Number of symbols in data [0..num_syms-1]
 	};
@@ -105,7 +105,7 @@ protected:
 	Parameters _params;
 
 	SmartArray<u8> _tiles;
-	u16 _tile_size_x, _tile_size_y;
+	u16 _tile_xsize, _tile_ysize;
 	u16 _tile_bits_x, _tile_bits_y;
 	u16 _tile_mask_x, _tile_mask_y;
 	u16 _tiles_x, _tiles_y;
@@ -145,7 +145,7 @@ public:
 
 	CAT_INLINE void setupUnordered() {
 		// Set entire matrix to zero to prepare for unordered filter-based reading
-		CAT_CLR(_params.data, _params.size_x * _params.size_y);
+		CAT_CLR(_params.data, _params.xsize * _params.ysize);
 	}
 
 	CAT_INLINE void masked(u16 x) {

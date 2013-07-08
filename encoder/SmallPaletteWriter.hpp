@@ -69,7 +69,7 @@ class SmallPaletteWriter {
 
 	const GCIFKnobs *_knobs;
 
-	int _size_x, _size_y;	// In pixels
+	int _xsize, _ysize;	// In pixels
 	const u8 *_rgba;		// Original image
 
 	int _pack_x, _pack_y;	// In packed pixels
@@ -124,7 +124,7 @@ public:
 #endif
 
 public:
-	int init(const u8 *rgba, int size_x, int size_y, const GCIFKnobs *knobs);
+	int init(const u8 *rgba, int xsize, int ysize, const GCIFKnobs *knobs);
 	int compress(ImageMaskWriter &mask);
 
 	CAT_INLINE bool enabled() {

@@ -95,11 +95,11 @@ protected:
 
 	// RGBA output data
 	u8 * CAT_RESTRICT _rgba;
-	u16 _size_x, _size_y;
+	u16 _xsize, _ysize;
 
 	// Tiles
 	u16 _tile_bits_x, _tile_bits_y;
-	u16 _tile_size_x, _tile_size_y;
+	u16 _tile_xsize, _tile_ysize;
 	u16 _tile_mask_x, _tile_mask_y;
 	u16 _tiles_x, _tiles_y;
 
@@ -165,7 +165,7 @@ protected:
 			filter->cf(YUV, p);
 
 			// Reverse spatial filter
-			const u8 * CAT_RESTRICT pred = filter->sf.safe(p, _FPT, x, y, _size_x);
+			const u8 * CAT_RESTRICT pred = filter->sf.safe(p, _FPT, x, y, _xsize);
 			p[0] += pred[0];
 			p[1] += pred[1];
 			p[2] += pred[2];
@@ -202,7 +202,7 @@ protected:
 			filter->cf(YUV, p);
 
 			// Reverse spatial filter
-			const u8 * CAT_RESTRICT pred = filter->sf.unsafe(p, _FPT, x, y, _size_x);
+			const u8 * CAT_RESTRICT pred = filter->sf.unsafe(p, _FPT, x, y, _xsize);
 			p[0] += pred[0];
 			p[1] += pred[1];
 			p[2] += pred[2];

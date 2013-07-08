@@ -46,7 +46,7 @@ namespace cat {
 class ImageMaskReader {
 	SmartArray<u32> _mask;
 
-	int _size_x, _size_y, _stride;
+	int _xsize, _ysize, _stride;
 
 	bool _enabled;
 
@@ -59,7 +59,7 @@ class ImageMaskReader {
 
 	int decodeLZ(ImageReader & CAT_RESTRICT reader);
 
-	int init(int size_x, int size_y);
+	int init(int xsize, int ysize);
 
 #ifdef CAT_COLLECT_STATS
 public:
@@ -71,7 +71,7 @@ public:
 #endif // CAT_COLLECT_STATS
 
 public:
-	int read(ImageReader & CAT_RESTRICT reader, int planes, int size_x, int size_y);
+	int read(ImageReader & CAT_RESTRICT reader, int planes, int xsize, int ysize);
 
 	// Returns bitmask for scanline, MSB = first pixel
 	const u32 *nextScanline();

@@ -54,8 +54,8 @@ bool ImagePaletteWriter::generatePalette() {
 	const u32 *color = reinterpret_cast<const u32 *>( _rgba );
 	int palette_size = 0;
 
-	for (int y = 0; y < _size_y; ++y) {
-		for (int x = 0, xend = _size_x; x < xend; ++x) {
+	for (int y = 0; y < _ysize; ++y) {
+		for (int x = 0, xend = _xsize; x < xend; ++x) {
 			u32 c = *color++;
 
 			if (IsMasked(x, y)) {
@@ -122,14 +122,14 @@ void ImagePaletteWriter::generateImage() {
 	_masked_palette = masked_palette;
 
 	// Generate the palettized image
-	const int image_size = _size_x * _size_y;
+	const int image_size = _xsize * _ysize;
 	_image.resize(image_size);
 
 	const u32 *color = reinterpret_cast<const u32 *>( _rgba );
 	u8 *image = _image.get();
 
-	for (int y = 0; y < _size_y; ++y) {
-		for (int x = 0, xend = _size_x; x < xend; ++x, ++image, ++color) {
+	for (int y = 0; y < _ysize; ++y) {
+		for (int x = 0, xend = _xsize; x < xend; ++x, ++image, ++color) {
 			image[0] = _mask->masked(x, y) ? masked_palette : _map[color[0]];
 		}
 	}
@@ -138,14 +138,14 @@ void ImagePaletteWriter::generateImage() {
 void ImagePaletteWriter::optimizeImage() {
 	CAT_INANE("Palette") << "Optimizing palette with " << _palette_size << " entries...";
 
-	_optimizer.process(_image.get(), _size_x, _size_y, _palette_size,
+	_optimizer.process(_image.get(), _xsize, _ysize, _palette_size,
 		PaletteOptimizer::MaskDelegate::FromMember<ImagePaletteWriter, &ImagePaletteWriter::IsMasked>(this));
 
 #ifdef CAT_DEBUG
 	const u8 *p = _image.get();
 	const u8 *b = _optimizer.getOptimizedImage();
-	for (int y = 0; y < _size_y; ++y) {
-		for (int x = 0; x < _size_x; ++x, ++p, ++b) {
+	for (int y = 0; y < _ysize; ++y) {
+		for (int x = 0; x < _xsize; ++x, ++p, ++b) {
 			u8 index = *p;
 			u8 mutated = _optimizer.forward(index);
 
@@ -156,7 +156,7 @@ void ImagePaletteWriter::optimizeImage() {
 
 	// Replace palette image
 	const u8 *src = _optimizer.getOptimizedImage();
-	memcpy(_image.get(), src, _size_x * _size_y);
+	memcpy(_image.get(), src, _xsize * _ysize);
 
 	// Fix color palette array
 	u32 better_palette[PALETTE_MAX];
@@ -179,8 +179,8 @@ void ImagePaletteWriter::generateMonoWriter() {
 	params.knobs = _knobs;
 	params.data = _image.get();
 	params.num_syms = _palette_size;
-	params.size_x = _size_x;
-	params.size_y = _size_y;
+	params.xsize = _xsize;
+	params.ysize = _ysize;
 	params.max_filters = 32;
 	params.min_bits = 2;
 	params.max_bits = 5;
@@ -198,11 +198,11 @@ void ImagePaletteWriter::generateMonoWriter() {
 	_mono_writer.init(params);
 }
 
-int ImagePaletteWriter::init(const u8 *rgba, int size_x, int size_y, const GCIFKnobs *knobs, ImageMaskWriter &mask) {
+int ImagePaletteWriter::init(const u8 *rgba, int xsize, int ysize, const GCIFKnobs *knobs, ImageMaskWriter &mask) {
 	_knobs = knobs;
 	_rgba = rgba;
-	_size_x = size_x;
-	_size_y = size_y;
+	_xsize = xsize;
+	_ysize = ysize;
 	_mask = &mask;
 
 	// Off by default
@@ -370,10 +370,10 @@ void ImagePaletteWriter::writeTable(ImageWriter &writer) {
 void ImagePaletteWriter::writePixels(ImageWriter &writer) {
 	int bits = 0, pixels = 0;
 
-	for (int y = 0; y < _size_y; ++y) {
+	for (int y = 0; y < _ysize; ++y) {
 		bits += _mono_writer.writeRowHeader(y, writer);
 
-		for (int x = 0; x < _size_x; ++x) {
+		for (int x = 0; x < _xsize; ++x) {
 			DESYNC(x, y);
 
 			if (IsMasked(x, y)) {
@@ -392,7 +392,7 @@ void ImagePaletteWriter::writePixels(ImageWriter &writer) {
 	Stats.file_bits = Stats.total_bits + _mask->Stats.compressedDataBits;
 	Stats.original_bits = Stats.pixel_count * 32;
 	Stats.pixel_compression_ratio = Stats.original_bits / (float)Stats.total_bits;
-	Stats.file_compression_ratio = _size_x * _size_y * 32 / (float)Stats.file_bits;
+	Stats.file_compression_ratio = _xsize * _ysize * 32 / (float)Stats.file_bits;
 #endif
 }
 

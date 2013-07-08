@@ -64,7 +64,7 @@ const char *gcif_read_errstr(int err);
 // Return data
 typedef struct _GCIFImage {
 	unsigned char *rgba;	// RGBA pixels.  Free with free(i.rgba); when done.
-	int size_x, size_y;		// Dimensions in pixels
+	int xsize, ysize;		// Dimensions in pixels
 } GCIFImage;
 
 
@@ -111,7 +111,7 @@ int gcif_read_memory(const void *file_data_in, long file_size_bytes_in, GCIFImag
  *
  * Similar to functions except memory management is handled by the caller.
  *
- * If size_x, size_y do not match actual image dimensions, the function fails.
+ * If xsize, ysize do not match actual image dimensions, the function fails.
  *
  * On success it returns GCIF_RE_OK.  Otherwise it returns a failure code from
  * the table above.  A string version of the failure code can be retrieved by
@@ -122,12 +122,12 @@ int gcif_read_memory_to_buffer(const void *file_data_in, long file_size_bytes_in
 /*
  * gcif_get_size()
  *
- * size_x and size_y will be set to the size of the decompressed image.  This is
+ * xsize and ysize will be set to the size of the decompressed image.  This is
  * a fast utility function.
  *
  * Returns GCIF_RE_OK if the data is for a GCIF file else a nonzero error code.
  */
-int gcif_get_size(const void *file_data_in, long file_size_bytes_in, int *size_x, int *size_y);
+int gcif_get_size(const void *file_data_in, long file_size_bytes_in, int *xsize, int *ysize);
 
 /*
  * gcif_sig_cmp()

@@ -73,7 +73,7 @@ protected:
 	LZMatch *_next_match;
 
 	SmartArray<u32> _mask;
-	int _size_x;
+	int _xsize;
 
 	CAT_INLINE void mask(u32 off) {
 		_mask[off >> 5] |= 1 << (off & 31);
@@ -81,7 +81,7 @@ protected:
 
 public:
 	CAT_INLINE bool masked(u16 x, u16 y) {
-		const int off = x + y * _size_x;
+		const int off = x + y * _xsize;
 		return ( _mask[off >> 5] & (1 << (off & 31)) ) != 0;
 	}
 

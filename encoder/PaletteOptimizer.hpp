@@ -86,7 +86,7 @@ protected:
 	// Input
 	int _palette_size;
 	const u8 *_image;			// Indexed image
-	int _size_x, _size_y;		// Image size in pixels
+	int _xsize, _ysize;		// Image size in pixels
 
 	// Working state
 	u32 _hist[PALETTE_MAX];		// Image histogram
@@ -101,7 +101,7 @@ protected:
 
 public:
 	// Assumes image data is entirely in 0..palette_size-1 range
-	void process(const u8 *_image, int size_x, int size_y, int palette_size, MaskDelegate mask);
+	void process(const u8 *_image, int xsize, int ysize, int palette_size, MaskDelegate mask);
 
 	CAT_INLINE const u8 *getOptimizedImage() {
 		return _result.get();

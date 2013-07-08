@@ -60,7 +60,7 @@ protected:
 	ImageMaskReader * CAT_RESTRICT _mask;
 
 	u8 * CAT_RESTRICT _rgba;
-	u16 _size_x, _size_y, _pack_x, _pack_y;
+	u16 _xsize, _ysize, _pack_x, _pack_y;
 
 	SmartArray<u8> _image;
 

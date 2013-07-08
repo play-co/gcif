@@ -38,31 +38,31 @@ static const u8 FPZ[3] = {0};
 
 //// Simple Spatial Filters
 
-static const u8 *SFF_A(const u8 * CAT_RESTRICT p, u8 * CAT_RESTRICT temp, int x, int y, int size_x) {
+static const u8 *SFF_A(const u8 * CAT_RESTRICT p, u8 * CAT_RESTRICT temp, int x, int y, int xsize) {
 	if (x > 0) {
 		return p - 4; // A
 	} else if (y > 0) {
-		return p - size_x*4; // B
+		return p - xsize*4; // B
 	}
 
 	return FPZ;
 }
 
-static const u8 *SFFU_A(const u8 * CAT_RESTRICT p, u8 * CAT_RESTRICT temp, int x, int y, int size_x) {
+static const u8 *SFFU_A(const u8 * CAT_RESTRICT p, u8 * CAT_RESTRICT temp, int x, int y, int xsize) {
 	CAT_DEBUG_ENFORCE(x > 0);
 
 	return p - 4; // A
 }
 
-static const u8 *SFF_Z(const u8 * CAT_RESTRICT p, u8 * CAT_RESTRICT temp, int x, int y, int size_x) {
+static const u8 *SFF_Z(const u8 * CAT_RESTRICT p, u8 * CAT_RESTRICT temp, int x, int y, int xsize) {
 	return FPZ;
 }
 
 #define SFFU_Z SFF_Z
 
-static const u8 *SFF_B(const u8 * CAT_RESTRICT p, u8 * CAT_RESTRICT temp, int x, int y, int size_x) {
+static const u8 *SFF_B(const u8 * CAT_RESTRICT p, u8 * CAT_RESTRICT temp, int x, int y, int xsize) {
 	if (y > 0) {
-		return p - size_x*4; // B
+		return p - xsize*4; // B
 	} else if (x > 0) {
 		return p - 4; // A
 	}
@@ -70,36 +70,36 @@ static const u8 *SFF_B(const u8 * CAT_RESTRICT p, u8 * CAT_RESTRICT temp, int x,
 	return FPZ;
 }
 
-static const u8 *SFFU_B(const u8 * CAT_RESTRICT p, u8 * CAT_RESTRICT temp, int x, int y, int size_x) {
+static const u8 *SFFU_B(const u8 * CAT_RESTRICT p, u8 * CAT_RESTRICT temp, int x, int y, int xsize) {
 	CAT_DEBUG_ENFORCE(y > 0);
 
-	return p - size_x*4; // B
+	return p - xsize*4; // B
 }
 
-static const u8 *SFF_C(const u8 * CAT_RESTRICT p, u8 * CAT_RESTRICT temp, int x, int y, int size_x) {
+static const u8 *SFF_C(const u8 * CAT_RESTRICT p, u8 * CAT_RESTRICT temp, int x, int y, int xsize) {
 	if (x > 0) {
 		if (y > 0) {
-			return p - size_x*4 - 4; // C
+			return p - xsize*4 - 4; // C
 		} else {
 			return p - 4; // A
 		}
 	} else if (y > 0) {
-		return p - size_x*4; // B
+		return p - xsize*4; // B
 	}
 
 	return FPZ;
 }
 
-static const u8 *SFFU_C(const u8 * CAT_RESTRICT p, u8 * CAT_RESTRICT temp, int x, int y, int size_x) {
+static const u8 *SFFU_C(const u8 * CAT_RESTRICT p, u8 * CAT_RESTRICT temp, int x, int y, int xsize) {
 	CAT_DEBUG_ENFORCE(x > 0 && y > 0);
 
-	return p - size_x*4 - 4; // C
+	return p - xsize*4 - 4; // C
 }
 
-static const u8 *SFF_D(const u8 * CAT_RESTRICT p, u8 * CAT_RESTRICT temp, int x, int y, int size_x) {
+static const u8 *SFF_D(const u8 * CAT_RESTRICT p, u8 * CAT_RESTRICT temp, int x, int y, int xsize) {
 	if (y > 0) {
-		const u8 * CAT_RESTRICT fp = p - size_x*4; // B
-		if (x < size_x-1) {
+		const u8 * CAT_RESTRICT fp = p - xsize*4; // B
+		if (x < xsize-1) {
 			fp += 4; // D
 		}
 		return fp;
@@ -110,18 +110,18 @@ static const u8 *SFF_D(const u8 * CAT_RESTRICT p, u8 * CAT_RESTRICT temp, int x,
 	return FPZ;
 }
 
-static const u8 *SFFU_D(const u8 * CAT_RESTRICT p, u8 * CAT_RESTRICT temp, int x, int y, int size_x) {
-	CAT_DEBUG_ENFORCE(y > 0 && x < size_x-1);
+static const u8 *SFFU_D(const u8 * CAT_RESTRICT p, u8 * CAT_RESTRICT temp, int x, int y, int xsize) {
+	CAT_DEBUG_ENFORCE(y > 0 && x < xsize-1);
 
-	return p - size_x*4 + 4; // D
+	return p - xsize*4 + 4; // D
 }
 
 
 //// Dual Average Filters (Round Down)
 
-static const u8 *SFF_AVG_AB(const u8 * CAT_RESTRICT p, u8 * CAT_RESTRICT temp, int x, int y, int size_x) {
+static const u8 *SFF_AVG_AB(const u8 * CAT_RESTRICT p, u8 * CAT_RESTRICT temp, int x, int y, int xsize) {
 	if (y > 0) {
-		const u8 * CAT_RESTRICT b = p - size_x*4; // B
+		const u8 * CAT_RESTRICT b = p - xsize*4; // B
 
 		if (x > 0) {
 			const u8 * CAT_RESTRICT a = p - 4; // A
@@ -140,11 +140,11 @@ static const u8 *SFF_AVG_AB(const u8 * CAT_RESTRICT p, u8 * CAT_RESTRICT temp, i
 	return FPZ;
 }
 
-static const u8 *SFFU_AVG_AB(const u8 * CAT_RESTRICT p, u8 * CAT_RESTRICT temp, int x, int y, int size_x) {
-	CAT_DEBUG_ENFORCE(x > 0 && y > 0 && x < size_x-1);
+static const u8 *SFFU_AVG_AB(const u8 * CAT_RESTRICT p, u8 * CAT_RESTRICT temp, int x, int y, int xsize) {
+	CAT_DEBUG_ENFORCE(x > 0 && y > 0 && x < xsize-1);
 
 	const u8 * CAT_RESTRICT a = p - 4; // A
-	const u8 * CAT_RESTRICT b = p - size_x*4; // B
+	const u8 * CAT_RESTRICT b = p - xsize*4; // B
 
 	temp[0] = (a[0] + (u16)b[0]) >> 1;
 	temp[1] = (a[1] + (u16)b[1]) >> 1;
@@ -152,12 +152,12 @@ static const u8 *SFFU_AVG_AB(const u8 * CAT_RESTRICT p, u8 * CAT_RESTRICT temp, 
 	return temp;
 }
 
-static const u8 *SFF_AVG_AC(const u8 * CAT_RESTRICT p, u8 * CAT_RESTRICT temp, int x, int y, int size_x) {
+static const u8 *SFF_AVG_AC(const u8 * CAT_RESTRICT p, u8 * CAT_RESTRICT temp, int x, int y, int xsize) {
 	if (x > 0) {
 		const u8 * CAT_RESTRICT a = p - 4; // A
 
 		if (y > 0) {
-			const u8 * CAT_RESTRICT c = a - size_x*4; // C
+			const u8 * CAT_RESTRICT c = a - xsize*4; // C
 
 			temp[0] = (a[0] + (u16)c[0]) >> 1;
 			temp[1] = (a[1] + (u16)c[1]) >> 1;
@@ -167,17 +167,17 @@ static const u8 *SFF_AVG_AC(const u8 * CAT_RESTRICT p, u8 * CAT_RESTRICT temp, i
 			return a; // A
 		}
 	} else if (y > 0) {
-		return p - size_x*4; // B
+		return p - xsize*4; // B
 	}
 
 	return FPZ;
 }
 
-static const u8 *SFFU_AVG_AC(const u8 * CAT_RESTRICT p, u8 * CAT_RESTRICT temp, int x, int y, int size_x) {
-	CAT_DEBUG_ENFORCE(x > 0 && y > 0 && x < size_x-1);
+static const u8 *SFFU_AVG_AC(const u8 * CAT_RESTRICT p, u8 * CAT_RESTRICT temp, int x, int y, int xsize) {
+	CAT_DEBUG_ENFORCE(x > 0 && y > 0 && x < xsize-1);
 
 	const u8 * CAT_RESTRICT a = p - 4; // A
-	const u8 * CAT_RESTRICT c = a - size_x*4; // C
+	const u8 * CAT_RESTRICT c = a - xsize*4; // C
 
 	temp[0] = (a[0] + (u16)c[0]) >> 1;
 	temp[1] = (a[1] + (u16)c[1]) >> 1;
@@ -185,13 +185,13 @@ static const u8 *SFFU_AVG_AC(const u8 * CAT_RESTRICT p, u8 * CAT_RESTRICT temp, 
 	return temp;
 }
 
-static const u8 *SFF_AVG_AD(const u8 * CAT_RESTRICT p, u8 * CAT_RESTRICT temp, int x, int y, int size_x) {
+static const u8 *SFF_AVG_AD(const u8 * CAT_RESTRICT p, u8 * CAT_RESTRICT temp, int x, int y, int xsize) {
 	if (y > 0) {
-		const u8 * CAT_RESTRICT src = p - size_x*4; // B
+		const u8 * CAT_RESTRICT src = p - xsize*4; // B
 
 		if (x > 0) {
 			const u8 * CAT_RESTRICT a = p - 4; // A
-			if (x < size_x-1) {
+			if (x < xsize-1) {
 				src += 4; // D
 			}
 
@@ -209,11 +209,11 @@ static const u8 *SFF_AVG_AD(const u8 * CAT_RESTRICT p, u8 * CAT_RESTRICT temp, i
 	return FPZ;
 }
 
-static const u8 *SFFU_AVG_AD(const u8 * CAT_RESTRICT p, u8 * CAT_RESTRICT temp, int x, int y, int size_x) {
-	CAT_DEBUG_ENFORCE(x > 0 && y > 0 && x < size_x-1);
+static const u8 *SFFU_AVG_AD(const u8 * CAT_RESTRICT p, u8 * CAT_RESTRICT temp, int x, int y, int xsize) {
+	CAT_DEBUG_ENFORCE(x > 0 && y > 0 && x < xsize-1);
 
 	const u8 * CAT_RESTRICT a = p - 4; // A
-	const u8 * CAT_RESTRICT d = p - size_x*4 + 4; // D
+	const u8 * CAT_RESTRICT d = p - xsize*4 + 4; // D
 
 	temp[0] = (a[0] + (u16)d[0]) >> 1;
 	temp[1] = (a[1] + (u16)d[1]) >> 1;
@@ -221,9 +221,9 @@ static const u8 *SFFU_AVG_AD(const u8 * CAT_RESTRICT p, u8 * CAT_RESTRICT temp, 
 	return temp;
 }
 
-static const u8 *SFF_AVG_BC(const u8 * CAT_RESTRICT p, u8 * CAT_RESTRICT temp, int x, int y, int size_x) {
+static const u8 *SFF_AVG_BC(const u8 * CAT_RESTRICT p, u8 * CAT_RESTRICT temp, int x, int y, int xsize) {
 	if (y > 0) {
-		const u8 * CAT_RESTRICT b = p - size_x*4; // B
+		const u8 * CAT_RESTRICT b = p - xsize*4; // B
 
 		if (x > 0) {
 			const u8 * CAT_RESTRICT c = b - 4; // C
@@ -242,10 +242,10 @@ static const u8 *SFF_AVG_BC(const u8 * CAT_RESTRICT p, u8 * CAT_RESTRICT temp, i
 	return FPZ;
 }
 
-static const u8 *SFFU_AVG_BC(const u8 * CAT_RESTRICT p, u8 * CAT_RESTRICT temp, int x, int y, int size_x) {
-	CAT_DEBUG_ENFORCE(x > 0 && y > 0 && x < size_x-1);
+static const u8 *SFFU_AVG_BC(const u8 * CAT_RESTRICT p, u8 * CAT_RESTRICT temp, int x, int y, int xsize) {
+	CAT_DEBUG_ENFORCE(x > 0 && y > 0 && x < xsize-1);
 
-	const u8 * CAT_RESTRICT b = p - size_x*4; // B
+	const u8 * CAT_RESTRICT b = p - xsize*4; // B
 	const u8 * CAT_RESTRICT c = b - 4; // C
 
 	temp[0] = (b[0] + (u16)c[0]) >> 1;
@@ -254,13 +254,13 @@ static const u8 *SFFU_AVG_BC(const u8 * CAT_RESTRICT p, u8 * CAT_RESTRICT temp, 
 	return temp;
 }
 
-static const u8 *SFF_AVG_BD(const u8 * CAT_RESTRICT p, u8 * CAT_RESTRICT temp, int x, int y, int size_x) {
+static const u8 *SFF_AVG_BD(const u8 * CAT_RESTRICT p, u8 * CAT_RESTRICT temp, int x, int y, int xsize) {
 	if (y > 0) {
-		const u8 * CAT_RESTRICT b = p - size_x*4; // B
+		const u8 * CAT_RESTRICT b = p - xsize*4; // B
 
 		if (x > 0) {
 			const u8 * CAT_RESTRICT src = b - 4; // C
-			if (x < size_x-1) {
+			if (x < xsize-1) {
 				src += 8; // D
 			}
 
@@ -278,10 +278,10 @@ static const u8 *SFF_AVG_BD(const u8 * CAT_RESTRICT p, u8 * CAT_RESTRICT temp, i
 	return FPZ;
 }
 
-static const u8 *SFFU_AVG_BD(const u8 * CAT_RESTRICT p, u8 * CAT_RESTRICT temp, int x, int y, int size_x) {
-	CAT_DEBUG_ENFORCE(x > 0 && y > 0 && x < size_x-1);
+static const u8 *SFFU_AVG_BD(const u8 * CAT_RESTRICT p, u8 * CAT_RESTRICT temp, int x, int y, int xsize) {
+	CAT_DEBUG_ENFORCE(x > 0 && y > 0 && x < xsize-1);
 
-	const u8 * CAT_RESTRICT b = p - size_x*4; // B
+	const u8 * CAT_RESTRICT b = p - xsize*4; // B
 	const u8 * CAT_RESTRICT d = b + 4; // D
 
 	temp[0] = (b[0] + (u16)d[0]) >> 1;
@@ -290,13 +290,13 @@ static const u8 *SFFU_AVG_BD(const u8 * CAT_RESTRICT p, u8 * CAT_RESTRICT temp, 
 	return temp;
 }
 
-static const u8 *SFF_AVG_CD(const u8 * CAT_RESTRICT p, u8 * CAT_RESTRICT temp, int x, int y, int size_x) {
+static const u8 *SFF_AVG_CD(const u8 * CAT_RESTRICT p, u8 * CAT_RESTRICT temp, int x, int y, int xsize) {
 	if (y > 0) {
-		const u8 * CAT_RESTRICT src = p - size_x*4; // B
+		const u8 * CAT_RESTRICT src = p - xsize*4; // B
 
 		if (x > 0) {
 			const u8 * CAT_RESTRICT c = src - 4; // C
-			if (x < size_x-1) {
+			if (x < xsize-1) {
 				src += 4; // D
 			}
 
@@ -314,10 +314,10 @@ static const u8 *SFF_AVG_CD(const u8 * CAT_RESTRICT p, u8 * CAT_RESTRICT temp, i
 	return FPZ;
 }
 
-static const u8 *SFFU_AVG_CD(const u8 * CAT_RESTRICT p, u8 * CAT_RESTRICT temp, int x, int y, int size_x) {
-	CAT_DEBUG_ENFORCE(x > 0 && y > 0 && x < size_x-1);
+static const u8 *SFFU_AVG_CD(const u8 * CAT_RESTRICT p, u8 * CAT_RESTRICT temp, int x, int y, int xsize) {
+	CAT_DEBUG_ENFORCE(x > 0 && y > 0 && x < xsize-1);
 
-	const u8 * CAT_RESTRICT c = p - size_x*4 - 4; // C
+	const u8 * CAT_RESTRICT c = p - xsize*4 - 4; // C
 	const u8 * CAT_RESTRICT d = c + 8; // D
 
 	temp[0] = (c[0] + (u16)d[0]) >> 1;
@@ -329,9 +329,9 @@ static const u8 *SFFU_AVG_CD(const u8 * CAT_RESTRICT p, u8 * CAT_RESTRICT temp, 
 
 //// Dual Average Filters (Round Up)
 
-static const u8 *SFF_AVG_AB1(const u8 * CAT_RESTRICT p, u8 * CAT_RESTRICT temp, int x, int y, int size_x) {
+static const u8 *SFF_AVG_AB1(const u8 * CAT_RESTRICT p, u8 * CAT_RESTRICT temp, int x, int y, int xsize) {
 	if (y > 0) {
-		const u8 * CAT_RESTRICT b = p - size_x*4; // B
+		const u8 * CAT_RESTRICT b = p - xsize*4; // B
 
 		if (x > 0) {
 			const u8 * CAT_RESTRICT a = p - 4; // A
@@ -350,11 +350,11 @@ static const u8 *SFF_AVG_AB1(const u8 * CAT_RESTRICT p, u8 * CAT_RESTRICT temp, 
 	return FPZ;
 }
 
-static const u8 *SFFU_AVG_AB1(const u8 * CAT_RESTRICT p, u8 * CAT_RESTRICT temp, int x, int y, int size_x) {
-	CAT_DEBUG_ENFORCE(x > 0 && y > 0 && x < size_x-1);
+static const u8 *SFFU_AVG_AB1(const u8 * CAT_RESTRICT p, u8 * CAT_RESTRICT temp, int x, int y, int xsize) {
+	CAT_DEBUG_ENFORCE(x > 0 && y > 0 && x < xsize-1);
 
 	const u8 * CAT_RESTRICT a = p - 4; // A
-	const u8 * CAT_RESTRICT b = p - size_x*4; // B
+	const u8 * CAT_RESTRICT b = p - xsize*4; // B
 
 	temp[0] = (a[0] + (u16)b[0] + 1) >> 1;
 	temp[1] = (a[1] + (u16)b[1] + 1) >> 1;
@@ -362,9 +362,9 @@ static const u8 *SFFU_AVG_AB1(const u8 * CAT_RESTRICT p, u8 * CAT_RESTRICT temp,
 	return temp;
 }
 
-static const u8 *SFF_AVG_AC1(const u8 * CAT_RESTRICT p, u8 * CAT_RESTRICT temp, int x, int y, int size_x) {
+static const u8 *SFF_AVG_AC1(const u8 * CAT_RESTRICT p, u8 * CAT_RESTRICT temp, int x, int y, int xsize) {
 	if (y > 0) {
-		const u8 * CAT_RESTRICT b = p - size_x*4; // B
+		const u8 * CAT_RESTRICT b = p - xsize*4; // B
 
 		if (x > 0) {
 			const u8 * CAT_RESTRICT a = p - 4; // A
@@ -384,11 +384,11 @@ static const u8 *SFF_AVG_AC1(const u8 * CAT_RESTRICT p, u8 * CAT_RESTRICT temp, 
 	return FPZ;
 }
 
-static const u8 *SFFU_AVG_AC1(const u8 * CAT_RESTRICT p, u8 * CAT_RESTRICT temp, int x, int y, int size_x) {
-	CAT_DEBUG_ENFORCE(x > 0 && y > 0 && x < size_x-1);
+static const u8 *SFFU_AVG_AC1(const u8 * CAT_RESTRICT p, u8 * CAT_RESTRICT temp, int x, int y, int xsize) {
+	CAT_DEBUG_ENFORCE(x > 0 && y > 0 && x < xsize-1);
 
 	const u8 * CAT_RESTRICT a = p - 4; // A
-	const u8 * CAT_RESTRICT c = p - size_x*4 - 4; // C
+	const u8 * CAT_RESTRICT c = p - xsize*4 - 4; // C
 
 	temp[0] = (a[0] + (u16)c[0] + 1) >> 1;
 	temp[1] = (a[1] + (u16)c[1] + 1) >> 1;
@@ -396,13 +396,13 @@ static const u8 *SFFU_AVG_AC1(const u8 * CAT_RESTRICT p, u8 * CAT_RESTRICT temp,
 	return temp;
 }
 
-static const u8 *SFF_AVG_AD1(const u8 * CAT_RESTRICT p, u8 * CAT_RESTRICT temp, int x, int y, int size_x) {
+static const u8 *SFF_AVG_AD1(const u8 * CAT_RESTRICT p, u8 * CAT_RESTRICT temp, int x, int y, int xsize) {
 	if (y > 0) {
-		const u8 * CAT_RESTRICT src = p - size_x*4; // B
+		const u8 * CAT_RESTRICT src = p - xsize*4; // B
 
 		if (x > 0) {
 			const u8 * CAT_RESTRICT a = p - 4; // A
-			if (x < size_x-1) {
+			if (x < xsize-1) {
 				src += 4; // D
 			}
 
@@ -420,11 +420,11 @@ static const u8 *SFF_AVG_AD1(const u8 * CAT_RESTRICT p, u8 * CAT_RESTRICT temp, 
 	return FPZ;
 }
 
-static const u8 *SFFU_AVG_AD1(const u8 * CAT_RESTRICT p, u8 * CAT_RESTRICT temp, int x, int y, int size_x) {
-	CAT_DEBUG_ENFORCE(x > 0 && y > 0 && x < size_x-1);
+static const u8 *SFFU_AVG_AD1(const u8 * CAT_RESTRICT p, u8 * CAT_RESTRICT temp, int x, int y, int xsize) {
+	CAT_DEBUG_ENFORCE(x > 0 && y > 0 && x < xsize-1);
 
 	const u8 * CAT_RESTRICT a = p - 4; // A
-	const u8 * CAT_RESTRICT d = p - size_x*4 + 4; // D
+	const u8 * CAT_RESTRICT d = p - xsize*4 + 4; // D
 
 	temp[0] = (a[0] + (u16)d[0] + 1) >> 1;
 	temp[1] = (a[1] + (u16)d[1] + 1) >> 1;
@@ -432,9 +432,9 @@ static const u8 *SFFU_AVG_AD1(const u8 * CAT_RESTRICT p, u8 * CAT_RESTRICT temp,
 	return temp;
 }
 
-static const u8 *SFF_AVG_BC1(const u8 * CAT_RESTRICT p, u8 * CAT_RESTRICT temp, int x, int y, int size_x) {
+static const u8 *SFF_AVG_BC1(const u8 * CAT_RESTRICT p, u8 * CAT_RESTRICT temp, int x, int y, int xsize) {
 	if (y > 0) {
-		const u8 * CAT_RESTRICT b = p - size_x*4; // B
+		const u8 * CAT_RESTRICT b = p - xsize*4; // B
 
 		if (x > 0) {
 			const u8 * CAT_RESTRICT c = b - 4; // C
@@ -453,10 +453,10 @@ static const u8 *SFF_AVG_BC1(const u8 * CAT_RESTRICT p, u8 * CAT_RESTRICT temp, 
 	return FPZ;
 }
 
-static const u8 *SFFU_AVG_BC1(const u8 * CAT_RESTRICT p, u8 * CAT_RESTRICT temp, int x, int y, int size_x) {
-	CAT_DEBUG_ENFORCE(x > 0 && y > 0 && x < size_x-1);
+static const u8 *SFFU_AVG_BC1(const u8 * CAT_RESTRICT p, u8 * CAT_RESTRICT temp, int x, int y, int xsize) {
+	CAT_DEBUG_ENFORCE(x > 0 && y > 0 && x < xsize-1);
 
-	const u8 * CAT_RESTRICT b = p - size_x*4; // B
+	const u8 * CAT_RESTRICT b = p - xsize*4; // B
 	const u8 * CAT_RESTRICT c = b - 4; // C
 
 	temp[0] = (b[0] + (u16)c[0] + 1) >> 1;
@@ -465,11 +465,11 @@ static const u8 *SFFU_AVG_BC1(const u8 * CAT_RESTRICT p, u8 * CAT_RESTRICT temp,
 	return temp;
 }
 
-static const u8 *SFF_AVG_BD1(const u8 * CAT_RESTRICT p, u8 * CAT_RESTRICT temp, int x, int y, int size_x) {
+static const u8 *SFF_AVG_BD1(const u8 * CAT_RESTRICT p, u8 * CAT_RESTRICT temp, int x, int y, int xsize) {
 	if (y > 0) {
-		const u8 * CAT_RESTRICT b = p - size_x*4; // B
+		const u8 * CAT_RESTRICT b = p - xsize*4; // B
 
-		if (x < size_x-1) {
+		if (x < xsize-1) {
 			const u8 * CAT_RESTRICT d = b + 4; // D
 
 			temp[0] = (b[0] + (u16)d[0] + 1) >> 1;
@@ -493,10 +493,10 @@ static const u8 *SFF_AVG_BD1(const u8 * CAT_RESTRICT p, u8 * CAT_RESTRICT temp, 
 	return FPZ;
 }
 
-static const u8 *SFFU_AVG_BD1(const u8 * CAT_RESTRICT p, u8 * CAT_RESTRICT temp, int x, int y, int size_x) {
-	CAT_DEBUG_ENFORCE(x > 0 && y > 0 && x < size_x-1);
+static const u8 *SFFU_AVG_BD1(const u8 * CAT_RESTRICT p, u8 * CAT_RESTRICT temp, int x, int y, int xsize) {
+	CAT_DEBUG_ENFORCE(x > 0 && y > 0 && x < xsize-1);
 
-	const u8 * CAT_RESTRICT b = p - size_x*4; // B
+	const u8 * CAT_RESTRICT b = p - xsize*4; // B
 	const u8 * CAT_RESTRICT d = b + 4; // D
 
 	temp[0] = (b[0] + (u16)d[0] + 1) >> 1;
@@ -505,13 +505,13 @@ static const u8 *SFFU_AVG_BD1(const u8 * CAT_RESTRICT p, u8 * CAT_RESTRICT temp,
 	return temp;
 }
 
-static const u8 *SFF_AVG_CD1(const u8 * CAT_RESTRICT p, u8 * CAT_RESTRICT temp, int x, int y, int size_x) {
+static const u8 *SFF_AVG_CD1(const u8 * CAT_RESTRICT p, u8 * CAT_RESTRICT temp, int x, int y, int xsize) {
 	if (y > 0) {
-		const u8 * CAT_RESTRICT src = p - size_x*4; // B
+		const u8 * CAT_RESTRICT src = p - xsize*4; // B
 
 		if (x > 0) {
 			const u8 * CAT_RESTRICT c = src - 4; // C
-			if (x < size_x-1) {
+			if (x < xsize-1) {
 				src += 4; // D
 			}
 
@@ -529,10 +529,10 @@ static const u8 *SFF_AVG_CD1(const u8 * CAT_RESTRICT p, u8 * CAT_RESTRICT temp, 
 	return FPZ;
 }
 
-static const u8 *SFFU_AVG_CD1(const u8 * CAT_RESTRICT p, u8 * CAT_RESTRICT temp, int x, int y, int size_x) {
-	CAT_DEBUG_ENFORCE(x > 0 && y > 0 && x < size_x-1);
+static const u8 *SFFU_AVG_CD1(const u8 * CAT_RESTRICT p, u8 * CAT_RESTRICT temp, int x, int y, int xsize) {
+	CAT_DEBUG_ENFORCE(x > 0 && y > 0 && x < xsize-1);
 
-	const u8 * CAT_RESTRICT c = p - size_x*4 - 4; // C
+	const u8 * CAT_RESTRICT c = p - xsize*4 - 4; // C
 	const u8 * CAT_RESTRICT d = c + 8; // D
 
 	temp[0] = (c[0] + (u16)d[0] + 1) >> 1;
@@ -544,12 +544,12 @@ static const u8 *SFFU_AVG_CD1(const u8 * CAT_RESTRICT p, u8 * CAT_RESTRICT temp,
 
 //// Triple Average Filters (Round Down)
 
-static const u8 *SFF_AVG_ABC(const u8 * CAT_RESTRICT p, u8 * CAT_RESTRICT temp, int x, int y, int size_x) {
+static const u8 *SFF_AVG_ABC(const u8 * CAT_RESTRICT p, u8 * CAT_RESTRICT temp, int x, int y, int xsize) {
 	if (x > 0) {
 		const u8 * CAT_RESTRICT a = p - 4; // A
 
 		if (y > 0) {
-			const u8 * CAT_RESTRICT b = p - size_x*4; // B
+			const u8 * CAT_RESTRICT b = p - xsize*4; // B
 			const u8 * CAT_RESTRICT c = b - 4; // C
 
 			temp[0] = (a[0] + (u16)b[0] + c[0]) / 3;
@@ -560,17 +560,17 @@ static const u8 *SFF_AVG_ABC(const u8 * CAT_RESTRICT p, u8 * CAT_RESTRICT temp, 
 			return a;
 		}
 	} else if (y > 0) {
-		return p - size_x*4; // B
+		return p - xsize*4; // B
 	}
 
 	return FPZ;
 }
 
-static const u8 *SFFU_AVG_ABC(const u8 * CAT_RESTRICT p, u8 * CAT_RESTRICT temp, int x, int y, int size_x) {
-	CAT_DEBUG_ENFORCE(x > 0 && y > 0 && x < size_x-1);
+static const u8 *SFFU_AVG_ABC(const u8 * CAT_RESTRICT p, u8 * CAT_RESTRICT temp, int x, int y, int xsize) {
+	CAT_DEBUG_ENFORCE(x > 0 && y > 0 && x < xsize-1);
 
 	const u8 * CAT_RESTRICT a = p - 4; // A
-	const u8 * CAT_RESTRICT b = p - size_x*4; // B
+	const u8 * CAT_RESTRICT b = p - xsize*4; // B
 	const u8 * CAT_RESTRICT c = b - 4; // C
 
 	temp[0] = (a[0] + (u16)b[0] + c[0]) / 3;
@@ -579,16 +579,16 @@ static const u8 *SFFU_AVG_ABC(const u8 * CAT_RESTRICT p, u8 * CAT_RESTRICT temp,
 	return temp;
 }
 
-static const u8 *SFF_AVG_ACD(const u8 * CAT_RESTRICT p, u8 * CAT_RESTRICT temp, int x, int y, int size_x) {
+static const u8 *SFF_AVG_ACD(const u8 * CAT_RESTRICT p, u8 * CAT_RESTRICT temp, int x, int y, int xsize) {
 	if (x > 0) {
 		const u8 * CAT_RESTRICT a = p - 4; // A
 
 		if (y > 0) {
-			const u8 * CAT_RESTRICT b = p - size_x*4; // B
+			const u8 * CAT_RESTRICT b = p - xsize*4; // B
 			const u8 * CAT_RESTRICT c = b - 4; // C
 
 			const u8 * CAT_RESTRICT src = b; // B
-			if (x < size_x-1) {
+			if (x < xsize-1) {
 				src += 4; // D
 			}
 
@@ -600,8 +600,8 @@ static const u8 *SFF_AVG_ACD(const u8 * CAT_RESTRICT p, u8 * CAT_RESTRICT temp, 
 			return a;
 		}
 	} else if (y > 0) {
-		const u8 * CAT_RESTRICT src = p - size_x*4; // B
-		if CAT_LIKELY(x < size_x-1) {
+		const u8 * CAT_RESTRICT src = p - xsize*4; // B
+		if CAT_LIKELY(x < xsize-1) {
 			src += 4; // D
 		}
 
@@ -611,11 +611,11 @@ static const u8 *SFF_AVG_ACD(const u8 * CAT_RESTRICT p, u8 * CAT_RESTRICT temp, 
 	return FPZ;
 }
 
-static const u8 *SFFU_AVG_ACD(const u8 * CAT_RESTRICT p, u8 * CAT_RESTRICT temp, int x, int y, int size_x) {
-	CAT_DEBUG_ENFORCE(x > 0 && y > 0 && x < size_x-1);
+static const u8 *SFFU_AVG_ACD(const u8 * CAT_RESTRICT p, u8 * CAT_RESTRICT temp, int x, int y, int xsize) {
+	CAT_DEBUG_ENFORCE(x > 0 && y > 0 && x < xsize-1);
 
 	const u8 * CAT_RESTRICT a = p - 4; // A
-	const u8 * CAT_RESTRICT b = p - size_x*4; // B
+	const u8 * CAT_RESTRICT b = p - xsize*4; // B
 	const u8 * CAT_RESTRICT c = b - 4; // C
 	const u8 * CAT_RESTRICT d = b + 4; // D
 
@@ -625,15 +625,15 @@ static const u8 *SFFU_AVG_ACD(const u8 * CAT_RESTRICT p, u8 * CAT_RESTRICT temp,
 	return temp;
 }
 
-static const u8 *SFF_AVG_ABD(const u8 * CAT_RESTRICT p, u8 * CAT_RESTRICT temp, int x, int y, int size_x) {
+static const u8 *SFF_AVG_ABD(const u8 * CAT_RESTRICT p, u8 * CAT_RESTRICT temp, int x, int y, int xsize) {
 	if (x > 0) {
 		const u8 * CAT_RESTRICT a = p - 4; // A
 
 		if (y > 0) {
-			const u8 * CAT_RESTRICT b = p - size_x*4; // B
+			const u8 * CAT_RESTRICT b = p - xsize*4; // B
 
 			const u8 * CAT_RESTRICT src = b; // B
-			if (x < size_x-1) {
+			if (x < xsize-1) {
 				src += 4; // D
 			}
 
@@ -645,9 +645,9 @@ static const u8 *SFF_AVG_ABD(const u8 * CAT_RESTRICT p, u8 * CAT_RESTRICT temp, 
 			return a;
 		}
 	} else if (y > 0) {
-		const u8 * CAT_RESTRICT b = p - size_x*4; // B
+		const u8 * CAT_RESTRICT b = p - xsize*4; // B
 		const u8 * CAT_RESTRICT d = b; // D
-		if CAT_LIKELY(x < size_x-1) {
+		if CAT_LIKELY(x < xsize-1) {
 			b += 4;
 		}
 
@@ -660,11 +660,11 @@ static const u8 *SFF_AVG_ABD(const u8 * CAT_RESTRICT p, u8 * CAT_RESTRICT temp, 
 	return FPZ;
 }
 
-static const u8 *SFFU_AVG_ABD(const u8 * CAT_RESTRICT p, u8 * CAT_RESTRICT temp, int x, int y, int size_x) {
-	CAT_DEBUG_ENFORCE(x > 0 && y > 0 && x < size_x-1);
+static const u8 *SFFU_AVG_ABD(const u8 * CAT_RESTRICT p, u8 * CAT_RESTRICT temp, int x, int y, int xsize) {
+	CAT_DEBUG_ENFORCE(x > 0 && y > 0 && x < xsize-1);
 
 	const u8 * CAT_RESTRICT a = p - 4; // A
-	const u8 * CAT_RESTRICT b = p - size_x*4; // B
+	const u8 * CAT_RESTRICT b = p - xsize*4; // B
 	const u8 * CAT_RESTRICT d = b + 4; // D
 
 	temp[0] = (a[0] + (u16)b[0] + d[0]) / 3;
@@ -673,16 +673,16 @@ static const u8 *SFFU_AVG_ABD(const u8 * CAT_RESTRICT p, u8 * CAT_RESTRICT temp,
 	return temp;
 }
 
-static const u8 *SFF_AVG_BCD(const u8 * CAT_RESTRICT p, u8 * CAT_RESTRICT temp, int x, int y, int size_x) {
+static const u8 *SFF_AVG_BCD(const u8 * CAT_RESTRICT p, u8 * CAT_RESTRICT temp, int x, int y, int xsize) {
 	if (x > 0) {
 		const u8 * CAT_RESTRICT a = p - 4; // A
 
 		if (y > 0) {
-			const u8 * CAT_RESTRICT b = p - size_x*4; // B
+			const u8 * CAT_RESTRICT b = p - xsize*4; // B
 			const u8 * CAT_RESTRICT c = b - 4; // C
 
 			const u8 * CAT_RESTRICT src = b; // B
-			if (x < size_x-1) {
+			if (x < xsize-1) {
 				src += 4; // D
 			}
 
@@ -694,9 +694,9 @@ static const u8 *SFF_AVG_BCD(const u8 * CAT_RESTRICT p, u8 * CAT_RESTRICT temp, 
 			return a;
 		}
 	} else if (y > 0) {
-		const u8 * CAT_RESTRICT b = p - size_x*4; // B
+		const u8 * CAT_RESTRICT b = p - xsize*4; // B
 		const u8 * CAT_RESTRICT d = b; // D
-		if CAT_LIKELY(x < size_x-1) {
+		if CAT_LIKELY(x < xsize-1) {
 			b += 4;
 		}
 
@@ -709,10 +709,10 @@ static const u8 *SFF_AVG_BCD(const u8 * CAT_RESTRICT p, u8 * CAT_RESTRICT temp, 
 	return FPZ;
 }
 
-static const u8 *SFFU_AVG_BCD(const u8 * CAT_RESTRICT p, u8 * CAT_RESTRICT temp, int x, int y, int size_x) {
-	CAT_DEBUG_ENFORCE(x > 0 && y > 0 && x < size_x-1);
+static const u8 *SFFU_AVG_BCD(const u8 * CAT_RESTRICT p, u8 * CAT_RESTRICT temp, int x, int y, int xsize) {
+	CAT_DEBUG_ENFORCE(x > 0 && y > 0 && x < xsize-1);
 
-	const u8 * CAT_RESTRICT b = p - size_x*4; // B
+	const u8 * CAT_RESTRICT b = p - xsize*4; // B
 	const u8 * CAT_RESTRICT c = b - 4; // C
 	const u8 * CAT_RESTRICT d = b + 4; // D
 
@@ -725,16 +725,16 @@ static const u8 *SFFU_AVG_BCD(const u8 * CAT_RESTRICT p, u8 * CAT_RESTRICT temp,
 
 //// Quad Average Filters (Round Down)
 
-static const u8 *SFF_AVG_ABCD(const u8 * CAT_RESTRICT p, u8 * CAT_RESTRICT temp, int x, int y, int size_x) {
+static const u8 *SFF_AVG_ABCD(const u8 * CAT_RESTRICT p, u8 * CAT_RESTRICT temp, int x, int y, int xsize) {
 	if (x > 0) {
 		const u8 * CAT_RESTRICT a = p - 4; // A
 
 		if (y > 0) {
-			const u8 * CAT_RESTRICT b = p - size_x*4; // B
+			const u8 * CAT_RESTRICT b = p - xsize*4; // B
 			const u8 * CAT_RESTRICT c = b - 4; // C
 
 			const u8 * CAT_RESTRICT src = b; // B
-			if (x < size_x-1) {
+			if (x < xsize-1) {
 				src += 4; // D
 			}
 
@@ -746,9 +746,9 @@ static const u8 *SFF_AVG_ABCD(const u8 * CAT_RESTRICT p, u8 * CAT_RESTRICT temp,
 			return a;
 		}
 	} else if (y > 0) {
-		const u8 * CAT_RESTRICT b = p - size_x*4; // B
+		const u8 * CAT_RESTRICT b = p - xsize*4; // B
 		const u8 * CAT_RESTRICT d = b; // D
-		if CAT_LIKELY(x < size_x-1) {
+		if CAT_LIKELY(x < xsize-1) {
 			b += 4;
 		}
 
@@ -761,11 +761,11 @@ static const u8 *SFF_AVG_ABCD(const u8 * CAT_RESTRICT p, u8 * CAT_RESTRICT temp,
 	return FPZ;
 }
 
-static const u8 *SFFU_AVG_ABCD(const u8 * CAT_RESTRICT p, u8 * CAT_RESTRICT temp, int x, int y, int size_x) {
-	CAT_DEBUG_ENFORCE(x > 0 && y > 0 && x < size_x-1);
+static const u8 *SFFU_AVG_ABCD(const u8 * CAT_RESTRICT p, u8 * CAT_RESTRICT temp, int x, int y, int xsize) {
+	CAT_DEBUG_ENFORCE(x > 0 && y > 0 && x < xsize-1);
 
 	const u8 * CAT_RESTRICT a = p - 4; // A
-	const u8 * CAT_RESTRICT b = p - size_x*4; // B
+	const u8 * CAT_RESTRICT b = p - xsize*4; // B
 	const u8 * CAT_RESTRICT c = b - 4; // C
 	const u8 * CAT_RESTRICT d = b + 4; // D
 
@@ -778,16 +778,16 @@ static const u8 *SFFU_AVG_ABCD(const u8 * CAT_RESTRICT p, u8 * CAT_RESTRICT temp
 
 //// Quad Average Filters (Round Up)
 
-static const u8 *SFF_AVG_ABCD1(const u8 * CAT_RESTRICT p, u8 * CAT_RESTRICT temp, int x, int y, int size_x) {
+static const u8 *SFF_AVG_ABCD1(const u8 * CAT_RESTRICT p, u8 * CAT_RESTRICT temp, int x, int y, int xsize) {
 	if (x > 0) {
 		const u8 * CAT_RESTRICT a = p - 4; // A
 
 		if (y > 0) {
-			const u8 * CAT_RESTRICT b = p - size_x*4; // B
+			const u8 * CAT_RESTRICT b = p - xsize*4; // B
 			const u8 * CAT_RESTRICT c = b - 4; // C
 
 			const u8 * CAT_RESTRICT src = b; // B
-			if (x < size_x-1) {
+			if (x < xsize-1) {
 				src += 4; // D
 			}
 
@@ -799,9 +799,9 @@ static const u8 *SFF_AVG_ABCD1(const u8 * CAT_RESTRICT p, u8 * CAT_RESTRICT temp
 			return a;
 		}
 	} else if (y > 0) {
-		const u8 * CAT_RESTRICT b = p - size_x*4; // B
+		const u8 * CAT_RESTRICT b = p - xsize*4; // B
 		const u8 * CAT_RESTRICT d = b; // D
-		if CAT_LIKELY(x < size_x-1) {
+		if CAT_LIKELY(x < xsize-1) {
 			b += 4;
 		}
 
@@ -814,11 +814,11 @@ static const u8 *SFF_AVG_ABCD1(const u8 * CAT_RESTRICT p, u8 * CAT_RESTRICT temp
 	return FPZ;
 }
 
-static const u8 *SFFU_AVG_ABCD1(const u8 * CAT_RESTRICT p, u8 * CAT_RESTRICT temp, int x, int y, int size_x) {
-	CAT_DEBUG_ENFORCE(x > 0 && y > 0 && x < size_x-1);
+static const u8 *SFFU_AVG_ABCD1(const u8 * CAT_RESTRICT p, u8 * CAT_RESTRICT temp, int x, int y, int xsize) {
+	CAT_DEBUG_ENFORCE(x > 0 && y > 0 && x < xsize-1);
 
 	const u8 * CAT_RESTRICT a = p - 4; // A
-	const u8 * CAT_RESTRICT b = p - size_x*4; // B
+	const u8 * CAT_RESTRICT b = p - xsize*4; // B
 	const u8 * CAT_RESTRICT c = b - 4; // C
 	const u8 * CAT_RESTRICT d = b + 4; // D
 
@@ -857,9 +857,9 @@ static CAT_INLINE u8 clampGrad(int b, int a, int c) {
 	return grad;
 }
 
-static const u8 *SFF_CLAMP_GRAD(const u8 * CAT_RESTRICT p, u8 * CAT_RESTRICT temp, int x, int y, int size_x) {
+static const u8 *SFF_CLAMP_GRAD(const u8 * CAT_RESTRICT p, u8 * CAT_RESTRICT temp, int x, int y, int xsize) {
 	if (y > 0) {
-		const u8 * CAT_RESTRICT b = p - size_x*4; // B
+		const u8 * CAT_RESTRICT b = p - xsize*4; // B
 
 		if (x > 0) {
 			const u8 * CAT_RESTRICT a = p - 4; // A
@@ -879,11 +879,11 @@ static const u8 *SFF_CLAMP_GRAD(const u8 * CAT_RESTRICT p, u8 * CAT_RESTRICT tem
 	return FPZ;
 }
 
-static const u8 *SFFU_CLAMP_GRAD(const u8 * CAT_RESTRICT p, u8 * CAT_RESTRICT temp, int x, int y, int size_x) {
-	CAT_DEBUG_ENFORCE(x > 0 && y > 0 && x < size_x-1);
+static const u8 *SFFU_CLAMP_GRAD(const u8 * CAT_RESTRICT p, u8 * CAT_RESTRICT temp, int x, int y, int xsize) {
+	CAT_DEBUG_ENFORCE(x > 0 && y > 0 && x < xsize-1);
 
 	const u8 * CAT_RESTRICT a = p - 4; // A
-	const u8 * CAT_RESTRICT b = p - size_x*4; // B
+	const u8 * CAT_RESTRICT b = p - xsize*4; // B
 	const u8 * CAT_RESTRICT c = b - 4; // C
 
 	temp[0] = clampGrad(b[0], a[0], c[0]);
@@ -906,9 +906,9 @@ static u8 skewGrad(int b, int a, int c) {
 	return pred;
 }
 
-static const u8 *SFF_SKEW_GRAD(const u8 * CAT_RESTRICT p, u8 * CAT_RESTRICT temp, int x, int y, int size_x) {
+static const u8 *SFF_SKEW_GRAD(const u8 * CAT_RESTRICT p, u8 * CAT_RESTRICT temp, int x, int y, int xsize) {
 	if (y > 0) {
-		const u8 * CAT_RESTRICT b = p - size_x*4; // B
+		const u8 * CAT_RESTRICT b = p - xsize*4; // B
 
 		if (x > 0) {
 			const u8 * CAT_RESTRICT a = p - 4; // A
@@ -928,11 +928,11 @@ static const u8 *SFF_SKEW_GRAD(const u8 * CAT_RESTRICT p, u8 * CAT_RESTRICT temp
 	return FPZ;
 }
 
-static const u8 *SFFU_SKEW_GRAD(const u8 * CAT_RESTRICT p, u8 * CAT_RESTRICT temp, int x, int y, int size_x) {
-	CAT_DEBUG_ENFORCE(x > 0 && y > 0 && x < size_x-1);
+static const u8 *SFFU_SKEW_GRAD(const u8 * CAT_RESTRICT p, u8 * CAT_RESTRICT temp, int x, int y, int xsize) {
+	CAT_DEBUG_ENFORCE(x > 0 && y > 0 && x < xsize-1);
 
 	const u8 * CAT_RESTRICT a = p - 4; // A
-	const u8 * CAT_RESTRICT b = p - size_x*4; // B
+	const u8 * CAT_RESTRICT b = p - xsize*4; // B
 	const u8 * CAT_RESTRICT c = b - 4; // C
 
 	temp[0] = skewGrad(b[0], a[0], c[0]);
@@ -955,12 +955,12 @@ static CAT_INLINE u8 abcClamp(int a, int b, int c) {
 	return sum;
 }
 
-static const u8 *SFF_ABC_CLAMP(const u8 * CAT_RESTRICT p, u8 * CAT_RESTRICT temp, int x, int y, int size_x) {
+static const u8 *SFF_ABC_CLAMP(const u8 * CAT_RESTRICT p, u8 * CAT_RESTRICT temp, int x, int y, int xsize) {
 	if (x > 0) {
 		const u8 * CAT_RESTRICT a = p - 4; // A
 
 		if (y > 0) {
-			const u8 * CAT_RESTRICT b = p - size_x*4; // B
+			const u8 * CAT_RESTRICT b = p - xsize*4; // B
 			const u8 * CAT_RESTRICT c = b - 4; // C
 
 			temp[0] = abcClamp(a[0], b[0], c[0]);
@@ -971,17 +971,17 @@ static const u8 *SFF_ABC_CLAMP(const u8 * CAT_RESTRICT p, u8 * CAT_RESTRICT temp
 			return a;
 		}
 	} else if (y > 0) {
-		return p - size_x*4; // B
+		return p - xsize*4; // B
 	}
 
 	return FPZ;
 }
 
-static const u8 *SFFU_ABC_CLAMP(const u8 * CAT_RESTRICT p, u8 * CAT_RESTRICT temp, int x, int y, int size_x) {
+static const u8 *SFFU_ABC_CLAMP(const u8 * CAT_RESTRICT p, u8 * CAT_RESTRICT temp, int x, int y, int xsize) {
 	CAT_DEBUG_ENFORCE(x > 0 && y > 0);
 
 	const u8 * CAT_RESTRICT a = p - 4; // A
-	const u8 * CAT_RESTRICT b = p - size_x*4; // B
+	const u8 * CAT_RESTRICT b = p - xsize*4; // B
 	const u8 * CAT_RESTRICT c = b - 4; // C
 
 	temp[0] = abcClamp(a[0], b[0], c[0]);
@@ -1009,12 +1009,12 @@ static CAT_INLINE u8 paeth(int a, int b, int c) {
 	}
 }
 
-static const u8 *SFF_PAETH(const u8 * CAT_RESTRICT p, u8 * CAT_RESTRICT temp, int x, int y, int size_x) {
+static const u8 *SFF_PAETH(const u8 * CAT_RESTRICT p, u8 * CAT_RESTRICT temp, int x, int y, int xsize) {
 	if (x > 0) {
 		const u8 * CAT_RESTRICT a = p - 4; // A
 
 		if (y > 0) {
-			const u8 * CAT_RESTRICT b = p - size_x*4; // B
+			const u8 * CAT_RESTRICT b = p - xsize*4; // B
 			const u8 * CAT_RESTRICT c = b - 4; // C
 
 			temp[0] = paeth(a[0], b[0], c[0]);
@@ -1025,17 +1025,17 @@ static const u8 *SFF_PAETH(const u8 * CAT_RESTRICT p, u8 * CAT_RESTRICT temp, in
 			return a;
 		}
 	} else if (y > 0) {
-		return p - size_x*4; // B
+		return p - xsize*4; // B
 	}
 
 	return FPZ;
 }
 
-static const u8 *SFFU_PAETH(const u8 * CAT_RESTRICT p, u8 * CAT_RESTRICT temp, int x, int y, int size_x) {
+static const u8 *SFFU_PAETH(const u8 * CAT_RESTRICT p, u8 * CAT_RESTRICT temp, int x, int y, int xsize) {
 	CAT_DEBUG_ENFORCE(x > 0 && y > 0);
 
 	const u8 * CAT_RESTRICT a = p - 4; // A
-	const u8 * CAT_RESTRICT b = p - size_x*4; // B
+	const u8 * CAT_RESTRICT b = p - xsize*4; // B
 	const u8 * CAT_RESTRICT c = b - 4; // C
 
 	temp[0] = paeth(a[0], b[0], c[0]);
@@ -1067,12 +1067,12 @@ static CAT_INLINE u8 abc_paeth(int a, int b, int c) {
 	}
 }
 
-static const u8 *SFF_ABC_PAETH(const u8 * CAT_RESTRICT p, u8 * CAT_RESTRICT temp, int x, int y, int size_x) {
+static const u8 *SFF_ABC_PAETH(const u8 * CAT_RESTRICT p, u8 * CAT_RESTRICT temp, int x, int y, int xsize) {
 	if (x > 0) {
 		const u8 * CAT_RESTRICT a = p - 4; // A
 
 		if (y > 0) {
-			const u8 * CAT_RESTRICT b = p - size_x*4; // B
+			const u8 * CAT_RESTRICT b = p - xsize*4; // B
 			const u8 * CAT_RESTRICT c = b - 4; // C
 
 			temp[0] = abc_paeth(a[0], b[0], c[0]);
@@ -1083,17 +1083,17 @@ static const u8 *SFF_ABC_PAETH(const u8 * CAT_RESTRICT p, u8 * CAT_RESTRICT temp
 			return a;
 		}
 	} else if (y > 0) {
-		return p - size_x*4; // B
+		return p - xsize*4; // B
 	}
 
 	return FPZ;
 }
 
-static const u8 *SFFU_ABC_PAETH(const u8 * CAT_RESTRICT p, u8 * CAT_RESTRICT temp, int x, int y, int size_x) {
+static const u8 *SFFU_ABC_PAETH(const u8 * CAT_RESTRICT p, u8 * CAT_RESTRICT temp, int x, int y, int xsize) {
 	CAT_DEBUG_ENFORCE(x > 0 && y > 0);
 
 	const u8 * CAT_RESTRICT a = p - 4; // A
-	const u8 * CAT_RESTRICT b = p - size_x*4; // B
+	const u8 * CAT_RESTRICT b = p - xsize*4; // B
 	const u8 * CAT_RESTRICT c = b - 4; // C
 
 	temp[0] = abc_paeth(a[0], b[0], c[0]);
@@ -1123,15 +1123,15 @@ static CAT_INLINE u8 predLevel(int a, int b, int c) {
 	return b + a - c;
 }
 
-static const u8 *SFF_PLO(const u8 * CAT_RESTRICT p, u8 * CAT_RESTRICT temp, int x, int y, int size_x) {
+static const u8 *SFF_PLO(const u8 * CAT_RESTRICT p, u8 * CAT_RESTRICT temp, int x, int y, int xsize) {
 	if (x > 0) {
 		const u8 * CAT_RESTRICT a = p - 4; // A
 
 		if (y > 0) {
-			const u8 * CAT_RESTRICT b = p - size_x*4; // B
+			const u8 * CAT_RESTRICT b = p - xsize*4; // B
 
 			const u8 * CAT_RESTRICT src = b; // B
-			if (x < size_x-1) {
+			if (x < xsize-1) {
 				src += 4; // D
 			}
 
@@ -1143,17 +1143,17 @@ static const u8 *SFF_PLO(const u8 * CAT_RESTRICT p, u8 * CAT_RESTRICT temp, int 
 			return a;
 		}
 	} else if (y > 0) {
-		return p - size_x*4; // B
+		return p - xsize*4; // B
 	}
 
 	return FPZ;
 }
 
-static const u8 *SFFU_PLO(const u8 * CAT_RESTRICT p, u8 * CAT_RESTRICT temp, int x, int y, int size_x) {
-	CAT_DEBUG_ENFORCE(x > 0 && y > 0 && x < size_x-1);
+static const u8 *SFFU_PLO(const u8 * CAT_RESTRICT p, u8 * CAT_RESTRICT temp, int x, int y, int xsize) {
+	CAT_DEBUG_ENFORCE(x > 0 && y > 0 && x < xsize-1);
 
 	const u8 * CAT_RESTRICT a = p - 4; // A
-	const u8 * CAT_RESTRICT b = p - size_x*4; // B
+	const u8 * CAT_RESTRICT b = p - xsize*4; // B
 	const u8 * CAT_RESTRICT src = b + 4; // D
 
 	temp[0] = predLevel(a[0], src[0], b[0]);
@@ -1177,12 +1177,12 @@ static CAT_INLINE u8 predSelect(int a, int b, int c) {
 	}
 }
 
-static const u8 *SFF_SELECT(const u8 * CAT_RESTRICT p, u8 * CAT_RESTRICT temp, int x, int y, int size_x) {
+static const u8 *SFF_SELECT(const u8 * CAT_RESTRICT p, u8 * CAT_RESTRICT temp, int x, int y, int xsize) {
 	if (x > 0) {
 		const u8 * CAT_RESTRICT a = p - 4; // A
 
 		if (y > 0) {
-			const u8 * CAT_RESTRICT b = p - size_x*4; // B
+			const u8 * CAT_RESTRICT b = p - xsize*4; // B
 			const u8 * CAT_RESTRICT c = b - 4; // C
 
 			temp[0] = predSelect(a[0], b[0], c[0]);
@@ -1193,17 +1193,17 @@ static const u8 *SFF_SELECT(const u8 * CAT_RESTRICT p, u8 * CAT_RESTRICT temp, i
 			return a;
 		}
 	} else if (y > 0) {
-		return p - size_x*4; // B
+		return p - xsize*4; // B
 	}
 
 	return FPZ;
 }
 
-static const u8 *SFFU_SELECT(const u8 * CAT_RESTRICT p, u8 * CAT_RESTRICT temp, int x, int y, int size_x) {
-	CAT_DEBUG_ENFORCE(x > 0 && y > 0 && x < size_x-1);
+static const u8 *SFFU_SELECT(const u8 * CAT_RESTRICT p, u8 * CAT_RESTRICT temp, int x, int y, int xsize) {
+	CAT_DEBUG_ENFORCE(x > 0 && y > 0 && x < xsize-1);
 
 	const u8 * CAT_RESTRICT a = p - 4; // A
-	const u8 * CAT_RESTRICT b = p - size_x*4; // B
+	const u8 * CAT_RESTRICT b = p - xsize*4; // B
 	const u8 * CAT_RESTRICT c = b - 4; // C
 
 	temp[0] = predSelect(a[0], b[0], c[0]);
@@ -1223,10 +1223,10 @@ static CAT_INLINE u8 leftSel(int f, int c, int a) {
 	}
 }
 
-static const u8 *SFF_SELECT_F(const u8 * CAT_RESTRICT p, u8 * CAT_RESTRICT temp, int x, int y, int size_x) {
+static const u8 *SFF_SELECT_F(const u8 * CAT_RESTRICT p, u8 * CAT_RESTRICT temp, int x, int y, int xsize) {
 	if (x > 1 && y > 0) {
 		const u8 * CAT_RESTRICT a = p - 4;
-		const u8 * CAT_RESTRICT c = a - size_x*4;
+		const u8 * CAT_RESTRICT c = a - xsize*4;
 		const u8 * CAT_RESTRICT f = c - 4;
 
 		temp[0] = leftSel(f[0], c[0], a[0]);
@@ -1236,18 +1236,18 @@ static const u8 *SFF_SELECT_F(const u8 * CAT_RESTRICT p, u8 * CAT_RESTRICT temp,
 	} else if (x > 0) {
 		return p - 4; // A
 	} else if (y > 0) {
-		return p - size_x*4; // B
+		return p - xsize*4; // B
 	}
 
 	return FPZ;
 }
 
-static const u8 *SFFU_SELECT_F(const u8 * CAT_RESTRICT p, u8 * CAT_RESTRICT temp, int x, int y, int size_x) {
-	CAT_DEBUG_ENFORCE(x > 0 && y > 0 && x < size_x-1);
+static const u8 *SFFU_SELECT_F(const u8 * CAT_RESTRICT p, u8 * CAT_RESTRICT temp, int x, int y, int xsize) {
+	CAT_DEBUG_ENFORCE(x > 0 && y > 0 && x < xsize-1);
 
 	if (x > 1) {
 		const u8 * CAT_RESTRICT a = p - 4;
-		const u8 * CAT_RESTRICT c = a - size_x*4;
+		const u8 * CAT_RESTRICT c = a - xsize*4;
 		const u8 * CAT_RESTRICT f = c - 4;
 
 		temp[0] = leftSel(f[0], c[0], a[0]);
@@ -1262,10 +1262,10 @@ static const u8 *SFFU_SELECT_F(const u8 * CAT_RESTRICT p, u8 * CAT_RESTRICT temp
 
 //// ED Gradient Filter
 
-static const u8 *SFF_ED_GRAD(const u8 * CAT_RESTRICT p, u8 * CAT_RESTRICT temp, int x, int y, int size_x) {
-	if (y > 1 && x < size_x - 2) {
-		const u8 * CAT_RESTRICT d = p + 4 - size_x*4;
-		const u8 * CAT_RESTRICT e = d + 4 - size_x*4;
+static const u8 *SFF_ED_GRAD(const u8 * CAT_RESTRICT p, u8 * CAT_RESTRICT temp, int x, int y, int xsize) {
+	if (y > 1 && x < xsize - 2) {
+		const u8 * CAT_RESTRICT d = p + 4 - xsize*4;
+		const u8 * CAT_RESTRICT e = d + 4 - xsize*4;
 
 		temp[0] = d[0] * 2 - e[0];
 		temp[1] = d[1] * 2 - e[1];
@@ -1274,16 +1274,16 @@ static const u8 *SFF_ED_GRAD(const u8 * CAT_RESTRICT p, u8 * CAT_RESTRICT temp, 
 	} else if (x > 0) {
 		return p - 4; // A
 	} else if (y > 0) {
-		return p - size_x*4; // B
+		return p - xsize*4; // B
 	}
 
 	return FPZ;
 }
 
-static const u8 *SFFU_ED_GRAD(const u8 * CAT_RESTRICT p, u8 * CAT_RESTRICT temp, int x, int y, int size_x) {
-	if (y > 1 && x < size_x - 2) {
-		const u8 * CAT_RESTRICT d = p + 4 - size_x*4;
-		const u8 * CAT_RESTRICT e = d + 4 - size_x*4;
+static const u8 *SFFU_ED_GRAD(const u8 * CAT_RESTRICT p, u8 * CAT_RESTRICT temp, int x, int y, int xsize) {
+	if (y > 1 && x < xsize - 2) {
+		const u8 * CAT_RESTRICT d = p + 4 - xsize*4;
+		const u8 * CAT_RESTRICT e = d + 4 - xsize*4;
 
 		temp[0] = d[0] * 2 - e[0];
 		temp[1] = d[1] * 2 - e[1];
@@ -1397,14 +1397,14 @@ static const int DIV2_FILTER_TAPS[DIV2_TAPPED_COUNT][4] = {
 //// Static function versions of tapped linear filters
 
 #define DEFINE_TAPS(TAP) \
-	static const u8 *SFF_TAPS_ ## TAP (const u8 * CAT_RESTRICT p, u8 * CAT_RESTRICT temp, int x, int y, int size_x) { \
+	static const u8 *SFF_TAPS_ ## TAP (const u8 * CAT_RESTRICT p, u8 * CAT_RESTRICT temp, int x, int y, int xsize) { \
 		if (x > 0) { \
 			const u8 * CAT_RESTRICT a = p - 4; /* A */ \
 			if (y > 0) { \
-				const u8 * CAT_RESTRICT b = p - size_x*4; /* B */ \
+				const u8 * CAT_RESTRICT b = p - xsize*4; /* B */ \
 				const u8 * CAT_RESTRICT c = b - 4; /* C */ \
 				const u8 * CAT_RESTRICT d = b; /* B */ \
-				if (x < size_x-1) { \
+				if (x < xsize-1) { \
 					d += 4; /* D */ \
 				} \
 				static const int TA = DIV2_FILTER_TAPS[TAP][0]; \
@@ -1419,14 +1419,14 @@ static const int DIV2_FILTER_TAPS[DIV2_TAPPED_COUNT][4] = {
 				return a; \
 			} \
 		} else if (y > 0) { \
-			return p - size_x*4; /* B */ \
+			return p - xsize*4; /* B */ \
 		} \
 		return FPZ; \
 	} \
-	static const u8 *SFFU_TAPS_ ## TAP (const u8 * CAT_RESTRICT p, u8 * CAT_RESTRICT temp, int x, int y, int size_x) { \
-		CAT_DEBUG_ENFORCE(x > 0 && y > 0 && x < size_x-1); \
+	static const u8 *SFFU_TAPS_ ## TAP (const u8 * CAT_RESTRICT p, u8 * CAT_RESTRICT temp, int x, int y, int xsize) { \
+		CAT_DEBUG_ENFORCE(x > 0 && y > 0 && x < xsize-1); \
 		const u8 * CAT_RESTRICT a = p - 4; \
-		const u8 * CAT_RESTRICT b = p - size_x*4; \
+		const u8 * CAT_RESTRICT b = p - xsize*4; \
 		const u8 * CAT_RESTRICT c = b - 4; \
 		const u8 * CAT_RESTRICT d = b + 4; \
 		static const int TA = DIV2_FILTER_TAPS[TAP][0]; \
@@ -1520,31 +1520,31 @@ const RGBAFilterFuncs cat::RGBA_FILTERS[SF_COUNT] = {
 
 //// Simple Spatial Filters
 
-static u8 MFF_A(const u8 * CAT_RESTRICT p, u16 num_syms, int x, int y, int size_x) {
+static u8 MFF_A(const u8 * CAT_RESTRICT p, u16 num_syms, int x, int y, int xsize) {
 	if (x > 0) {
 		return p[-1]; // A
 	} else if (y > 0) {
-		return p[-size_x]; // B
+		return p[-xsize]; // B
 	}
 
 	return 0;
 }
 
-static u8 MFFU_A(const u8 * CAT_RESTRICT p, u16 num_syms, int x, int y, int size_x) {
+static u8 MFFU_A(const u8 * CAT_RESTRICT p, u16 num_syms, int x, int y, int xsize) {
 	CAT_DEBUG_ENFORCE(x > 0);
 
 	return p[-1]; // A
 }
 
-static u8 MFF_Z(const u8 * CAT_RESTRICT p, u16 num_syms, int x, int y, int size_x) {
+static u8 MFF_Z(const u8 * CAT_RESTRICT p, u16 num_syms, int x, int y, int xsize) {
 	return 0;
 }
 
 #define MFFU_Z MFF_Z
 
-static u8 MFF_B(const u8 * CAT_RESTRICT p, u16 num_syms, int x, int y, int size_x) {
+static u8 MFF_B(const u8 * CAT_RESTRICT p, u16 num_syms, int x, int y, int xsize) {
 	if (y > 0) {
-		return p[-size_x]; // B
+		return p[-xsize]; // B
 	} else if (x > 0) {
 		return p[-1]; // A
 	}
@@ -1552,36 +1552,36 @@ static u8 MFF_B(const u8 * CAT_RESTRICT p, u16 num_syms, int x, int y, int size_
 	return 0;
 }
 
-static u8 MFFU_B(const u8 * CAT_RESTRICT p, u16 num_syms, int x, int y, int size_x) {
+static u8 MFFU_B(const u8 * CAT_RESTRICT p, u16 num_syms, int x, int y, int xsize) {
 	CAT_DEBUG_ENFORCE(y > 0);
 
-	return p[-size_x]; // B
+	return p[-xsize]; // B
 }
 
-static u8 MFF_C(const u8 * CAT_RESTRICT p, u16 num_syms, int x, int y, int size_x) {
+static u8 MFF_C(const u8 * CAT_RESTRICT p, u16 num_syms, int x, int y, int xsize) {
 	if (x > 0) {
 		if (y > 0) {
-			return p[-size_x - 1]; // C
+			return p[-xsize - 1]; // C
 		} else {
 			return p[-1]; // A
 		}
 	} else if (y > 0) {
-		return p[-size_x]; // B
+		return p[-xsize]; // B
 	}
 
 	return 0;
 }
 
-static u8 MFFU_C(const u8 * CAT_RESTRICT p, u16 num_syms, int x, int y, int size_x) {
+static u8 MFFU_C(const u8 * CAT_RESTRICT p, u16 num_syms, int x, int y, int xsize) {
 	CAT_DEBUG_ENFORCE(x > 0 && y > 0);
 
-	return p[-size_x - 1]; // C
+	return p[-xsize - 1]; // C
 }
 
-static u8 MFF_D(const u8 * CAT_RESTRICT p, u16 num_syms, int x, int y, int size_x) {
+static u8 MFF_D(const u8 * CAT_RESTRICT p, u16 num_syms, int x, int y, int xsize) {
 	if (y > 0) {
-		const u8 * CAT_RESTRICT fp = p - size_x; // B
-		if (x < size_x-1) {
+		const u8 * CAT_RESTRICT fp = p - xsize; // B
+		if (x < xsize-1) {
 			++fp; // D
 		}
 		return *fp;
@@ -1592,18 +1592,18 @@ static u8 MFF_D(const u8 * CAT_RESTRICT p, u16 num_syms, int x, int y, int size_
 	return 0;
 }
 
-static u8 MFFU_D(const u8 * CAT_RESTRICT p, u16 num_syms, int x, int y, int size_x) {
-	CAT_DEBUG_ENFORCE(y > 0 && x < size_x-1);
+static u8 MFFU_D(const u8 * CAT_RESTRICT p, u16 num_syms, int x, int y, int xsize) {
+	CAT_DEBUG_ENFORCE(y > 0 && x < xsize-1);
 
-	return p[-size_x + 1]; // D
+	return p[-xsize + 1]; // D
 }
 
 
 //// Dual Average Filters (Round Down)
 
-static u8 MFF_AVG_AB(const u8 * CAT_RESTRICT p, u16 num_syms, int x, int y, int size_x) {
+static u8 MFF_AVG_AB(const u8 * CAT_RESTRICT p, u16 num_syms, int x, int y, int xsize) {
 	if (y > 0) {
-		const u8 * CAT_RESTRICT b = p - size_x; // B
+		const u8 * CAT_RESTRICT b = p - xsize; // B
 
 		if (x > 0) {
 			const u8 * CAT_RESTRICT a = p - 1; // A
@@ -1619,18 +1619,18 @@ static u8 MFF_AVG_AB(const u8 * CAT_RESTRICT p, u16 num_syms, int x, int y, int 
 	return 0;
 }
 
-static u8 MFFU_AVG_AB(const u8 * CAT_RESTRICT p, u16 num_syms, int x, int y, int size_x) {
-	CAT_DEBUG_ENFORCE(x > 0 && y > 0 && x < size_x-1);
+static u8 MFFU_AVG_AB(const u8 * CAT_RESTRICT p, u16 num_syms, int x, int y, int xsize) {
+	CAT_DEBUG_ENFORCE(x > 0 && y > 0 && x < xsize-1);
 
 	const u8 * CAT_RESTRICT a = p - 1; // A
-	const u8 * CAT_RESTRICT b = p - size_x; // B
+	const u8 * CAT_RESTRICT b = p - xsize; // B
 
 	return (a[0] + (u16)b[0]) >> 1;
 }
 
-static u8 MFF_AVG_AC(const u8 * CAT_RESTRICT p, u16 num_syms, int x, int y, int size_x) {
+static u8 MFF_AVG_AC(const u8 * CAT_RESTRICT p, u16 num_syms, int x, int y, int xsize) {
 	if (y > 0) {
-		const u8 * CAT_RESTRICT b = p - size_x; // B
+		const u8 * CAT_RESTRICT b = p - xsize; // B
 
 		if (x > 0) {
 			const u8 * CAT_RESTRICT a = p - 1; // A
@@ -1647,22 +1647,22 @@ static u8 MFF_AVG_AC(const u8 * CAT_RESTRICT p, u16 num_syms, int x, int y, int 
 	return 0;
 }
 
-static u8 MFFU_AVG_AC(const u8 * CAT_RESTRICT p, u16 num_syms, int x, int y, int size_x) {
-	CAT_DEBUG_ENFORCE(x > 0 && y > 0 && x < size_x-1);
+static u8 MFFU_AVG_AC(const u8 * CAT_RESTRICT p, u16 num_syms, int x, int y, int xsize) {
+	CAT_DEBUG_ENFORCE(x > 0 && y > 0 && x < xsize-1);
 
 	const u8 * CAT_RESTRICT a = p - 1; // A
-	const u8 * CAT_RESTRICT c = p - size_x - 1; // C
+	const u8 * CAT_RESTRICT c = p - xsize - 1; // C
 
 	return (a[0] + (u16)c[0]) >> 1;
 }
 
-static u8 MFF_AVG_AD(const u8 * CAT_RESTRICT p, u16 num_syms, int x, int y, int size_x) {
+static u8 MFF_AVG_AD(const u8 * CAT_RESTRICT p, u16 num_syms, int x, int y, int xsize) {
 	if (y > 0) {
-		const u8 * CAT_RESTRICT src = p - size_x; // B
+		const u8 * CAT_RESTRICT src = p - xsize; // B
 
 		if (x > 0) {
 			const u8 * CAT_RESTRICT a = p - 1; // A
-			if (x < size_x-1) {
+			if (x < xsize-1) {
 				src++; // D
 			}
 
@@ -1677,18 +1677,18 @@ static u8 MFF_AVG_AD(const u8 * CAT_RESTRICT p, u16 num_syms, int x, int y, int 
 	return 0;
 }
 
-static u8 MFFU_AVG_AD(const u8 * CAT_RESTRICT p, u16 num_syms, int x, int y, int size_x) {
-	CAT_DEBUG_ENFORCE(x > 0 && y > 0 && x < size_x-1);
+static u8 MFFU_AVG_AD(const u8 * CAT_RESTRICT p, u16 num_syms, int x, int y, int xsize) {
+	CAT_DEBUG_ENFORCE(x > 0 && y > 0 && x < xsize-1);
 
 	const u8 * CAT_RESTRICT a = p - 1; // A
-	const u8 * CAT_RESTRICT d = p - size_x + 1; // D
+	const u8 * CAT_RESTRICT d = p - xsize + 1; // D
 
 	return (a[0] + (u16)d[0]) >> 1;
 }
 
-static u8 MFF_AVG_BC(const u8 * CAT_RESTRICT p, u16 num_syms, int x, int y, int size_x) {
+static u8 MFF_AVG_BC(const u8 * CAT_RESTRICT p, u16 num_syms, int x, int y, int xsize) {
 	if (y > 0) {
-		const u8 * CAT_RESTRICT b = p - size_x; // B
+		const u8 * CAT_RESTRICT b = p - xsize; // B
 
 		if (x > 0) {
 			const u8 * CAT_RESTRICT c = b - 1; // C
@@ -1704,22 +1704,22 @@ static u8 MFF_AVG_BC(const u8 * CAT_RESTRICT p, u16 num_syms, int x, int y, int 
 	return 0;
 }
 
-static u8 MFFU_AVG_BC(const u8 * CAT_RESTRICT p, u16 num_syms, int x, int y, int size_x) {
-	CAT_DEBUG_ENFORCE(x > 0 && y > 0 && x < size_x-1);
+static u8 MFFU_AVG_BC(const u8 * CAT_RESTRICT p, u16 num_syms, int x, int y, int xsize) {
+	CAT_DEBUG_ENFORCE(x > 0 && y > 0 && x < xsize-1);
 
-	const u8 * CAT_RESTRICT b = p - size_x; // B
+	const u8 * CAT_RESTRICT b = p - xsize; // B
 	const u8 * CAT_RESTRICT c = b - 1; // C
 
 	return (b[0] + (u16)c[0]) >> 1;
 }
 
-static u8 MFF_AVG_BD(const u8 * CAT_RESTRICT p, u16 num_syms, int x, int y, int size_x) {
+static u8 MFF_AVG_BD(const u8 * CAT_RESTRICT p, u16 num_syms, int x, int y, int xsize) {
 	if (y > 0) {
-		const u8 * CAT_RESTRICT b = p - size_x; // B
+		const u8 * CAT_RESTRICT b = p - xsize; // B
 
 		if (x > 0) {
 			const u8 * CAT_RESTRICT src = b - 1; // C
-			if (x < size_x-1) {
+			if (x < xsize-1) {
 				src += 2; // D
 			}
 
@@ -1734,22 +1734,22 @@ static u8 MFF_AVG_BD(const u8 * CAT_RESTRICT p, u16 num_syms, int x, int y, int 
 	return 0;
 }
 
-static u8 MFFU_AVG_BD(const u8 * CAT_RESTRICT p, u16 num_syms, int x, int y, int size_x) {
-	CAT_DEBUG_ENFORCE(x > 0 && y > 0 && x < size_x-1);
+static u8 MFFU_AVG_BD(const u8 * CAT_RESTRICT p, u16 num_syms, int x, int y, int xsize) {
+	CAT_DEBUG_ENFORCE(x > 0 && y > 0 && x < xsize-1);
 
-	const u8 * CAT_RESTRICT b = p - size_x; // B
+	const u8 * CAT_RESTRICT b = p - xsize; // B
 	const u8 * CAT_RESTRICT d = b + 1; // D
 
 	return (b[0] + (u16)d[0]) >> 1;
 }
 
-static u8 MFF_AVG_CD(const u8 * CAT_RESTRICT p, u16 num_syms, int x, int y, int size_x) {
+static u8 MFF_AVG_CD(const u8 * CAT_RESTRICT p, u16 num_syms, int x, int y, int xsize) {
 	if (y > 0) {
-		const u8 * CAT_RESTRICT src = p - size_x; // B
+		const u8 * CAT_RESTRICT src = p - xsize; // B
 
 		if (x > 0) {
 			const u8 * CAT_RESTRICT c = src - 1; // C
-			if (x < size_x-1) {
+			if (x < xsize-1) {
 				++src; // D
 			}
 
@@ -1764,10 +1764,10 @@ static u8 MFF_AVG_CD(const u8 * CAT_RESTRICT p, u16 num_syms, int x, int y, int 
 	return 0;
 }
 
-static u8 MFFU_AVG_CD(const u8 * CAT_RESTRICT p, u16 num_syms, int x, int y, int size_x) {
-	CAT_DEBUG_ENFORCE(x > 0 && y > 0 && x < size_x-1);
+static u8 MFFU_AVG_CD(const u8 * CAT_RESTRICT p, u16 num_syms, int x, int y, int xsize) {
+	CAT_DEBUG_ENFORCE(x > 0 && y > 0 && x < xsize-1);
 
-	const u8 * CAT_RESTRICT c = p - size_x - 1; // C
+	const u8 * CAT_RESTRICT c = p - xsize - 1; // C
 	const u8 * CAT_RESTRICT d = c + 2; // D
 
 	return (c[0] + (u16)d[0]) >> 1;
@@ -1776,9 +1776,9 @@ static u8 MFFU_AVG_CD(const u8 * CAT_RESTRICT p, u16 num_syms, int x, int y, int
 
 //// Dual Average Filters (Round Up)
 
-static u8 MFF_AVG_AB1(const u8 * CAT_RESTRICT p, u16 num_syms, int x, int y, int size_x) {
+static u8 MFF_AVG_AB1(const u8 * CAT_RESTRICT p, u16 num_syms, int x, int y, int xsize) {
 	if (y > 0) {
-		const u8 * CAT_RESTRICT b = p - size_x; // B
+		const u8 * CAT_RESTRICT b = p - xsize; // B
 
 		if (x > 0) {
 			const u8 * CAT_RESTRICT a = p - 1; // A
@@ -1794,18 +1794,18 @@ static u8 MFF_AVG_AB1(const u8 * CAT_RESTRICT p, u16 num_syms, int x, int y, int
 	return 0;
 }
 
-static u8 MFFU_AVG_AB1(const u8 * CAT_RESTRICT p, u16 num_syms, int x, int y, int size_x) {
-	CAT_DEBUG_ENFORCE(x > 0 && y > 0 && x < size_x-1);
+static u8 MFFU_AVG_AB1(const u8 * CAT_RESTRICT p, u16 num_syms, int x, int y, int xsize) {
+	CAT_DEBUG_ENFORCE(x > 0 && y > 0 && x < xsize-1);
 
 	const u8 * CAT_RESTRICT a = p - 1; // A
-	const u8 * CAT_RESTRICT b = p - size_x; // B
+	const u8 * CAT_RESTRICT b = p - xsize; // B
 
 	return (a[0] + (u16)b[0] + 1) >> 1;
 }
 
-static u8 MFF_AVG_AC1(const u8 * CAT_RESTRICT p, u16 num_syms, int x, int y, int size_x) {
+static u8 MFF_AVG_AC1(const u8 * CAT_RESTRICT p, u16 num_syms, int x, int y, int xsize) {
 	if (y > 0) {
-		const u8 * CAT_RESTRICT b = p - size_x; // B
+		const u8 * CAT_RESTRICT b = p - xsize; // B
 
 		if (x > 0) {
 			const u8 * CAT_RESTRICT a = p - 1; // A
@@ -1822,22 +1822,22 @@ static u8 MFF_AVG_AC1(const u8 * CAT_RESTRICT p, u16 num_syms, int x, int y, int
 	return 0;
 }
 
-static u8 MFFU_AVG_AC1(const u8 * CAT_RESTRICT p, u16 num_syms, int x, int y, int size_x) {
-	CAT_DEBUG_ENFORCE(x > 0 && y > 0 && x < size_x-1);
+static u8 MFFU_AVG_AC1(const u8 * CAT_RESTRICT p, u16 num_syms, int x, int y, int xsize) {
+	CAT_DEBUG_ENFORCE(x > 0 && y > 0 && x < xsize-1);
 
 	const u8 * CAT_RESTRICT a = p - 1; // A
-	const u8 * CAT_RESTRICT c = p - size_x - 1; // C
+	const u8 * CAT_RESTRICT c = p - xsize - 1; // C
 
 	return (a[0] + (u16)c[0] + 1) >> 1;
 }
 
-static u8 MFF_AVG_AD1(const u8 * CAT_RESTRICT p, u16 num_syms, int x, int y, int size_x) {
+static u8 MFF_AVG_AD1(const u8 * CAT_RESTRICT p, u16 num_syms, int x, int y, int xsize) {
 	if (y > 0) {
-		const u8 * CAT_RESTRICT src = p - size_x; // B
+		const u8 * CAT_RESTRICT src = p - xsize; // B
 
 		if (x > 0) {
 			const u8 * CAT_RESTRICT a = p - 1; // A
-			if (x < size_x-1) {
+			if (x < xsize-1) {
 				++src; // D
 			}
 
@@ -1852,18 +1852,18 @@ static u8 MFF_AVG_AD1(const u8 * CAT_RESTRICT p, u16 num_syms, int x, int y, int
 	return 0;
 }
 
-static u8 MFFU_AVG_AD1(const u8 * CAT_RESTRICT p, u16 num_syms, int x, int y, int size_x) {
-	CAT_DEBUG_ENFORCE(x > 0 && y > 0 && x < size_x-1);
+static u8 MFFU_AVG_AD1(const u8 * CAT_RESTRICT p, u16 num_syms, int x, int y, int xsize) {
+	CAT_DEBUG_ENFORCE(x > 0 && y > 0 && x < xsize-1);
 
 	const u8 * CAT_RESTRICT a = p - 1; // A
-	const u8 * CAT_RESTRICT d = p - size_x + 1; // D
+	const u8 * CAT_RESTRICT d = p - xsize + 1; // D
 
 	return (a[0] + (u16)d[0] + 1) >> 1;
 }
 
-static u8 MFF_AVG_BC1(const u8 * CAT_RESTRICT p, u16 num_syms, int x, int y, int size_x) {
+static u8 MFF_AVG_BC1(const u8 * CAT_RESTRICT p, u16 num_syms, int x, int y, int xsize) {
 	if (y > 0) {
-		const u8 * CAT_RESTRICT b = p - size_x; // B
+		const u8 * CAT_RESTRICT b = p - xsize; // B
 
 		if (x > 0) {
 			const u8 * CAT_RESTRICT c = b - 1; // C
@@ -1879,20 +1879,20 @@ static u8 MFF_AVG_BC1(const u8 * CAT_RESTRICT p, u16 num_syms, int x, int y, int
 	return 0;
 }
 
-static u8 MFFU_AVG_BC1(const u8 * CAT_RESTRICT p, u16 num_syms, int x, int y, int size_x) {
-	CAT_DEBUG_ENFORCE(x > 0 && y > 0 && x < size_x-1);
+static u8 MFFU_AVG_BC1(const u8 * CAT_RESTRICT p, u16 num_syms, int x, int y, int xsize) {
+	CAT_DEBUG_ENFORCE(x > 0 && y > 0 && x < xsize-1);
 
-	const u8 * CAT_RESTRICT b = p - size_x; // B
+	const u8 * CAT_RESTRICT b = p - xsize; // B
 	const u8 * CAT_RESTRICT c = b - 1; // C
 
 	return (b[0] + (u16)c[0] + 1) >> 1;
 }
 
-static u8 MFF_AVG_BD1(const u8 * CAT_RESTRICT p, u16 num_syms, int x, int y, int size_x) {
+static u8 MFF_AVG_BD1(const u8 * CAT_RESTRICT p, u16 num_syms, int x, int y, int xsize) {
 	if (y > 0) {
-		const u8 * CAT_RESTRICT b = p - size_x; // B
+		const u8 * CAT_RESTRICT b = p - xsize; // B
 
-		if (x < size_x-1) {
+		if (x < xsize-1) {
 			const u8 * CAT_RESTRICT d = b + 1; // D
 			return (b[0] + (u16)d[0] + 1) >> 1;
 		} else if (x > 0) {
@@ -1908,22 +1908,22 @@ static u8 MFF_AVG_BD1(const u8 * CAT_RESTRICT p, u16 num_syms, int x, int y, int
 	return 0;
 }
 
-static u8 MFFU_AVG_BD1(const u8 * CAT_RESTRICT p, u16 num_syms, int x, int y, int size_x) {
-	CAT_DEBUG_ENFORCE(x > 0 && y > 0 && x < size_x-1);
+static u8 MFFU_AVG_BD1(const u8 * CAT_RESTRICT p, u16 num_syms, int x, int y, int xsize) {
+	CAT_DEBUG_ENFORCE(x > 0 && y > 0 && x < xsize-1);
 
-	const u8 * CAT_RESTRICT b = p - size_x; // B
+	const u8 * CAT_RESTRICT b = p - xsize; // B
 	const u8 * CAT_RESTRICT d = b + 1; // D
 
 	return (b[0] + (u16)d[0] + 1) >> 1;
 }
 
-static u8 MFF_AVG_CD1(const u8 * CAT_RESTRICT p, u16 num_syms, int x, int y, int size_x) {
+static u8 MFF_AVG_CD1(const u8 * CAT_RESTRICT p, u16 num_syms, int x, int y, int xsize) {
 	if (y > 0) {
-		const u8 * CAT_RESTRICT src = p - size_x; // B
+		const u8 * CAT_RESTRICT src = p - xsize; // B
 
 		if (x > 0) {
 			const u8 * CAT_RESTRICT c = src - 1; // C
-			if (x < size_x-1) {
+			if (x < xsize-1) {
 				++src; // D
 			}
 
@@ -1938,10 +1938,10 @@ static u8 MFF_AVG_CD1(const u8 * CAT_RESTRICT p, u16 num_syms, int x, int y, int
 	return 0;
 }
 
-static u8 MFFU_AVG_CD1(const u8 * CAT_RESTRICT p, u16 num_syms, int x, int y, int size_x) {
-	CAT_DEBUG_ENFORCE(x > 0 && y > 0 && x < size_x-1);
+static u8 MFFU_AVG_CD1(const u8 * CAT_RESTRICT p, u16 num_syms, int x, int y, int xsize) {
+	CAT_DEBUG_ENFORCE(x > 0 && y > 0 && x < xsize-1);
 
-	const u8 * CAT_RESTRICT c = p - size_x - 1; // C
+	const u8 * CAT_RESTRICT c = p - xsize - 1; // C
 	const u8 * CAT_RESTRICT d = c + 2; // D
 
 	return (c[0] + (u16)d[0] + 1) >> 1;
@@ -1950,12 +1950,12 @@ static u8 MFFU_AVG_CD1(const u8 * CAT_RESTRICT p, u16 num_syms, int x, int y, in
 
 //// Triple Average Filters (Round Down)
 
-static u8 MFF_AVG_ABC(const u8 * CAT_RESTRICT p, u16 num_syms, int x, int y, int size_x) {
+static u8 MFF_AVG_ABC(const u8 * CAT_RESTRICT p, u16 num_syms, int x, int y, int xsize) {
 	if (x > 0) {
 		const u8 * CAT_RESTRICT a = p - 1; // A
 
 		if (y > 0) {
-			const u8 * CAT_RESTRICT b = p - size_x; // B
+			const u8 * CAT_RESTRICT b = p - xsize; // B
 			const u8 * CAT_RESTRICT c = b - 1; // C
 
 			return (a[0] + (u16)b[0] + c[0]) / 3;
@@ -1963,32 +1963,32 @@ static u8 MFF_AVG_ABC(const u8 * CAT_RESTRICT p, u16 num_syms, int x, int y, int
 			return a[0];
 		}
 	} else if (y > 0) {
-		return p[-size_x]; // B
+		return p[-xsize]; // B
 	}
 
 	return 0;
 }
 
-static u8 MFFU_AVG_ABC(const u8 * CAT_RESTRICT p, u16 num_syms, int x, int y, int size_x) {
-	CAT_DEBUG_ENFORCE(x > 0 && y > 0 && x < size_x-1);
+static u8 MFFU_AVG_ABC(const u8 * CAT_RESTRICT p, u16 num_syms, int x, int y, int xsize) {
+	CAT_DEBUG_ENFORCE(x > 0 && y > 0 && x < xsize-1);
 
 	const u8 * CAT_RESTRICT a = p - 1; // A
-	const u8 * CAT_RESTRICT b = p - size_x; // B
+	const u8 * CAT_RESTRICT b = p - xsize; // B
 	const u8 * CAT_RESTRICT c = b - 1; // C
 
 	return (a[0] + (u16)b[0] + c[0]) / 3;
 }
 
-static u8 MFF_AVG_ACD(const u8 * CAT_RESTRICT p, u16 num_syms, int x, int y, int size_x) {
+static u8 MFF_AVG_ACD(const u8 * CAT_RESTRICT p, u16 num_syms, int x, int y, int xsize) {
 	if (x > 0) {
 		const u8 * CAT_RESTRICT a = p - 1; // A
 
 		if (y > 0) {
-			const u8 * CAT_RESTRICT b = p - size_x; // B
+			const u8 * CAT_RESTRICT b = p - xsize; // B
 			const u8 * CAT_RESTRICT c = b - 1; // C
 
 			const u8 * CAT_RESTRICT src = b; // B
-			if (x < size_x-1) {
+			if (x < xsize-1) {
 				src++; // D
 			}
 
@@ -1997,8 +1997,8 @@ static u8 MFF_AVG_ACD(const u8 * CAT_RESTRICT p, u16 num_syms, int x, int y, int
 			return a[0];
 		}
 	} else if (y > 0) {
-		const u8 * CAT_RESTRICT src = p - size_x; // B
-		if CAT_LIKELY(x < size_x-1) {
+		const u8 * CAT_RESTRICT src = p - xsize; // B
+		if CAT_LIKELY(x < xsize-1) {
 			src++; // D
 		}
 
@@ -2008,26 +2008,26 @@ static u8 MFF_AVG_ACD(const u8 * CAT_RESTRICT p, u16 num_syms, int x, int y, int
 	return 0;
 }
 
-static u8 MFFU_AVG_ACD(const u8 * CAT_RESTRICT p, u16 num_syms, int x, int y, int size_x) {
-	CAT_DEBUG_ENFORCE(x > 0 && y > 0 && x < size_x-1);
+static u8 MFFU_AVG_ACD(const u8 * CAT_RESTRICT p, u16 num_syms, int x, int y, int xsize) {
+	CAT_DEBUG_ENFORCE(x > 0 && y > 0 && x < xsize-1);
 
 	const u8 * CAT_RESTRICT a = p - 1; // A
-	const u8 * CAT_RESTRICT b = p - size_x; // B
+	const u8 * CAT_RESTRICT b = p - xsize; // B
 	const u8 * CAT_RESTRICT c = b - 1; // C
 	const u8 * CAT_RESTRICT d = b + 1; // D
 
 	return (a[0] + (u16)c[0] + d[0]) / 3;
 }
 
-static u8 MFF_AVG_ABD(const u8 * CAT_RESTRICT p, u16 num_syms, int x, int y, int size_x) {
+static u8 MFF_AVG_ABD(const u8 * CAT_RESTRICT p, u16 num_syms, int x, int y, int xsize) {
 	if (x > 0) {
 		const u8 * CAT_RESTRICT a = p - 1; // A
 
 		if (y > 0) {
-			const u8 * CAT_RESTRICT b = p - size_x; // B
+			const u8 * CAT_RESTRICT b = p - xsize; // B
 
 			const u8 * CAT_RESTRICT src = b; // B
-			if (x < size_x-1) {
+			if (x < xsize-1) {
 				src++; // D
 			}
 
@@ -2036,9 +2036,9 @@ static u8 MFF_AVG_ABD(const u8 * CAT_RESTRICT p, u16 num_syms, int x, int y, int
 			return a[0];
 		}
 	} else if (y > 0) {
-		const u8 * CAT_RESTRICT b = p - size_x; // B
+		const u8 * CAT_RESTRICT b = p - xsize; // B
 		const u8 * CAT_RESTRICT d = b; // D
-		if CAT_LIKELY(x < size_x-1) {
+		if CAT_LIKELY(x < xsize-1) {
 			b++;
 		}
 
@@ -2048,26 +2048,26 @@ static u8 MFF_AVG_ABD(const u8 * CAT_RESTRICT p, u16 num_syms, int x, int y, int
 	return 0;
 }
 
-static u8 MFFU_AVG_ABD(const u8 * CAT_RESTRICT p, u16 num_syms, int x, int y, int size_x) {
-	CAT_DEBUG_ENFORCE(x > 0 && y > 0 && x < size_x-1);
+static u8 MFFU_AVG_ABD(const u8 * CAT_RESTRICT p, u16 num_syms, int x, int y, int xsize) {
+	CAT_DEBUG_ENFORCE(x > 0 && y > 0 && x < xsize-1);
 
 	const u8 * CAT_RESTRICT a = p - 1; // A
-	const u8 * CAT_RESTRICT b = p - size_x; // B
+	const u8 * CAT_RESTRICT b = p - xsize; // B
 	const u8 * CAT_RESTRICT d = b + 1; // D
 
 	return (a[0] + (u16)b[0] + d[0]) / 3;
 }
 
-static u8 MFF_AVG_BCD(const u8 * CAT_RESTRICT p, u16 num_syms, int x, int y, int size_x) {
+static u8 MFF_AVG_BCD(const u8 * CAT_RESTRICT p, u16 num_syms, int x, int y, int xsize) {
 	if (x > 0) {
 		const u8 * CAT_RESTRICT a = p - 1; // A
 
 		if (y > 0) {
-			const u8 * CAT_RESTRICT b = p - size_x; // B
+			const u8 * CAT_RESTRICT b = p - xsize; // B
 			const u8 * CAT_RESTRICT c = b - 1; // C
 
 			const u8 * CAT_RESTRICT src = b; // B
-			if (x < size_x-1) {
+			if (x < xsize-1) {
 				src++; // D
 			}
 
@@ -2076,9 +2076,9 @@ static u8 MFF_AVG_BCD(const u8 * CAT_RESTRICT p, u16 num_syms, int x, int y, int
 			return a[0];
 		}
 	} else if (y > 0) {
-		const u8 * CAT_RESTRICT b = p - size_x; // B
+		const u8 * CAT_RESTRICT b = p - xsize; // B
 		const u8 * CAT_RESTRICT d = b; // B
-		if CAT_LIKELY(x < size_x-1) {
+		if CAT_LIKELY(x < xsize-1) {
 			b++; // D
 		}
 
@@ -2088,10 +2088,10 @@ static u8 MFF_AVG_BCD(const u8 * CAT_RESTRICT p, u16 num_syms, int x, int y, int
 	return 0;
 }
 
-static u8 MFFU_AVG_BCD(const u8 * CAT_RESTRICT p, u16 num_syms, int x, int y, int size_x) {
-	CAT_DEBUG_ENFORCE(x > 0 && y > 0 && x < size_x-1);
+static u8 MFFU_AVG_BCD(const u8 * CAT_RESTRICT p, u16 num_syms, int x, int y, int xsize) {
+	CAT_DEBUG_ENFORCE(x > 0 && y > 0 && x < xsize-1);
 
-	const u8 * CAT_RESTRICT b = p - size_x; // B
+	const u8 * CAT_RESTRICT b = p - xsize; // B
 	const u8 * CAT_RESTRICT c = b - 1; // C
 	const u8 * CAT_RESTRICT d = b + 1; // D
 
@@ -2101,16 +2101,16 @@ static u8 MFFU_AVG_BCD(const u8 * CAT_RESTRICT p, u16 num_syms, int x, int y, in
 
 //// Quad Average Filters (Round Down)
 
-static u8 MFF_AVG_ABCD(const u8 * CAT_RESTRICT p, u16 num_syms, int x, int y, int size_x) {
+static u8 MFF_AVG_ABCD(const u8 * CAT_RESTRICT p, u16 num_syms, int x, int y, int xsize) {
 	if (x > 0) {
 		const u8 * CAT_RESTRICT a = p - 1; // A
 
 		if (y > 0) {
-			const u8 * CAT_RESTRICT b = p - size_x; // B
+			const u8 * CAT_RESTRICT b = p - xsize; // B
 			const u8 * CAT_RESTRICT c = b - 1; // C
 
 			const u8 * CAT_RESTRICT src = b; // B
-			if (x < size_x-1) {
+			if (x < xsize-1) {
 				src++; // D
 			}
 
@@ -2119,9 +2119,9 @@ static u8 MFF_AVG_ABCD(const u8 * CAT_RESTRICT p, u16 num_syms, int x, int y, in
 			return a[0];
 		}
 	} else if (y > 0) {
-		const u8 * CAT_RESTRICT b = p - size_x; // B
+		const u8 * CAT_RESTRICT b = p - xsize; // B
 		const u8 * CAT_RESTRICT d = b; // D
-		if CAT_LIKELY(x < size_x-1) {
+		if CAT_LIKELY(x < xsize-1) {
 			b++;
 		}
 
@@ -2131,11 +2131,11 @@ static u8 MFF_AVG_ABCD(const u8 * CAT_RESTRICT p, u16 num_syms, int x, int y, in
 	return 0;
 }
 
-static u8 MFFU_AVG_ABCD(const u8 * CAT_RESTRICT p, u16 num_syms, int x, int y, int size_x) {
-	CAT_DEBUG_ENFORCE(x > 0 && y > 0 && x < size_x-1);
+static u8 MFFU_AVG_ABCD(const u8 * CAT_RESTRICT p, u16 num_syms, int x, int y, int xsize) {
+	CAT_DEBUG_ENFORCE(x > 0 && y > 0 && x < xsize-1);
 
 	const u8 * CAT_RESTRICT a = p - 1; // A
-	const u8 * CAT_RESTRICT b = p - size_x; // B
+	const u8 * CAT_RESTRICT b = p - xsize; // B
 	const u8 * CAT_RESTRICT c = b - 1; // C
 	const u8 * CAT_RESTRICT d = b + 1; // D
 
@@ -2145,16 +2145,16 @@ static u8 MFFU_AVG_ABCD(const u8 * CAT_RESTRICT p, u16 num_syms, int x, int y, i
 
 //// Quad Average Filters (Round Up)
 
-static u8 MFF_AVG_ABCD1(const u8 * CAT_RESTRICT p, u16 num_syms, int x, int y, int size_x) {
+static u8 MFF_AVG_ABCD1(const u8 * CAT_RESTRICT p, u16 num_syms, int x, int y, int xsize) {
 	if (x > 0) {
 		const u8 * CAT_RESTRICT a = p - 1; // A
 
 		if (y > 0) {
-			const u8 * CAT_RESTRICT b = p - size_x; // B
+			const u8 * CAT_RESTRICT b = p - xsize; // B
 			const u8 * CAT_RESTRICT c = b - 1; // C
 
 			const u8 * CAT_RESTRICT src = b; // B
-			if (x < size_x-1) {
+			if (x < xsize-1) {
 				src++; // D
 			}
 
@@ -2163,9 +2163,9 @@ static u8 MFF_AVG_ABCD1(const u8 * CAT_RESTRICT p, u16 num_syms, int x, int y, i
 			return a[0];
 		}
 	} else if (y > 0) {
-		const u8 * CAT_RESTRICT b = p - size_x; // B
+		const u8 * CAT_RESTRICT b = p - xsize; // B
 		const u8 * CAT_RESTRICT d = b; // D
-		if CAT_LIKELY(x < size_x-1) {
+		if CAT_LIKELY(x < xsize-1) {
 			b++;
 		}
 
@@ -2175,11 +2175,11 @@ static u8 MFF_AVG_ABCD1(const u8 * CAT_RESTRICT p, u16 num_syms, int x, int y, i
 	return 0;
 }
 
-static u8 MFFU_AVG_ABCD1(const u8 * CAT_RESTRICT p, u16 num_syms, int x, int y, int size_x) {
-	CAT_DEBUG_ENFORCE(x > 0 && y > 0 && x < size_x-1);
+static u8 MFFU_AVG_ABCD1(const u8 * CAT_RESTRICT p, u16 num_syms, int x, int y, int xsize) {
+	CAT_DEBUG_ENFORCE(x > 0 && y > 0 && x < xsize-1);
 
 	const u8 * CAT_RESTRICT a = p - 1; // A
-	const u8 * CAT_RESTRICT b = p - size_x; // B
+	const u8 * CAT_RESTRICT b = p - xsize; // B
 	const u8 * CAT_RESTRICT c = b - 1; // C
 	const u8 * CAT_RESTRICT d = b + 1; // D
 
@@ -2189,16 +2189,16 @@ static u8 MFFU_AVG_ABCD1(const u8 * CAT_RESTRICT p, u16 num_syms, int x, int y, 
 
 //// Clamp Gradient Filter
 
-static u8 MFF_CLAMP_GRAD(const u8 * CAT_RESTRICT p, u16 num_syms, int x, int y, int size_x) {
+static u8 MFF_CLAMP_GRAD(const u8 * CAT_RESTRICT p, u16 num_syms, int x, int y, int xsize) {
 	if (y > 0) {
 		if (x > 0) {
 			const u8 * CAT_RESTRICT a = p - 1; // A
-			const u8 * CAT_RESTRICT b = p - size_x; // B
+			const u8 * CAT_RESTRICT b = p - xsize; // B
 			const u8 * CAT_RESTRICT c = b - 1; // C
 
 			return clampGrad(b[0], a[0], c[0]);
 		} else {
-			return p[-size_x]; // B
+			return p[-xsize]; // B
 		}
 	} else if (x > 0) {
 		return p[-1]; // A
@@ -2207,11 +2207,11 @@ static u8 MFF_CLAMP_GRAD(const u8 * CAT_RESTRICT p, u16 num_syms, int x, int y, 
 	return 0;
 }
 
-static u8 MFFU_CLAMP_GRAD(const u8 * CAT_RESTRICT p, u16 num_syms, int x, int y, int size_x) {
-	CAT_DEBUG_ENFORCE(x > 0 && y > 0 && x < size_x-1);
+static u8 MFFU_CLAMP_GRAD(const u8 * CAT_RESTRICT p, u16 num_syms, int x, int y, int xsize) {
+	CAT_DEBUG_ENFORCE(x > 0 && y > 0 && x < xsize-1);
 
 	const u8 * CAT_RESTRICT a = p - 1; // A
-	const u8 * CAT_RESTRICT b = p - size_x; // B
+	const u8 * CAT_RESTRICT b = p - xsize; // B
 	const u8 * CAT_RESTRICT c = b - 1; // C
 
 	return clampGrad(b[0], a[0], c[0]);
@@ -2230,16 +2230,16 @@ static CAT_INLINE u8 skewGradMono(int b, int a, int c, int num_syms) {
 	return pred;
 }
 
-static u8 MFF_SKEW_GRAD(const u8 * CAT_RESTRICT p, u16 num_syms, int x, int y, int size_x) {
+static u8 MFF_SKEW_GRAD(const u8 * CAT_RESTRICT p, u16 num_syms, int x, int y, int xsize) {
 	if (y > 0) {
 		if (x > 0) {
 			const u8 * CAT_RESTRICT a = p - 1; // A
-			const u8 * CAT_RESTRICT b = p - size_x; // B
+			const u8 * CAT_RESTRICT b = p - xsize; // B
 			const u8 * CAT_RESTRICT c = b - 1; // C
 
 			return skewGradMono(b[0], a[0], c[0], num_syms);
 		} else {
-			return p[-size_x]; // B
+			return p[-xsize]; // B
 		}
 	} else if (x > 0) {
 		return p[-1]; // A
@@ -2248,11 +2248,11 @@ static u8 MFF_SKEW_GRAD(const u8 * CAT_RESTRICT p, u16 num_syms, int x, int y, i
 	return 0;
 }
 
-static u8 MFFU_SKEW_GRAD(const u8 * CAT_RESTRICT p, u16 num_syms, int x, int y, int size_x) {
-	CAT_DEBUG_ENFORCE(x > 0 && y > 0 && x < size_x-1);
+static u8 MFFU_SKEW_GRAD(const u8 * CAT_RESTRICT p, u16 num_syms, int x, int y, int xsize) {
+	CAT_DEBUG_ENFORCE(x > 0 && y > 0 && x < xsize-1);
 
 	const u8 * CAT_RESTRICT a = p - 1; // A
-	const u8 * CAT_RESTRICT b = p - size_x; // B
+	const u8 * CAT_RESTRICT b = p - xsize; // B
 	const u8 * CAT_RESTRICT c = b - 1; // C
 
 	return skewGradMono(b[0], a[0], c[0], num_syms);
@@ -2272,12 +2272,12 @@ static CAT_INLINE u8 abcClampMono(int a, int b, int c, int num_syms) {
 	return sum;
 }
 
-static u8 MFF_ABC_CLAMP(const u8 * CAT_RESTRICT p, u16 num_syms, int x, int y, int size_x) {
+static u8 MFF_ABC_CLAMP(const u8 * CAT_RESTRICT p, u16 num_syms, int x, int y, int xsize) {
 	if (x > 0) {
 		const u8 * CAT_RESTRICT a = p - 1; // A
 
 		if (y > 0) {
-			const u8 * CAT_RESTRICT b = p - size_x; // B
+			const u8 * CAT_RESTRICT b = p - xsize; // B
 			const u8 * CAT_RESTRICT c = b - 1; // C
 
 			return abcClampMono(a[0], b[0], c[0], num_syms);
@@ -2285,17 +2285,17 @@ static u8 MFF_ABC_CLAMP(const u8 * CAT_RESTRICT p, u16 num_syms, int x, int y, i
 			return a[0];
 		}
 	} else if (y > 0) {
-		return p[-size_x]; // B
+		return p[-xsize]; // B
 	}
 
 	return 0;
 }
 
-static u8 MFFU_ABC_CLAMP(const u8 * CAT_RESTRICT p, u16 num_syms, int x, int y, int size_x) {
+static u8 MFFU_ABC_CLAMP(const u8 * CAT_RESTRICT p, u16 num_syms, int x, int y, int xsize) {
 	CAT_DEBUG_ENFORCE(x > 0 && y > 0);
 
 	const u8 * CAT_RESTRICT a = p - 1; // A
-	const u8 * CAT_RESTRICT b = p - size_x; // B
+	const u8 * CAT_RESTRICT b = p - xsize; // B
 	const u8 * CAT_RESTRICT c = b - 1; // C
 
 	return abcClampMono(a[0], b[0], c[0], num_syms);
@@ -2304,12 +2304,12 @@ static u8 MFFU_ABC_CLAMP(const u8 * CAT_RESTRICT p, u16 num_syms, int x, int y, 
 
 //// Paeth Filter
 
-static u8 MFF_PAETH(const u8 * CAT_RESTRICT p, u16 num_syms, int x, int y, int size_x) {
+static u8 MFF_PAETH(const u8 * CAT_RESTRICT p, u16 num_syms, int x, int y, int xsize) {
 	if (x > 0) {
 		const u8 * CAT_RESTRICT a = p - 1; // A
 
 		if (y > 0) {
-			const u8 * CAT_RESTRICT b = p - size_x; // B
+			const u8 * CAT_RESTRICT b = p - xsize; // B
 			const u8 * CAT_RESTRICT c = b - 1; // C
 
 			return paeth(a[0], b[0], c[0]);
@@ -2317,17 +2317,17 @@ static u8 MFF_PAETH(const u8 * CAT_RESTRICT p, u16 num_syms, int x, int y, int s
 			return a[0];
 		}
 	} else if (y > 0) {
-		return p[-size_x]; // B
+		return p[-xsize]; // B
 	}
 
 	return 0;
 }
 
-static u8 MFFU_PAETH(const u8 * CAT_RESTRICT p, u16 num_syms, int x, int y, int size_x) {
+static u8 MFFU_PAETH(const u8 * CAT_RESTRICT p, u16 num_syms, int x, int y, int xsize) {
 	CAT_DEBUG_ENFORCE(x > 0 && y > 0);
 
 	const u8 * CAT_RESTRICT a = p - 1; // A
-	const u8 * CAT_RESTRICT b = p - size_x; // B
+	const u8 * CAT_RESTRICT b = p - xsize; // B
 	const u8 * CAT_RESTRICT c = b - 1; // C
 
 	return paeth(a[0], b[0], c[0]);
@@ -2336,12 +2336,12 @@ static u8 MFFU_PAETH(const u8 * CAT_RESTRICT p, u16 num_syms, int x, int y, int 
 
 //// ABC Paeth Filter
 
-static u8 MFF_ABC_PAETH(const u8 * CAT_RESTRICT p, u16 num_syms, int x, int y, int size_x) {
+static u8 MFF_ABC_PAETH(const u8 * CAT_RESTRICT p, u16 num_syms, int x, int y, int xsize) {
 	if (x > 0) {
 		const u8 * CAT_RESTRICT a = p - 1; // A
 
 		if (y > 0) {
-			const u8 * CAT_RESTRICT b = p - size_x; // B
+			const u8 * CAT_RESTRICT b = p - xsize; // B
 			const u8 * CAT_RESTRICT c = b - 1; // C
 
 			return abc_paeth(a[0], b[0], c[0]);
@@ -2349,17 +2349,17 @@ static u8 MFF_ABC_PAETH(const u8 * CAT_RESTRICT p, u16 num_syms, int x, int y, i
 			return a[0];
 		}
 	} else if (y > 0) {
-		return p[-size_x]; // B
+		return p[-xsize]; // B
 	}
 
 	return 0;
 }
 
-static u8 MFFU_ABC_PAETH(const u8 * CAT_RESTRICT p, u16 num_syms, int x, int y, int size_x) {
+static u8 MFFU_ABC_PAETH(const u8 * CAT_RESTRICT p, u16 num_syms, int x, int y, int xsize) {
 	CAT_DEBUG_ENFORCE(x > 0 && y > 0);
 
 	const u8 * CAT_RESTRICT a = p - 1; // A
-	const u8 * CAT_RESTRICT b = p - size_x; // B
+	const u8 * CAT_RESTRICT b = p - xsize; // B
 	const u8 * CAT_RESTRICT c = b - 1; // C
 
 	return abc_paeth(a[0], b[0], c[0]);
@@ -2368,15 +2368,15 @@ static u8 MFFU_ABC_PAETH(const u8 * CAT_RESTRICT p, u16 num_syms, int x, int y, 
 
 //// Offet PL Filter
 
-static u8 MFF_PLO(const u8 * CAT_RESTRICT p, u16 num_syms, int x, int y, int size_x) {
+static u8 MFF_PLO(const u8 * CAT_RESTRICT p, u16 num_syms, int x, int y, int xsize) {
 	if (x > 0) {
 		const u8 * CAT_RESTRICT a = p - 1; // A
 
 		if (y > 0) {
-			const u8 * CAT_RESTRICT b = p - size_x; // B
+			const u8 * CAT_RESTRICT b = p - xsize; // B
 
 			const u8 * CAT_RESTRICT src = b; // B
-			if (x < size_x-1) {
+			if (x < xsize-1) {
 				++src; // D
 			}
 
@@ -2385,17 +2385,17 @@ static u8 MFF_PLO(const u8 * CAT_RESTRICT p, u16 num_syms, int x, int y, int siz
 			return a[0];
 		}
 	} else if (y > 0) {
-		return p[-size_x]; // B
+		return p[-xsize]; // B
 	}
 
 	return 0;
 }
 
-static u8 MFFU_PLO(const u8 * CAT_RESTRICT p, u16 num_syms, int x, int y, int size_x) {
-	CAT_DEBUG_ENFORCE(x > 0 && y > 0 && x < size_x-1);
+static u8 MFFU_PLO(const u8 * CAT_RESTRICT p, u16 num_syms, int x, int y, int xsize) {
+	CAT_DEBUG_ENFORCE(x > 0 && y > 0 && x < xsize-1);
 
 	const u8 * CAT_RESTRICT a = p - 1; // A
-	const u8 * CAT_RESTRICT b = p - size_x; // B
+	const u8 * CAT_RESTRICT b = p - xsize; // B
 	const u8 * CAT_RESTRICT src = b + 1; // D
 
 	return predLevel(a[0], src[0], b[0]);
@@ -2404,12 +2404,12 @@ static u8 MFFU_PLO(const u8 * CAT_RESTRICT p, u16 num_syms, int x, int y, int si
 
 //// Select Filter
 
-static u8 MFF_SELECT(const u8 * CAT_RESTRICT p, u16 num_syms, int x, int y, int size_x) {
+static u8 MFF_SELECT(const u8 * CAT_RESTRICT p, u16 num_syms, int x, int y, int xsize) {
 	if (x > 0) {
 		const u8 * CAT_RESTRICT a = p - 1; // A
 
 		if (y > 0) {
-			const u8 * CAT_RESTRICT b = p - size_x; // B
+			const u8 * CAT_RESTRICT b = p - xsize; // B
 			const u8 * CAT_RESTRICT c = b - 1; // C
 
 			return predSelect(a[0], b[0], c[0]);
@@ -2417,17 +2417,17 @@ static u8 MFF_SELECT(const u8 * CAT_RESTRICT p, u16 num_syms, int x, int y, int 
 			return a[0];
 		}
 	} else if (y > 0) {
-		return p[-size_x]; // B
+		return p[-xsize]; // B
 	}
 
 	return 0;
 }
 
-static u8 MFFU_SELECT(const u8 * CAT_RESTRICT p, u16 num_syms, int x, int y, int size_x) {
-	CAT_DEBUG_ENFORCE(x > 0 && y > 0 && x < size_x-1);
+static u8 MFFU_SELECT(const u8 * CAT_RESTRICT p, u16 num_syms, int x, int y, int xsize) {
+	CAT_DEBUG_ENFORCE(x > 0 && y > 0 && x < xsize-1);
 
 	const u8 * CAT_RESTRICT a = p - 1; // A
-	const u8 * CAT_RESTRICT b = p - size_x; // B
+	const u8 * CAT_RESTRICT b = p - xsize; // B
 	const u8 * CAT_RESTRICT c = b - 1; // C
 
 	return predSelect(a[0], b[0], c[0]);
@@ -2436,28 +2436,28 @@ static u8 MFFU_SELECT(const u8 * CAT_RESTRICT p, u16 num_syms, int x, int y, int
 
 //// Select F Filter
 
-static u8 MFF_SELECT_F(const u8 * CAT_RESTRICT p, u16 num_syms, int x, int y, int size_x) {
+static u8 MFF_SELECT_F(const u8 * CAT_RESTRICT p, u16 num_syms, int x, int y, int xsize) {
 	if (x > 1 && y > 0) {
 		const u8 * CAT_RESTRICT a = p - 1;
-		const u8 * CAT_RESTRICT c = a - size_x;
+		const u8 * CAT_RESTRICT c = a - xsize;
 		const u8 * CAT_RESTRICT f = c - 1;
 
 		return leftSel(f[0], c[0], a[0]);
 	} else if (x > 0) {
 		return p[-1]; // A
 	} else if (y > 0) {
-		return p[-size_x]; // B
+		return p[-xsize]; // B
 	}
 
 	return 0;
 }
 
-static u8 MFFU_SELECT_F(const u8 * CAT_RESTRICT p, u16 num_syms, int x, int y, int size_x) {
-	CAT_DEBUG_ENFORCE(x > 0 && y > 0 && x < size_x-1);
+static u8 MFFU_SELECT_F(const u8 * CAT_RESTRICT p, u16 num_syms, int x, int y, int xsize) {
+	CAT_DEBUG_ENFORCE(x > 0 && y > 0 && x < xsize-1);
 
 	if (x > 1) {
 		const u8 * CAT_RESTRICT a = p - 1;
-		const u8 * CAT_RESTRICT c = a - size_x;
+		const u8 * CAT_RESTRICT c = a - xsize;
 		const u8 * CAT_RESTRICT f = c - 1;
 
 		return leftSel(f[0], c[0], a[0]);
@@ -2469,10 +2469,10 @@ static u8 MFFU_SELECT_F(const u8 * CAT_RESTRICT p, u16 num_syms, int x, int y, i
 
 //// E-D Gradient Filter
 
-static u8 MFF_ED_GRAD(const u8 * CAT_RESTRICT p, u16 num_syms, int x, int y, int size_x) {
-	if (y > 1 && x < size_x - 2) {
-		const u8 * CAT_RESTRICT d = p + 1 - size_x;
-		const u8 * CAT_RESTRICT e = d + 1 - size_x;
+static u8 MFF_ED_GRAD(const u8 * CAT_RESTRICT p, u16 num_syms, int x, int y, int xsize) {
+	if (y > 1 && x < xsize - 2) {
+		const u8 * CAT_RESTRICT d = p + 1 - xsize;
+		const u8 * CAT_RESTRICT e = d + 1 - xsize;
 
 		int v = (int)d[0] * 2 - e[0];
 		if (v <= 0) {
@@ -2484,16 +2484,16 @@ static u8 MFF_ED_GRAD(const u8 * CAT_RESTRICT p, u16 num_syms, int x, int y, int
 	} else if (x > 0) {
 		return p[-1]; // A
 	} else if (y > 0) {
-		return p[-size_x]; // B
+		return p[-xsize]; // B
 	}
 
 	return 0;
 }
 
-static u8 MFFU_ED_GRAD(const u8 * CAT_RESTRICT p, u16 num_syms, int x, int y, int size_x) {
-	if (y > 1 && x < size_x - 2) {
-		const u8 * CAT_RESTRICT d = p + 1 - size_x;
-		const u8 * CAT_RESTRICT e = d + 1 - size_x;
+static u8 MFFU_ED_GRAD(const u8 * CAT_RESTRICT p, u16 num_syms, int x, int y, int xsize) {
+	if (y > 1 && x < xsize - 2) {
+		const u8 * CAT_RESTRICT d = p + 1 - xsize;
+		const u8 * CAT_RESTRICT e = d + 1 - xsize;
 
 		int v = (int)d[0] * 2 - e[0];
 		if (v <= 0) {
@@ -2511,14 +2511,14 @@ static u8 MFFU_ED_GRAD(const u8 * CAT_RESTRICT p, u16 num_syms, int x, int y, in
 //// PaletteFilterSet
 
 #define DEFINE_TAPS(TAP) \
-	static u8 MFF_TAPS_ ## TAP (const u8 * CAT_RESTRICT p, u16 num_syms, int x, int y, int size_x) { \
+	static u8 MFF_TAPS_ ## TAP (const u8 * CAT_RESTRICT p, u16 num_syms, int x, int y, int xsize) { \
 		if (x > 0) { \
 			const u8 * CAT_RESTRICT a = p - 1; /* A */ \
 			if (y > 0) { \
-				const u8 * CAT_RESTRICT b = p - size_x; /* B */ \
+				const u8 * CAT_RESTRICT b = p - xsize; /* B */ \
 				const u8 * CAT_RESTRICT c = b - 1; /* C */ \
 				const u8 * CAT_RESTRICT d = b; /* B */ \
-				if (x < size_x-1) { \
+				if (x < xsize-1) { \
 					d += 1; /* D */ \
 				} \
 				static const int TA = DIV2_FILTER_TAPS[TAP][0]; \
@@ -2533,14 +2533,14 @@ static u8 MFFU_ED_GRAD(const u8 * CAT_RESTRICT p, u16 num_syms, int x, int y, in
 				return *a; \
 			} \
 		} else if (y > 0) { \
-			return p[-size_x]; /* B */ \
+			return p[-xsize]; /* B */ \
 		} \
 		return 0; \
 	} \
-	static u8 MFFU_TAPS_ ## TAP (const u8 * CAT_RESTRICT p, u16 num_syms, int x, int y, int size_x) { \
-		CAT_DEBUG_ENFORCE(x > 0 && y > 0 && x < size_x-1); \
+	static u8 MFFU_TAPS_ ## TAP (const u8 * CAT_RESTRICT p, u16 num_syms, int x, int y, int xsize) { \
+		CAT_DEBUG_ENFORCE(x > 0 && y > 0 && x < xsize-1); \
 		const u8 * CAT_RESTRICT a = p - 1; \
-		const u8 * CAT_RESTRICT b = p - size_x; \
+		const u8 * CAT_RESTRICT b = p - xsize; \
 		const u8 * CAT_RESTRICT c = b - 1; \
 		const u8 * CAT_RESTRICT d = b + 1; \
 		static const int TA = DIV2_FILTER_TAPS[TAP][0]; \
@@ -3084,9 +3084,9 @@ const u8 cat::RESIDUAL_SCORE_256[256] = {
 	0x10,0x0f,0x0e,0x0d,0x0c,0x0b,0x0a,0x09,0x08,0x07,0x06,0x05,0x04,0x03,0x02,0x01,
 };
 
-void MonoChaos::init(int chaos_levels, int size_x) {
+void MonoChaos::init(int chaos_levels, int xsize) {
 	// Allocate row space
-	_row.resize(1 + size_x);
+	_row.resize(1 + xsize);
 	_pixels = &_row[1];
 
 	// If already set at this number of chaos levels
@@ -3117,9 +3117,9 @@ void MonoChaos::init(int chaos_levels, int size_x) {
 	}
 }
 
-void RGBChaos::init(int chaos_levels, int size_x) {
+void RGBChaos::init(int chaos_levels, int xsize) {
 	// Allocate row space
-	_row.resize(4 + size_x * 4);
+	_row.resize(4 + xsize * 4);
 	_pixels = &_row[4];
 
 	// If already set at this number of chaos levels

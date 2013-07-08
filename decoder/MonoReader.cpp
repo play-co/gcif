@@ -78,7 +78,7 @@ int MonoReader::readTables(const Parameters & CAT_RESTRICT params, ImageReader &
 		}
 
 		// NOTE: Chaos is not actually used, but it avoids an if-statement in zero()
-		_chaos.init(0, _params.size_x);
+		_chaos.init(0, _params.xsize);
 	} else {
 		// Enable decoder
 		_use_row_filters = false;
@@ -107,12 +107,12 @@ int MonoReader::readTables(const Parameters & CAT_RESTRICT params, ImageReader &
 
 		// Initialize tile sizes
 		_tile_bits_y = _tile_bits_x;
-		_tile_size_x = 1 << _tile_bits_x;
-		_tile_size_y = 1 << _tile_bits_y;
-		_tile_mask_x = _tile_size_x - 1;
-		_tile_mask_y = _tile_size_y - 1;
-		_tiles_x = (_params.size_x + _tile_size_x - 1) >> _tile_bits_x;
-		_tiles_y = (_params.size_y + _tile_size_y - 1) >> _tile_bits_y;
+		_tile_xsize = 1 << _tile_bits_x;
+		_tile_ysize = 1 << _tile_bits_y;
+		_tile_mask_x = _tile_xsize - 1;
+		_tile_mask_y = _tile_ysize - 1;
+		_tiles_x = (_params.xsize + _tile_xsize - 1) >> _tile_bits_x;
+		_tiles_y = (_params.ysize + _tile_ysize - 1) >> _tile_bits_y;
 
 		_filter_row.resize(_tiles_x);
 
@@ -163,7 +163,7 @@ int MonoReader::readTables(const Parameters & CAT_RESTRICT params, ImageReader &
 
 		// Read chaos levels
 		int chaos_levels = reader.readBits(4) + 1;
-		_chaos.init(chaos_levels, _params.size_x);
+		_chaos.init(chaos_levels, _params.xsize);
 		_chaos.start();
 
 		DESYNC_TABLE();
@@ -185,8 +185,8 @@ int MonoReader::readTables(const Parameters & CAT_RESTRICT params, ImageReader &
 
 		Parameters sub_params;
 		sub_params.data = _tiles.get();
-		sub_params.size_x = _tiles_x;
-		sub_params.size_y = _tiles_y;
+		sub_params.xsize = _tiles_x;
+		sub_params.ysize = _tiles_y;
 		sub_params.min_bits = _params.min_bits;
 		sub_params.max_bits = _params.max_bits;
 		sub_params.num_syms = _filter_count;
@@ -252,7 +252,7 @@ int MonoReader::readRowHeader(u16 y, ImageReader & CAT_RESTRICT reader) {
 	_current_y = y;
 
 	if (y > 0) {
-		_current_row += _params.size_x;
+		_current_row += _params.xsize;
 	}
 
 	DESYNC(0, y);
@@ -269,7 +269,7 @@ u8 MonoReader::read(u16 x, ImageReader & CAT_RESTRICT reader) {
 
 	u8 *data = _current_row + x;
 
-	CAT_DEBUG_ENFORCE(x < _params.size_x && y < _params.size_y);
+	CAT_DEBUG_ENFORCE(x < _params.xsize && y < _params.ysize);
 
 	DESYNC(x, y);
 
@@ -334,7 +334,7 @@ u8 MonoReader::read(u16 x, ImageReader & CAT_RESTRICT reader) {
 			_chaos.store(x, static_cast<u8>( residual ), num_syms);
 
 			// Calculate predicted value
-			const u16 pred = filter(data, num_syms, x, y, _params.size_x);
+			const u16 pred = filter(data, num_syms, x, y, _params.xsize);
 
 			CAT_DEBUG_ENFORCE(pred < num_syms);
 
@@ -364,7 +364,7 @@ u8 MonoReader::read_unsafe(u16 x, ImageReader & CAT_RESTRICT reader) {
 
 	u8 *data = _current_row + x;
 
-	CAT_DEBUG_ENFORCE(x < _params.size_x && y < _params.size_y);
+	CAT_DEBUG_ENFORCE(x < _params.xsize && y < _params.ysize);
 
 	DESYNC(x, y);
 
@@ -429,7 +429,7 @@ u8 MonoReader::read_unsafe(u16 x, ImageReader & CAT_RESTRICT reader) {
 			_chaos.store(x, static_cast<u8>( residual ), num_syms);
 
 			// Calculate predicted value
-			const u16 pred = filter(data, num_syms, x, y, _params.size_x);
+			const u16 pred = filter(data, num_syms, x, y, _params.xsize);
 
 			CAT_DEBUG_ENFORCE(pred < num_syms);
 

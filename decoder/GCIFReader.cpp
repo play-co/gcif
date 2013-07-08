@@ -39,22 +39,22 @@ using namespace cat;
 static int gcif_read(ImageReader &reader, GCIFImage *image) {
 	int err;
 
-	// Fill in image size_x and size_y
+	// Fill in image xsize and ysize
 	ImageReader::Header *header = reader.getHeader();
 
 	// Validate input buffer and sizes for direct-to-memory mode
-	if (image->size_x < 0 || image->size_y < 0) {
-		image->size_x = header->size_x;
-		image->size_y = header->size_y;
-	} else if (image->size_x != header->size_x
-			|| image->size_y != header->size_y
+	if (image->xsize < 0 || image->ysize < 0) {
+		image->xsize = header->xsize;
+		image->ysize = header->ysize;
+	} else if (image->xsize != header->xsize
+			|| image->ysize != header->ysize
 			|| image->rgba == 0) {
 		return GCIF_RE_BAD_DIMS;
 	}
 
 	// If we need to allocate memory for this image,
 	if (!image->rgba) {
-		u64 size = image->size_x * (u64)image->size_y * 4;
+		u64 size = image->xsize * (u64)image->ysize * 4;
 
 		void *output;
 #ifdef posix_memalign
@@ -95,7 +95,7 @@ static int gcif_read(ImageReader &reader, GCIFImage *image) {
 	} else {
 		// Color Mask
 		ImageMaskReader imageMaskReader;
-		if ((err = imageMaskReader.read(reader, 4, image->size_x, image->size_y))) {
+		if ((err = imageMaskReader.read(reader, 4, image->xsize, image->ysize))) {
 			return err;
 		}
 		imageMaskReader.dumpStats();
@@ -127,8 +127,8 @@ extern "C" int gcif_read_file(const char *input_file_path_in, GCIFImage *image_o
 
 	// Initialize image data
 	image_out->rgba = 0;
-	image_out->size_x = -1;
-	image_out->size_y = -1;
+	image_out->xsize = -1;
+	image_out->ysize = -1;
 
 	// Initialize image reader
 	ImageReader reader;
@@ -149,7 +149,7 @@ extern "C" int gcif_read_file(const char *input_file_path_in, GCIFImage *image_o
 
 #endif // CAT_COMPILE_MMAP
 
-extern "C" int gcif_get_size(const void *file_data_in, long file_size_bytes_in, int *size_x, int *size_y) {
+extern "C" int gcif_get_size(const void *file_data_in, long file_size_bytes_in, int *xsize, int *ysize) {
 	// Validate length
 	if (file_size_bytes_in < 8) {
 		return GCIF_RE_BAD_HEAD;
@@ -162,10 +162,10 @@ extern "C" int gcif_get_size(const void *file_data_in, long file_size_bytes_in, 
 		return GCIF_RE_BAD_HEAD;
 	}
 
-	// Read size_x, size_y
+	// Read xsize, ysize
 	u32 word1 = getLE(head_word[1]);
-	*size_x = (u16)((word1 >> (32 - ImageReader::MAX_X_BITS)) & ((1 << ImageReader::MAX_X_BITS) - 1));
-	*size_y = (u16)((word1 >> (32 - ImageReader::MAX_X_BITS - ImageReader::MAX_Y_BITS)) & ((1 << ImageReader::MAX_Y_BITS) - 1));
+	*xsize = (u16)((word1 >> (32 - ImageReader::MAX_X_BITS)) & ((1 << ImageReader::MAX_X_BITS) - 1));
+	*ysize = (u16)((word1 >> (32 - ImageReader::MAX_X_BITS - ImageReader::MAX_Y_BITS)) & ((1 << ImageReader::MAX_Y_BITS) - 1));
 
 	return GCIF_RE_OK;
 }
@@ -191,8 +191,8 @@ extern "C" int gcif_read_memory(const void *file_data_in, long file_size_bytes_i
 
 	// Initialize image data
 	image_out->rgba = 0;
-	image_out->size_x = -1;
-	image_out->size_y = -1;
+	image_out->xsize = -1;
+	image_out->ysize = -1;
 
 	// Initialize image reader
 	ImageReader reader;

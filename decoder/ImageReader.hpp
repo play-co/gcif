@@ -48,7 +48,7 @@ public:
 	static const u32 MAX_Y = (1 << MAX_Y_BITS) - 1;
 
 	struct Header {
-		u16 size_x, size_y; // pixels
+		u16 xsize, ysize; // pixels
 	};
 
 protected:

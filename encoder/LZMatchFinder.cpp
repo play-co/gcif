@@ -50,7 +50,7 @@ bool RGBAMatchFinder::findMatches(const u32 *rgba, int xsize, int ysize, ImageMa
 	chain.resizeZero(pixels);
 
 	// Clear mask
-	_size_x = xsize;
+	_xsize = xsize;
 	const int mask_size = (xsize * ysize + 31) / 32;
 	_mask.resizeZero(mask_size);
 
@@ -200,7 +200,7 @@ void RGBAMatchFinder::LZDistanceTransform(LZMatch *match) {
 		code = LAST_COUNT + ROW_X;
 		for (int dy = 1; dy <= ImageRGBAReader::LZ_DIST_LIT_Y; ++dy) {
 			for (int dx = ImageRGBAReader::LZ_DIST_LIT_X0; dx <= ImageRGBAReader::LZ_DIST_LIT_X1; ++dx, ++code) {
-				int coff = dy * _size_x + dx;
+				int coff = dy * _xsize + dx;
 
 				if (distance == coff) {
 					goto found;
@@ -307,7 +307,7 @@ bool MonoMatchFinder::findMatches(const u8 *mono, int xsize, int ysize, MonoMatc
 	chain.resizeZero(pixels);
 
 	// Clear mask
-	_size_x = xsize;
+	_xsize = xsize;
 	const int mask_size = (xsize * ysize + 31) / 32;
 	_mask.resizeZero(mask_size);
 
@@ -455,7 +455,7 @@ void MonoMatchFinder::LZDistanceTransform(LZMatch *match) {
 		code = LAST_COUNT + ROW_X;
 		for (int dy = 1; dy <= MonoReader::LZ_DIST_LIT_Y; ++dy) {
 			for (int dx = MonoReader::LZ_DIST_LIT_X0; dx <= MonoReader::LZ_DIST_LIT_X1; ++dx, ++code) {
-				int coff = dy * _size_x + dx;
+				int coff = dy * _xsize + dx;
 
 				if (distance == coff) {
 					goto found;

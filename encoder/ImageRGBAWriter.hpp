@@ -89,11 +89,11 @@ protected:
 
 	// RGBA image
 	const u8 *_rgba;
-	u16 _size_x, _size_y;
+	u16 _xsize, _ysize;
 
 	// Filter tiles
 	u16 _tile_bits_x, _tile_bits_y;
-	u16 _tile_size_x, _tile_size_y;
+	u16 _tile_xsize, _tile_ysize;
 	u16 _tiles_x, _tiles_y;
 	SmartArray<u8> _sf_tiles;	// Filled with 0 for fully-masked tiles
 	SmartArray<u8> _cf_tiles;	// Set to MASK_TILE for fully-masked tiles
@@ -160,7 +160,7 @@ public:
 #endif // CAT_COLLECT_STATS
 
 public:
-	int init(const u8 *rgba, int size_x, int size_y, ImageMaskWriter &mask, const GCIFKnobs *knobs);
+	int init(const u8 *rgba, int xsize, int ysize, ImageMaskWriter &mask, const GCIFKnobs *knobs);
 
 	void write(ImageWriter &writer);
 

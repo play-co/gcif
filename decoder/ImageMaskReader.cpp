@@ -101,21 +101,21 @@ int ImageMaskReader::decodeLZ(ImageReader & CAT_RESTRICT reader) {
 	return GCIF_RE_OK;
 }
 
-int ImageMaskReader::init(int size_x, int size_y) {
-	const int maskWidth = size_x;
-	const int maskHeight = size_y;
+int ImageMaskReader::init(int xsize, int ysize) {
+	const int maskWidth = xsize;
+	const int maskHeight = ysize;
 
 	_color = 0;
 	_stride = (maskWidth + 31) >> 5;
-	_size_x = maskWidth;
-	_size_y = maskHeight;
+	_xsize = maskWidth;
+	_ysize = maskHeight;
 
 	_mask.resize(_stride);
 
 	return GCIF_RE_OK;
 }
 
-int ImageMaskReader::read(ImageReader & CAT_RESTRICT reader, int planes, int size_x, int size_y) {
+int ImageMaskReader::read(ImageReader & CAT_RESTRICT reader, int planes, int xsize, int ysize) {
 #ifdef CAT_COLLECT_STATS
 	m_clock = Clock::ref();
 
@@ -124,7 +124,7 @@ int ImageMaskReader::read(ImageReader & CAT_RESTRICT reader, int planes, int siz
 
 	int err;
 
-	if ((err = init(size_x, size_y))) {
+	if ((err = init(xsize, ysize))) {
 		return err;
 	}
 

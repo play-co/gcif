@@ -144,12 +144,12 @@ static const GCIFKnobs DEFAULT_KNOBS[COMPRESS_LEVELS] = {
 };
 
 
-void stripTransparentRGB(const u8 *rgba, int size_x, int size_y, SmartArray<u8> &image) {
-	image.resize(size_x * size_y * 4);
+void stripTransparentRGB(const u8 *rgba, int xsize, int ysize, SmartArray<u8> &image) {
+	image.resize(xsize * ysize * 4);
 
 	u8 *p = image.get();
-	for (int y = 0; y < size_y; ++y) {
-		for (int x = 0; x < size_x; ++x) {
+	for (int y = 0; y < ysize; ++y) {
+		for (int x = 0; x < xsize; ++x) {
 			if (rgba[3] == 0) {
 				*(u32*)p = 0;
 			} else {
@@ -162,9 +162,9 @@ void stripTransparentRGB(const u8 *rgba, int size_x, int size_y, SmartArray<u8> 
 }
 
 
-extern "C" int gcif_write_ex(const void *rgba, int size_x, int size_y, const char *output_file_path, const GCIFKnobs *knobs) {
+extern "C" int gcif_write_ex(const void *rgba, int xsize, int ysize, const char *output_file_path, const GCIFKnobs *knobs) {
 	// Validate input
-	if (!rgba || size_x < 0 || size_y < 0 || !output_file_path || !*output_file_path) {
+	if (!rgba || xsize < 0 || ysize < 0 || !output_file_path || !*output_file_path) {
 		return GCIF_WE_BAD_PARAMS;
 	}
 
@@ -172,17 +172,17 @@ extern "C" int gcif_write_ex(const void *rgba, int size_x, int size_y, const cha
 
 	// Make a copy of the image and strip out the RGB information from fully-transparent pixels
 	SmartArray<u8> image;
-	stripTransparentRGB(reinterpret_cast<const u8*>( rgba ), size_x, size_y, image);
+	stripTransparentRGB(reinterpret_cast<const u8*>( rgba ), xsize, ysize, image);
 
 	// Initialize image writer
 	ImageWriter writer;
-	if ((err = writer.init(size_x, size_y))) {
+	if ((err = writer.init(xsize, ysize))) {
 		return err;
 	}
 
 	// Small Palette
 	SmallPaletteWriter smallPaletteWriter;
-	if ((err = smallPaletteWriter.init(image.get(), size_x, size_y, knobs))) {
+	if ((err = smallPaletteWriter.init(image.get(), xsize, ysize, knobs))) {
 		return err;
 	}
 
@@ -217,7 +217,7 @@ extern "C" int gcif_write_ex(const void *rgba, int size_x, int size_y, const cha
 	} else {
 		// Dominant Color Mask
 		ImageMaskWriter imageMaskWriter;
-		if ((err = imageMaskWriter.init(image.get(), 4, size_x, size_y, knobs))) {
+		if ((err = imageMaskWriter.init(image.get(), 4, xsize, ysize, knobs))) {
 			return err;
 		}
 
@@ -226,7 +226,7 @@ extern "C" int gcif_write_ex(const void *rgba, int size_x, int size_y, const cha
 
 		// Global Palette
 		ImagePaletteWriter imagePaletteWriter;
-		if ((err = imagePaletteWriter.init(image.get(), size_x, size_y, knobs, imageMaskWriter))) {
+		if ((err = imagePaletteWriter.init(image.get(), xsize, ysize, knobs, imageMaskWriter))) {
 			return err;
 		}
 
@@ -236,7 +236,7 @@ extern "C" int gcif_write_ex(const void *rgba, int size_x, int size_y, const cha
 		if (!imagePaletteWriter.enabled()) {
 			// Context Modeling Decompression
 			ImageRGBAWriter imageRGBAWriter;
-			if ((err = imageRGBAWriter.init(image.get(), size_x, size_y, imageMaskWriter, knobs))) {
+			if ((err = imageRGBAWriter.init(image.get(), xsize, ysize, imageMaskWriter, knobs))) {
 				return err;
 			}
 
@@ -256,7 +256,7 @@ extern "C" int gcif_write_ex(const void *rgba, int size_x, int size_y, const cha
 	return GCIF_WE_OK;
 }
 
-extern "C" int gcif_write(const void *rgba, int size_x, int size_y, const char *output_file_path, int compression_level) {
+extern "C" int gcif_write(const void *rgba, int xsize, int ysize, const char *output_file_path, int compression_level) {
 	// Error on invalid input
 	if (compression_level < 0) {
 		return GCIF_WE_BAD_PARAMS;
@@ -270,5 +270,5 @@ extern "C" int gcif_write(const void *rgba, int size_x, int size_y, const char *
 	const GCIFKnobs *knobs = &DEFAULT_KNOBS[compression_level];
 
 	// Run with selected knobs
-	return gcif_write_ex(rgba, size_x, size_y, output_file_path, knobs);
+	return gcif_write_ex(rgba, xsize, ysize, output_file_path, knobs);
 }

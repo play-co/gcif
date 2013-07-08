@@ -67,7 +67,7 @@ class ImagePaletteWriter {
 
 	const u8 *_rgba;		// Original image
 	SmartArray<u8> _image;	// Palette-encoded image
-	int _size_x, _size_y;	// In pixels
+	int _xsize, _ysize;	// In pixels
 	int _palette_size;		// Number of palette entries
 	u8 _most_common;		// Most common palette index
 	u8 _masked_palette;		// Palette index for the mask
@@ -105,7 +105,7 @@ public:
 #endif
 
 public:
-	int init(const u8 *rgba, int size_x, int size_y, const GCIFKnobs *knobs, ImageMaskWriter &mask);
+	int init(const u8 *rgba, int xsize, int ysize, const GCIFKnobs *knobs, ImageMaskWriter &mask);
 
 	CAT_INLINE bool enabled() {
 		return _palette_size > 0;
@@ -124,7 +124,7 @@ public:
 	}
 
 	CAT_INLINE u8 *get(int x, int y) {
-		return _image.get() + x + y * _size_x;
+		return _image.get() + x + y * _xsize;
 	}
 
 	void write(ImageWriter &writer);

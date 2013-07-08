@@ -36,8 +36,8 @@ void PaletteOptimizer::histogramImage(MaskDelegate &mask) {
 
 	// Histogram
 	const u8 *image = _image;
-	for (int y = 0, yend = _size_y; y < yend; ++y) {
-		for (int x = 0, xend = _size_x; x < xend; ++x, ++image) {
+	for (int y = 0, yend = _ysize; y < yend; ++y) {
+		for (int x = 0, xend = _xsize; x < xend; ++x, ++image) {
 			if (!mask(x, y)) {
 				_hist[*image]++;
 			}
@@ -85,14 +85,14 @@ void PaletteOptimizer::sortPalette(MaskDelegate &mask) {
 	//_forward[_most_common] = 0;
 
 	// Temporary matrix to store scoring data
-	_result.resize(_size_x * _size_y);
+	_result.resize(_xsize * _ysize);
 	_result.fill_ff();
 
 	// Fill in score matrix for most common color
 	u8 *result = _result.get();
 	const u8 *image = _image;
-	for (int y = 0, yend = _size_y; y < yend; ++y) {
-		for (int x = 0, xend = _size_x; x < xend; ++x, ++result, ++image) {
+	for (int y = 0, yend = _ysize; y < yend; ++y) {
+		for (int x = 0, xend = _xsize; x < xend; ++x, ++result, ++image) {
 			// If original image used this one,
 			if (*image == _most_common) {
 				*result = 0;
@@ -108,8 +108,8 @@ void PaletteOptimizer::sortPalette(MaskDelegate &mask) {
 		u32 scores[PALETTE_MAX] = {0};
 		static const int THRESH = 8;
 		const int cutoff = index - THRESH;
-		for (int y = 0, size_y = _size_y; y < size_y; ++y) {
-			for (int x = 0, size_x = _size_x; x < size_x; ++x, ++result, ++image) {
+		for (int y = 0, ysize = _ysize; y < ysize; ++y) {
+			for (int x = 0, xsize = _xsize; x < xsize; ++x, ++result, ++image) {
 				u8 p = *result;
 				p = (u8)((int)p - cutoff);
 
@@ -125,43 +125,43 @@ void PaletteOptimizer::sortPalette(MaskDelegate &mask) {
 							scores[image[-1]] += p*2; // A
 						}
 
-						if (y < size_y-1) {
+						if (y < ysize-1) {
 							if (!mask(x - 1, y + 1)) {
-								scores[image[size_x - 1]] += p; // d
+								scores[image[xsize - 1]] += p; // d
 							}
 						}
 
 						if (y > 0) {
 							if (!mask(x - 1, y - 1)) {
-								scores[image[-size_x - 1]] += p; // C
+								scores[image[-xsize - 1]] += p; // C
 							}
 						}
 					}
-					if (x < size_x-1) {
+					if (x < xsize-1) {
 						if (!mask(x + 1, y)) {
 							scores[image[1]] += p*2; // a
 						}
 
-						if (y < size_y-1) {
+						if (y < ysize-1) {
 							if (!mask(x + 1, y + 1)) {
-								scores[image[size_x + 1]] += p; // c
+								scores[image[xsize + 1]] += p; // c
 							}
 						}
 					}
 					if (y > 0) {
 						if (!mask(x, y - 1)) {
-							scores[image[-size_x]] += p; // B
+							scores[image[-xsize]] += p; // B
 						}
 
-						if (x < size_x-1) {
+						if (x < xsize-1) {
 							if (!mask(x + 1, y - 1)) {
-								scores[image[-size_x + 1]] += p; // D
+								scores[image[-xsize + 1]] += p; // D
 							}
 						}
 					}
-					if (y < size_y-1) {
+					if (y < ysize-1) {
 						if (!mask(x, y + 1)) {
-							scores[image[size_x]] += p; // b
+							scores[image[xsize]] += p; // b
 						}
 					}
 				}
@@ -189,8 +189,8 @@ void PaletteOptimizer::sortPalette(MaskDelegate &mask) {
 		// Fill in score matrix
 		result = _result.get();
 		image = _image;
-		for (int y = 0, yend = _size_y; y < yend; ++y) {
-			for (int x = 0, xend = _size_x; x < xend; ++x, ++result, ++image) {
+		for (int y = 0, yend = _ysize; y < yend; ++y) {
+			for (int x = 0, xend = _xsize; x < xend; ++x, ++result, ++image) {
 				// If original image used this one,
 				if (*image == best_ii) {
 					*result = index;
@@ -204,18 +204,18 @@ void PaletteOptimizer::sortPalette(MaskDelegate &mask) {
 #ifdef CAT_DEBUG
 	// Sanity check
 	result = _result.get();
-	for (int y = 0, yend = _size_y; y < yend; ++y) {
-		for (int x = 0, xend = _size_x; x < xend; ++x, ++result) {
+	for (int y = 0, yend = _ysize; y < yend; ++y) {
+		for (int x = 0, xend = _xsize; x < xend; ++x, ++result) {
 			CAT_DEBUG_ENFORCE(*result < _palette_size);
 		}
 	}
 #endif
 }
 
-void PaletteOptimizer::process(const u8 *image, int size_x, int size_y, int palette_size, MaskDelegate mask) {
+void PaletteOptimizer::process(const u8 *image, int xsize, int ysize, int palette_size, MaskDelegate mask) {
 	_image = image;
-	_size_x = size_x;
-	_size_y = size_y;
+	_xsize = xsize;
+	_ysize = ysize;
 	_palette_size = palette_size;
 
 	histogramImage(mask);

@@ -124,12 +124,12 @@ int ImagePaletteReader::readPalette(ImageReader & CAT_RESTRICT reader) {
 }
 
 int ImagePaletteReader::readTables(ImageReader & CAT_RESTRICT reader) {
-	_image.resize(_size_x * _size_y);
+	_image.resize(_xsize * _ysize);
 
 	MonoReader::Parameters params;
 	params.data = _image.get();
-	params.size_x = _size_x;
-	params.size_y = _size_y;
+	params.xsize = _xsize;
+	params.ysize = _ysize;
 	params.min_bits = 2;
 	params.max_bits = 5;
 	params.num_syms = _palette_size;
@@ -163,7 +163,7 @@ int ImagePaletteReader::readPixels(ImageReader & CAT_RESTRICT reader) {
 		int mask_left = 0;
 		u32 mask;
 
-		for (int x = 0, xend = _size_x; x < xend; ++x) {
+		for (int x = 0, xend = _xsize; x < xend; ++x) {
 			DESYNC(x, y);
 
 			// Next mask word
@@ -191,7 +191,7 @@ int ImagePaletteReader::readPixels(ImageReader & CAT_RESTRICT reader) {
 	}
 
 	// For each remaining scanline,
-	for (int y = 1, yend = _size_y; y < yend; ++y) {
+	for (int y = 1, yend = _ysize; y < yend; ++y) {
 		_mono_decoder.readRowHeader(y, reader);
 
 		const u32 *mask_next = _mask->nextScanline();
@@ -227,7 +227,7 @@ int ImagePaletteReader::readPixels(ImageReader & CAT_RESTRICT reader) {
 
 		//// THIS IS THE INNER LOOP ////
 
-		for (int x = 1, xend = (int)_size_x - 1; x < xend; ++x) {
+		for (int x = 1, xend = (int)_xsize - 1; x < xend; ++x) {
 			DESYNC(x, y);
 
 			// Next mask word
@@ -255,9 +255,9 @@ int ImagePaletteReader::readPixels(ImageReader & CAT_RESTRICT reader) {
 
 		//// THIS IS THE INNER LOOP ////
 
-		// Unroll x = _size_x - 1
+		// Unroll x = _xsize - 1
 		{
-			const int x = _size_x - 1;
+			const int x = _xsize - 1;
 
 			DESYNC(x, y);
 
@@ -286,14 +286,14 @@ int ImagePaletteReader::readPixels(ImageReader & CAT_RESTRICT reader) {
 
 #else
 
-	for (int y = 0, yend = _size_y; y < yend; ++y) {
+	for (int y = 0, yend = _ysize; y < yend; ++y) {
 		_mono_decoder.readRowHeader(y, reader);
 
 		const u32 *mask_next = _mask->nextScanline();
 		int mask_left = 0;
 		u32 mask;
 
-		for (int x = 0, xend = _size_x; x < xend; ++x) {
+		for (int x = 0, xend = _xsize; x < xend; ++x) {
 			DESYNC(x, y);
 
 			// Next mask word
@@ -347,8 +347,8 @@ int ImagePaletteReader::read(ImageReader & CAT_RESTRICT reader, ImageMaskReader 
 #endif // CAT_COLLECT_STATS
 
 	_rgba = image->rgba;
-	_size_x = image->size_x;
-	_size_y = image->size_y;
+	_xsize = image->xsize;
+	_ysize = image->ysize;
 	_mask = &mask;
 
 	if ((err = readTables(reader))) {

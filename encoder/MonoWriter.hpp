@@ -117,7 +117,7 @@ public:
 	// Parameters provided to process()
 	struct Parameters {
 		// Shared
-		u16 size_x, size_y;				// Data dimensions
+		u16 xsize, ysize;				// Data dimensions
 		u16 min_bits, max_bits;			// Tile size bit range to try
 		MaskDelegate mask;				// Function to call to determine if an element is masked out
 		u16 num_syms;					// Number of symbols in data [0..num_syms-1]
@@ -231,7 +231,7 @@ public:
 	}
 
 	// Generate write order to pass in
-	static void generateWriteOrder(u16 size_x, u16 size_y, MaskDelegate mask, u16 tile_shift_bits, std::vector<u16> &order);
+	static void generateWriteOrder(u16 xsize, u16 ysize, MaskDelegate mask, u16 tile_shift_bits, std::vector<u16> &order);
 
 	// Generate writer from this configuration
 	void init(const Parameters &params);
@@ -270,7 +270,7 @@ class MonoWriterProfile {
 	u32 tiles_count;						// Number of tiles
 	int tiles_x, tiles_y;					// Tiles in x,y
 	u16 tile_bits_x, tile_bits_y;			// Number of bits in size
-	u16 tile_size_x, tile_size_y;			// Size of tile
+	u16 tile_xsize, tile_ysize;			// Size of tile
 
 	CAT_INLINE u8 getTile(u16 tx, u16 ty) {
 		return tiles[tx + ty * tiles_x];
@@ -308,7 +308,7 @@ public:
 		cleanup();
 	}
 
-	void init(u16 size_x, u16 size_y, u16 bits);
+	void init(u16 xsize, u16 ysize, u16 bits);
 };
 
 

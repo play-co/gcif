@@ -126,7 +126,7 @@ public:
 
 	static const char *ErrorString(int err);
 
-	int init(int size_x, int size_y);
+	int init(int xsize, int ysize);
 
 	// Only works with len in [1..32], and code must not have dirty high bits
 	void writeBits(u32 code, int len);

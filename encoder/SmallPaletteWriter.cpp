@@ -42,8 +42,8 @@ bool SmallPaletteWriter::generatePalette() {
 	const u32 *color = reinterpret_cast<const u32 *>( _rgba );
 	int palette_size = 0;
 
-	for (int y = 0; y < _size_y; ++y) {
-		for (int x = 0, xend = _size_x; x < xend; ++x) {
+	for (int y = 0; y < _ysize; ++y) {
+		for (int x = 0, xend = _xsize; x < xend; ++x) {
 			u32 c = *color++;
 
 			// Determine palette index
@@ -90,8 +90,8 @@ void SmallPaletteWriter::generatePacked() {
 		 * Combine pairs of pixels on the same scanline together.
 		 * Final odd pixel in each row is encoded in the low bits.
 		 */
-		_pack_x = (_size_x + 1) >> 1;
-		_pack_y = _size_y;
+		_pack_x = (_xsize + 1) >> 1;
+		_pack_y = _ysize;
 		const int image_size = _pack_x * _pack_y;
 		_image.resize(image_size);
 
@@ -99,12 +99,12 @@ void SmallPaletteWriter::generatePacked() {
 		u8 *image = _image.get();
 
 		// For each scanline,
-		for (int y = 0; y < _size_y; ++y) {
+		for (int y = 0; y < _ysize; ++y) {
 			u8 b = 0;
 			int packed = 0;
 
 			// For each pixel,
-			for (int x = 0, xend = _size_x; x < xend; ++x) {
+			for (int x = 0, xend = _xsize; x < xend; ++x) {
 				// Lookup palette index
 				u32 c = *color++;
 				u8 p = _map[c];
@@ -139,28 +139,28 @@ void SmallPaletteWriter::generatePacked() {
 		 * 0 1  -->  HI:[ 3 3 2 2 1 1 0 0 ]:LO
 		 * 2 3
 		 */
-		_pack_x = (_size_x + 1) >> 1;
-		_pack_y = (_size_y + 1) >> 1;
+		_pack_x = (_xsize + 1) >> 1;
+		_pack_y = (_ysize + 1) >> 1;
 		const int image_size = _pack_x * _pack_y;
 		_image.resize(image_size);
 
 		const u32 *color = reinterpret_cast<const u32 *>( _rgba );
 		u8 *image = _image.get();
 
-		for (int y = 0; y < _size_y; y += 2) {
-			for (int x = 0, xend = _size_x; x < xend; x += 2) {
+		for (int y = 0; y < _ysize; y += 2) {
+			for (int x = 0, xend = _xsize; x < xend; x += 2) {
 				// Lookup palette index
 				u32 c0 = color[0];
 				u8 p0 = _map[c0], p1 = 0, p2 = 0, p3 = 0;
 
 				// Read off palette indices and increment color pointer
-				if (y < _size_y-1) {
-					u32 c2 = color[_size_x];
+				if (y < _ysize-1) {
+					u32 c2 = color[_xsize];
 					p2 = _map[c2];
 				}
-				if (x < _size_x-1) {
-					if (y < _size_y-1) {
-						u32 c3 = color[_size_x + 1];
+				if (x < _xsize-1) {
+					if (y < _ysize-1) {
+						u32 c3 = color[_xsize + 1];
 						p3 = _map[c3];
 					}
 
@@ -186,16 +186,16 @@ void SmallPaletteWriter::generatePacked() {
 		 * 0 1 2 3  -->  HI:[ 0 1 2 3 4 5 6 7 ]:LO
 		 * 4 5 6 7
 		 */
-		_pack_x = (_size_x + 3) >> 2;
-		_pack_y = (_size_y + 1) >> 1;
+		_pack_x = (_xsize + 3) >> 2;
+		_pack_y = (_ysize + 1) >> 1;
 		const int image_size = _pack_x * _pack_y;
 		_image.resize(image_size);
 
 		const u32 *color = reinterpret_cast<const u32 *>( _rgba );
 		u8 *image = _image.get();
 
-		for (int y = 0; y < _size_y; y += 2) {
-			for (int x = 0, xend = _size_x; x < xend; x += 4) {
+		for (int y = 0; y < _ysize; y += 2) {
+			for (int x = 0, xend = _xsize; x < xend; x += 4) {
 				u8 b = 0;
 
 				for (int jj = 0; jj < 2; ++jj) {
@@ -204,8 +204,8 @@ void SmallPaletteWriter::generatePacked() {
 
 						b <<= 1;
 
-						if (px < _size_x && py < _size_y) {
-							u32 c = color[px + py * _size_x];
+						if (px < _xsize && py < _ysize) {
+							u32 c = color[px + py * _xsize];
 
 							u8 p = (u8)_map[c];
 
@@ -223,11 +223,11 @@ void SmallPaletteWriter::generatePacked() {
 	// Else: 0 bits per pixel, just need to transmit palette
 }
 
-int SmallPaletteWriter::init(const u8 *rgba, int size_x, int size_y, const GCIFKnobs *knobs) {
+int SmallPaletteWriter::init(const u8 *rgba, int xsize, int ysize, const GCIFKnobs *knobs) {
 	_knobs = knobs;
 	_rgba = rgba;
-	_size_x = size_x;
-	_size_y = size_y;
+	_xsize = xsize;
+	_ysize = ysize;
 
 	// Off by default
 	_palette_size = 0;
@@ -334,8 +334,8 @@ void SmallPaletteWriter::generateMonoWriter() {
 	params.knobs = _knobs;
 	params.data = _image.get();
 	params.num_syms = _pack_palette_size;
-	params.size_x = _pack_x;
-	params.size_y = _pack_y;
+	params.xsize = _pack_x;
+	params.ysize = _pack_y;
 	params.max_filters = 32;
 	params.min_bits = 2;
 	params.max_bits = 5;
@@ -422,7 +422,7 @@ void SmallPaletteWriter::writePixels(ImageWriter &writer) {
 	Stats.packed_pixels = pixels;
 	Stats.total_bits = Stats.small_palette_bits + Stats.pack_palette_bits + Stats.pixel_bits;
 	Stats.total_bits += _mask->Stats.compressedDataBits;
-	Stats.compression_ratio = _size_x * _size_y * 32 / (double)Stats.total_bits;
+	Stats.compression_ratio = _xsize * _ysize * 32 / (double)Stats.total_bits;
 #endif
 }
 

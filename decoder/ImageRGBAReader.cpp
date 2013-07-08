@@ -58,12 +58,12 @@ int ImageRGBAReader::readFilterTables(ImageReader & CAT_RESTRICT reader) {
 	// Read tile bits
 	_tile_bits_x = reader.readBits(3) + 1;
 	_tile_bits_y = _tile_bits_x;
-	_tile_size_x = 1 << _tile_bits_x;
-	_tile_size_y = 1 << _tile_bits_y;
-	_tile_mask_x = _tile_size_x - 1;
-	_tile_mask_y = _tile_size_y - 1;
-	_tiles_x = (_size_x + _tile_mask_x) >> _tile_bits_x;
-	_tiles_y = (_size_y + _tile_mask_y) >> _tile_bits_y;
+	_tile_xsize = 1 << _tile_bits_x;
+	_tile_ysize = 1 << _tile_bits_y;
+	_tile_mask_x = _tile_xsize - 1;
+	_tile_mask_y = _tile_ysize - 1;
+	_tiles_x = (_xsize + _tile_mask_x) >> _tile_bits_x;
+	_tiles_y = (_ysize + _tile_mask_y) >> _tile_bits_y;
 	_filters.resize(_tiles_x);
 
 	const int tile_count = _tiles_x * _tiles_y;
@@ -95,8 +95,8 @@ int ImageRGBAReader::readFilterTables(ImageReader & CAT_RESTRICT reader) {
 	{
 		MonoReader::Parameters params;
 		params.data = _sf_tiles.get();
-		params.size_x = _tiles_x;
-		params.size_y = _tiles_y;
+		params.xsize = _tiles_x;
+		params.ysize = _tiles_y;
 		params.num_syms = _sf_count;
 		params.min_bits = 2;
 		params.max_bits = 5;
@@ -115,8 +115,8 @@ int ImageRGBAReader::readFilterTables(ImageReader & CAT_RESTRICT reader) {
 	{
 		MonoReader::Parameters params;
 		params.data = _cf_tiles.get();
-		params.size_x = _tiles_x;
-		params.size_y = _tiles_y;
+		params.xsize = _tiles_x;
+		params.ysize = _tiles_y;
 		params.num_syms = CF_COUNT;
 		params.min_bits = 2;
 		params.max_bits = 5;
@@ -139,13 +139,13 @@ int ImageRGBAReader::readRGBATables(ImageReader & CAT_RESTRICT reader) {
 
 	// Read alpha decoder
 	{
-		const int pixel_count = _size_x * _size_y;
+		const int pixel_count = _xsize * _ysize;
 		_a_tiles.resize(pixel_count);
 
 		MonoReader::Parameters params;
 		params.data = _a_tiles.get();
-		params.size_x = _size_x;
-		params.size_y = _size_y;
+		params.xsize = _xsize;
+		params.ysize = _ysize;
 		params.num_syms = 256;
 		params.min_bits = 2;
 		params.max_bits = 5;
@@ -163,7 +163,7 @@ int ImageRGBAReader::readRGBATables(ImageReader & CAT_RESTRICT reader) {
 	// Read chaos levels
 	const int chaos_levels = reader.readBits(4) + 1;
 
-	_chaos.init(chaos_levels, _size_x);
+	_chaos.init(chaos_levels, _xsize);
 
 	// For each chaos level,
 	for (int jj = 0; jj < chaos_levels; ++jj) {
@@ -191,7 +191,7 @@ int ImageRGBAReader::readRGBATables(ImageReader & CAT_RESTRICT reader) {
 }
 
 int ImageRGBAReader::readPixels(ImageReader & CAT_RESTRICT reader) {
-	const int size_x = _size_x;
+	const int xsize = _xsize;
 	const u32 MASK_COLOR = _mask->getColor();
 	const u8 MASK_ALPHA = (u8)~(getLE(MASK_COLOR) >> 24);
 
@@ -224,7 +224,7 @@ int ImageRGBAReader::readPixels(ImageReader & CAT_RESTRICT reader) {
 		u32 mask;
 
 		// For each pixel,
-		for (int x = 0; x < size_x; ++x) {
+		for (int x = 0; x < xsize; ++x) {
 			DESYNC(x, y);
 
 			// Next mask word
@@ -251,7 +251,7 @@ int ImageRGBAReader::readPixels(ImageReader & CAT_RESTRICT reader) {
 
 
 	// For each scanline,
-	for (int y = 1; y < _size_y; ++y) {
+	for (int y = 1; y < _ysize; ++y) {
 		// If it is time to clear the filters data,
 		if ((y & _tile_mask_y) == 0) {
 			// Zero filter holes
@@ -308,7 +308,7 @@ int ImageRGBAReader::readPixels(ImageReader & CAT_RESTRICT reader) {
 
 
 		// For each pixel,
-		for (int x = 1, xend = size_x - 1; x < xend; ++x) {
+		for (int x = 1, xend = xsize - 1; x < xend; ++x) {
 			DESYNC(x, y);
 
 			// Next mask word
@@ -339,7 +339,7 @@ int ImageRGBAReader::readPixels(ImageReader & CAT_RESTRICT reader) {
 
 		// For right image edge,
 		{
-			const int x = size_x - 1;
+			const int x = xsize - 1;
 			DESYNC(x, y);
 
 			// Next mask word
@@ -365,7 +365,7 @@ int ImageRGBAReader::readPixels(ImageReader & CAT_RESTRICT reader) {
 #else
 
 	// For each row,
-	for (int y = 0; y < _size_y; ++y) {
+	for (int y = 0; y < _ysize; ++y) {
 		// If it is time to clear the filters data,
 		if ((y & _tile_mask_y) == 0) {
 			if (y > 0) {
@@ -396,7 +396,7 @@ int ImageRGBAReader::readPixels(ImageReader & CAT_RESTRICT reader) {
 		u32 mask;
 
 		// For each pixel,
-		for (int x = 0; x < size_x; ++x) {
+		for (int x = 0; x < xsize; ++x) {
 			DESYNC(x, y);
 
 			// Next mask word
@@ -438,8 +438,8 @@ int ImageRGBAReader::read(ImageReader & CAT_RESTRICT reader, ImageMaskReader & C
 	_mask = &maskReader;
 
 	_rgba = image->rgba;
-	_size_x = image->size_x;
-	_size_y = image->size_y;
+	_xsize = image->xsize;
+	_ysize = image->ysize;
 
 	// Read filter selection tables
 	if ((err = readFilterTables(reader))) {
@@ -487,8 +487,8 @@ bool ImageRGBAReader::dumpStats() {
 	CAT_INANE("stats") << "(RGBA Decode)      Decode Pixels : " << Stats.readPixelsUsec << " usec (" << Stats.readPixelsUsec * 100.f / Stats.overallUsec << " %total)";
 	CAT_INANE("stats") << "(RGBA Decode)            Overall : " << Stats.overallUsec << " usec";
 
-	CAT_INANE("stats") << "(RGBA Decode)         Throughput : " << (_size_x * _size_y * 4) / Stats.overallUsec << " MBPS (output bytes/time)";
-	CAT_INANE("stats") << "(RGBA Decode)   Image Dimensions : " << _size_x << " x " << _size_y << " pixels";
+	CAT_INANE("stats") << "(RGBA Decode)         Throughput : " << (_xsize * _ysize * 4) / Stats.overallUsec << " MBPS (output bytes/time)";
+	CAT_INANE("stats") << "(RGBA Decode)   Image Dimensions : " << _xsize << " x " << _ysize << " pixels";
 
 	return true;
 }
