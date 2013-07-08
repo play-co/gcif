@@ -75,11 +75,13 @@ class EntropyEncoder {
 	HuffmanEncoder _basic;
 	bool _using_basic;
 
-	int _zeroRun;
+	u16 _lastSymbol;
+
+	int _run;
 	std::vector<int> _runList;
 	int _runListReadIndex;
 
-	int simulateZeroRun(int run) {
+	int simulateRun(int run) {
 		if (run <= 0) {
 			return 0;
 		}
@@ -97,7 +99,7 @@ class EntropyEncoder {
 		return bits;
 	}
 
-	int writeZeroRun(int run, ImageWriter &writer) {
+	int writeRun(int run, ImageWriter &writer) {
 		if (run <= 0) {
 			return 0;
 		}
@@ -117,7 +119,8 @@ class EntropyEncoder {
 
 public:
 	void init(int num_syms, int zrle_syms) {
-		_zeroRun = 0;
+		_run = 0;
+		_lastSymbol = 0xffff;
 
 		_num_syms = num_syms;
 		_zrle_syms = zrle_syms;
@@ -139,38 +142,40 @@ public:
 		_basic_hist.add(symbol);
 		_basic_syms.push_back(symbol);
 
-		if (symbol == 0) {
-			++_zeroRun;
+		if (symbol == _lastSymbol) {
+			++_run;
 		} else {
-			const int zeroRun = _zeroRun;
+			const int run = _run;
 
-			if (zeroRun > 0) {
-				int code = _num_syms + zeroRun - 1;
+			if (run > 0) {
+				int code = _num_syms + run - 1;
 				if (code > _bz_tail_sym) {
 					code = _bz_tail_sym;
 				}
 				_bz_hist.add(code);
 
-				_runList.push_back(zeroRun);
-				_zeroRun = 0;
+				_runList.push_back(run);
+				_run = 0;
 
 				_az_hist.add(symbol);
 			} else {
 				_bz_hist.add(symbol);
 			}
 		}
+
+		_lastSymbol = symbol;
 	}
 
 	int finalize() {
-		const int zeroRun = _zeroRun;
+		const int run = _run;
 
 		// If a zero run is in progress at the end,
-		if (zeroRun > 0) {
+		if (run > 0) {
 			// Record it
-			_runList.push_back(zeroRun);
+			_runList.push_back(run);
 
 			// Record symbols that will be emitted
-			int code = _num_syms + zeroRun - 1;
+			int code = _num_syms + run - 1;
 			if (code > _bz_tail_sym) {
 				code = _bz_tail_sym;
 			}
@@ -196,33 +201,36 @@ public:
 		}
 
 		int az_cost = 64; // Bias for overhead cost
-		int run = 0;
+		int runCount = 0;
 		int readIndex = 0;
+		u16 lastSym = 0xffff;
 		for (int ii = 0, iiend = (int)_basic_syms.size(); ii < iiend; ++ii) {
 			u16 symbol = _basic_syms[ii];
 
 			// If zero,
-			if (symbol == 0) {
+			if (symbol == lastSym) {
 				// If starting a zero run,
-				if (run == 0) {
+				if (runCount == 0) {
 					CAT_DEBUG_ENFORCE(readIndex < (int)_runList.size());
 
 					// Write stored zero run
 					int runLength = _runList[readIndex++];
 
-					az_cost += simulateZeroRun(runLength);
+					az_cost += simulateRun(runLength);
 				}
 
-				++run;
+				++runCount;
 			} else {
 				// If just out of a zero run,
-				if (run > 0) {
-					run = 0;
+				if (runCount > 0) {
+					runCount = 0;
 					az_cost += _az.simulateWrite(symbol);
 				} else {
 					az_cost += _bz.simulateWrite(symbol);
 				}
 			}
+
+			lastSym = symbol;
 		}
 
 		if (basic_cost < az_cost + 64) {
@@ -251,7 +259,8 @@ public:
 	}
 
 	void reset() {
-		_zeroRun = 0;
+		_run = 0;
+		_lastSymbol = 0xffff;
 
 		// Set the run list read index for writing
 		_runListReadIndex = 0;
@@ -267,27 +276,29 @@ public:
 		int bits = 0;
 
 		// If zero,
-		if (symbol == 0) {
+		if (symbol == _lastSymbol) {
 			// If starting a zero run,
-			if (_zeroRun == 0) {
+			if (_run == 0) {
 				CAT_DEBUG_ENFORCE(_runListReadIndex < (int)_runList.size());
 
 				// Write stored zero run
 				int runLength = _runList[_runListReadIndex++];
 
-				bits += simulateZeroRun(runLength);
+				bits += simulateRun(runLength);
 			}
 
-			++_zeroRun;
+			++_run;
 		} else {
 			// If just out of a zero run,
-			if (_zeroRun > 0) {
-				_zeroRun = 0;
+			if (_run > 0) {
+				_run = 0;
 				bits += _az.simulateWrite(symbol);
 			} else {
 				bits += _bz.simulateWrite(symbol);
 			}
 		}
+
+		_lastSymbol = symbol;
 
 		return bits;
 	}
@@ -302,27 +313,29 @@ public:
 		int bits = 0;
 
 		// If zero,
-		if (symbol == 0) {
+		if (symbol == _lastSymbol) {
 			// If starting a zero run,
-			if (_zeroRun == 0) {
+			if (_run == 0) {
 				CAT_DEBUG_ENFORCE(_runListReadIndex < (int)_runList.size());
 
 				// Write stored zero run
 				int runLength = _runList[_runListReadIndex++];
 
-				bits += writeZeroRun(runLength, writer);
+				bits += writeRun(runLength, writer);
 			}
 
-			++_zeroRun;
+			++_run;
 		} else {
 			// If just out of a zero run,
-			if (_zeroRun > 0) {
-				_zeroRun = 0;
+			if (_run > 0) {
+				_run = 0;
 				bits += _az.writeSymbol(symbol, writer);
 			} else {
 				bits += _bz.writeSymbol(symbol, writer);
 			}
 		}
+
+		_lastSymbol = symbol;
 
 		return bits;
 	}
