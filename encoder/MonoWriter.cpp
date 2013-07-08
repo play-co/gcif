@@ -1541,6 +1541,10 @@ int MonoWriter::write(u16 x, u16 y, ImageWriter &writer) {
 		if (_lz.masked(x, y)) {
 			DESYNC(x, y);
 
+			if (!_use_row_filters) {
+				_profile->encoders->chaos.zero(x);
+			}
+
 			return 0;
 		}
 	}
