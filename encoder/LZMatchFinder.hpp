@@ -110,7 +110,6 @@ public:
 
 class RGBAMatchFinder : public LZMatchFinder {
 protected:
-	int _xsize;
 	HuffmanEncoder _lz_dist_encoder;
 
 	u32 _lz_dist_last[ImageRGBAReader::LZ_DIST_LAST_COUNT];
@@ -178,7 +177,6 @@ public:
 	static const int WIN_SIZE = 512 * 512; // pixels
 
 protected:
-	int _xsize;
 	HuffmanEncoder _lz_dist_encoder;
 
 	u32 _lz_dist_last[ImageRGBAReader::LZ_DIST_LAST_COUNT];
