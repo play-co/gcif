@@ -78,6 +78,7 @@ class EntropyEncoder {
 	int _zeroRun;
 	std::vector<int> _runList;
 	int _runListReadIndex;
+	u16 _last;
 
 	int simulateZeroRun(int run) {
 		if (run <= 0) {
@@ -87,7 +88,7 @@ class EntropyEncoder {
 		int bits;
 
 		if (run < _zrle_syms) {
-			bits = _bz.simulateWrite(_num_syms + run - 1);
+			bits = _bz.simulateWrite(_num_syms + run);
 		} else {
 			bits = _bz.simulateWrite(_bz_tail_sym);
 
@@ -105,7 +106,7 @@ class EntropyEncoder {
 		int bits;
 
 		if (run < _zrle_syms) {
-			bits = _bz.writeSymbol(_num_syms + run - 1, writer);
+			bits = _bz.writeSymbol(_num_syms + run, writer);
 		} else {
 			bits = _bz.writeSymbol(_bz_tail_sym, writer);
 
@@ -118,11 +119,12 @@ class EntropyEncoder {
 public:
 	void init(int num_syms, int zrle_syms) {
 		_zeroRun = 0;
+		_last = 0xffff;
 
 		_num_syms = num_syms;
 		_zrle_syms = zrle_syms;
-		_bz_syms = _num_syms + _zrle_syms;
-		_az_syms = _num_syms;
+		_bz_syms = _num_syms + 1 + _zrle_syms;
+		_az_syms = _num_syms + 1;
 		_bz_tail_sym = _bz_syms - 1;
 
 		_bz_hist.init(_bz_syms);
@@ -144,8 +146,14 @@ public:
 		} else {
 			const int zeroRun = _zeroRun;
 
+			if (symbol == _last) {
+				symbol = _num_syms;
+			} else {
+				_last = symbol;
+			}
+
 			if (zeroRun > 0) {
-				int code = _num_syms + zeroRun - 1;
+				int code = _num_syms + zeroRun;
 				if (code > _bz_tail_sym) {
 					code = _bz_tail_sym;
 				}
@@ -170,7 +178,7 @@ public:
 			_runList.push_back(zeroRun);
 
 			// Record symbols that will be emitted
-			int code = _num_syms + zeroRun - 1;
+			int code = _num_syms + zeroRun;
 			if (code > _bz_tail_sym) {
 				code = _bz_tail_sym;
 			}
@@ -197,6 +205,7 @@ public:
 
 		int az_cost = 64; // Bias for overhead cost
 		int run = 0;
+		u16 last = 0xffff;
 		int readIndex = 0;
 		for (int ii = 0, iiend = (int)_basic_syms.size(); ii < iiend; ++ii) {
 			u16 symbol = _basic_syms[ii];
@@ -215,6 +224,12 @@ public:
 
 				++run;
 			} else {
+				if (symbol == last) {
+					symbol = _num_syms;
+				} else {
+					last = symbol;
+				}
+
 				// If just out of a zero run,
 				if (run > 0) {
 					run = 0;
@@ -252,6 +267,7 @@ public:
 
 	void reset() {
 		_zeroRun = 0;
+		_last = 0xffff;
 
 		// Set the run list read index for writing
 		_runListReadIndex = 0;
@@ -280,6 +296,12 @@ public:
 
 			++_zeroRun;
 		} else {
+			if (symbol == _last) {
+				symbol = _num_syms;
+			} else {
+				_last = symbol;
+			}
+
 			// If just out of a zero run,
 			if (_zeroRun > 0) {
 				_zeroRun = 0;
@@ -315,6 +337,12 @@ public:
 
 			++_zeroRun;
 		} else {
+			if (symbol == _last) {
+				symbol = _num_syms;
+			} else {
+				_last = symbol;
+			}
+
 			// If just out of a zero run,
 			if (_zeroRun > 0) {
 				_zeroRun = 0;
