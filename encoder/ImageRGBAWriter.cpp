@@ -891,7 +891,6 @@ bool ImageRGBAWriter::writePixels(ImageWriter &writer) {
 				if (_lz.masked(x, y)) {
 					++lz_count;
 				}
-				cout << "m";
 			} else {
 				// If filter needs to be written,
 				u16 tx = x >> _tile_bits_x;
@@ -902,9 +901,13 @@ bool ImageRGBAWriter::writePixels(ImageWriter &writer) {
 
 					cf_bits += _cf_encoder.write(tx, ty, writer);
 					sf_bits += _sf_encoder.write(tx, ty, writer);
-					cout << "f";
 				}
-				cout << "l";
+
+				if (RGBChaos::ResidualScore(residuals[0]) <= 1) {
+					cout << (int)RGBChaos::ResidualScore(residuals[0]);
+				} else {
+					cout << "+";
+				}
 
 				// Get chaos bin
 				u8 cy, cu, cv;
