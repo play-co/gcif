@@ -219,9 +219,9 @@ void MonoWriter::designRowFilters() {
 		const u16 *order = _params.write_order;
 		const u8 *data = _params.data;
 
-		_row_filter_encoder.init(_params.num_syms + (!order ? MonoReader::LZ_LEN_SYMS : 0), ZRLE_SYMS);
+		_row_filter_encoder.init(_params.num_syms + (!_params.enable_lz ? MonoReader::LZ_LEN_SYMS : 0), ZRLE_SYMS);
 
-		if (!_params.enable_lz) {
+		if (_params.enable_lz) {
 			_lz.reset();
 		}
 		int offset = 0;
