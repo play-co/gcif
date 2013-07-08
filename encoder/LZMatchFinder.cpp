@@ -342,8 +342,11 @@ bool MonoMatchFinder::findMatches(const u8 *mono, int xsize, int ysize, MonoMatc
 				int match_len = 0;
 				for (int jj = 0; jj < MAX_MATCH && mono_node[jj] == mono_now[jj];) {
 					++jj;
-					// TODO: Stop match if it's all masked out
-					match_len = jj;
+					int sy = (jj + ii) / xsize;
+					int sx = (jj + ii) % xsize;
+					if (!using_mask || !image_mask(sx, sy)) {
+						match_len = jj;
+					}
 				}
 
 				// Future matches will be farther away (more expensive in distance)
