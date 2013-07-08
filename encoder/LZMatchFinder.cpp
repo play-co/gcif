@@ -81,31 +81,39 @@ bool RGBAMatchFinder::findMatches(const u32 *rgba, int xsize, int ysize, ImageMa
 					continue;
 				}
 
-				// Find match length
-				int match_len = 0;
-				for (; match_len < MAX_MATCH && rgba_node[match_len] == rgba_now[match_len]; ++match_len);
-
-				// Future matches will be farther away (more expensive in distance)
-				// so they should be at least as long as previous matches to be considered
-				if (match_len > best_length) {
-					if (using_mask) {
-						int fix_len = 0;
-						for (int jj = 0; jj < match_len; ++jj) {
-							if (rgba_now[jj] != mask_color) {
-								fix_len = jj + 1;
-							}
+				u32 base_color = rgba_now[0];
+				if (rgba_node[0] == base_color) {
+					// Find match length
+					int match_len = 1;
+					bool goodMatch = false;
+					for (; match_len < MAX_MATCH && rgba_node[match_len] == rgba_now[match_len]; ++match_len) {
+						if (rgba_node[match_len] != base_color) {
+							goodMatch = true;
 						}
-						match_len = fix_len;
 					}
 
-					if (match_len > best_length) {
-						best_distance = distance;
-						best_length = match_len;
+					// Future matches will be farther away (more expensive in distance)
+					// so they should be at least as long as previous matches to be considered
+					if (goodMatch && match_len > best_length) {
+						if (using_mask) {
+							int fix_len = 0;
+							for (int jj = 0; jj < match_len; ++jj) {
+								if (rgba_now[jj] != mask_color) {
+									fix_len = jj + 1;
+								}
+							}
+							match_len = fix_len;
+						}
 
-						// If length is at the limit,
-						if (match_len >= MAX_MATCH) {
-							// Stop here
-							break;
+						if (match_len > best_length) {
+							best_distance = distance;
+							best_length = match_len;
+
+							// If length is at the limit,
+							if (match_len >= MAX_MATCH) {
+								// Stop here
+								break;
+							}
 						}
 					}
 				}

@@ -146,7 +146,7 @@ public:
 	 */
 	static const int DIST_PREFIX_COST = 7; // bits
 	static const int LEN_PREFIX_COST = 5; // bits
-	static const int SAVED_PIXEL_BITS = 9; // bits
+	static const int SAVED_PIXEL_BITS = 7; // bits
 
 	static const int HASH_BITS = 18;
 	static const int HASH_SIZE = 1 << HASH_BITS;

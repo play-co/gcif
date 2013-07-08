@@ -816,6 +816,9 @@ int ImageRGBAWriter::writeTables(ImageWriter &writer) {
 	return GCIF_WE_OK;
 }
 
+#include <iostream>
+using namespace std;
+
 bool ImageRGBAWriter::writePixels(ImageWriter &writer) {
 	CAT_INANE("RGBA") << "Writing interleaved pixel/filter data...";
 
@@ -877,6 +880,7 @@ bool ImageRGBAWriter::writePixels(ImageWriter &writer) {
 				_encoders->chaos.get(x, cy, cu, cv);
 
 				lz_bits += _lz.write(_encoders->y[cy], writer);
+				cout << "z";
 			}
 
 			// If masked,
@@ -887,6 +891,7 @@ bool ImageRGBAWriter::writePixels(ImageWriter &writer) {
 				if (_lz.masked(x, y)) {
 					++lz_count;
 				}
+				cout << "m";
 			} else {
 				// If filter needs to be written,
 				u16 tx = x >> _tile_bits_x;
@@ -897,7 +902,9 @@ bool ImageRGBAWriter::writePixels(ImageWriter &writer) {
 
 					cf_bits += _cf_encoder.write(tx, ty, writer);
 					sf_bits += _sf_encoder.write(tx, ty, writer);
+					cout << "f";
 				}
+				cout << "l";
 
 				// Get chaos bin
 				u8 cy, cu, cv;
@@ -920,6 +927,7 @@ bool ImageRGBAWriter::writePixels(ImageWriter &writer) {
 
 			residuals += 4;
 		}
+		cout << endl;
 	}
 
 #ifdef CAT_COLLECT_STATS
