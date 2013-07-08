@@ -83,24 +83,30 @@ bool RGBAMatchFinder::findMatches(const u32 *rgba, int xsize, int ysize, ImageMa
 
 				// Find match length
 				int match_len = 0;
-				for (int jj = 0; jj < MAX_MATCH && rgba_node[jj] == rgba_now[jj];) {
-					++jj;
-
-					if (!using_mask || rgba_now[match_len] != mask_color) {
-						match_len = jj;
-					}
-				}
+				for (; match_len < MAX_MATCH && rgba_node[match_len] == rgba_now[match_len]; ++match_len);
 
 				// Future matches will be farther away (more expensive in distance)
 				// so they should be at least as long as previous matches to be considered
 				if (match_len > best_length) {
-					best_distance = distance;
-					best_length = match_len;
+					if (using_mask) {
+						int fix_len = 0;
+						for (int jj = 0; jj < match_len; ++jj) {
+							if (rgba_now[jj] != mask_color) {
+								fix_len = jj + 1;
+							}
+						}
+						match_len = fix_len;
+					}
 
-					// If length is at the limit,
-					if (match_len >= MAX_MATCH) {
-						// Stop here
-						break;
+					if (match_len > best_length) {
+						best_distance = distance;
+						best_length = match_len;
+
+						// If length is at the limit,
+						if (match_len >= MAX_MATCH) {
+							// Stop here
+							break;
+						}
 					}
 				}
 			}
@@ -296,7 +302,7 @@ int RGBAMatchFinder::write(EntropyEncoder &ee, ImageWriter &writer) {
 
 //// MonoMatchFinder
 
-bool MonoMatchFinder::findMatches(const u8 *mono, int xsize, int ysize, MonoMatchFinder::MaskDelegate image_mask) {
+bool MonoMatchFinder::findMatches(const u8 *mono, int xsize, int ysize, MonoMatchFinder::MaskDelegate image_mask, const u8 mask_color) {
 	// Setup mask
 	const bool using_mask = image_mask.IsValid();
 
@@ -340,25 +346,35 @@ bool MonoMatchFinder::findMatches(const u8 *mono, int xsize, int ysize, MonoMatc
 
 				// Find match length
 				int match_len = 0;
-				for (int jj = 0; jj < MAX_MATCH && mono_node[jj] == mono_now[jj];) {
-					++jj;
-					int sy = (jj + ii) / xsize;
-					int sx = (jj + ii) % xsize;
-					if (!using_mask || !image_mask(sx, sy)) {
-						match_len = jj;
-					}
-				}
+				for (; match_len < MAX_MATCH && mono_node[match_len] == mono_now[match_len]; ++match_len);
 
 				// Future matches will be farther away (more expensive in distance)
 				// so they should be at least as long as previous matches to be considered
 				if (match_len > best_length) {
-					best_distance = distance;
-					best_length = match_len;
+					if (using_mask) {
+						int fix_len = 0;
+						for (int jj = 0; jj < match_len; ++jj) {
+							if (mono_now[jj] == mask_color) {
+								int off = ii + jj, sy = off / xsize, sx = off % xsize;
+								if (!image_mask(sx, sy)) {
+									fix_len = jj + 1;
+								}
+							} else {
+								fix_len = jj + 1;
+							}
+						}
+						match_len = fix_len;
+					}
 
-					// If length is at the limit,
-					if (match_len >= MAX_MATCH) {
-						// Stop here
-						break;
+					if (match_len > best_length) {
+						best_distance = distance;
+						best_length = match_len;
+
+						// If length is at the limit,
+						if (match_len >= MAX_MATCH) {
+							// Stop here
+							break;
+						}
 					}
 				}
 			}
@@ -493,7 +509,7 @@ found:
 bool MonoMatchFinder::init(const u8 * CAT_RESTRICT mono, int xsize, int ysize, MonoMatchFinder::MaskDelegate mask) {
 	_xsize = xsize;
 
-	if (!findMatches(mono, xsize, ysize, mask)) {
+	if (!findMatches(mono, xsize, ysize, mask, 0)) {
 		return false;
 	}
 

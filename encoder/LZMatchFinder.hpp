@@ -186,7 +186,7 @@ protected:
 	u16 LZLengthCodeAndExtra(u16 length, u16 &extra_count, u16 &extra_data);
 	void LZDistanceTransform(LZMatch *match);
 
-	bool findMatches(const u8 * CAT_RESTRICT mono, int xsize, int ysize, MonoMatchFinder::MaskDelegate mask);
+	bool findMatches(const u8 * CAT_RESTRICT mono, int xsize, int ysize, MonoMatchFinder::MaskDelegate mask, const u8 mask_color);
 
 	/*
 	 * Encoding cost in bits for monochrome data:
