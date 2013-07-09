@@ -553,8 +553,6 @@ void ImageRGBAWriter::designChaos() {
 			for (int x = 0; x < _xsize; ++x, ++offset) {
 				// If we just hit the start of the next LZ copy region,
 				if (offset == _lz.peekOffset()) {
-					encoders->chaos.zero(x);
-
 					// Get chaos bin
 					u8 cy, cu, cv;
 					encoders->chaos.get(x, cy, cu, cv);
@@ -562,9 +560,20 @@ void ImageRGBAWriter::designChaos() {
 					// Get LZ match information
 					LZMatchFinder::LZMatch *match = _lz.pop();
 
-					// Add to histogram for this chaos bin
-					encoders->y[cy].add(match->len_code);
-				} else if (IsMasked(x, y)) {
+					if (encoders->y[cy].InZeroRun()) {
+						encoders->y[cy].add(0);
+						if (encoders->u[cu].InZeroRun()) {
+							encoders->u[cu].add(0);
+							encoders->v[cv].add(match->len_code);
+						} else {
+							encoders->u[cu].add(match->len_code);
+						}
+					} else {
+						encoders->y[cy].add(match->len_code);
+					}
+				}
+
+				if (IsMasked(x, y)) {
 					// Will eat LZ pixels too
 					encoders->chaos.zero(x);
 				} else {
@@ -873,13 +882,22 @@ bool ImageRGBAWriter::writePixels(ImageWriter &writer) {
 
 			// If we just hit the start of the next LZ copy region,
 			if (offset == _lz.peekOffset()) {
-				_encoders->chaos.zero(x);
-
 				// Get chaos bin
 				u8 cy, cu, cv;
 				_encoders->chaos.get(x, cy, cu, cv);
 
-				lz_bits += _lz.write(_encoders->y[cy], writer);
+				if (_encoders->y[cy].InZeroRun()) {
+					_encoders->y[cy].write(0, writer); // should emit no symbol
+					if (_encoders->u[cu].InZeroRun()) {
+						_encoders->u[cu].write(0, writer); // should emit no symbol
+						lz_bits += _lz.write(_encoders->v[cv], writer);
+					} else {
+						lz_bits += _lz.write(_encoders->u[cu], writer);
+					}
+				} else {
+					lz_bits += _lz.write(_encoders->y[cy], writer);
+				}
+
 				cout << "z";
 			}
 

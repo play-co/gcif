@@ -79,6 +79,10 @@ class EntropyEncoder {
 	std::vector<int> _runList;
 	int _runListReadIndex;
 
+#ifdef CAT_DEBUG
+	int _basic_recall;
+#endif
+
 	int simulateZeroRun(int run) {
 		if (run <= 0) {
 			return 0;
@@ -116,6 +120,10 @@ class EntropyEncoder {
 	}
 
 public:
+	CAT_INLINE bool InZeroRun() {
+		return _zeroRun > 0;
+	}
+
 	void init(int num_syms, int zrle_syms) {
 		_zeroRun = 0;
 
@@ -131,6 +139,10 @@ public:
 
 		_runList.clear();
 		_basic_syms.clear();
+
+#ifdef CAT_DEBUG
+		_basic_recall = 0;
+#endif
 	}
 
 	void add(u16 symbol) {
@@ -196,8 +208,7 @@ public:
 		}
 
 		int az_cost = 64; // Bias for overhead cost
-		int run = 0;
-		int readIndex = 0;
+		int run = 0, readIndex = 0;
 		for (int ii = 0, iiend = (int)_basic_syms.size(); ii < iiend; ++ii) {
 			u16 symbol = _basic_syms[ii];
 
@@ -255,45 +266,15 @@ public:
 
 		// Set the run list read index for writing
 		_runListReadIndex = 0;
-	}
 
-	int simulate(u16 symbol) {
-		CAT_DEBUG_ENFORCE(symbol < _num_syms);
-
-		if (_using_basic) {
-			return _basic.simulateWrite(symbol);
-		}
-
-		int bits = 0;
-
-		// If zero,
-		if (symbol == 0) {
-			// If starting a zero run,
-			if (_zeroRun == 0) {
-				CAT_DEBUG_ENFORCE(_runListReadIndex < (int)_runList.size());
-
-				// Write stored zero run
-				int runLength = _runList[_runListReadIndex++];
-
-				bits += simulateZeroRun(runLength);
-			}
-
-			++_zeroRun;
-		} else {
-			// If just out of a zero run,
-			if (_zeroRun > 0) {
-				_zeroRun = 0;
-				bits += _az.simulateWrite(symbol);
-			} else {
-				bits += _bz.simulateWrite(symbol);
-			}
-		}
-
-		return bits;
+#ifdef CAT_DEBUG
+		_basic_recall = 0;
+#endif
 	}
 
 	int write(u16 symbol, ImageWriter &writer) {
 		CAT_DEBUG_ENFORCE(symbol < _num_syms);
+		CAT_DEBUG_ENFORCE(symbol == _basic_syms[_basic_recall++]);
 
 		if (_using_basic) {
 			return _basic.writeSymbol(symbol, writer);
