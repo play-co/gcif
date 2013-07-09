@@ -60,6 +60,7 @@ public:
 		// Encoding workspace
 		u16 len_code, len_extra_bits, len_extra;
 		u16 dist_code, dist_extra_bits, dist_extra;
+		u16 skip_code, skip_extra_bits, skip_extra;
 
 		CAT_INLINE LZMatch(u32 offset, u32 distance, u16 length) {
 			this->offset = offset;
@@ -103,6 +104,10 @@ public:
 
 		return _next_match++;
 	}
+
+	CAT_INLINE LZMatch *peek() {
+		return _next_match;
+	}
 };
 
 
@@ -110,13 +115,14 @@ public:
 
 class RGBAMatchFinder : public LZMatchFinder {
 protected:
-	HuffmanEncoder _lz_dist_encoder;
+	HuffmanEncoder _lz_skip_encoder, _lz_len_encoder, _lz_dist_encoder;
 
 	u32 _lz_dist_last[ImageRGBAReader::LZ_DIST_LAST_COUNT];
 	int _lz_dist_index;
 
 	void LZTransformInit();
 	u16 LZLengthCodeAndExtra(u16 length, u16 &extra_count, u16 &extra_data);
+	u16 LZSkipCodeAndExtra(u32 skip, u16 &extra_count, u16 &extra_data);
 	void LZDistanceTransform(LZMatch *match);
 
 	bool findMatches(const u32 * CAT_RESTRICT rgba, int xsize, int ysize, ImageMaskWriter *mask);
@@ -126,6 +132,23 @@ public:
 	static const int MIN_MATCH = 2; // pixels
 	static const int MAX_MATCH = 256; // pixels
 	static const int WIN_SIZE = 1024 * 1024; // pixels
+
+	static const int LZ_LEN_LITS = 32;
+	static const int LZ_LEN_PREFIX_SYMS = 8;
+	static const int LZ_LEN_SYMS = LZ_LEN_LITS + LZ_LEN_PREFIX_SYMS;
+
+	static const int LZ_DIST_LAST_COUNT = 4; // number of previous distances to encode
+	static const int LZ_DIST_ROW_X = 16; // number of x positions on current row to store as literals
+	static const int LZ_DIST_LIT_X0 = -8; // number of x positions to store as literals on each side
+	static const int LZ_DIST_LIT_X1 = 8; // number of x positions to store as literals on each side
+	static const int LZ_DIST_LIT_Y = 8; // number of y positions to store as literals
+	static const int LZ_DIST_LITS = LZ_DIST_LAST_COUNT + LZ_DIST_ROW_X + (LZ_DIST_LIT_X1 - LZ_DIST_LIT_X0 + 1) * LZ_DIST_LIT_Y;
+	static const int LZ_DIST_PREFIX_SYMS = 20;
+	static const int LZ_DIST_SYMS = LZ_DIST_LITS + LZ_DIST_PREFIX_SYMS;
+
+	static const int LZ_SKIP_LITS = 128;
+	static const int LZ_SKIP_PREFIX_SYMS = 32;
+	static const int LZ_SKIP_SYMS = LZ_SKIP_LITS + LZ_SKIP_PREFIX_SYMS;
 
 	/*
 	 * Encoding cost in bits for RGBA data:
@@ -160,7 +183,7 @@ public:
 	bool init(const u32 * CAT_RESTRICT rgba, int xsize, int ysize, ImageMaskWriter *mask);
 
 	int writeTables(ImageWriter &writer);
-	int write(EntropyEncoder &ee, ImageWriter &writer);
+	int write(ImageWriter &writer);
 };
 
 

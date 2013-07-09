@@ -83,7 +83,7 @@ public:
 	static const int LZ_DIST_SYMS = LZ_DIST_LITS + LZ_DIST_PREFIX_SYMS;
 
 	static const int NUM_LIT_SYMS = NUM_COLORS;
-	static const int NUM_Y_SYMS = NUM_LIT_SYMS + LZ_LEN_SYMS;
+	static const int NUM_Y_SYMS = NUM_LIT_SYMS;
 	static const int NUM_U_SYMS = NUM_LIT_SYMS;
 	static const int NUM_V_SYMS = NUM_LIT_SYMS;
 	static const int NUM_ZRLE_SYMS = 128;

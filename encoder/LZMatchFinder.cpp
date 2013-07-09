@@ -85,16 +85,11 @@ bool RGBAMatchFinder::findMatches(const u32 *rgba, int xsize, int ysize, ImageMa
 				if (rgba_node[0] == base_color) {
 					// Find match length
 					int match_len = 1;
-					bool goodMatch = false;
-					for (; match_len < MAX_MATCH && rgba_node[match_len] == rgba_now[match_len]; ++match_len) {
-						if (rgba_node[match_len] != base_color) {
-							goodMatch = true;
-						}
-					}
+					for (; match_len < MAX_MATCH && rgba_node[match_len] == rgba_now[match_len]; ++match_len);
 
 					// Future matches will be farther away (more expensive in distance)
 					// so they should be at least as long as previous matches to be considered
-					if (goodMatch && match_len > best_length) {
+					if (match_len > best_length) {
 						if (using_mask) {
 							int fix_len = 0;
 							for (int jj = 0; jj < match_len; ++jj) {
@@ -169,16 +164,33 @@ bool RGBAMatchFinder::findMatches(const u32 *rgba, int xsize, int ysize, ImageMa
 }
 
 u16 RGBAMatchFinder::LZLengthCodeAndExtra(u16 length, u16 &extra_count, u16 &extra_data) {
-	u16 code = length - RGBAMatchFinder::MIN_MATCH;
-	if (code < ImageRGBAReader::LZ_LEN_LITS) {
+	u16 code = length - MIN_MATCH;
+	if (code < LZ_LEN_LITS) {
 		extra_count = 0;
 	} else {
-		u32 extra = code - ImageRGBAReader::LZ_LEN_LITS;
+		u32 extra = code - LZ_LEN_LITS;
 		extra_count = BSR32(extra + 1) + 1;
 		extra_data = extra;
 		CAT_DEBUG_ENFORCE(extra_data < (1 << extra_count));
-		code = extra_count - 1 + ImageRGBAReader::LZ_LEN_LITS;
-		CAT_DEBUG_ENFORCE(code < ImageRGBAReader::LZ_LEN_SYMS);
+		code = extra_count - 1 + LZ_LEN_LITS;
+		CAT_DEBUG_ENFORCE(code < LZ_LEN_SYMS);
+	}
+
+	return code;
+}
+
+u16 RGBAMatchFinder::LZSkipCodeAndExtra(u32 skip, u16 &extra_count, u16 &extra_data) {
+	u16 code;
+	if (skip <= LZ_SKIP_LITS) {
+		code = static_cast<u16>( skip - 1 );
+		extra_count = 0;
+	} else {
+		u32 extra = skip - LZ_SKIP_LITS;
+		extra_count = BSR32(extra + 1) + 1;
+		extra_data = extra;
+		CAT_DEBUG_ENFORCE(extra_data < (1 << extra_count));
+		code = extra_count - 1 + LZ_SKIP_LITS;
+		CAT_DEBUG_ENFORCE(code < LZ_SKIP_SYMS);
 	}
 
 	return code;
@@ -199,19 +211,17 @@ void RGBAMatchFinder::LZDistanceTransform(LZMatch *match) {
 	match->dist_extra_bits = 0;
 
 	// If distance has been seen recently,
-	static const int LAST_COUNT = ImageRGBAReader::LZ_DIST_LAST_COUNT;
-	for (int ii = 0; ii < LAST_COUNT; ++ii) {
-		if (distance == _lz_dist_last[(_lz_dist_index + LAST_COUNT - 1 - ii) % LAST_COUNT]) {
+	for (int ii = 0; ii < LZ_DIST_LAST_COUNT; ++ii) {
+		if (distance == _lz_dist_last[(_lz_dist_index + LZ_DIST_LAST_COUNT - 1 - ii) % LZ_DIST_LAST_COUNT]) {
 			code = ii;
 			goto found;
 		}
 	}
 
-	static const int ROW_X = ImageRGBAReader::LZ_DIST_ROW_X;
-	if (distance <= ROW_X) {
-		code = LAST_COUNT + (distance - 1);
+	if (distance <= LZ_DIST_ROW_X) {
+		code = LZ_DIST_LAST_COUNT + (distance - 1);
 	} else {
-		code = LAST_COUNT + ROW_X;
+		code = LZ_DIST_LAST_COUNT + LZ_DIST_ROW_X;
 		for (int dy = 1; dy <= ImageRGBAReader::LZ_DIST_LIT_Y; ++dy) {
 			for (int dx = ImageRGBAReader::LZ_DIST_LIT_X0; dx <= ImageRGBAReader::LZ_DIST_LIT_X1; ++dx, ++code) {
 				int coff = dy * _xsize + dx;
@@ -223,7 +233,7 @@ void RGBAMatchFinder::LZDistanceTransform(LZMatch *match) {
 		}
 
 		// Calculate extra bits
-		const int delta = distance - LAST_COUNT;
+		const int delta = distance - LZ_DIST_LAST_COUNT;
 		CAT_DEBUG_ENFORCE(delta >= 1);
 		match->dist_extra_bits = BSR32(delta) + 1;
 		CAT_DEBUG_ENFORCE(match->dist_extra_bits <= ImageRGBAReader::LZ_DIST_PREFIX_SYMS);
@@ -237,7 +247,7 @@ found:
 
 	// Store distance
 	_lz_dist_last[_lz_dist_index] = distance;
-	if (_lz_dist_index >= LAST_COUNT - 1) {
+	if (_lz_dist_index >= LZ_DIST_LAST_COUNT - 1) {
 		_lz_dist_index = 0;
 	} else {
 		_lz_dist_index++;
@@ -257,41 +267,74 @@ bool RGBAMatchFinder::init(const u32 * CAT_RESTRICT rgba, int xsize, int ysize, 
 	LZTransformInit();
 
 	// Collect LZ distance symbol statistics
-	FreqHistogram lz_dist_hist;
-	lz_dist_hist.init(ImageRGBAReader::LZ_DIST_SYMS);
+	FreqHistogram lz_dist_hist, lz_len_hist, lz_skip_hist;
+	lz_len_hist.init(LZ_LEN_SYMS);
+	lz_dist_hist.init(LZ_DIST_SYMS);
+	lz_skip_hist.init(LZ_SKIP_SYMS);
+
+	u32 lastOffset = 0;
 
 	// While not at the end of the match list,
 	while (peekOffset() != LZMatchFinder::GUARD_OFFSET) {
 		LZMatch *match = pop();
 
 		// Encode length
-		match->len_code = ImageRGBAReader::NUM_LIT_SYMS + LZLengthCodeAndExtra(match->length, match->len_extra_bits, match->len_extra);
+		match->len_code = LZLengthCodeAndExtra(match->length, match->len_extra_bits, match->len_extra);
 
 		// Encode distance
 		LZDistanceTransform(match);
 
-		// Record symbol instance
+		// Encode skip
+		match->skip_code = LZSkipCodeAndExtra(match->offset - lastOffset, match->skip_extra_bits, match->skip_extra);
+		lastOffset = match->offset;
+
+		// Record symbols
+		lz_len_hist.add(match->len_code);
 		lz_dist_hist.add(match->dist_code);
+		lz_skip_hist.add(match->skip_code);
 	}
 
-	// Initialize the LZ distance encoder
+	// Final skip code on guard match
+	LZMatch *match = peek();
+	match->skip_code = LZSkipCodeAndExtra(xsize * ysize - lastOffset, match->skip_extra_bits, match->skip_extra);
+	lz_skip_hist.add(match->skip_code);
+
+	// Initialize encoders
+	_lz_len_encoder.init(lz_len_hist);
 	_lz_dist_encoder.init(lz_dist_hist);
+	_lz_skip_encoder.init(lz_skip_hist);
 
 	return true;
 }
 
 int RGBAMatchFinder::writeTables(ImageWriter &writer) {
-	return _lz_dist_encoder.writeTable(writer);
+	int bits = 0;
+
+	bits += _lz_skip_encoder.writeTable(writer);
+	bits += _lz_dist_encoder.writeTable(writer);
+	bits += _lz_len_encoder.writeTable(writer);
+
+	// Write first match
+	LZMatch *match = peek();
+
+	// Write skip code
+	bits += _lz_skip_encoder.writeSymbol(match->skip_code, writer);
+	if (match->skip_extra_bits > 0) {
+		writer.writeBits(match->skip_extra, match->skip_extra_bits);
+		bits += match->skip_extra_bits;
+	}
+
+	return bits;
 }
 
-int RGBAMatchFinder::write(EntropyEncoder &ee, ImageWriter &writer) {
+int RGBAMatchFinder::write(ImageWriter &writer) {
 	int bits = 0;
 
 	// Get LZ match information
 	LZMatch *match = pop();
 
 	// Write length code
-	bits += ee.write(match->len_code, writer);
+	bits += _lz_len_encoder.writeSymbol(match->len_code, writer);
 	if (match->len_extra_bits > 0) {
 		writer.writeBits(match->len_extra, match->len_extra_bits);
 		bits += match->len_extra_bits;
@@ -302,6 +345,16 @@ int RGBAMatchFinder::write(EntropyEncoder &ee, ImageWriter &writer) {
 	if (match->dist_extra_bits > 0) {
 		writer.writeBits(match->dist_extra, match->dist_extra_bits);
 		bits += match->dist_extra_bits;
+	}
+
+	// Get next match skip code
+	match = peek();
+
+	// Write skip code
+	bits += _lz_skip_encoder.writeSymbol(match->skip_code, writer);
+	if (match->skip_extra_bits > 0) {
+		writer.writeBits(match->skip_extra, match->skip_extra_bits);
+		bits += match->skip_extra_bits;
 	}
 
 	return bits;
