@@ -120,6 +120,8 @@ class EntropyEncoder {
 	}
 
 public:
+	static const u16 FAKE_ZERO = 0xfffe;
+
 	CAT_INLINE bool InZeroRun() {
 		return _zeroRun > 0;
 	}
@@ -146,10 +148,17 @@ public:
 	}
 
 	void add(u16 symbol) {
+		_basic_syms.push_back(symbol);
+
+		// Convert fake zero to a zero
+		if (symbol == FAKE_ZERO) {
+			CAT_DEBUG_ENFORCE(_zeroRun > 0);
+			symbol = 0;
+		}
+
 		CAT_DEBUG_ENFORCE(symbol < _num_syms);
 
 		_basic_hist.add(symbol);
-		_basic_syms.push_back(symbol);
 
 		if (symbol == 0) {
 			++_zeroRun;
@@ -204,13 +213,21 @@ public:
 		for (int ii = 0, iiend = (int)_basic_syms.size(); ii < iiend; ++ii) {
 			u16 symbol = _basic_syms[ii];
 
-			basic_cost += _basic.simulateWrite(symbol);
+			// If not a fake zero,
+			if (symbol < FAKE_ZERO) {
+				basic_cost += _basic.simulateWrite(symbol);
+			}
 		}
 
 		int az_cost = 64; // Bias for overhead cost
 		int run = 0, readIndex = 0;
 		for (int ii = 0, iiend = (int)_basic_syms.size(); ii < iiend; ++ii) {
 			u16 symbol = _basic_syms[ii];
+
+			// Convert fake zero to a zero
+			if (symbol == FAKE_ZERO) {
+				symbol = 0;
+			}
 
 			// If zero,
 			if (symbol == 0) {
@@ -273,6 +290,12 @@ public:
 	}
 
 	int write(u16 symbol, ImageWriter &writer) {
+		// Convert fake zero to a zero
+		if (symbol == FAKE_ZERO) {
+			CAT_DEBUG_ENFORCE(_using_basic || _zeroRun > 0);
+			return 0;
+		}
+
 		CAT_DEBUG_ENFORCE(symbol < _num_syms);
 		CAT_DEBUG_ENFORCE(symbol == _basic_syms[_basic_recall++]);
 
