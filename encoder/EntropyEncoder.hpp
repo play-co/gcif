@@ -290,6 +290,8 @@ public:
 	}
 
 	int write(u16 symbol, ImageWriter &writer) {
+		CAT_DEBUG_ENFORCE(symbol == _basic_syms[_basic_recall++]);
+
 		// Convert fake zero to a zero
 		if (symbol == FAKE_ZERO) {
 			CAT_DEBUG_ENFORCE(_using_basic || _zeroRun > 0);
@@ -297,9 +299,13 @@ public:
 		}
 
 		CAT_DEBUG_ENFORCE(symbol < _num_syms);
-		CAT_DEBUG_ENFORCE(symbol == _basic_syms[_basic_recall++]);
 
 		if (_using_basic) {
+			if (symbol == 0) {
+				_zeroRun++;
+			} else {
+				_zeroRun = 0;
+			}
 			return _basic.writeSymbol(symbol, writer);
 		}
 
