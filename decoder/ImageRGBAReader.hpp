@@ -84,8 +84,8 @@ public:
 
 	static const int NUM_LIT_SYMS = NUM_COLORS;
 	static const int NUM_Y_SYMS = NUM_LIT_SYMS + LZ_LEN_SYMS;
-	static const int NUM_U_SYMS = NUM_LIT_SYMS + LZ_LEN_SYMS;
-	static const int NUM_V_SYMS = NUM_LIT_SYMS + LZ_LEN_SYMS;
+	static const int NUM_U_SYMS = NUM_LIT_SYMS;
+	static const int NUM_V_SYMS = NUM_LIT_SYMS;
 	static const int NUM_ZRLE_SYMS = 128;
 
 	static const int HUFF_LUT_BITS = 7;

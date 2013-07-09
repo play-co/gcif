@@ -559,18 +559,7 @@ void ImageRGBAWriter::designChaos() {
 
 					// Get LZ match information
 					LZMatchFinder::LZMatch *match = _lz.pop();
-
-					if (encoders->y[cy].InZeroRun()) {
-						encoders->y[cy].add(EntropyEncoder::FAKE_ZERO);
-						if (encoders->u[cu].InZeroRun()) {
-							encoders->u[cu].add(EntropyEncoder::FAKE_ZERO);
-							encoders->v[cv].add(match->len_code);
-						} else {
-							encoders->u[cu].add(match->len_code);
-						}
-					} else {
-						encoders->y[cy].add(match->len_code);
-					}
+					encoders->y[cy].add(match->len_code);
 				}
 
 				if (IsMasked(x, y)) {
@@ -825,9 +814,6 @@ int ImageRGBAWriter::writeTables(ImageWriter &writer) {
 	return GCIF_WE_OK;
 }
 
-#include <iostream>
-using namespace std;
-
 bool ImageRGBAWriter::writePixels(ImageWriter &writer) {
 	CAT_INANE("RGBA") << "Writing interleaved pixel/filter data...";
 
@@ -886,21 +872,7 @@ bool ImageRGBAWriter::writePixels(ImageWriter &writer) {
 				u8 cy, cu, cv;
 				_encoders->chaos.get(x, cy, cu, cv);
 
-				if (_encoders->y[cy].InZeroRun()) {
-					int bits = _encoders->y[cy].write(EntropyEncoder::FAKE_ZERO, writer); // should emit no symbol
-					CAT_DEBUG_ENFORCE(bits == 0);
-					if (_encoders->u[cu].InZeroRun()) {
-						bits = _encoders->u[cu].write(EntropyEncoder::FAKE_ZERO, writer); // should emit no symbol
-						CAT_DEBUG_ENFORCE(bits == 0);
-						lz_bits += _lz.write(_encoders->v[cv], writer);
-					} else {
-						lz_bits += _lz.write(_encoders->u[cu], writer);
-					}
-				} else {
-					lz_bits += _lz.write(_encoders->y[cy], writer);
-				}
-
-				cout << "z";
+				lz_bits += _lz.write(_encoders->y[cy], writer);
 			}
 
 			// If masked,
@@ -921,12 +893,6 @@ bool ImageRGBAWriter::writePixels(ImageWriter &writer) {
 
 					cf_bits += _cf_encoder.write(tx, ty, writer);
 					sf_bits += _sf_encoder.write(tx, ty, writer);
-				}
-
-				if (RGBChaos::ResidualScore(residuals[0]) <= 1) {
-					cout << (int)RGBChaos::ResidualScore(residuals[0]);
-				} else {
-					cout << "+";
 				}
 
 				// Get chaos bin
@@ -950,7 +916,6 @@ bool ImageRGBAWriter::writePixels(ImageWriter &writer) {
 
 			residuals += 4;
 		}
-		cout << endl;
 	}
 
 #ifdef CAT_COLLECT_STATS
