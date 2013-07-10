@@ -125,15 +125,10 @@ bool RGBAMatchFinder::findMatches(const u32 *rgba, int xsize, int ysize, ImageMa
 		if (best_distance > 0) {
 			const int offset = ii - 1;
 
-			// Calculate saved bit count
-			const s32 distance_bits = best_distance < 8 ? 0 : BSR32(best_distance >> 2);
-			const s32 saved_bits = best_length * SAVED_PIXEL_BITS;
-			const s32 length_bits = best_length < 8 ? 0 : BSR32(best_length >> 2);
-			const s32 cost_bits = DIST_PREFIX_COST + distance_bits + LEN_PREFIX_COST + length_bits;
-			const s32 score = saved_bits - cost_bits;
+			// TODO: Use residuals to score matches
+			// TODO: Score this match before accepting it
 
-			// If score is good,
-			if (score > 0) {
+			if (best_length > 2) {
 				_matches.push_back(LZMatch(offset, best_distance, best_length));
 				//CAT_WARN("RGBATEST") << offset << " : " << best_distance << ", " << best_length;
 
@@ -163,63 +158,6 @@ bool RGBAMatchFinder::findMatches(const u32 *rgba, int xsize, int ysize, ImageMa
 	return true;
 }
 
-void RGBAMatchFinder::LZDistanceTransform(LZMatch *match) {
-	const u32 distance = match->distance;
-
-	CAT_DEBUG_ENFORCE(match->offset >= distance);
-
-	// Encode distance
-	u16 code;
-	match->dist_extra_bits = 0;
-
-	// If distance has been seen recently,
-	static const int LAST_COUNT = ImageRGBAReader::LZ_DIST_LAST_COUNT;
-	for (int ii = 0; ii < LAST_COUNT; ++ii) {
-		if (distance == _lz_dist_last[(_lz_dist_index + LAST_COUNT - 1 - ii) % LAST_COUNT]) {
-			code = ii;
-			goto found;
-		}
-	}
-
-	static const int ROW_X = ImageRGBAReader::LZ_DIST_ROW_X;
-	if (distance <= ROW_X) {
-		code = LAST_COUNT + (distance - 1);
-	} else {
-		code = LAST_COUNT + ROW_X;
-		for (int dy = 1; dy <= ImageRGBAReader::LZ_DIST_LIT_Y; ++dy) {
-			for (int dx = ImageRGBAReader::LZ_DIST_LIT_X0; dx <= ImageRGBAReader::LZ_DIST_LIT_X1; ++dx, ++code) {
-				int coff = dy * _xsize + dx;
-
-				if (distance == coff) {
-					goto found;
-				}
-			}
-		}
-
-		// Calculate extra bits
-		const int delta = distance - LAST_COUNT;
-		CAT_DEBUG_ENFORCE(delta >= 1);
-		match->dist_extra_bits = BSR32(delta) + 1;
-		CAT_DEBUG_ENFORCE(match->dist_extra_bits <= ImageRGBAReader::LZ_DIST_PREFIX_SYMS);
-		match->dist_extra = delta - 1;
-		CAT_DEBUG_ENFORCE(match->dist_extra < (1 << match->dist_extra_bits));
-		code += match->dist_extra_bits - 1;
-		CAT_DEBUG_ENFORCE(code < ImageRGBAReader::LZ_DIST_SYMS);
-	}
-
-found:
-
-	// Store distance
-	_lz_dist_last[_lz_dist_index] = distance;
-	if (_lz_dist_index >= LAST_COUNT - 1) {
-		_lz_dist_index = 0;
-	} else {
-		_lz_dist_index++;
-	}
-
-	match->dist_code = code;
-}
-
 bool RGBAMatchFinder::init(const u32 * CAT_RESTRICT rgba, int xsize, int ysize, ImageMaskWriter *mask) {
 	CAT_DEBUG_ENFORCE(MIN_MATCH == 2);
 	CAT_DEBUG_ENFORCE(MAX_MATCH == 256);
@@ -233,23 +171,17 @@ bool RGBAMatchFinder::init(const u32 * CAT_RESTRICT rgba, int xsize, int ysize, 
 	reset();
 
 	// Collect LZ distance symbol statistics
-	FreqHistogram len_hist[NUM_CONTEXTS], dist_hist[NUM_CONTEXTS],
-				  dist1_hist[NUM_CONTEXTS], dist2_hist[NUM_CONTEXTS];
-	for (int ii = 0; ii < NUM_CONTEXTS; ++ii) {
-		len_hist[ii].init(ImageRGBAReader::LZ_LEN_SYMS);
-		dist_hist[ii].init(ImageRGBAReader::LZ_DIST_SYMS);
-		dist1_hist[ii].init(ImageRGBAReader::LZ_DIST1_SYMS);
-		dist2_hist[ii].init(ImageRGBAReader::LZ_DIST2_SYMS);
-	}
+	FreqHistogram len_hist, dist_hist,
+				  dist1_hist, dist2_hist;
+	len_hist.init(ImageRGBAReader::LZ_LEN_SYMS);
+	dist_hist.init(ImageRGBAReader::LZ_DIST_SYMS);
+	dist1_hist.init(ImageRGBAReader::LZ_DIST1_SYMS);
+	dist2_hist.init(ImageRGBAReader::LZ_DIST2_SYMS);
 
 	// Track recent distances
 	u32 recent[LAST_COUNT];
 	CAT_OBJCLR(recent);
 	int recent_ii = 0;
-
-	// Keep track of last offset for context modeling
-	u32 last_offset = 0;
-	int context = 0;
 
 	// While not at the end of the match list,
 	while (peekOffset() != LZMatchFinder::GUARD_OFFSET) {
@@ -257,14 +189,13 @@ bool RGBAMatchFinder::init(const u32 * CAT_RESTRICT rgba, int xsize, int ysize, 
 
 		const u32 distance = match->distance;
 		const u16 length = match->length;
-		const u32 offset = match->offset;
 
 		CAT_DEBUG_ENFORCE(distance > 0);
 		CAT_DEBUG_ENFORCE(length >= MIN_MATCH);
 		CAT_DEBUG_ENFORCE(length <= MAX_MATCH);
 
 		u16 escape_code = ImageRGBAReader::NUM_LIT_SYMS;
-		bool emit_len = false, emit_dist = false, emit_extra_dist = false;
+		bool emit_len = false, emit_dist = false;
 
 		for (int ii = 0; ii < LAST_COUNT; ++ii) {
 			if (distance == recent[(recent_ii + LAST_COUNT - 1 - ii) % LAST_COUNT]) {
@@ -301,17 +232,81 @@ found_escape_code:
 
 		// Store escape code
 		match->escape_code = escape_code;
-		match->emit_dist = emit_dist;
 		match->emit_len = emit_len;
+		match->emit_dist = emit_dist;
+		match->emit_dist1 = false;
+		match->emit_dist2 = false;
 
 		// If emitting length,
 		if (emit_len) {
-			len_hist[context].add(length - MIN_MATCH);
+			len_hist.add(length - MIN_MATCH);
 		}
 
 		// If emitting distance,
 		if (emit_dist) {
-			// TODO
+			u16 dist_code;
+
+			CAT_DEBUG_ENFORCE(distance == 2 || distance >= 7);
+
+			if (distance == 2) {
+				dist_code = 0;
+			} else if (distance <= 16) {
+				dist_code = distance - 6;
+			} else {
+				for (int ii = _xsize - 16; ii <= _xsize - 3; ++ii) {
+					if (distance == ii) {
+						dist_code = 11 + distance - (_xsize - 16);
+						goto found_dist_code;
+					}
+				}
+
+				for (int ii = _xsize + 3; ii <= _xsize + 16; ++ii) {
+					if (distance == ii) {
+						dist_code = 25 + distance - (_xsize + 3);
+						goto found_dist_code;
+					}
+				}
+
+				dist_code = 39;
+				for (int y = 2; y <= 8; ++y) {
+					int ii = y * _xsize - 8;
+					for (int iiend = ii + 16; ii <= iiend; ++ii, ++dist_code) {
+						if (distance == ii) {
+							goto found_dist_code;
+						}
+					}
+				}
+
+				CAT_DEBUG_ENFORCE(dist_code == 158);
+
+				// Encode distance directly:
+
+				u32 dist12 = distance - 17;
+				if (distance <= 0x7f) {
+					match->emit_dist2 = true;
+					match->dist2_code = static_cast<u8>( dist12 );
+				} else {
+					dist_code = 159 + (dist12 >> 14);
+					CAT_DEBUG_ENFORCE(dist_code <= 222);
+
+					match->emit_dist1 = true;
+					match->emit_dist2 = true;
+					match->dist1_code = static_cast<u8>( (dist12 >> 7) & 0x7f );
+					match->dist2_code = static_cast<u8>( dist12 & 0x7f );
+				}
+			}
+
+found_dist_code:
+			match->dist_code = dist_code;
+			dist_hist.add(dist_code);
+		}
+
+		if (match->emit_dist1) {
+			dist1_hist.add(match->dist1_code);
+		}
+
+		if (match->emit_dist2) {
+			dist2_hist.add(match->dist2_code);
 		}
 
 		// Update recent distances
@@ -319,12 +314,13 @@ found_escape_code:
 		if (recent_ii >= LAST_COUNT) {
 			recent_ii = 0;
 		}
-
-		last_offset = offset;
 	}
 
-	// Initialize the LZ distance encoder
-	_lz_dist_encoder.init(lz_dist_hist);
+	// Initialize encoders
+	_lz_len_encoder.init(len_hist);
+	_lz_dist_encoder.init(dist_hist);
+	_lz_dist1_encoder.init(dist1_hist);
+	_lz_dist2_encoder.init(dist2_hist);
 
 	return true;
 }
@@ -337,7 +333,14 @@ void RGBAMatchFinder::train(EntropyEncoder &ee) {
 }
 
 int RGBAMatchFinder::writeTables(ImageWriter &writer) {
-	return _lz_dist_encoder.writeTable(writer);
+	int bits = 0;
+
+	bits += _lz_len_encoder.writeTable(writer);
+	bits += _lz_dist_encoder.writeTable(writer);
+	bits += _lz_dist1_encoder.writeTable(writer);
+	bits += _lz_dist2_encoder.writeTable(writer);
+
+	return bits;
 }
 
 int RGBAMatchFinder::write(EntropyEncoder &ee, ImageWriter &writer) {
@@ -346,18 +349,22 @@ int RGBAMatchFinder::write(EntropyEncoder &ee, ImageWriter &writer) {
 	// Get LZ match information
 	LZMatch *match = pop();
 
-	// Write length code
-	bits += ee.write(match->len_code, writer);
-	if (match->len_extra_bits > 0) {
-		writer.writeBits(match->len_extra, match->len_extra_bits);
-		bits += match->len_extra_bits;
+	bits += ee.write(match->escape_code, writer);
+
+	if (match->emit_len) {
+		bits += _lz_len_encoder.writeSymbol(match->len_code, writer);
 	}
 
-	// Write distance code
-	bits += _lz_dist_encoder.writeSymbol(match->dist_code, writer);
-	if (match->dist_extra_bits > 0) {
-		writer.writeBits(match->dist_extra, match->dist_extra_bits);
-		bits += match->dist_extra_bits;
+	if (match->emit_dist) {
+		bits += _lz_dist_encoder.writeSymbol(match->dist_code, writer);
+	}
+
+	if (match->emit_dist1) {
+		bits += _lz_dist1_encoder.writeSymbol(match->dist1_code, writer);
+	}
+
+	if (match->emit_dist2) {
+		bits += _lz_dist2_encoder.writeSymbol(match->dist2_code, writer);
 	}
 
 	return bits;
@@ -492,84 +499,6 @@ bool MonoMatchFinder::findMatches(const u8 *mono, int xsize, int ysize, MonoMatc
 	return true;
 }
 
-void MonoMatchFinder::LZTransformInit() {
-	_lz_dist_index = 0;
-	CAT_OBJCLR(_lz_dist_last);
-}
-
-u16 MonoMatchFinder::LZLengthCodeAndExtra(u16 length, u16 &extra_count, u16 &extra_data) {
-	u16 code = length - MonoMatchFinder::MIN_MATCH;
-	if (code < MonoReader::LZ_LEN_LITS) {
-		extra_count = 0;
-	} else {
-		u32 extra = code - MonoReader::LZ_LEN_LITS;
-		extra_count = BSR32(extra + 1) + 1;
-		extra_data = extra;
-		CAT_DEBUG_ENFORCE(extra_data < (1 << extra_count));
-		code = extra_count - 1 + MonoReader::LZ_LEN_LITS;
-		CAT_DEBUG_ENFORCE(code < MonoReader::LZ_LEN_SYMS);
-	}
-
-	return code;
-}
-
-void MonoMatchFinder::LZDistanceTransform(LZMatch *match) {
-	const u32 distance = match->distance;
-
-	CAT_DEBUG_ENFORCE(match->offset >= distance);
-
-	// Encode distance
-	u16 code;
-	match->dist_extra_bits = 0;
-
-	// If distance has been seen recently,
-	static const int LAST_COUNT = MonoReader::LZ_DIST_LAST_COUNT;
-	for (int ii = 0; ii < LAST_COUNT; ++ii) {
-		if (distance == _lz_dist_last[(_lz_dist_index + LAST_COUNT - 1 - ii) % LAST_COUNT]) {
-			code = ii;
-			goto found;
-		}
-	}
-
-	static const int ROW_X = MonoReader::LZ_DIST_ROW_X;
-	if (distance <= ROW_X) {
-		code = LAST_COUNT + (distance - 1);
-	} else {
-		code = LAST_COUNT + ROW_X;
-		for (int dy = 1; dy <= MonoReader::LZ_DIST_LIT_Y; ++dy) {
-			for (int dx = MonoReader::LZ_DIST_LIT_X0; dx <= MonoReader::LZ_DIST_LIT_X1; ++dx, ++code) {
-				int coff = dy * _xsize + dx;
-
-				if (distance == coff) {
-					goto found;
-				}
-			}
-		}
-
-		// Calculate extra bits
-		const int delta = distance - LAST_COUNT;
-		CAT_DEBUG_ENFORCE(delta >= 1);
-		match->dist_extra_bits = BSR32(delta) + 1;
-		CAT_DEBUG_ENFORCE(match->dist_extra_bits <= MonoReader::LZ_DIST_PREFIX_SYMS);
-		match->dist_extra = delta - 1;
-		CAT_DEBUG_ENFORCE(match->dist_extra < (1 << match->dist_extra_bits));
-		code += match->dist_extra_bits - 1;
-		CAT_DEBUG_ENFORCE(code < MonoReader::LZ_DIST_SYMS);
-	}
-
-found:
-
-	// Store distance
-	_lz_dist_last[_lz_dist_index] = distance;
-	if (_lz_dist_index >= LAST_COUNT - 1) {
-		_lz_dist_index = 0;
-	} else {
-		_lz_dist_index++;
-	}
-
-	match->dist_code = code;
-}
-
 bool MonoMatchFinder::init(const u8 * CAT_RESTRICT mono, int xsize, int ysize, MonoMatchFinder::MaskDelegate mask) {
 	_xsize = xsize;
 
@@ -578,7 +507,6 @@ bool MonoMatchFinder::init(const u8 * CAT_RESTRICT mono, int xsize, int ysize, M
 	}
 
 	reset();
-	LZTransformInit();
 
 	// Collect LZ distance symbol statistics
 	FreqHistogram lz_dist_hist;
@@ -587,12 +515,6 @@ bool MonoMatchFinder::init(const u8 * CAT_RESTRICT mono, int xsize, int ysize, M
 	// While not at the end of the match list,
 	while (peekOffset() != LZMatchFinder::GUARD_OFFSET) {
 		LZMatch *match = pop();
-
-		// Encode length
-		match->len_code = LZLengthCodeAndExtra(match->length, match->len_extra_bits, match->len_extra);
-
-		// Encode distance
-		LZDistanceTransform(match);
 
 		// Record symbol instance
 		lz_dist_hist.add(match->dist_code);
@@ -616,17 +538,9 @@ int MonoMatchFinder::write(int num_syms, EntropyEncoder &ee, ImageWriter &writer
 
 	// Write length code
 	bits += ee.write(num_syms + match->len_code, writer);
-	if (match->len_extra_bits > 0) {
-		writer.writeBits(match->len_extra, match->len_extra_bits);
-		bits += match->len_extra_bits;
-	}
 
 	// Write distance code
 	bits += _lz_dist_encoder.writeSymbol(match->dist_code, writer);
-	if (match->dist_extra_bits > 0) {
-		writer.writeBits(match->dist_extra, match->dist_extra_bits);
-		bits += match->dist_extra_bits;
-	}
 
 	return bits;
 }

@@ -59,13 +59,14 @@ public:
 
 		// Encoding
 		u16 escape_code;		// Which escape code to emit in Y-channel
-		u16 context;			// Which length/distance encoder context to use
 		bool emit_len;			// Emit length code?
 		u16 len_code;			// Code for length
 		bool emit_dist;			// Emit distance code?
-		u16 dist0_code;			// Code for distance
-		bool emit_extra_dist;	// Emit extended distance code?
-		u16 dist1_code, dist2_code;	// Extended distance codes
+		u16 dist_code;			// Code for distance
+		bool emit_dist1;		// Emit extended distance code 1?
+		u16 dist1_code;			// Extended distance codes
+		bool emit_dist2;		// Emit extended distance code 2?
+		u16 dist2_code;			// Extended distance codes
 
 		CAT_INLINE LZMatch(u32 offset, u32 distance, u16 length) {
 			this->offset = offset;
@@ -116,11 +117,10 @@ public:
 
 class RGBAMatchFinder : public LZMatchFinder {
 protected:
-	static const int NUM_CONTEXTS = 2;
-	HuffmanEncoder _lz_len_encoder[NUM_CONTEXTS];
-	HuffmanEncoder _lz_dist_encoder[NUM_CONTEXTS];
-	HuffmanEncoder _lz_dist1_encoder[NUM_CONTEXTS];
-	HuffmanEncoder _lz_dist2_encoder[NUM_CONTEXTS];
+	HuffmanEncoder _lz_len_encoder;
+	HuffmanEncoder _lz_dist_encoder;
+	HuffmanEncoder _lz_dist1_encoder; // For long literal distances 
+	HuffmanEncoder _lz_dist2_encoder;
 
 	bool findMatches(const u32 * CAT_RESTRICT rgba, int xsize, int ysize, ImageMaskWriter *mask);
 
@@ -131,27 +131,6 @@ public:
 	static const int WIN_SIZE = 1024 * 1024; // pixels
 
 	static const int LAST_COUNT = 4; // Keep track of recently emitted distances
-
-	/*
-	 * Encoding cost in bits for RGBA data:
-	 *
-	 * ~LEN_PREFIX_COST bits for Y-channel escape code and length bit range
-	 * ~log2(length)-K bits for length extension bits
-	 * log2(40) ~= DIST_PREFIX_COST bits for distance bit range
-	 * ~log2(distance)-K bits for the distance extension bits
-	 *
-	 * Assuming the normal compression ratio of a 32-bit RGBA pixel is 3.6:1,
-	 * it saves about SAVED_PIXEL_BITS bits per RGBA pixel that we can copy.
-	 *
-	 * Two pixels is about breaking even, though it can be a win if it's
-	 * from the local neighborhood.  For decoding speed it is preferred to
-	 * use LZ since it avoids a bunch of Huffman decodes.  And most of the
-	 * big LZ wins are on computer-generated artwork where neighboring
-	 * scanlines can be copied, so two-pixel copies are often useful.
-	 */
-	static const int DIST_PREFIX_COST = 7; // bits
-	static const int LEN_PREFIX_COST = 5; // bits
-	static const int SAVED_PIXEL_BITS = 7; // bits
 
 	static const int HASH_BITS = 18;
 	static const int HASH_SIZE = 1 << HASH_BITS;
@@ -185,13 +164,6 @@ public:
 
 protected:
 	HuffmanEncoder _lz_dist_encoder;
-
-	u32 _lz_dist_last[ImageRGBAReader::LZ_DIST_LAST_COUNT];
-	int _lz_dist_index;
-
-	void LZTransformInit();
-	u16 LZLengthCodeAndExtra(u16 length, u16 &extra_count, u16 &extra_data);
-	void LZDistanceTransform(LZMatch *match);
 
 	bool findMatches(const u8 * CAT_RESTRICT mono, int xsize, int ysize, MonoMatchFinder::MaskDelegate mask, const u8 mask_color);
 

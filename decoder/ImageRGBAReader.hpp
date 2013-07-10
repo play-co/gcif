@@ -68,7 +68,7 @@ public:
 	static const int NUM_COLORS = 256;
 
 	/*
-	 * LZ Escape Bitstream Format
+	 * RGBA LZ Escape Bitstream Format
 	 *
 	 * Attached to the Y channel of the YUV encoder output are a number of
 	 * extra "escape codes" that cause the decoder to go into an LZ decoding
