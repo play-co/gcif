@@ -163,27 +163,6 @@ bool RGBAMatchFinder::findMatches(const u32 *rgba, int xsize, int ysize, ImageMa
 	return true;
 }
 
-u16 RGBAMatchFinder::LZLengthCodeAndExtra(u16 length, u16 &extra_count, u16 &extra_data) {
-	u16 code = length - RGBAMatchFinder::MIN_MATCH;
-	if (code < ImageRGBAReader::LZ_LEN_LITS) {
-		extra_count = 0;
-	} else {
-		u32 extra = code - ImageRGBAReader::LZ_LEN_LITS;
-		extra_count = BSR32(extra + 1) + 1;
-		extra_data = extra;
-		CAT_DEBUG_ENFORCE(extra_data < (1 << extra_count));
-		code = extra_count - 1 + ImageRGBAReader::LZ_LEN_LITS;
-		CAT_DEBUG_ENFORCE(code < ImageRGBAReader::LZ_LEN_SYMS);
-	}
-
-	return code;
-}
-
-void RGBAMatchFinder::LZTransformInit() {
-	_lz_dist_index = 0;
-	CAT_OBJCLR(_lz_dist_last);
-}
-
 void RGBAMatchFinder::LZDistanceTransform(LZMatch *match) {
 	const u32 distance = match->distance;
 
@@ -242,6 +221,9 @@ found:
 }
 
 bool RGBAMatchFinder::init(const u32 * CAT_RESTRICT rgba, int xsize, int ysize, ImageMaskWriter *mask) {
+	CAT_DEBUG_ENFORCE(MIN_MATCH == 2);
+	CAT_DEBUG_ENFORCE(MAX_MATCH == 256);
+
 	_xsize = xsize;
 
 	if (!findMatches(rgba, xsize, ysize, mask)) {
@@ -249,30 +231,109 @@ bool RGBAMatchFinder::init(const u32 * CAT_RESTRICT rgba, int xsize, int ysize, 
 	}
 
 	reset();
-	LZTransformInit();
 
 	// Collect LZ distance symbol statistics
-	FreqHistogram lz_dist_hist;
-	lz_dist_hist.init(ImageRGBAReader::LZ_DIST_SYMS);
+	FreqHistogram len_hist[NUM_CONTEXTS], dist_hist[NUM_CONTEXTS],
+				  dist1_hist[NUM_CONTEXTS], dist2_hist[NUM_CONTEXTS];
+	for (int ii = 0; ii < NUM_CONTEXTS; ++ii) {
+		len_hist[ii].init(ImageRGBAReader::LZ_LEN_SYMS);
+		dist_hist[ii].init(ImageRGBAReader::LZ_DIST_SYMS);
+		dist1_hist[ii].init(ImageRGBAReader::LZ_DIST1_SYMS);
+		dist2_hist[ii].init(ImageRGBAReader::LZ_DIST2_SYMS);
+	}
+
+	// Track recent distances
+	u32 recent[LAST_COUNT];
+	CAT_OBJCLR(recent);
+	int recent_ii = 0;
+
+	// Keep track of last offset for context modeling
+	u32 last_offset = 0;
+	int context = 0;
 
 	// While not at the end of the match list,
 	while (peekOffset() != LZMatchFinder::GUARD_OFFSET) {
 		LZMatch *match = pop();
 
-		// Encode length
-		match->len_code = ImageRGBAReader::NUM_LIT_SYMS + LZLengthCodeAndExtra(match->length, match->len_extra_bits, match->len_extra);
+		const u32 distance = match->distance;
+		const u16 length = match->length;
+		const u32 offset = match->offset;
 
-		// Encode distance
-		LZDistanceTransform(match);
+		CAT_DEBUG_ENFORCE(distance > 0);
+		CAT_DEBUG_ENFORCE(length >= MIN_MATCH);
+		CAT_DEBUG_ENFORCE(length <= MAX_MATCH);
 
-		// Record symbol instance
-		lz_dist_hist.add(match->dist_code);
+		u16 escape_code = ImageRGBAReader::NUM_LIT_SYMS;
+		bool emit_len = false, emit_dist = false, emit_extra_dist = false;
+
+		for (int ii = 0; ii < LAST_COUNT; ++ii) {
+			if (distance == recent[(recent_ii + LAST_COUNT - 1 - ii) % LAST_COUNT]) {
+				escape_code += ii;
+				emit_len = true;
+				goto found_escape_code;
+			}
+		}
+
+		if (distance == 1) {
+			escape_code += 4;
+			emit_len = true;
+		} else if (distance >= 3 && distance <= 6) {
+			escape_code += distance + 2;
+			emit_len = true;
+		} else {
+			int start = _xsize - 2;
+			if (distance >= start && distance <= start + 4) {
+				escape_code += distance - start + 9;
+				emit_len = true;
+			} else if (length >= 2 && length <= 9) {
+				escape_code += length + 12;
+				emit_dist = true;
+			} else {
+				emit_len = true;
+				emit_dist = true;
+				escape_code += 22;
+			}
+		}
+
+found_escape_code:
+		CAT_DEBUG_ENFORCE(escape_code >= ImageRGBAReader::NUM_LIT_SYMS);
+		CAT_DEBUG_ENFORCE(escape_code < ImageRGBAReader::NUM_Y_SYMS);
+
+		// Store escape code
+		match->escape_code = escape_code;
+		match->emit_dist = emit_dist;
+		match->emit_len = emit_len;
+
+		// If emitting length,
+		if (emit_len) {
+			len_hist[context].add(length - MIN_MATCH);
+		}
+
+		// If emitting distance,
+		if (emit_dist) {
+			// TODO
+		}
+
+		// Update recent distances
+		recent[recent_ii++] = distance;
+		if (recent_ii >= LAST_COUNT) {
+			recent_ii = 0;
+		}
+
+		last_offset = offset;
 	}
 
 	// Initialize the LZ distance encoder
 	_lz_dist_encoder.init(lz_dist_hist);
 
 	return true;
+}
+
+void RGBAMatchFinder::train(EntropyEncoder &ee) {
+	// Get LZ match information
+	LZMatch *match = pop();
+
+	ee.add(match->escape_code);
 }
 
 int RGBAMatchFinder::writeTables(ImageWriter &writer) {

@@ -99,7 +99,7 @@ public:
 	 * 275 = "Length = 7"
 	 * 276 = "Length = 8"
 	 * 277 = "Length = 9"
-	 * 288 = Complex match follows (matching at least 10 pixels).
+	 * 278 = Complex match follows (matching at least 10 pixels).
 	 *
 	 * For codes 256-267, the following bits are a Length code.
 	 * For codes 268-275, the following bits are a Distance code.
@@ -122,20 +122,20 @@ public:
 	 * Distance Huffman codes:
 	 *
 	 * 0 = "Distance = 2"
-	 * 0 = "Distance = 9"
-	 * 1 = "Distance = 10"
-	 * 2 = "Distance = 11"
-	 * 3 = "Distance = 12"
-	 * 4 = "Distance = 13"
-	 * 5 = "Distance = 14"
-	 * 6 = "Distance = 15"
-	 * 7 = "Distance = 16"
-	 * 8 = "Distance = (-8, -1)" (offset from current pixel)
-	 * 9 = "Distance = (-7, -1)"
+	 * 1 = "Distance = 7"
+	 * 2 = "Distance = 8"
+	 * 3 = "Distance = 9"
+	 * 4 = "Distance = 10"
+	 * 5 = "Distance = 11"
+	 * 6 = "Distance = 12"
+	 * 7 = "Distance = 13"
+	 * 8 = "Distance = 14"
+	 * 9 = "Distance = 15"
+	 * 10 = "Distance = 16"
+	 * 11 = "Distance = (-16, -1)"
+	 * 12 = "Distance = (-15, -1)"
 	 * ...
-	 * 16 = "Distance = (0, -1)"
-	 * ...
-	 * 24 = "Distance = (8, -1)"
+	 * 24 = "Distance = (16, -1)"
 	 * 25 - 41 = "Distance (-8, -2) ... (8, -2)"
 	 * 42 - 58 = "Distance (-8, -3) ... (8, -3)"
 	 * 59 - 75 = "Distance (-8, -4) ... (8, -4)"
@@ -143,22 +143,15 @@ public:
 	 * 93 - 109 = "Distance (-8, -6) ... (8, -6)"
 	 * 110 - 126 = "Distance (-8, -7) ... (8, -7)"
 	 * 127 - 143 = "Distance (-8, -8) ... (8, -8)"
-	 * 144 - 159 = High 4 bits of Distance.  Followed by two Huffman codes with
-	 * values from 0..255 representing together the low 16 bits of the distance.
+	 * 144 - 209 = High 6 bits of Distance.  Followed by two Huffman codes with
+	 * values from 0..255 representing together the low 14 bits of the distance.
 	 *
 	 */
-	static const int LZ_LEN_LITS = 8;
-	static const int LZ_LEN_PREFIX_SYMS = 8;
-	static const int LZ_LEN_SYMS = LZ_LEN_LITS + LZ_LEN_PREFIX_SYMS;
 
-	static const int LZ_DIST_LAST_COUNT = 4; // number of previous distances to encode
-	static const int LZ_DIST_ROW_X = 16; // number of x positions on current row to store as literals
-	static const int LZ_DIST_LIT_X0 = -8; // number of x positions to store as literals on each side
-	static const int LZ_DIST_LIT_X1 = 8; // number of x positions to store as literals on each side
-	static const int LZ_DIST_LIT_Y = 8; // number of y positions to store as literals
-	static const int LZ_DIST_LITS = LZ_DIST_LAST_COUNT + LZ_DIST_ROW_X + (LZ_DIST_LIT_X1 - LZ_DIST_LIT_X0 + 1) * LZ_DIST_LIT_Y;
-	static const int LZ_DIST_PREFIX_SYMS = 20;
-	static const int LZ_DIST_SYMS = LZ_DIST_LITS + LZ_DIST_PREFIX_SYMS;
+	static const int LZ_LEN_SYMS = 255;
+	static const int LZ_DIST_SYMS = 210;
+	static const int LZ_DIST1_SYMS = 128; // 7 middle bits
+	static const int LZ_DIST2_SYMS = 128; // 7 low bits
 
 	static const int NUM_LIT_SYMS = NUM_COLORS;
 	static const int NUM_Y_SYMS = NUM_LIT_SYMS + LZ_LEN_SYMS;

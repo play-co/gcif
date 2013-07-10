@@ -57,9 +57,15 @@ public:
 		u32 offset, distance;
 		u16 length;
 
-		// Encoding workspace
-		u16 len_code, len_extra_bits, len_extra;
-		u16 dist_code, dist_extra_bits, dist_extra;
+		// Encoding
+		u16 escape_code;		// Which escape code to emit in Y-channel
+		u16 context;			// Which length/distance encoder context to use
+		bool emit_len;			// Emit length code?
+		u16 len_code;			// Code for length
+		bool emit_dist;			// Emit distance code?
+		u16 dist0_code;			// Code for distance
+		bool emit_extra_dist;	// Emit extended distance code?
+		u16 dist1_code, dist2_code;	// Extended distance codes
 
 		CAT_INLINE LZMatch(u32 offset, u32 distance, u16 length) {
 			this->offset = offset;
@@ -110,14 +116,11 @@ public:
 
 class RGBAMatchFinder : public LZMatchFinder {
 protected:
-	HuffmanEncoder _lz_dist_encoder;
-
-	u32 _lz_dist_last[ImageRGBAReader::LZ_DIST_LAST_COUNT];
-	int _lz_dist_index;
-
-	void LZTransformInit();
-	u16 LZLengthCodeAndExtra(u16 length, u16 &extra_count, u16 &extra_data);
-	void LZDistanceTransform(LZMatch *match);
+	static const int NUM_CONTEXTS = 2;
+	HuffmanEncoder _lz_len_encoder[NUM_CONTEXTS];
+	HuffmanEncoder _lz_dist_encoder[NUM_CONTEXTS];
+	HuffmanEncoder _lz_dist1_encoder[NUM_CONTEXTS];
+	HuffmanEncoder _lz_dist2_encoder[NUM_CONTEXTS];
 
 	bool findMatches(const u32 * CAT_RESTRICT rgba, int xsize, int ysize, ImageMaskWriter *mask);
 
@@ -126,6 +129,8 @@ public:
 	static const int MIN_MATCH = 2; // pixels
 	static const int MAX_MATCH = 256; // pixels
 	static const int WIN_SIZE = 1024 * 1024; // pixels
+
+	static const int LAST_COUNT = 4; // Keep track of recently emitted distances
 
 	/*
 	 * Encoding cost in bits for RGBA data:
@@ -158,6 +163,8 @@ public:
 	}
 
 	bool init(const u32 * CAT_RESTRICT rgba, int xsize, int ysize, ImageMaskWriter *mask);
+
+	void train(EntropyEncoder &ee);
 
 	int writeTables(ImageWriter &writer);
 	int write(EntropyEncoder &ee, ImageWriter &writer);

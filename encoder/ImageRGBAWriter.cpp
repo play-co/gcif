@@ -557,9 +557,7 @@ void ImageRGBAWriter::designChaos() {
 					u8 cy, cu, cv;
 					encoders->chaos.get(x, cy, cu, cv);
 
-					// Get LZ match information
-					LZMatchFinder::LZMatch *match = _lz.pop();
-					encoders->y[cy].add(match->len_code);
+					_lz.train(encoders->y[cy]);
 				}
 
 				if (IsMasked(x, y)) {
