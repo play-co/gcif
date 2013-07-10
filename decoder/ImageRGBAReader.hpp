@@ -119,7 +119,7 @@ public:
 	 * 254 = "Length = 256"
 	 *
 	 *
-	 * Distance Huffman codes:
+	 * Distance Huffman code:
 	 *
 	 * 0 = "Distance = 2"
 	 * 1 = "Distance = 7"
@@ -132,24 +132,34 @@ public:
 	 * 8 = "Distance = 14"
 	 * 9 = "Distance = 15"
 	 * 10 = "Distance = 16"
+	 *
 	 * 11 = "Distance = (-16, -1)"
 	 * 12 = "Distance = (-15, -1)"
 	 * ...
-	 * 24 = "Distance = (16, -1)"
-	 * 25 - 41 = "Distance (-8, -2) ... (8, -2)"
-	 * 42 - 58 = "Distance (-8, -3) ... (8, -3)"
-	 * 59 - 75 = "Distance (-8, -4) ... (8, -4)"
-	 * 76 - 92 = "Distance (-8, -5) ... (8, -5)"
-	 * 93 - 109 = "Distance (-8, -6) ... (8, -6)"
-	 * 110 - 126 = "Distance (-8, -7) ... (8, -7)"
-	 * 127 - 143 = "Distance (-8, -8) ... (8, -8)"
-	 * 144 - 209 = High 6 bits of Distance.  Followed by two Huffman codes with
+	 * 24 = "Distance = (-3, -1)"
+	 * 25 = "Distance = (3, -1)"
+	 * ...
+	 * 38 = "Distance = (16, -1)"
+	 *
+	 * 39 - 55 = "Distance (-8, -2) ... (8, -2)"
+	 * 56 - 72 = "Distance (-8, -3) ... (8, -3)"
+	 * 73 - 89 = "Distance (-8, -4) ... (8, -4)"
+	 * 90 - 106 = "Distance (-8, -5) ... (8, -5)"
+	 * 107 - 123 = "Distance (-8, -6) ... (8, -6)"
+	 * 124 - 140 = "Distance (-8, -7) ... (8, -7)"
+	 * 141 - 157 = "Distance (-8, -8) ... (8, -8)"
+	 *
+	 * 158 = High 13 bits are all zeroes, only emit low 7 bits.
+	 *
+	 * 159 - 222 = High 6 bits of Distance.  Followed by two Huffman codes with
 	 * values from 0..255 representing together the low 14 bits of the distance.
 	 *
+	 * When the distance is directly encoded, it is offset by 17 since distances
+	 * 1-16 are already encoded as literal symbols.
 	 */
 
 	static const int LZ_LEN_SYMS = 255;
-	static const int LZ_DIST_SYMS = 210;
+	static const int LZ_DIST_SYMS = 223;
 	static const int LZ_DIST1_SYMS = 128; // 7 middle bits
 	static const int LZ_DIST2_SYMS = 128; // 7 low bits
 
