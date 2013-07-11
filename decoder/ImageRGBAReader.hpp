@@ -160,26 +160,41 @@ public:
 	 * 164 = D in [16, 19] + 2 extra bits emitted
 	 * 165 = D in [20, 23] + 2 extra bits emitted
 	 * 166 = D in [24, 31] + 3 extra bits emitted
+	 * 167 = D in [32, 39] + 3 extra bits emitted
+	 * 168 = D in [40, 47] + 3 extra bits emitted
+	 * 169 = D in [48, 55] + 3 extra bits emitted
+	 * 170 = D in [56, 71] + 4 extra bits emitted
 	 * ...
-	 * 192 = D in [1048559, 1048559] + 18 extra bits emitted
-	 * 193 = D in [1048559, 1048559] + 18 extra bits emitted
+	 * 226 = D in [524280, 655351] + 18 bits emitted
+	 * 227 = D in [655352, 786423] + 18 bits emitted
+	 * 228 = D in [786424, 917495] + 18 extra bits emitted
+	 * 229 = D in [917496, 1048567] + 18 extra bits emitted
 	 *
-	 * Where: ExtraBits = Bits(D >> 8) + 1
-	 * TODO
-	 * ((1 << (EB - 1)) - 1) * 8
-	 * Where: Code = 154 + ExtraBits(D) * 4 + (D >> ExtraBits(D))
+	 * 0000000 - 0000111 <- 1 bit extra
+	 * 0001000 - 0010111 <- 2
+	 * 0011000 - 0110111 <- 3
+	 * 0100000
+	 * 0101000 <- 3 codes
+	 * 0110000
+	 * 0111000 - 1110111 <- 4
 	 *
-	 * If extra bits >= 6, then the low 8 bits are represented by Distance2 code.
-	 * If extra bits >= 9, then the high bits are represented by Distance1 code.
+	 * Converting from D to (Code, EB):
+	 * EB = Bits(D >> 3) + 1
+	 * C0 = ((1 << (EB - 1)) - 1) << 3
+	 * Code = ((D - C0) >> EB) + 158 + ((EB - 1) * 4)
 	 *
-	 * When the distance is directly encoded, it is offset by 17 since distances
-	 * 1-16 are already encoded as literal symbols.
+	 * Converting from Code to (D0, EB):
+	 * EB = ((Code - 158) >> 2) + 1
+	 * C0 = ((1 << (EB - 1)) - 1) << 3
+	 * D0 = (((Code - 154) - (EB * 4)) << EB) + C0;
+	 * D = D0 + ExtraBits(EB)
 	 */
 
 	static const int LZ_LEN_SYMS = 255;
-	static const int LZ_DIST_SYMS = 223;
+	static const int LZ_DIST_SYMS = 230;
 	static const int LZ_DIST1_SYMS = 256;
 	static const int LZ_DIST2_SYMS = 256;
+	static const int LZ_DIST3_SYMS = 256;
 
 	static const int NUM_LIT_SYMS = NUM_COLORS;
 	static const int NUM_Y_SYMS = NUM_LIT_SYMS + LZ_LEN_SYMS;

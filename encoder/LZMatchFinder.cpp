@@ -171,12 +171,12 @@ bool RGBAMatchFinder::init(const u32 * CAT_RESTRICT rgba, int xsize, int ysize, 
 	reset();
 
 	// Collect LZ distance symbol statistics
-	FreqHistogram len_hist, dist_hist,
-				  dist1_hist, dist2_hist;
+	FreqHistogram len_hist, dist_hist, dist1_hist, dist2_hist, dist3_hist;
 	len_hist.init(ImageRGBAReader::LZ_LEN_SYMS);
 	dist_hist.init(ImageRGBAReader::LZ_DIST_SYMS);
 	dist1_hist.init(ImageRGBAReader::LZ_DIST1_SYMS);
 	dist2_hist.init(ImageRGBAReader::LZ_DIST2_SYMS);
+	dist3_hist.init(ImageRGBAReader::LZ_DIST3_SYMS);
 
 	// Track recent distances
 	u32 recent[LAST_COUNT];
@@ -236,6 +236,8 @@ found_escape_code:
 		match->emit_dist = emit_dist;
 		match->emit_dist1 = false;
 		match->emit_dist2 = false;
+		match->emit_dist3 = false;
+		match->extra_bits = 0;
 
 		// If emitting length,
 		if (emit_len) {
@@ -282,19 +284,57 @@ found_escape_code:
 
 				// Encode distance directly:
 
-				u32 dist12 = distance - 17;
-				if (distance <= 0x7f) {
-					match->emit_dist2 = true;
-					match->dist2_code = static_cast<u8>( dist12 );
-				} else {
-					dist_code = 159 + (dist12 >> 14);
-					CAT_DEBUG_ENFORCE(dist_code <= 222);
+				u32 D = distance - 17;
+				int EB = BSR32((D >> 3) + 1) + 1;
+				CAT_DEBUG_ENFORCE(EB <= 18);
+				u32 C0 = ((1 << (EB - 1)) - 1) << 3;
+				u32 Code = 154 + EB * 4 + ((D - C0) >> EB);
+				CAT_DEBUG_ENFORCE(Code <= 229);
+				dist_code = static_cast<u8>( Code );
 
+				u32 extra = (D - C0) & ((1 << EB) - 1);
+
+				if (EB <= 7) {
+					CAT_DEBUG_ENFORCE(extra <= 127);
+					match->extra_bits = EB;
+					match->extra = extra;
+				} else if (EB <= 8 + 7) {
+					match->extra_bits = EB - 8;
+					match->extra = extra & ~(0xffffffff << (EB - 8));
+					match->emit_dist3 = true;
+					match->dist3_code = static_cast<u8>( extra >> (EB - 8) );
+				} else {
+					match->extra_bits = EB - 16;
+					match->extra = extra & ~(0xffffffff << (EB - 16));
 					match->emit_dist1 = true;
+					match->dist1_code = static_cast<u8>( extra >> (EB - 16) );
 					match->emit_dist2 = true;
-					match->dist1_code = static_cast<u8>( (dist12 >> 7) & 0x7f );
-					match->dist2_code = static_cast<u8>( dist12 & 0x7f );
+					match->dist2_code = static_cast<u8>( extra >> (EB - 8) );
 				}
+
+#ifdef CAT_DEBUG
+				// Verify that the encoding is reversible
+				{
+					u32 EBT = ((dist_code - 158) >> 2) + 1;
+					CAT_DEBUG_ENFORCE(EBT == EB);
+					u32 C0T = ((1 << (EB - 1)) - 1) << 3;
+					CAT_DEBUG_ENFORCE(C0T == C0);
+					u32 DT = (((dist_code - 154) - (EB * 4)) << EB) + C0;
+					if (match->extra_bits) {
+						DT += match->extra;
+					}
+					if (match->emit_dist3) {
+						DT += match->dist3_code << match->extra_bits;
+					}
+					if (match->emit_dist1) {
+						DT += match->dist1_code << match->extra_bits;
+					}
+					if (match->emit_dist2) {
+						DT += match->dist2_code << (match->extra_bits + 8);
+					}
+					CAT_DEBUG_ENFORCE(DT == D);
+				}
+#endif
 			}
 
 found_dist_code:
@@ -310,6 +350,10 @@ found_dist_code:
 			dist2_hist.add(match->dist2_code);
 		}
 
+		if (match->emit_dist3) {
+			dist3_hist.add(match->dist3_code);
+		}
+
 		// Update recent distances
 		recent[recent_ii++] = distance;
 		if (recent_ii >= LAST_COUNT) {
@@ -322,6 +366,7 @@ found_dist_code:
 	_lz_dist_encoder.init(dist_hist);
 	_lz_dist1_encoder.init(dist1_hist);
 	_lz_dist2_encoder.init(dist2_hist);
+	_lz_dist3_encoder.init(dist3_hist);
 
 	return true;
 }
@@ -350,7 +395,7 @@ int RGBAMatchFinder::write(EntropyEncoder &ee, ImageWriter &writer) {
 
 	int ee_bits = ee.write(match->escape_code, writer);
 
-	int len_bits = 0, dist_bits = 0, dist1_bits = 0, dist2_bits = 0;
+	int len_bits = 0, dist_bits = 0, dist1_bits = 0, dist2_bits = 0, dist3_bits = 0;
 
 	if (match->emit_len) {
 		len_bits += _lz_len_encoder.writeSymbol(match->len_code, writer);
@@ -368,10 +413,19 @@ int RGBAMatchFinder::write(EntropyEncoder &ee, ImageWriter &writer) {
 		dist2_bits += _lz_dist2_encoder.writeSymbol(match->dist2_code, writer);
 	}
 
-	int bits = ee_bits + len_bits + dist_bits + dist1_bits + dist2_bits;
+	if (match->emit_dist3) {
+		dist3_bits += _lz_dist3_encoder.writeSymbol(match->dist3_code, writer);
+	}
+
+	int extra_bits = match->extra_bits;
+	if (match->extra_bits > 0) {
+		writer.writeBits(match->extra, match->extra_bits);
+	}
+
+	int bits = ee_bits + len_bits + dist_bits + dist1_bits + dist2_bits + dist3_bits + extra_bits;
 
 	if (match->length < 5) {
-		CAT_WARN("EMIT") << ee_bits << " " << len_bits << " " << dist_bits << " " << dist1_bits << " " << dist2_bits << " = " << bits;
+		CAT_WARN("EMIT") << "ee=" << ee_bits << " len=" << len_bits << " dist=" << dist_bits << " dist1=" << dist1_bits << " dist2=" << dist2_bits << " dist3=" << dist3_bits << " extra=" << extra_bits << " : sum=" << bits;
 	}
 
 	return bits;

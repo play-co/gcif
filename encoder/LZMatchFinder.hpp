@@ -67,6 +67,10 @@ public:
 		u16 dist1_code;			// Extended distance codes
 		bool emit_dist2;		// Emit extended distance code 2?
 		u16 dist2_code;			// Extended distance codes
+		bool emit_dist3;		// Emit extended distance code 3?
+		u16 dist3_code;			// Extended distance codes
+		u16 extra_bits;
+		u32 extra;
 
 		CAT_INLINE LZMatch(u32 offset, u32 distance, u16 length) {
 			this->offset = offset;
@@ -121,6 +125,7 @@ protected:
 	HuffmanEncoder _lz_dist_encoder;
 	HuffmanEncoder _lz_dist1_encoder; // For long literal distances 
 	HuffmanEncoder _lz_dist2_encoder;
+	HuffmanEncoder _lz_dist3_encoder;
 
 	bool findMatches(const u32 * CAT_RESTRICT rgba, int xsize, int ysize, ImageMaskWriter *mask);
 
