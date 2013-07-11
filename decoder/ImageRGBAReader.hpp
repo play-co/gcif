@@ -149,10 +149,28 @@ public:
 	 * 124 - 140 = "Distance (-8, -7) ... (8, -7)"
 	 * 141 - 157 = "Distance (-8, -8) ... (8, -8)"
 	 *
-	 * 158 = High 13 bits are all zeroes, only emit low 7 bits.
+	 * Let D = Distance - 17.
 	 *
-	 * 159 - 222 = High 6 bits of Distance.  Followed by two Huffman codes with
-	 * values from 0..255 representing together the low 14 bits of the distance.
+	 * 158 = D in [0, 1] + 1 extra bit emitted
+	 * 159 = D in [2, 3] + 1 extra bit emitted
+	 * 160 = D in [4, 5] + 1 extra bit emitted
+	 * 161 = D in [6, 7] + 1 extra bit emitted
+	 * 162 = D in [8, 11] + 2 extra bits emitted
+	 * 163 = D in [12, 15] + 2 extra bits emitted
+	 * 164 = D in [16, 19] + 2 extra bits emitted
+	 * 165 = D in [20, 23] + 2 extra bits emitted
+	 * 166 = D in [24, 31] + 3 extra bits emitted
+	 * ...
+	 * 192 = D in [1048559, 1048559] + 18 extra bits emitted
+	 * 193 = D in [1048559, 1048559] + 18 extra bits emitted
+	 *
+	 * Where: ExtraBits = Bits(D >> 8) + 1
+	 * TODO
+	 * ((1 << (EB - 1)) - 1) * 8
+	 * Where: Code = 154 + ExtraBits(D) * 4 + (D >> ExtraBits(D))
+	 *
+	 * If extra bits >= 6, then the low 8 bits are represented by Distance2 code.
+	 * If extra bits >= 9, then the high bits are represented by Distance1 code.
 	 *
 	 * When the distance is directly encoded, it is offset by 17 since distances
 	 * 1-16 are already encoded as literal symbols.
@@ -160,8 +178,8 @@ public:
 
 	static const int LZ_LEN_SYMS = 255;
 	static const int LZ_DIST_SYMS = 223;
-	static const int LZ_DIST1_SYMS = 128; // 7 middle bits
-	static const int LZ_DIST2_SYMS = 128; // 7 low bits
+	static const int LZ_DIST1_SYMS = 256;
+	static const int LZ_DIST2_SYMS = 256;
 
 	static const int NUM_LIT_SYMS = NUM_COLORS;
 	static const int NUM_Y_SYMS = NUM_LIT_SYMS + LZ_LEN_SYMS;

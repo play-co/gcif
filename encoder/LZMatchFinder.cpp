@@ -128,7 +128,7 @@ bool RGBAMatchFinder::findMatches(const u32 *rgba, int xsize, int ysize, ImageMa
 			// TODO: Use residuals to score matches
 			// TODO: Score this match before accepting it
 
-			if (best_length > 2) {
+			if (best_length >= 2) {
 				_matches.push_back(LZMatch(offset, best_distance, best_length));
 				//CAT_WARN("RGBATEST") << offset << " : " << best_distance << ", " << best_length;
 
@@ -239,7 +239,8 @@ found_escape_code:
 
 		// If emitting length,
 		if (emit_len) {
-			len_hist.add(length - MIN_MATCH);
+			match->len_code = length - MIN_MATCH;
+			len_hist.add(match->len_code);
 		}
 
 		// If emitting distance,
@@ -344,27 +345,33 @@ int RGBAMatchFinder::writeTables(ImageWriter &writer) {
 }
 
 int RGBAMatchFinder::write(EntropyEncoder &ee, ImageWriter &writer) {
-	int bits = 0;
-
 	// Get LZ match information
 	LZMatch *match = pop();
 
-	bits += ee.write(match->escape_code, writer);
+	int ee_bits = ee.write(match->escape_code, writer);
+
+	int len_bits = 0, dist_bits = 0, dist1_bits = 0, dist2_bits = 0;
 
 	if (match->emit_len) {
-		bits += _lz_len_encoder.writeSymbol(match->len_code, writer);
+		len_bits += _lz_len_encoder.writeSymbol(match->len_code, writer);
 	}
 
 	if (match->emit_dist) {
-		bits += _lz_dist_encoder.writeSymbol(match->dist_code, writer);
+		dist_bits += _lz_dist_encoder.writeSymbol(match->dist_code, writer);
 	}
 
 	if (match->emit_dist1) {
-		bits += _lz_dist1_encoder.writeSymbol(match->dist1_code, writer);
+		dist1_bits += _lz_dist1_encoder.writeSymbol(match->dist1_code, writer);
 	}
 
 	if (match->emit_dist2) {
-		bits += _lz_dist2_encoder.writeSymbol(match->dist2_code, writer);
+		dist2_bits += _lz_dist2_encoder.writeSymbol(match->dist2_code, writer);
+	}
+
+	int bits = ee_bits + len_bits + dist_bits + dist1_bits + dist2_bits;
+
+	if (match->length < 5) {
+		CAT_WARN("EMIT") << ee_bits << " " << len_bits << " " << dist_bits << " " << dist1_bits << " " << dist2_bits << " = " << bits;
 	}
 
 	return bits;
