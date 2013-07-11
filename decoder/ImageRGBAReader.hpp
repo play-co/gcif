@@ -75,6 +75,31 @@ public:
 	 * mode for the next few bits.
 	 *
 	 *
+	 * Nice features of this format:
+	 *
+	 * (1) Include "same as last 1-4 distance" code and use it as often as possible.
+	 *
+	 * (2) Use most common 2D distance matches for escape codes in addition to common
+	 * lengths.  This results in LZ matches under 5 pixels that often take only 7-9 bits
+	 * to represent overall.
+	 *
+	 * (3) Use only short literal lengths for escape codes.  This is great because only
+	 * long matches will make it through to the default "complex LZ" escape code, where
+	 * I do not care too much about being careful about bit representation.
+	 *
+	 * (4) Only match up to 256 and if I have to emit a match length, emit a literal
+	 * Huffman code for 2-256.  Longer matches do not matter and this makes full use of
+	 * the statistics.
+	 *
+	 * (5) To encode distances, an extended "local region" of pixels up to 16 to the
+	 * left/right for the current and previous row, and -8 through +8 for the next 7
+	 * rows are assigned symbols in a Huffman code, in addition to a bit count encoding
+	 * that indicates how many bits the distance contains as well as some of the high bits.
+	 *
+	 * (6) The most significant bits of the distances are encoded with 1-3 Huffman codes
+	 * to further compress the literal distances.
+	 *
+	 *
 	 * The extra (23) escape codes are:
 	 *
 	 * 256 = "Distance Same as 1st Last"
@@ -101,14 +126,9 @@ public:
 	 * 277 = "Length = 9"
 	 * 278 = Complex match follows (matching at least 10 pixels).
 	 *
-	 * For codes 256-267, the following bits are a Length code.
-	 * For codes 268-275, the following bits are a Distance code.
-	 * For code 288, the following bits are a Length code and then a Distance code.
-	 *
-	 *
-	 * There are two Huffman encodings for each Length/Distance code:
-	 * + AfterLiteral : Captures statistics for LZ matches occuring after a literal pixel.
-	 * + AfterMatch : Captures statistics for LZ matches occuring directly after a match.
+	 * For codes 256-269, the following bits are a Length code.
+	 * For codes 270-277, the following bits are a Distance code.
+	 * For code 278, the following bits are a Length code and then a Distance code.
 	 *
 	 *
 	 * Length Huffman code:
@@ -188,6 +208,10 @@ public:
 	 * C0 = ((1 << (EB - 1)) - 1) << 3
 	 * D0 = (((Code - 154) - (EB * 4)) << EB) + C0;
 	 * D = D0 + ExtraBits(EB)
+	 *
+	 * To encode the extra bits, the high bits are compressed
+	 * with Huffman codes.  Any remaining 1-7 bits are
+	 * emitted without further encoding.
 	 */
 
 	static const int LZ_LEN_SYMS = 255;
