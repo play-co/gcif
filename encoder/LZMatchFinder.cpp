@@ -385,6 +385,7 @@ int RGBAMatchFinder::writeTables(ImageWriter &writer) {
 	bits += _lz_dist_encoder.writeTable(writer);
 	bits += _lz_dist1_encoder.writeTable(writer);
 	bits += _lz_dist2_encoder.writeTable(writer);
+	bits += _lz_dist3_encoder.writeTable(writer);
 
 	return bits;
 }
