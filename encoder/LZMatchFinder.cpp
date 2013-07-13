@@ -308,7 +308,7 @@ static void RGBAEncode(u32 *recent, int recent_ii, LZMatchFinder::LZMatch *match
 	int EB = BSR32((D >> 5) + 1) + 1;
 	CAT_DEBUG_ENFORCE(EB <= 18);
 	u32 C0 = ((1 << (EB - 1)) - 1) << 5;
-	u32 Code = (EB << 4) + ((D - C0) >> EB);
+	u32 Code = ((EB - 1) << 4) + ((D - C0) >> EB);
 	CAT_DEBUG_ENFORCE(Code <= 288);
 	match->ldist_code = static_cast<u16>( Code );
 
