@@ -143,16 +143,16 @@ next_tile:;
 }
 
 void ImageRGBAWriter::designFilters() {
+	const int SF_USED = _lz_enabled ? SF_COUNT : SF_BASIC_COUNT;
+
 	FilterScorer scores, awards;
-	scores.init(SF_COUNT);
-	awards.init(SF_COUNT);
+	scores.init(SF_USED);
+	awards.init(SF_USED);
 	awards.reset();
 	u8 FPT[3];
 	u32 total_score = 0;
 
 	CAT_INANE("RGBA") << "Designing spatial filters (LZ=" << _lz_enabled << ")...";
-
-	const int SF_USED = _lz_enabled ? SF_COUNT : SF_BASIC_COUNT;
 
 	const u16 tile_xsize = _tile_xsize, tile_ysize = _tile_ysize;
 	const u16 xsize = _xsize, ysize = _ysize;
@@ -256,7 +256,7 @@ void ImageRGBAWriter::designTilesFast() {
 	u8 FPT[3];
 
 	FilterScorer scores;
-	scores.init(SF_BASIC_COUNT * CF_COUNT);
+	scores.init(_sf_count * CF_COUNT);
 
 	const u8 *topleft_row = _rgba;
 	int ty = 0;

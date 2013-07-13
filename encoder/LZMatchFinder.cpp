@@ -114,8 +114,6 @@ bool RGBAMatchFinder::findMatches(const u32 *rgba, const u8 * CAT_RESTRICT resid
 							}
 						}
 
-						CAT_DEBUG_ENFORCE(bitsSaved == 0);
-
 						int bitsCost = 0;
 						if (distance == recent[0]) {
 							bitsCost = 7;
@@ -465,9 +463,11 @@ int RGBAMatchFinder::write(EntropyEncoder &ee, ImageWriter &writer) {
 
 	int bits = ee_bits + len_bits + dist_bits + dist1_bits + dist2_bits + dist3_bits + extra_bits;
 
+#ifdef CAT_DUMP_LZ
 	if (match->length < 5) {
 		CAT_WARN("EMIT") << "ee=" << ee_bits << " len=" << len_bits << " dist=" << dist_bits << " dist1=" << dist1_bits << " dist2=" << dist2_bits << " dist3=" << dist3_bits << " extra=" << extra_bits << " : sum=" << bits;
 	}
+#endif
 
 	return bits;
 }
