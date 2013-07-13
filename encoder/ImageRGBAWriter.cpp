@@ -31,6 +31,7 @@
 #include "../decoder/Filters.hpp"
 #include "EntropyEstimator.hpp"
 #include "Log.hpp"
+#include "FilterScorer.hpp"
 
 #include "../decoder/lz4.h"
 #include "lz4hc.h"
@@ -60,6 +61,8 @@ void ImageRGBAWriter::designLZ() {
 	// Find LZ matches
 	const u32 *rgba = reinterpret_cast<const u32 *>( _rgba );
 	_lz.init(rgba, _xsize, _ysize, _mask);
+
+	_lz_enabled = true;
 }
 
 void ImageRGBAWriter::maskTiles() {
@@ -106,7 +109,9 @@ void ImageRGBAWriter::designFilters() {
 	u8 FPT[3];
 	u32 total_score = 0;
 
-	CAT_INANE("RGBA") << "Designing spatial filters...";
+	CAT_INANE("RGBA") << "Designing spatial filters (LZ=" << _lz_enabled << ")...";
+
+	const int SF_USED = _lz_enabled ? SF_COUNT : SF_BASIC_COUNT;
 
 	const u16 tile_xsize = _tile_xsize, tile_ysize = _tile_ysize;
 	const u16 xsize = _xsize, ysize = _ysize;
@@ -138,7 +143,7 @@ void ImageRGBAWriter::designFilters() {
 						const u8 g = data[1];
 						const u8 b = data[2];
 
-						for (int f = 0; f < SF_COUNT; ++f) {
+						for (int f = 0; f < SF_USED; ++f) {
 							const u8 *pred = RGBA_FILTERS[f].safe(data, FPT, px, py, xsize);
 
 							int score = RGBChaos::ResidualScore(r - pred[0]);
@@ -201,6 +206,88 @@ void ImageRGBAWriter::designFilters() {
 	}
 
 	_sf_count = sf_count;
+}
+
+void ImageRGBAWriter::designTilesFast() {
+	CAT_INANE("RGBA") << "Designing SF/CF tiles (fast, low quality) for " << _tiles_x << "x" << _tiles_y << "...";
+	const u16 tile_xsize = _tile_xsize, tile_ysize = _tile_ysize;
+	const u16 xsize = _xsize, ysize = _ysize;
+	u8 FPT[3];
+
+	FilterScorer scores;
+	scores.init(SF_BASIC_COUNT * CF_COUNT);
+
+	const u8 *topleft_row = _rgba;
+	int ty = 0;
+	u8 *sf = _sf_tiles.get();
+	u8 *cf = _cf_tiles.get();
+
+	// For each tile,
+	for (u16 y = 0; y < ysize; y += tile_ysize, ++ty) {
+		const u8 *topleft = topleft_row;
+		int tx = 0;
+
+		for (u16 x = 0; x < xsize; x += tile_xsize, ++sf, ++cf, topleft += tile_xsize * 4, ++tx) {
+			u8 ocf = *cf;
+
+			// If tile is masked,
+			if (ocf == MASK_TILE) {
+				continue;
+			}
+
+			int code_count = 0;
+
+			scores.reset();
+
+			// For each element in the tile,
+			const u8 *row = topleft;
+			u16 py = y, cy = tile_ysize;
+			while (cy-- > 0 && py < ysize) {
+				const u8 *data = row;
+				u16 px = x, cx = tile_xsize;
+				while (cx-- > 0 && px < xsize) {
+					// If element is not masked,
+					if (!IsMasked(px, py)) {
+						// For each spatial filter,
+						int index = 0;
+						for (int sfi = 0, sfi_end = _sf_count; sfi < sfi_end; ++sfi, index += CF_COUNT) {
+							const u8 *pred = _sf[sfi].safe(data, FPT, px, py, xsize);
+							u8 residual_rgb[3] = {
+								data[0] - pred[0],
+								data[1] - pred[1],
+								data[2] - pred[2]
+							};
+
+							// For each color filter,
+							for (int cfi = 0; cfi < CF_COUNT; ++cfi) {
+								u8 yuv[3];
+								RGB2YUV_FILTERS[cfi](residual_rgb, yuv);
+
+								// Score this combination of SF/CF
+								int score = RGBChaos::ResidualScore(yuv[0]) + RGBChaos::ResidualScore(yuv[1]) + RGBChaos::ResidualScore(yuv[2]);
+								scores.add(cfi + index, score);
+							}
+						}
+
+						++code_count;
+					}
+					++px;
+					data += 4;
+				}
+				++py;
+				row += xsize * 4;
+			}
+
+			FilterScorer::Score *top = scores.getLowest();
+			int best_sf = top->index / CF_COUNT;
+			int best_cf = top->index % CF_COUNT;
+
+			*sf = best_sf;
+			*cf = best_cf;
+		}
+
+		topleft_row += _xsize * 4 * _tile_ysize;
+	}
 }
 
 void ImageRGBAWriter::designTiles() {
@@ -685,7 +772,7 @@ bool ImageRGBAWriter::compressCF() {
 bool ImageRGBAWriter::IsMasked(u16 x, u16 y) {
 	CAT_DEBUG_ENFORCE(x < _xsize && y < _ysize);
 
-	return _mask->masked(x, y) || _lz.masked(x, y);
+	return _mask->masked(x, y) || (_lz_enabled && _lz.masked(x, y));
 }
 
 bool ImageRGBAWriter::IsSFMasked(u16 x, u16 y) {
@@ -698,6 +785,7 @@ int ImageRGBAWriter::init(const u8 *rgba, int xsize, int ysize, ImageMaskWriter 
 	_knobs = knobs;
 	_rgba = rgba;
 	_mask = &mask;
+	_lz_enabled = false;
 
 	if (xsize < 0 || ysize < 0) {
 		return GCIF_WE_BAD_DIMS;
@@ -718,15 +806,33 @@ int ImageRGBAWriter::init(const u8 *rgba, int xsize, int ysize, ImageMaskWriter 
 	_tiles_x = (_xsize + _tile_xsize - 1) >> _tile_bits_x;
 	_tiles_y = (_ysize + _tile_ysize - 1) >> _tile_bits_y;
 
+	// Do a fast first pass at natural compression to better inform LZ decisions
+	maskTiles();
+	designFilters();
+	designTilesFast();
+	sortFilters();
+	computeResiduals();
+
+	// Now do informed LZ77 compression
 	designLZ();
+
+	// Perform natural image compression post-LZ
 	maskTiles();
 	designFilters();
 	designTiles();
 	sortFilters();
 	computeResiduals();
+
+	// Compress alpha channel separately like a monochrome image
 	compressAlpha();
+
+	// Decide how many chaos levels to use
 	designChaos();
+
+	// Generate a write order matrix used for compressing SF/CF information
 	generateWriteOrder();
+
+	// Compress SF/CF subresolution tiles like a monochrome image
 	compressSF();
 	compressCF();
 

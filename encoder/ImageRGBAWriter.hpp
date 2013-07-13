@@ -34,7 +34,6 @@
 #include "ImagePaletteWriter.hpp"
 #include "../decoder/ImageRGBAReader.hpp"
 #include "EntropyEncoder.hpp"
-#include "FilterScorer.hpp"
 #include "../decoder/Filters.hpp"
 #include "GCIFWriter.h"
 #include "PaletteOptimizer.hpp"
@@ -85,6 +84,7 @@ protected:
 
 	// Subsystems
 	ImageMaskWriter *_mask;
+	bool _lz_enabled; // LZ subsystem has initialized?
 	RGBAMatchFinder _lz;
 
 	// RGBA image
@@ -131,6 +131,7 @@ protected:
 	void designLZ();
 	void maskTiles();
 	void designFilters();
+	void designTilesFast();
 	void designTiles();
 	void sortFilters();
 	void computeResiduals();
