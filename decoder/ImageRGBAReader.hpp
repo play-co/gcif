@@ -100,7 +100,7 @@ public:
 	 * to further compress the literal distances.
 	 *
 	 *
-	 * The extra (23) escape codes are:
+	 * The extra (32) escape codes are:
 	 *
 	 * 256 = "Distance Same as 1st Last"
 	 * 257 = "Distance Same as 2nd Last"
@@ -116,19 +116,26 @@ public:
 	 * 267 = "Distance = (0, -1)"
 	 * 268 = "Distance = (1, -1)"
 	 * 269 = "Distance = (2, -1)"
-	 * 270 = "Length = 2"
-	 * 271 = "Length = 3"
-	 * 272 = "Length = 4"
-	 * 273 = "Length = 5"
-	 * 274 = "Length = 6"
-	 * 275 = "Length = 7"
-	 * 276 = "Length = 8"
-	 * 277 = "Length = 9"
-	 * 278 = Complex match follows (matching at least 10 pixels).
+	 * 270 = "Length = 2" + ShortDistance code follows
+	 * 271 = "Length = 3" + ShortDistance code follows
+	 * 272 = "Length = 4" + ShortDistance code follows
+	 * 273 = "Length = 5" + ShortDistance code follows
+	 * 274 = "Length = 6" + ShortDistance code follows
+	 * 275 = "Length = 7" + ShortDistance code follows
+	 * 276 = "Length = 8" + ShortDistance code follows
+	 * 277 = "Length = 9" + ShortDistance code follows
+	 * 278 = Length code + ShortDistance code follows
+	 * 279 = "Length = 2" + LongDistance code follows
+	 * 280 = "Length = 3" + LongDistance code follows
+	 * 281 = "Length = 4" + LongDistance code follows
+	 * 282 = "Length = 5" + LongDistance code follows
+	 * 283 = "Length = 6" + LongDistance code follows
+	 * 284 = "Length = 7" + LongDistance code follows
+	 * 285 = "Length = 8" + LongDistance code follows
+	 * 286 = "Length = 9" + LongDistance code follows
+	 * 287 = Length code + LongDistance code follows
 	 *
 	 * For codes 256-269, the following bits are a Length code.
-	 * For codes 270-277, the following bits are a Distance code.
-	 * For code 278, the following bits are a Length code and then a Distance code.
 	 *
 	 *
 	 * Length Huffman code:
@@ -139,7 +146,7 @@ public:
 	 * 254 = "Length = 256"
 	 *
 	 *
-	 * Distance Huffman code:
+	 * ShortDistance Huffman code:
 	 *
 	 * 0 = "Distance = 2"
 	 * 1 = "Distance = 7"
@@ -169,26 +176,42 @@ public:
 	 * 124 - 140 = "Distance (-8, -7) ... (8, -7)"
 	 * 141 - 157 = "Distance (-8, -8) ... (8, -8)"
 	 *
+	 *
+	 * LongDistance Huffman code:
+	 *
 	 * Let D = Distance - 17.
 	 *
-	 * 158 = D in [0, 1] + 1 extra bit emitted
-	 * 159 = D in [2, 3] + 1 extra bit emitted
-	 * 160 = D in [4, 5] + 1 extra bit emitted
-	 * 161 = D in [6, 7] + 1 extra bit emitted
-	 * 162 = D in [8, 11] + 2 extra bits emitted
-	 * 163 = D in [12, 15] + 2 extra bits emitted
-	 * 164 = D in [16, 19] + 2 extra bits emitted
-	 * 165 = D in [20, 23] + 2 extra bits emitted
-	 * 166 = D in [24, 31] + 3 extra bits emitted
-	 * 167 = D in [32, 39] + 3 extra bits emitted
-	 * 168 = D in [40, 47] + 3 extra bits emitted
-	 * 169 = D in [48, 55] + 3 extra bits emitted
-	 * 170 = D in [56, 71] + 4 extra bits emitted
+	 * Symbols = 18 * 16 = 288
+	 *
+	 * Converting from D to (Code, EB):
+	 * EB = Bits(D >> 5) + 1
+	 * C0 = ((1 << (EB - 1)) - 1) << 5
+	 * Code = ((D - C0) >> EB) + ((EB - 1) << 4)
+	 *
+	 * Converting from Code to (D0, EB):
+	 * EB = (Code >> 4) + 1
+	 * C0 = ((1 << (EB - 1)) - 1) << 5
+	 * D0 = ((Code - ((EB + 1) << 4)) << EB) + C0;
+	 * D = D0 + ExtraBits(EB)
+	 *
+	 * 0 = D in [0, 1] + 1 extra bit emitted
+	 * 1 = D in [2, 3] + 1 extra bit emitted
+	 * 2 = D in [4, 5] + 1 extra bit emitted
+	 * 3 = D in [6, 7] + 1 extra bit emitted
+	 * 4 = D in [8, 11] + 2 extra bits emitted
+	 * 5 = D in [12, 15] + 2 extra bits emitted
+	 * 6 = D in [16, 19] + 2 extra bits emitted
+	 * 7 = D in [20, 23] + 2 extra bits emitted
+	 * 8 = D in [24, 31] + 3 extra bits emitted
+	 * 9 = D in [32, 39] + 3 extra bits emitted
+	 * 10 = D in [40, 47] + 3 extra bits emitted
+	 * 11 = D in [48, 55] + 3 extra bits emitted
+	 * 12 = D in [56, 71] + 4 extra bits emitted
 	 * ...
-	 * 226 = D in [524280, 655351] + 18 bits emitted
-	 * 227 = D in [655352, 786423] + 18 bits emitted
-	 * 228 = D in [786424, 917495] + 18 extra bits emitted
-	 * 229 = D in [917496, 1048567] + 18 extra bits emitted
+	 * 68 = D in [524280, 655351] + 18 bits emitted
+	 * 69 = D in [655352, 786423] + 18 bits emitted
+	 * 70 = D in [786424, 917495] + 18 extra bits emitted
+	 * 71 = D in [917496, 1048567] + 18 extra bits emitted
 	 *
 	 * 0000000 - 0000111 <- 1 bit extra
 	 * 0001000 - 0010111 <- 2
@@ -215,13 +238,15 @@ public:
 	 */
 
 	static const int LZ_LEN_SYMS = 255;
-	static const int LZ_DIST_SYMS = 230;
+	static const int LZ_ESCAPE_SYMS = 42;
+	static const int LZ_LDIST_SYMS = 288;
+	static const int LZ_SDIST_SYMS = 160;
 	static const int LZ_DIST1_SYMS = 256;
 	static const int LZ_DIST2_SYMS = 256;
 	static const int LZ_DIST3_SYMS = 256;
 
 	static const int NUM_LIT_SYMS = NUM_COLORS;
-	static const int NUM_Y_SYMS = NUM_LIT_SYMS + LZ_LEN_SYMS;
+	static const int NUM_Y_SYMS = NUM_LIT_SYMS + LZ_ESCAPE_SYMS;
 	static const int NUM_U_SYMS = NUM_LIT_SYMS;
 	static const int NUM_V_SYMS = NUM_LIT_SYMS;
 	static const int NUM_ZRLE_SYMS = 128;

@@ -196,6 +196,91 @@ bool RGBAMatchFinder::findMatches(const u32 *rgba, const u8 * CAT_RESTRICT resid
 	return true;
 }
 
+static void RGBAEncodeEscape(LZMatchFinder::LZMatch *match) {
+	match->emit_len = false;
+	match->emit_sdist = false;
+	match->emit_ldist = false;
+	match->emit_dist1 = false;
+	match->emit_dist2 = false;
+	match->emit_dist3 = false;
+	match->extra_bits = 0;
+
+	const u32 distance = match->distance;
+	const u16 length = match->length;
+
+	CAT_DEBUG_ENFORCE(distance > 0);
+	CAT_DEBUG_ENFORCE(length >= MIN_MATCH);
+	CAT_DEBUG_ENFORCE(length <= MAX_MATCH);
+
+	u16 escape_code = ImageRGBAReader::NUM_LIT_SYMS;
+
+	for (int ii = 0; ii < LAST_COUNT; ++ii) {
+		if (distance == recent[(recent_ii + LAST_COUNT - 1 - ii) % LAST_COUNT]) {
+			match->escape_code = escape_code;
+			match->emit_len = true;
+			return;
+		}
+	}
+
+	if (distance == 1) {
+		escape_code += 4;
+		match->emit_len = true;
+	} else if (distance >= 3 && distance <= 6) {
+		escape_code += distance + 2;
+		match->emit_len = true;
+	} else {
+		int start = _xsize - 2;
+		if (distance >= start && distance <= start + 4) {
+			escape_code += distance - start + 9;
+			match->emit_len = true;
+		} else {
+			// Now the escape code depends on which distance Huffman code we are using:
+
+			escape_code += 
+
+				CAT_DEBUG_ENFORCE(distance == 2 || distance >= 7);
+
+			if (distance == 2) {
+				dist_code = 0;
+			} else if (distance <= 16) {
+				dist_code = distance - 6;
+			} else {
+				for (int ii = _xsize - 16; ii <= _xsize - 3; ++ii) {
+					if (distance == ii) {
+						dist_code = 11 + distance - (_xsize - 16);
+						goto found_sdist_code;
+					}
+				}
+
+				for (int ii = _xsize + 3; ii <= _xsize + 16; ++ii) {
+					if (distance == ii) {
+						dist_code = 25 + distance - (_xsize + 3);
+						goto found_sdist_code;
+					}
+				}
+
+				dist_code = 39;
+				for (int y = 2; y <= 8; ++y) {
+					int ii = y * _xsize - 8;
+					for (int iiend = ii + 16; ii <= iiend; ++ii, ++dist_code) {
+						if (distance == ii) {
+							goto found_sdist_code;
+						}
+					}
+				}
+
+				CAT_DEBUG_ENFORCE(dist_code == 158);
+			}
+
+found_sdist_code:
+			match->emit_sdist = true;
+		}
+	}
+}
+
+static void RGBAEncodeExtra(LZMatchFinder::LZMatch *match) {
+}
+
 bool RGBAMatchFinder::init(const u32 * CAT_RESTRICT rgba, const u8 * CAT_RESTRICT residuals, int xsize, int ysize, ImageMaskWriter *mask) {
 	CAT_DEBUG_ENFORCE(MIN_MATCH == 2);
 	CAT_DEBUG_ENFORCE(MAX_MATCH == 256);
@@ -209,9 +294,10 @@ bool RGBAMatchFinder::init(const u32 * CAT_RESTRICT rgba, const u8 * CAT_RESTRIC
 	reset();
 
 	// Collect LZ distance symbol statistics
-	FreqHistogram len_hist, dist_hist, dist1_hist, dist2_hist, dist3_hist;
+	FreqHistogram len_hist, sdist_hist, ldist_hist, dist1_hist, dist2_hist, dist3_hist;
 	len_hist.init(ImageRGBAReader::LZ_LEN_SYMS);
-	dist_hist.init(ImageRGBAReader::LZ_DIST_SYMS);
+	sdist_hist.init(ImageRGBAReader::LZ_SDIST_SYMS);
+	ldist_hist.init(ImageRGBAReader::LZ_LDIST_SYMS);
 	dist1_hist.init(ImageRGBAReader::LZ_DIST1_SYMS);
 	dist2_hist.init(ImageRGBAReader::LZ_DIST2_SYMS);
 	dist3_hist.init(ImageRGBAReader::LZ_DIST3_SYMS);
@@ -233,34 +319,68 @@ bool RGBAMatchFinder::init(const u32 * CAT_RESTRICT rgba, const u8 * CAT_RESTRIC
 		CAT_DEBUG_ENFORCE(length <= MAX_MATCH);
 
 		u16 escape_code = ImageRGBAReader::NUM_LIT_SYMS;
-		bool emit_len = false, emit_dist = false;
+		u32 dist_code = 0;
 
 		for (int ii = 0; ii < LAST_COUNT; ++ii) {
 			if (distance == recent[(recent_ii + LAST_COUNT - 1 - ii) % LAST_COUNT]) {
 				escape_code += ii;
-				emit_len = true;
+				match->emit_len = true;
 				goto found_escape_code;
 			}
 		}
 
 		if (distance == 1) {
 			escape_code += 4;
-			emit_len = true;
+			match->emit_len = true;
 		} else if (distance >= 3 && distance <= 6) {
 			escape_code += distance + 2;
-			emit_len = true;
+			match->emit_len = true;
 		} else {
 			int start = _xsize - 2;
 			if (distance >= start && distance <= start + 4) {
 				escape_code += distance - start + 9;
-				emit_len = true;
-			} else if (length >= 2 && length <= 9) {
-				escape_code += length + 12;
-				emit_dist = true;
+				match->emit_len = true;
 			} else {
-				emit_len = true;
-				emit_dist = true;
-				escape_code += 22;
+				// Now the escape code depends on which distance Huffman code we are using:
+
+				escape_code += 
+
+				CAT_DEBUG_ENFORCE(distance == 2 || distance >= 7);
+
+				if (distance == 2) {
+					dist_code = 0;
+				} else if (distance <= 16) {
+					dist_code = distance - 6;
+				} else {
+					for (int ii = _xsize - 16; ii <= _xsize - 3; ++ii) {
+						if (distance == ii) {
+							dist_code = 11 + distance - (_xsize - 16);
+							goto found_sdist_code;
+						}
+					}
+
+					for (int ii = _xsize + 3; ii <= _xsize + 16; ++ii) {
+						if (distance == ii) {
+							dist_code = 25 + distance - (_xsize + 3);
+							goto found_sdist_code;
+						}
+					}
+
+					dist_code = 39;
+					for (int y = 2; y <= 8; ++y) {
+						int ii = y * _xsize - 8;
+						for (int iiend = ii + 16; ii <= iiend; ++ii, ++dist_code) {
+							if (distance == ii) {
+								goto found_sdist_code;
+							}
+						}
+					}
+
+					CAT_DEBUG_ENFORCE(dist_code == 158);
+				}
+
+found_sdist_code:
+				match->emit_sdist = true;
 			}
 		}
 
@@ -272,10 +392,6 @@ found_escape_code:
 		match->escape_code = escape_code;
 		match->emit_len = emit_len;
 		match->emit_dist = emit_dist;
-		match->emit_dist1 = false;
-		match->emit_dist2 = false;
-		match->emit_dist3 = false;
-		match->extra_bits = 0;
 
 		// If emitting length,
 		if (emit_len) {
@@ -287,38 +403,6 @@ found_escape_code:
 		if (emit_dist) {
 			u16 dist_code;
 
-			CAT_DEBUG_ENFORCE(distance == 2 || distance >= 7);
-
-			if (distance == 2) {
-				dist_code = 0;
-			} else if (distance <= 16) {
-				dist_code = distance - 6;
-			} else {
-				for (int ii = _xsize - 16; ii <= _xsize - 3; ++ii) {
-					if (distance == ii) {
-						dist_code = 11 + distance - (_xsize - 16);
-						goto found_dist_code;
-					}
-				}
-
-				for (int ii = _xsize + 3; ii <= _xsize + 16; ++ii) {
-					if (distance == ii) {
-						dist_code = 25 + distance - (_xsize + 3);
-						goto found_dist_code;
-					}
-				}
-
-				dist_code = 39;
-				for (int y = 2; y <= 8; ++y) {
-					int ii = y * _xsize - 8;
-					for (int iiend = ii + 16; ii <= iiend; ++ii, ++dist_code) {
-						if (distance == ii) {
-							goto found_dist_code;
-						}
-					}
-				}
-
-				CAT_DEBUG_ENFORCE(dist_code == 158);
 
 				// Encode distance directly:
 
@@ -378,6 +462,7 @@ found_escape_code:
 found_dist_code:
 			match->dist_code = dist_code;
 			dist_hist.add(dist_code);
+			// TODO: Short/long
 		}
 
 		if (match->emit_dist1) {
@@ -401,7 +486,8 @@ found_dist_code:
 
 	// Initialize encoders
 	_lz_len_encoder.init(len_hist);
-	_lz_dist_encoder.init(dist_hist);
+	_lz_sdist_encoder.init(sdist_hist);
+	_lz_ldist_encoder.init(ldist_hist);
 	_lz_dist1_encoder.init(dist1_hist);
 	_lz_dist2_encoder.init(dist2_hist);
 	_lz_dist3_encoder.init(dist3_hist);
@@ -420,7 +506,8 @@ int RGBAMatchFinder::writeTables(ImageWriter &writer) {
 	int bits = 0;
 
 	bits += _lz_len_encoder.writeTable(writer);
-	bits += _lz_dist_encoder.writeTable(writer);
+	bits += _lz_sdist_encoder.writeTable(writer);
+	bits += _lz_ldist_encoder.writeTable(writer);
 	bits += _lz_dist1_encoder.writeTable(writer);
 	bits += _lz_dist2_encoder.writeTable(writer);
 	bits += _lz_dist3_encoder.writeTable(writer);
@@ -440,8 +527,12 @@ int RGBAMatchFinder::write(EntropyEncoder &ee, ImageWriter &writer) {
 		len_bits += _lz_len_encoder.writeSymbol(match->len_code, writer);
 	}
 
-	if (match->emit_dist) {
-		dist_bits += _lz_dist_encoder.writeSymbol(match->dist_code, writer);
+	if (match->emit_sdist) {
+		dist_bits += _lz_sdist_encoder.writeSymbol(match->sdist_code, writer);
+	}
+
+	if (match->emit_ldist) {
+		dist_bits += _lz_ldist_encoder.writeSymbol(match->ldist_code, writer);
 	}
 
 	if (match->emit_dist1) {

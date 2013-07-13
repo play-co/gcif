@@ -61,8 +61,10 @@ public:
 		u16 escape_code;		// Which escape code to emit in Y-channel
 		bool emit_len;			// Emit length code?
 		u16 len_code;			// Code for length
-		bool emit_dist;			// Emit distance code?
-		u16 dist_code;			// Code for distance
+		bool emit_ldist;		// Emit long distance code?
+		u16 ldist_code;			// Code for distance
+		bool emit_sdist;		// Emit short distance code?
+		u16 sdist_code;			// Code for distance
 		bool emit_dist1;		// Emit extended distance code 1?
 		u16 dist1_code;			// Extended distance codes
 		bool emit_dist2;		// Emit extended distance code 2?
@@ -122,7 +124,8 @@ public:
 class RGBAMatchFinder : public LZMatchFinder {
 protected:
 	HuffmanEncoder _lz_len_encoder;
-	HuffmanEncoder _lz_dist_encoder;
+	HuffmanEncoder _lz_sdist_encoder;
+	HuffmanEncoder _lz_ldist_encoder;
 	HuffmanEncoder _lz_dist1_encoder; // For long literal distances 
 	HuffmanEncoder _lz_dist2_encoder;
 	HuffmanEncoder _lz_dist3_encoder;
