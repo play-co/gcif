@@ -101,7 +101,7 @@ bool RGBAMatchFinder::findMatches(const u32 *rgba, const u8 * CAT_RESTRICT resid
 
 						if (using_mask) {
 							int fix_len = 0;
-							for (int jj = 0; jj < match_len; ++jj, ++saved) {
+							for (int jj = 0; jj < match_len; ++jj, saved += 4) {
 								if (rgba_now[jj] != mask_color) {
 									fix_len = jj + 1;
 									bitsSaved += saved[0];
@@ -109,7 +109,7 @@ bool RGBAMatchFinder::findMatches(const u32 *rgba, const u8 * CAT_RESTRICT resid
 							}
 							match_len = fix_len;
 						} else {
-							for (int jj = 0; jj < match_len; ++jj, ++saved) {
+							for (int jj = 0; jj < match_len; ++jj, saved += 4) {
 								bitsSaved += saved[0];
 							}
 						}
