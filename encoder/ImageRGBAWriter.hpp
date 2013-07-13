@@ -105,8 +105,32 @@ protected:
 	u16 _sf_indices[MAX_FILTERS];
 	int _sf_count;
 
-	// Write state
-	SmartArray<u8> _residuals, _seen_filter;
+	/*
+	 * Residuals format:
+	 *
+	 * Each pixel is represented by 4 bytes that are the result of applying the
+	 * selected spatial filter then color filter.
+	 *
+	 * From low to high index: [Y, U, V, A, Y, U, V, A ...] for each pixels
+	 * starting from the upper left to the lower right, row-first.
+	 *
+	 * The A channel is actually encoded separately so it is undefined in the
+	 * residuals array.
+	 *
+	 */
+	SmartArray<u8> _residuals;
+
+	/*
+	 * Seen Filter
+	 *
+	 * This data structure remembers which tiles have been sent during encoding
+	 * so that the filters can be sent as needed interleaved with the pixel
+	 * data, which allows for entirely masked tiles to go unwritten, which
+	 * improves compression.
+	 *
+	 * Each byte is one tile in the current row.  0= not seen, non-zero= seen
+	 */
+	SmartArray<u8> _seen_filter;
 
 	// RGB encoders
 	struct Encoders {
@@ -128,13 +152,14 @@ protected:
 	bool IsMasked(u16 x, u16 y);
 	bool IsSFMasked(u16 x, u16 y);
 
-	void designLZ();
 	void maskTiles();
 	void designFilters();
 	void designTilesFast();
 	void designTiles();
 	void sortFilters();
 	void computeResiduals();
+	void priceResiduals();
+	void designLZ();
 	bool compressAlpha();
 	void designChaos();
 	void generateWriteOrder();

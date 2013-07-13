@@ -127,7 +127,7 @@ protected:
 	HuffmanEncoder _lz_dist2_encoder;
 	HuffmanEncoder _lz_dist3_encoder;
 
-	bool findMatches(const u32 * CAT_RESTRICT rgba, int xsize, int ysize, ImageMaskWriter *mask);
+	bool findMatches(const u32 * CAT_RESTRICT rgba, const u8 * CAT_RESTRICT residuals, int xsize, int ysize, ImageMaskWriter *mask);
 
 public:
 	// Not worth matching less than MIN_MATCH
@@ -146,7 +146,7 @@ public:
 		return (u32)( ( ((u64)rgba[0] << 32) | rgba[1] ) * HASH_MULT >> (64 - HASH_BITS) );
 	}
 
-	bool init(const u32 * CAT_RESTRICT rgba, int xsize, int ysize, ImageMaskWriter *mask);
+	bool init(const u32 * CAT_RESTRICT rgba, const u8 * CAT_RESTRICT residuals, int xsize, int ysize, ImageMaskWriter *mask);
 
 	void train(EntropyEncoder &ee);
 

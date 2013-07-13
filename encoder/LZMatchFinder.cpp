@@ -38,7 +38,7 @@ using namespace std;
 
 //// RGBAMatchFinder
 
-bool RGBAMatchFinder::findMatches(const u32 *rgba, int xsize, int ysize, ImageMaskWriter *image_mask) {
+bool RGBAMatchFinder::findMatches(const u32 *rgba, const u8 * CAT_RESTRICT residuals, int xsize, int ysize, ImageMaskWriter *image_mask) {
 	// Setup mask
 	const u32 mask_color = image_mask->getColor();
 	const bool using_mask = image_mask->enabled();
@@ -54,6 +54,11 @@ bool RGBAMatchFinder::findMatches(const u32 *rgba, int xsize, int ysize, ImageMa
 	const int mask_size = (xsize * ysize + 31) / 32;
 	_mask.resizeZero(mask_size);
 
+	// Track recent distances
+	u32 recent[LAST_COUNT];
+	CAT_OBJCLR(recent);
+	int recent_ii = 0;
+
 	// For each pixel, stopping just before the last pixel:
 	const u32 *rgba_now = rgba;
 	u16 x = 0, y = 0;
@@ -61,6 +66,7 @@ bool RGBAMatchFinder::findMatches(const u32 *rgba, int xsize, int ysize, ImageMa
 		const u32 hash = HashPixels(rgba_now);
 		u16 best_length = MIN_MATCH - 1;
 		u32 best_distance = 0;
+		int best_score = 0;
 
 		// If not masked,
 		if (!using_mask || !image_mask->masked(x, y)) {
@@ -90,19 +96,48 @@ bool RGBAMatchFinder::findMatches(const u32 *rgba, int xsize, int ysize, ImageMa
 					// Future matches will be farther away (more expensive in distance)
 					// so they should be at least as long as previous matches to be considered
 					if (match_len > best_length) {
+						const u8 * CAT_RESTRICT saved = residuals;
+						int bitsSaved = 0;
+
 						if (using_mask) {
 							int fix_len = 0;
-							for (int jj = 0; jj < match_len; ++jj) {
+							for (int jj = 0; jj < match_len; ++jj, ++saved) {
 								if (rgba_now[jj] != mask_color) {
 									fix_len = jj + 1;
+									bitsSaved += saved[0];
 								}
 							}
 							match_len = fix_len;
+						} else {
+							for (int jj = 0; jj < match_len; ++jj, ++saved) {
+								bitsSaved += saved[0];
+							}
 						}
 
-						if (match_len > best_length) {
+						CAT_DEBUG_ENFORCE(bitsSaved == 0);
+
+						int bitsCost = 0;
+						if (distance == recent[0]) {
+							bitsCost = 7;
+						} else if (distance == recent[1]) {
+							bitsCost = 7;
+						} else if (distance == recent[2]) {
+							bitsCost = 7;
+						} else if (distance == recent[3]) {
+							bitsCost = 7;
+						} else if (distance >= _xsize*9) {
+							bitsCost = 20;
+						} else if (distance >= _xsize*2 + 8) {
+							bitsCost = 11;
+						} else {
+							bitsCost = 8;
+						}
+
+						const int score = bitsSaved - bitsCost;
+						if (score > best_score) {
 							best_distance = distance;
 							best_length = match_len;
+							best_score = score;
 
 							// If length is at the limit,
 							if (match_len >= MAX_MATCH) {
@@ -120,31 +155,36 @@ bool RGBAMatchFinder::findMatches(const u32 *rgba, int xsize, int ysize, ImageMa
 		table[hash] = ++ii;
 		++rgba_now;
 		++x;
+		residuals += 4;
 
 		// If a best node was found,
 		if (best_distance > 0) {
 			const int offset = ii - 1;
 
-			// TODO: Use residuals to score matches
-			// TODO: Score this match before accepting it
-
-			if (best_length >= 2) {
-				_matches.push_back(LZMatch(offset, best_distance, best_length));
-				//CAT_WARN("RGBATEST") << offset << " : " << best_distance << ", " << best_length;
-
-				mask(offset);
-
-				// Insert matched pixels
-				for (int jj = 1; jj < best_length; ++jj) {
-					mask(ii);
-					const u32 matched_hash = HashPixels(rgba_now);
-					chain[ii] = table[matched_hash] + 1;
-					table[matched_hash] = ++ii;
-					++rgba_now;
-				}
-
-				x += best_length - 1;
+			// Update recent distances
+			recent[recent_ii++] = best_distance;
+			if (recent_ii >= LAST_COUNT) {
+				recent_ii = 0;
 			}
+
+			_matches.push_back(LZMatch(offset, best_distance, best_length));
+			//CAT_WARN("RGBATEST") << offset << " : " << best_distance << ", " << best_length;
+
+			mask(offset);
+
+			// Insert matched pixels
+			for (int jj = 1; jj < best_length; ++jj) {
+				mask(ii);
+				const u32 matched_hash = HashPixels(rgba_now);
+				chain[ii] = table[matched_hash] + 1;
+				table[matched_hash] = ++ii;
+				++rgba_now;
+			}
+
+			// Skip ahead
+			--best_length;
+			x += best_length;
+			residuals += best_length << 2;
 		}
 
 		while (x >= xsize) {
@@ -158,13 +198,13 @@ bool RGBAMatchFinder::findMatches(const u32 *rgba, int xsize, int ysize, ImageMa
 	return true;
 }
 
-bool RGBAMatchFinder::init(const u32 * CAT_RESTRICT rgba, int xsize, int ysize, ImageMaskWriter *mask) {
+bool RGBAMatchFinder::init(const u32 * CAT_RESTRICT rgba, const u8 * CAT_RESTRICT residuals, int xsize, int ysize, ImageMaskWriter *mask) {
 	CAT_DEBUG_ENFORCE(MIN_MATCH == 2);
 	CAT_DEBUG_ENFORCE(MAX_MATCH == 256);
 
 	_xsize = xsize;
 
-	if (!findMatches(rgba, xsize, ysize, mask)) {
+	if (!findMatches(rgba, residuals, xsize, ysize, mask)) {
 		return false;
 	}
 

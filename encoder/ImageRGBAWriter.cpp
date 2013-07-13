@@ -55,12 +55,40 @@ using namespace std;
 
 //// ImageRGBAWriter
 
+// TODO: Calculate residuals price
+
+static const u8 RESIDUALS_PRICE[256] = {
+	0
+};
+
+void ImageRGBAWriter::priceResiduals() {
+	CAT_INANE("RGBA") << "Assigning approximate bit costs to residuals...";
+
+	// For each pixel of residuals,
+	u8 *residuals = _residuals.get();
+	for (u16 y = 0; y < _ysize; ++y) {
+		for (u16 x = 0; x < _xsize; ++x, residuals += 4) {
+			if (!IsMasked(x, y)) {
+				// Calculate it
+				u32 price = RESIDUALS_PRICE[residuals[0]];
+				price += RESIDUALS_PRICE[residuals[1]];
+				price += RESIDUALS_PRICE[residuals[2]];
+
+				// Store it
+				residuals[3] = price > 255 ? 255 : static_cast<u8>( price );
+			} else {
+				residuals[3] = 0;
+			}
+		}
+	}
+}
+
 void ImageRGBAWriter::designLZ() {
 	CAT_INANE("RGBA") << "Finding LZ77 matches...";
 
 	// Find LZ matches
 	const u32 *rgba = reinterpret_cast<const u32 *>( _rgba );
-	_lz.init(rgba, _xsize, _ysize, _mask);
+	_lz.init(rgba, _residuals.get() + 3, _xsize, _ysize, _mask);
 
 	_lz_enabled = true;
 }
@@ -812,6 +840,7 @@ int ImageRGBAWriter::init(const u8 *rgba, int xsize, int ysize, ImageMaskWriter 
 	designTilesFast();
 	sortFilters();
 	computeResiduals();
+	priceResiduals();
 
 	// Now do informed LZ77 compression
 	designLZ();
