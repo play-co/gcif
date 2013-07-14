@@ -315,15 +315,17 @@ static void RGBAEncode(u32 *recent, int recent_ii, LZMatchFinder::LZMatch *match
 
 	u32 extra = (D - C0) & ((1 << EB) - 1);
 
+	// TODO: Add extra bits back in
+
 	if (EB <= 8) {
 		CAT_DEBUG_ENFORCE(extra <= 255);
 		match->emit_dist1 = true;
-		match->dist1_code = static_cast<u8>( extra << (8 - EB) );
+		match->dist1_code = static_cast<u8>( extra );
 	} else {
 		match->emit_dist2 = true;
-		match->dist2_code = static_cast<u8>( extra >> (EB - 8) );
+		match->dist2_code = static_cast<u8>( extra >> 8 );
 		match->emit_dist3 = true;
-		match->dist3_code = static_cast<u8>( extra << (16 - EB) );
+		match->dist3_code = static_cast<u8>( extra );
 	}
 
 #ifdef CAT_DEBUG
@@ -336,13 +338,13 @@ static void RGBAEncode(u32 *recent, int recent_ii, LZMatchFinder::LZMatch *match
 		CAT_DEBUG_ENFORCE(C0T == C0);
 		u32 DT = ((dist_code - ((EB - 1) << 4)) << EB) + C0;
 		if (match->emit_dist1) {
-			DT += match->dist1_code >> (8 - EB);
+			DT += match->dist1_code;
 		}
 		if (match->emit_dist2) {
-			DT += match->dist2_code << (EB - 8);
+			DT += match->dist2_code << 8;
 		}
 		if (match->emit_dist3) {
-			DT += match->dist3_code >> (16 - EB);
+			DT += match->dist3_code;
 		}
 		CAT_DEBUG_ENFORCE(DT == D);
 	}
@@ -485,11 +487,9 @@ int RGBAMatchFinder::write(EntropyEncoder &ee, ImageWriter &writer) {
 
 	int bits = ee_bits + len_bits + dist_bits + dist1_bits + dist2_bits + dist3_bits;
 
-#ifdef CAT_DUMP_LZ
 	if (match->length < 5) {
 		CAT_WARN("EMIT") << "ee=" << ee_bits << " len=" << len_bits << " dist=" << dist_bits << " dist1=" << dist1_bits << " dist2=" << dist2_bits << " dist3=" << dist3_bits << " : sum=" << bits;
 	}
-#endif
 
 	return bits;
 }
