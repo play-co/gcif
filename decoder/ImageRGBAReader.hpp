@@ -96,9 +96,6 @@ public:
 	 * rows are assigned symbols in a Huffman code, in addition to a bit count encoding
 	 * that indicates how many bits the distance contains as well as some of the high bits.
 	 *
-	 * (6) The most significant bits of the distances are encoded with 1-3 Huffman codes
-	 * to further compress the literal distances.
-	 *
 	 *
 	 * The extra (32) escape codes are:
 	 *
