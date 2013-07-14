@@ -71,6 +71,7 @@ public:
 		u16 dist2_code;			// Extended distance codes
 		bool emit_dist3;		// Emit extended distance code 3?
 		u16 dist3_code;			// Extended distance codes
+		u16 extra, extra_bits;
 
 		CAT_INLINE LZMatch(u32 offset, u32 distance, u16 length) {
 			this->offset = offset;

@@ -207,6 +207,7 @@ static void RGBAEncode(u32 *recent, int recent_ii, LZMatchFinder::LZMatch *match
 	match->emit_dist1 = false;
 	match->emit_dist2 = false;
 	match->emit_dist3 = false;
+	match->extra_bits = 0;
 
 	const u32 distance = match->distance;
 	const u16 length = match->length;
@@ -315,20 +316,25 @@ static void RGBAEncode(u32 *recent, int recent_ii, LZMatchFinder::LZMatch *match
 
 	u32 extra = (D - C0) & ((1 << EB) - 1);
 
-	// TODO: Add extra bits back in
-
-	if (EB <= 8) {
-		CAT_DEBUG_ENFORCE(extra <= 255);
+	if (EB <= 4) {
+		match->extra = extra;
+		match->extra_bits = EB;
+	} else if (EB <= 8) {
 		match->emit_dist1 = true;
 		match->dist1_code = static_cast<u8>( extra );
-	} else {
+	} else if (EB <= 12) {
 		match->emit_dist2 = true;
-		match->dist2_code = static_cast<u8>( extra >> 8 );
+		match->dist2_code = static_cast<u8>( extra >> (EB - 8) );
+		match->extra = extra & ~(0xffffffff << (EB - 8));
+		match->extra_bits = EB - 8;
+	} else {
 		match->emit_dist3 = true;
-		match->dist3_code = static_cast<u8>( extra );
+		match->dist3_code = static_cast<u8>( extra >> (EB - 8) );
+		match->extra = extra & ~(0xffffffff << (EB - 8));
+		match->extra_bits = EB - 8;
 	}
 
-#ifdef CAT_DEBUG
+#ifdef CAT_DEBUGa
 	// Verify that the encoding is reversible
 	{
 		u32 dist_code = match->ldist_code;
@@ -400,18 +406,15 @@ bool RGBAMatchFinder::init(const u32 * CAT_RESTRICT rgba, const u8 * CAT_RESTRIC
 			}
 
 			if (match->emit_dist1) {
-				CAT_DEBUG_ENFORCE(!match->emit_dist2 && !match->emit_dist3);
 				dist1_hist.add(match->dist1_code);
-			} else {
-				if (match->emit_dist2) {
-					CAT_DEBUG_ENFORCE(!match->emit_dist1);
-					dist2_hist.add(match->dist2_code);
-				}
+			}
 
-				if (match->emit_dist3) {
-					CAT_DEBUG_ENFORCE(!match->emit_dist1 && match->emit_dist2);
-					dist3_hist.add(match->dist3_code);
-				}
+			if (match->emit_dist2) {
+				dist2_hist.add(match->dist2_code);
+			}
+
+			if (match->emit_dist3) {
+				dist3_hist.add(match->dist3_code);
 			}
 		}
 
@@ -485,10 +488,14 @@ int RGBAMatchFinder::write(EntropyEncoder &ee, ImageWriter &writer) {
 		dist3_bits += _lz_dist3_encoder.writeSymbol(match->dist3_code, writer);
 	}
 
-	int bits = ee_bits + len_bits + dist_bits + dist1_bits + dist2_bits + dist3_bits;
+	if (match->extra_bits) {
+		writer.writeBits(match->extra, match->extra_bits);
+	}
+
+	int bits = ee_bits + len_bits + dist_bits + dist1_bits + dist2_bits + dist3_bits + match->extra_bits;
 
 	if (match->length < 5) {
-		CAT_WARN("EMIT") << "ee=" << ee_bits << " len=" << len_bits << " dist=" << dist_bits << " dist1=" << dist1_bits << " dist2=" << dist2_bits << " dist3=" << dist3_bits << " : sum=" << bits;
+		CAT_WARN("EMIT") << "ee=" << ee_bits << " len=" << len_bits << " dist=" << dist_bits << " dist1=" << dist1_bits << " dist2=" << dist2_bits << " dist3=" << dist3_bits << " extra=" << match->extra_bits << " : sum=" << bits;
 	}
 
 	return bits;
