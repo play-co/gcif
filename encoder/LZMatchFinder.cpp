@@ -207,7 +207,6 @@ static void RGBAEncode(u32 *recent, int recent_ii, LZMatchFinder::LZMatch *match
 	match->emit_dist1 = false;
 	match->emit_dist2 = false;
 	match->emit_dist3 = false;
-	match->extra_bits = 0;
 
 	const u32 distance = match->distance;
 	const u16 length = match->length;
@@ -308,30 +307,23 @@ static void RGBAEncode(u32 *recent, int recent_ii, LZMatchFinder::LZMatch *match
 	CAT_DEBUG_ENFORCE(distance >= 17);
 	u32 D = distance - 17;
 	int EB = BSR32((D >> 5) + 1) + 1;
-	CAT_DEBUG_ENFORCE(EB <= 18);
+	CAT_DEBUG_ENFORCE(EB <= 16);
 	u32 C0 = ((1 << (EB - 1)) - 1) << 5;
 	u32 Code = ((EB - 1) << 4) + ((D - C0) >> EB);
-	CAT_DEBUG_ENFORCE(Code <= 288);
+	CAT_DEBUG_ENFORCE(Code <= 255);
 	match->ldist_code = static_cast<u16>( Code );
 
 	u32 extra = (D - C0) & ((1 << EB) - 1);
 
-	if (EB <= 7) {
-		CAT_DEBUG_ENFORCE(extra <= 127);
-		match->extra_bits = EB;
-		match->extra = extra;
-	} else if (EB <= 8 + 7) {
-		match->extra_bits = EB - 8;
-		match->extra = extra & ~(0xffffffff << (EB - 8));
-		match->emit_dist3 = true;
-		match->dist3_code = static_cast<u8>( extra >> (EB - 8) );
-	} else {
-		match->extra_bits = EB - 16;
-		match->extra = extra & ~(0xffffffff << (EB - 16));
+	if (EB <= 8) {
+		CAT_DEBUG_ENFORCE(extra <= 255);
 		match->emit_dist1 = true;
-		match->dist1_code = static_cast<u8>( extra >> (EB - 16) );
+		match->dist1_code = static_cast<u8>( extra << (8 - EB) );
+	} else {
 		match->emit_dist2 = true;
 		match->dist2_code = static_cast<u8>( extra >> (EB - 8) );
+		match->emit_dist3 = true;
+		match->dist3_code = static_cast<u8>( extra << (16 - EB) );
 	}
 
 #ifdef CAT_DEBUG
@@ -343,17 +335,14 @@ static void RGBAEncode(u32 *recent, int recent_ii, LZMatchFinder::LZMatch *match
 		u32 C0T = ((1 << (EB - 1)) - 1) << 5;
 		CAT_DEBUG_ENFORCE(C0T == C0);
 		u32 DT = ((dist_code - ((EB - 1) << 4)) << EB) + C0;
-		if (match->extra_bits) {
-			DT += match->extra;
-		}
-		if (match->emit_dist3) {
-			DT += match->dist3_code << match->extra_bits;
-		}
 		if (match->emit_dist1) {
-			DT += match->dist1_code << match->extra_bits;
+			DT += match->dist1_code >> (8 - EB);
 		}
 		if (match->emit_dist2) {
-			DT += match->dist2_code << (match->extra_bits + 8);
+			DT += match->dist2_code << (EB - 8);
+		}
+		if (match->emit_dist3) {
+			DT += match->dist3_code >> (16 - EB);
 		}
 		CAT_DEBUG_ENFORCE(DT == D);
 	}
@@ -408,18 +397,18 @@ bool RGBAMatchFinder::init(const u32 * CAT_RESTRICT rgba, const u8 * CAT_RESTRIC
 				ldist_hist.add(match->ldist_code);
 			}
 
-			if (match->emit_dist3) {
-				CAT_DEBUG_ENFORCE(!match->emit_dist1 && !match->emit_dist2);
-				dist3_hist.add(match->dist3_code);
+			if (match->emit_dist1) {
+				CAT_DEBUG_ENFORCE(!match->emit_dist2 && !match->emit_dist3);
+				dist1_hist.add(match->dist1_code);
 			} else {
-				if (match->emit_dist1) {
-					CAT_DEBUG_ENFORCE(!match->emit_dist3 && match->emit_dist2);
-					dist1_hist.add(match->dist1_code);
+				if (match->emit_dist2) {
+					CAT_DEBUG_ENFORCE(!match->emit_dist1);
+					dist2_hist.add(match->dist2_code);
 				}
 
-				if (match->emit_dist2) {
-					CAT_DEBUG_ENFORCE(!match->emit_dist3 && match->emit_dist1);
-					dist2_hist.add(match->dist2_code);
+				if (match->emit_dist3) {
+					CAT_DEBUG_ENFORCE(!match->emit_dist1 && match->emit_dist2);
+					dist3_hist.add(match->dist3_code);
 				}
 			}
 		}
@@ -494,16 +483,11 @@ int RGBAMatchFinder::write(EntropyEncoder &ee, ImageWriter &writer) {
 		dist3_bits += _lz_dist3_encoder.writeSymbol(match->dist3_code, writer);
 	}
 
-	int extra_bits = match->extra_bits;
-	if (match->extra_bits > 0) {
-		writer.writeBits(match->extra, match->extra_bits);
-	}
-
-	int bits = ee_bits + len_bits + dist_bits + dist1_bits + dist2_bits + dist3_bits + extra_bits;
+	int bits = ee_bits + len_bits + dist_bits + dist1_bits + dist2_bits + dist3_bits;
 
 #ifdef CAT_DUMP_LZ
 	if (match->length < 5) {
-		CAT_WARN("EMIT") << "ee=" << ee_bits << " len=" << len_bits << " dist=" << dist_bits << " dist1=" << dist1_bits << " dist2=" << dist2_bits << " dist3=" << dist3_bits << " extra=" << extra_bits << " : sum=" << bits;
+		CAT_WARN("EMIT") << "ee=" << ee_bits << " len=" << len_bits << " dist=" << dist_bits << " dist1=" << dist1_bits << " dist2=" << dist2_bits << " dist3=" << dist3_bits << " : sum=" << bits;
 	}
 #endif
 

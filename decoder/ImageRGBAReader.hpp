@@ -181,7 +181,7 @@ public:
 	 *
 	 * Let D = Distance - 17.
 	 *
-	 * Longer distances are encoded using 288 symbols to represent the high
+	 * Longer distances are encoded using 256 symbols to represent the high
 	 * bits and the number of bits remaining at once.  Extra bits are emitted
 	 * and encoded with Huffman codes.
 	 *
@@ -202,7 +202,7 @@ public:
 	 */
 
 	static const int LZ_LEN_SYMS = 255;
-	static const int LZ_ESCAPE_SYMS = 42;
+	static const int LZ_ESCAPE_SYMS = 32;
 	static const int LZ_LDIST_SYMS = 288;
 	static const int LZ_SDIST_SYMS = 160;
 	static const int LZ_DIST1_SYMS = 256;
