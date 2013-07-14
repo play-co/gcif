@@ -178,26 +178,29 @@ Google
 Specification
 =============
 
-Starting from the BCIF spec we decided to make some improvements.
+### Philosophy
 
-To optimize for low decompression time, we restricted ourselves to considering
-only the fastest compression primitives: Filtering, LZ, and static Huffman.
+GCIF follows the philosophy that different types of images should be encoded
+in different ways.  There are three major image qualities that make them easy
+to compress:
 
-BCIF does filtering and static Huffman coding, but left out LZ, which we feel
-is a mistake since LZ is great for representing repeated data patterns, which
-can be encoded byte-wise, reducing the number of Huffman symbols to decode.
-In our tests, adding an LZ step improves compression ratio and decomp speed.
++ Often times images will have a dominant color that covers more than 50% of
+the pixels.  GCIF encodes this as a separate bitmask.
 
-BCIF is also not designed for an alpha channel, and our games require alpha
-for sprite-sheets.  Furthermore, our images tend to have a lot of
-fully-transparent pixels that indicate 1-bit alpha is a good approach.
-So we developed a monochrome compressor that outperforms PNG just for the alpha
-channel.  Pixels that are represented by this monochrome bitmask can be skipped
-during the rest of the RGBA decoding, so the overall performance is improved.
++ Images with only a few colors should be compressed in a way that can take
+advantage of the limited color palette, so a paletted mode is preferred for
+these types of images.
 
-We also decided to rewrite BCIF from scratch after understanding how it worked,
-since we found that the code could be significantly improved in decompression
-speed, and we also disagreed with some of the finer points of the algorithm.
++ Photographic (natural) images are best compressed using the BCIF-like
+tiled filter approach that we take.
+
++ Computer art images can have a large color palette but still contain a lot
+of repetitive pixel patterns that should be compressed using LZ77 with a
+bitstream format that is optimized for images.
+
+The average input file for computer game art is a hybrid of all of these
+qualities.  The compressor intelligently selects between encoder modes to
+take advantage of the qualities that are present.
 
 
 ### Step 1. Dominant Color Pixel Encoding (Optional)
@@ -232,24 +235,7 @@ If this encoding does not achieve a certain minimum compression ratio then it
 is not used.  A bit in the encoded file indicates whether or not it is used.
 
 
-### Step 2. 2D LZ (Optional)
-
-A custom 2D LZ77 algorithm is run to find repeated rectangular regions in the
-image.  A rolling hash is used to do initial lookups on 3x3 regions, which is
-the minimum size allowed for a match.  Hash collisions are checked, and then
-matches are expanded.
-
-If the resulting matches are accepted, they exclude further matches from
-overlapping with them.  This approach gets RLE for free.  Each rectangular
-region takes 10 bytes to represent, which is then compressed with Huffman
-encoding and written to the file.  The resulting overhead is close to 5.5 bytes
-per zone, with each zone covering at least 64 bytes of original image data.
-
-If this encoding does not achieve a certain minimum compression ratio then it
-is not used.  A bit in the encoded file indicates whether or not it is used.
-
-
-### Step 3. Palette (Optional)
+### Step 2. Palette (Optional)
 
 If 256 or fewer colors comprise the image, then it is attempted to be sent as a
 paletted image, since this guarantees a compression ratio of at least 4:1.
@@ -308,7 +294,7 @@ Only the palette color is sent, and the encoding aborts early.  The decoder can
 recover the image by reading the image size, and the single color.
 
 
-### Step 4. RGBA Compression
+### Step 3. RGBA Compression
 
 When the image data is not paletted, spatial and color filters are applied to
 the input data in 4x4 pixel blocks as in BCIF.  The pair of filters that produce
@@ -548,7 +534,7 @@ so only those are evaluated and sent.
 See the [Filters.cpp](./decoder/Filters.cpp) file for the complete list.
 
 
-### Step 5. Monochrome Compression
+### Step 4. Monochrome Compression
 
 After all the data in the image has been reduced to a set of monochrome images,
 including the subresolution spatial filter and color filter selections, each of
