@@ -9,3 +9,5 @@ x64/*
 *.opensdf
 ipch/*
 *.vsp
+gcif.exe
+*.gci

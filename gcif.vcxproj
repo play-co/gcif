@@ -68,6 +68,7 @@
   <ItemGroup>
     <ClCompile Include="decoder\EndianNeutral.cpp" />
     <ClCompile Include="decoder\Enforcer.cpp" />
+    <ClCompile Include="decoder\EntropyDecoder.cpp" />
     <ClCompile Include="decoder\Filters.cpp" />
     <ClCompile Include="decoder\GCIFReader.cpp" />
     <ClCompile Include="decoder\HuffmanDecoder.cpp" />
