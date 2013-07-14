@@ -56,6 +56,7 @@ public:
 		// Initial found match
 		u32 offset, distance;
 		u16 length;
+		u32 saved;
 
 		// Encoding
 		u16 escape_code;		// Which escape code to emit in Y-channel
@@ -65,18 +66,15 @@ public:
 		u16 ldist_code;			// Code for distance
 		bool emit_sdist;		// Emit short distance code?
 		u16 sdist_code;			// Code for distance
-		bool emit_dist1;		// Emit extended distance code 1?
-		u16 dist1_code;			// Extended distance codes
-		bool emit_dist2;		// Emit extended distance code 2?
-		u16 dist2_code;			// Extended distance codes
-		bool emit_dist3;		// Emit extended distance code 3?
-		u16 dist3_code;			// Extended distance codes
-		u16 extra, extra_bits;
+		u16 extra, extra_bits;	// Extra raw bits to send
+		bool accepted;			// Accepted to be transmitted
 
-		CAT_INLINE LZMatch(u32 offset, u32 distance, u16 length) {
+		CAT_INLINE LZMatch(u32 offset, u32 distance, u16 length, u32 saved) {
 			this->offset = offset;
 			this->distance = distance;
 			this->length = length;
+			this->saved = saved;
+			this->accepted = true;
 		}
 	};
 
@@ -87,7 +85,7 @@ protected:
 	SmartArray<u32> _mask;
 	int _xsize;
 
-	CAT_INLINE void mask(u32 off) {
+	CAT_INLINE void setMask(u32 off) {
 		_mask[off >> 5] |= 1 << (off & 31);
 	}
 
@@ -103,6 +101,10 @@ public:
 
 	CAT_INLINE void reset() {
 		_next_match = &_matches[0];
+
+		while (!_next_match->accepted && _next_match->offset != GUARD_OFFSET) {
+			++_next_match;
+		}
 	}
 
 	// Once the guard offset is hit, pops should be avoided
@@ -113,7 +115,14 @@ public:
 	CAT_INLINE LZMatch *pop() {
 		CAT_DEBUG_ENFORCE(peekOffset() != GUARD_OFFSET);
 
-		return _next_match++;
+		LZMatch *match = _next_match;
+
+		while (_next_match->offset != GUARD_OFFSET) {
+			++_next_match;
+			if (_next_match->accepted) break;
+		}
+
+		return match;
 	}
 };
 
@@ -125,9 +134,6 @@ protected:
 	HuffmanEncoder _lz_len_encoder;
 	HuffmanEncoder _lz_sdist_encoder;
 	HuffmanEncoder _lz_ldist_encoder;
-	HuffmanEncoder _lz_dist1_encoder; // For long literal distances 
-	HuffmanEncoder _lz_dist2_encoder;
-	HuffmanEncoder _lz_dist3_encoder;
 
 	bool findMatches(const u32 * CAT_RESTRICT rgba, const u8 * CAT_RESTRICT residuals, int xsize, int ysize, ImageMaskWriter *mask);
 

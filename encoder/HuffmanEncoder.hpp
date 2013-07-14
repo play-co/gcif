@@ -138,9 +138,12 @@ public:
 	u32 max_freq;
 
 	CAT_INLINE void init(int num_syms) {
-		hist.resize(num_syms);
-		hist.fill_00();
+		hist.resizeZero(num_syms);
 		max_freq = 0;
+	}
+
+	CAT_INLINE void zero() {
+		hist.fill_00();
 	}
 
 	CAT_INLINE int size() {

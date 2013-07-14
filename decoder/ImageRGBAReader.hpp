@@ -182,12 +182,8 @@ public:
 	 * Let D = Distance - 17.
 	 *
 	 * Longer distances are encoded using 256 symbols to represent the high
-	 * bits and the number of bits remaining at once.  Extra bits are emitted
-	 * and encoded with Huffman codes.
-	 *
-	 * To encode the extra bits, the high bits are compressed with 8-bit
-	 * Huffman codes.  Any remaining 1-7 bits are emitted without further
-	 * encoding.
+	 * bits and the number of bits remaining at once.  Extra bits follow
+	 * the distance code.
 	 *
 	 * Converting from D to (Code, EB):
 	 * EB = Bits(D >> 5) + 1
@@ -203,11 +199,8 @@ public:
 
 	static const int LZ_LEN_SYMS = 255;
 	static const int LZ_ESCAPE_SYMS = 32;
-	static const int LZ_LDIST_SYMS = 288;
-	static const int LZ_SDIST_SYMS = 160;
-	static const int LZ_DIST1_SYMS = 256;
-	static const int LZ_DIST2_SYMS = 256;
-	static const int LZ_DIST3_SYMS = 256;
+	static const int LZ_LDIST_SYMS = 256;
+	static const int LZ_SDIST_SYMS = 158;
 
 	static const int NUM_LIT_SYMS = NUM_COLORS;
 	static const int NUM_Y_SYMS = NUM_LIT_SYMS + LZ_ESCAPE_SYMS;

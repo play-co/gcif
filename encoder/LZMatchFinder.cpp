@@ -67,6 +67,7 @@ bool RGBAMatchFinder::findMatches(const u32 *rgba, const u8 * CAT_RESTRICT resid
 		u16 best_length = 1;
 		u32 best_distance = 0;
 		int best_score = 0;
+		int best_saved = 0;
 
 		// If not masked,
 		if (!using_mask || !image_mask->masked(x, y)) {
@@ -117,19 +118,21 @@ bool RGBAMatchFinder::findMatches(const u32 *rgba, const u8 * CAT_RESTRICT resid
 						if (match_len >= 2) {
 							int bitsCost = 0;
 							if (distance == recent[0]) {
-								bitsCost = 7;
+								bitsCost = 6;
 							} else if (distance == recent[1]) {
 								bitsCost = 7;
 							} else if (distance == recent[2]) {
 								bitsCost = 7;
 							} else if (distance == recent[3]) {
 								bitsCost = 7;
+							} else if (distance <= 6) {
+								bitsCost = 8;
 							} else if (distance >= _xsize*8 + 9) {
-								bitsCost = 22;
+								bitsCost = 15 + BSR32(distance) - 4;
 							} else if (distance >= _xsize*2 + 8) {
-								bitsCost = 12;
+								bitsCost = 13;
 							} else {
-								bitsCost = 10;
+								bitsCost = 12;
 							}
 
 							const int score = bitsSaved - bitsCost;
@@ -137,6 +140,7 @@ bool RGBAMatchFinder::findMatches(const u32 *rgba, const u8 * CAT_RESTRICT resid
 								best_distance = distance;
 								best_length = match_len;
 								best_score = score;
+								best_saved = bitsSaved;
 
 								// If length is at the limit,
 								if (match_len >= MAX_MATCH) {
@@ -167,14 +171,11 @@ bool RGBAMatchFinder::findMatches(const u32 *rgba, const u8 * CAT_RESTRICT resid
 				recent_ii = 0;
 			}
 
-			_matches.push_back(LZMatch(offset, best_distance, best_length));
+			_matches.push_back(LZMatch(offset, best_distance, best_length, best_saved));
 			//CAT_WARN("RGBATEST") << offset << " : " << best_distance << ", " << best_length;
-
-			mask(offset);
 
 			// Insert matched pixels
 			for (int jj = 1; jj < best_length; ++jj) {
-				mask(ii);
 				const u32 matched_hash = HashPixels(rgba_now);
 				chain[ii] = table[matched_hash] + 1;
 				table[matched_hash] = ++ii;
@@ -193,7 +194,7 @@ bool RGBAMatchFinder::findMatches(const u32 *rgba, const u8 * CAT_RESTRICT resid
 		}
 	}
 
-	_matches.push_back(LZMatch(GUARD_OFFSET, 0, 0));
+	_matches.push_back(LZMatch(GUARD_OFFSET, 0, 0, 0));
 
 	return true;
 }
@@ -204,9 +205,6 @@ static void RGBAEncode(u32 *recent, int recent_ii, LZMatchFinder::LZMatch *match
 
 	match->emit_sdist = false;
 	match->emit_ldist = false;
-	match->emit_dist1 = false;
-	match->emit_dist2 = false;
-	match->emit_dist3 = false;
 	match->extra_bits = 0;
 
 	const u32 distance = match->distance;
@@ -316,25 +314,10 @@ static void RGBAEncode(u32 *recent, int recent_ii, LZMatchFinder::LZMatch *match
 
 	u32 extra = (D - C0) & ((1 << EB) - 1);
 
-	if (EB <= 4) {
-		match->extra = extra;
-		match->extra_bits = EB;
-	} else if (EB <= 8) {
-		match->emit_dist1 = true;
-		match->dist1_code = static_cast<u8>( extra );
-	} else if (EB <= 12) {
-		match->emit_dist2 = true;
-		match->dist2_code = static_cast<u8>( extra >> (EB - 8) );
-		match->extra = extra & ~(0xffffffff << (EB - 8));
-		match->extra_bits = EB - 8;
-	} else {
-		match->emit_dist3 = true;
-		match->dist3_code = static_cast<u8>( extra >> (EB - 8) );
-		match->extra = extra & ~(0xffffffff << (EB - 8));
-		match->extra_bits = EB - 8;
-	}
+	match->extra = extra;
+	match->extra_bits = EB;
 
-#ifdef CAT_DEBUGa
+#ifdef CAT_DEBUG
 	// Verify that the encoding is reversible
 	{
 		u32 dist_code = match->ldist_code;
@@ -343,14 +326,8 @@ static void RGBAEncode(u32 *recent, int recent_ii, LZMatchFinder::LZMatch *match
 		u32 C0T = ((1 << (EB - 1)) - 1) << 5;
 		CAT_DEBUG_ENFORCE(C0T == C0);
 		u32 DT = ((dist_code - ((EB - 1) << 4)) << EB) + C0;
-		if (match->emit_dist1) {
-			DT += match->dist1_code;
-		}
-		if (match->emit_dist2) {
-			DT += match->dist2_code << 8;
-		}
-		if (match->emit_dist3) {
-			DT += match->dist3_code;
+		if (match->extra_bits) {
+			DT += match->extra;
 		}
 		CAT_DEBUG_ENFORCE(DT == D);
 	}
@@ -370,13 +347,10 @@ bool RGBAMatchFinder::init(const u32 * CAT_RESTRICT rgba, const u8 * CAT_RESTRIC
 	reset();
 
 	// Collect LZ distance symbol statistics
-	FreqHistogram len_hist, sdist_hist, ldist_hist, dist1_hist, dist2_hist, dist3_hist;
+	FreqHistogram len_hist, sdist_hist, ldist_hist;
 	len_hist.init(ImageRGBAReader::LZ_LEN_SYMS);
 	sdist_hist.init(ImageRGBAReader::LZ_SDIST_SYMS);
 	ldist_hist.init(ImageRGBAReader::LZ_LDIST_SYMS);
-	dist1_hist.init(ImageRGBAReader::LZ_DIST1_SYMS);
-	dist2_hist.init(ImageRGBAReader::LZ_DIST2_SYMS);
-	dist3_hist.init(ImageRGBAReader::LZ_DIST3_SYMS);
 
 	// Track recent distances
 	u32 recent[LAST_COUNT];
@@ -397,24 +371,11 @@ bool RGBAMatchFinder::init(const u32 * CAT_RESTRICT rgba, const u8 * CAT_RESTRIC
 		}
 
 		if (match->emit_sdist) {
-			CAT_DEBUG_ENFORCE(!match->emit_ldist && !match->emit_dist1 && !match->emit_dist2 && !match->emit_dist3);
 			sdist_hist.add(match->sdist_code);
 		} else {
 			if (match->emit_ldist) {
 				CAT_DEBUG_ENFORCE(!match->emit_sdist);
 				ldist_hist.add(match->ldist_code);
-			}
-
-			if (match->emit_dist1) {
-				dist1_hist.add(match->dist1_code);
-			}
-
-			if (match->emit_dist2) {
-				dist2_hist.add(match->dist2_code);
-			}
-
-			if (match->emit_dist3) {
-				dist3_hist.add(match->dist3_code);
 			}
 		}
 
@@ -429,9 +390,62 @@ bool RGBAMatchFinder::init(const u32 * CAT_RESTRICT rgba, const u8 * CAT_RESTRIC
 	_lz_len_encoder.init(len_hist);
 	_lz_sdist_encoder.init(sdist_hist);
 	_lz_ldist_encoder.init(ldist_hist);
-	_lz_dist1_encoder.init(dist1_hist);
-	_lz_dist2_encoder.init(dist2_hist);
-	_lz_dist3_encoder.init(dist3_hist);
+
+	reset();
+
+	int rejects = 0, accepts = 0;
+
+	len_hist.zero();
+	sdist_hist.zero();
+	ldist_hist.zero();
+
+	// While not at the end of the match list,
+	while (peekOffset() != LZMatchFinder::GUARD_OFFSET) {
+		LZMatch *match = pop();
+
+		// Choose low bound of 2 on escape code cost
+		int bits = 2 + match->extra_bits;
+
+		if (match->emit_len) {
+			bits += _lz_len_encoder.simulateWrite(match->len_code);
+		}
+
+		if (match->emit_sdist) {
+			bits += _lz_sdist_encoder.simulateWrite(match->sdist_code);
+		} else if (match->emit_ldist) {
+			bits += _lz_ldist_encoder.simulateWrite(match->ldist_code);
+		}
+
+		if (match->saved < bits) {
+			++rejects;
+			match->accepted = false;
+		} else {
+			++accepts;
+			match->accepted = true;
+			for (int jj = 0; jj < match->length; ++jj) {
+				setMask(jj + match->offset);
+			}
+
+			if (match->emit_len) {
+				len_hist.add(match->len_code);
+			}
+
+			if (match->emit_sdist) {
+				sdist_hist.add(match->sdist_code);
+			} else {
+				if (match->emit_ldist) {
+					CAT_DEBUG_ENFORCE(!match->emit_sdist);
+					ldist_hist.add(match->ldist_code);
+				}
+			}
+		}
+	}
+
+	_lz_len_encoder.init(len_hist);
+	_lz_sdist_encoder.init(sdist_hist);
+	_lz_ldist_encoder.init(ldist_hist);
+
+	CAT_INFO("RGBA") << "Accepted " << accepts << " LZ matches. Rejected " << rejects;
 
 	return true;
 }
@@ -449,9 +463,6 @@ int RGBAMatchFinder::writeTables(ImageWriter &writer) {
 	bits += _lz_len_encoder.writeTable(writer);
 	bits += _lz_sdist_encoder.writeTable(writer);
 	bits += _lz_ldist_encoder.writeTable(writer);
-	bits += _lz_dist1_encoder.writeTable(writer);
-	bits += _lz_dist2_encoder.writeTable(writer);
-	bits += _lz_dist3_encoder.writeTable(writer);
 
 	return bits;
 }
@@ -462,7 +473,7 @@ int RGBAMatchFinder::write(EntropyEncoder &ee, ImageWriter &writer) {
 
 	int ee_bits = ee.write(match->escape_code, writer);
 
-	int len_bits = 0, dist_bits = 0, dist1_bits = 0, dist2_bits = 0, dist3_bits = 0;
+	int len_bits = 0, dist_bits = 0;
 
 	if (match->emit_len) {
 		len_bits += _lz_len_encoder.writeSymbol(match->len_code, writer);
@@ -476,26 +487,14 @@ int RGBAMatchFinder::write(EntropyEncoder &ee, ImageWriter &writer) {
 		dist_bits += _lz_ldist_encoder.writeSymbol(match->ldist_code, writer);
 	}
 
-	if (match->emit_dist1) {
-		dist1_bits += _lz_dist1_encoder.writeSymbol(match->dist1_code, writer);
-	}
-
-	if (match->emit_dist2) {
-		dist2_bits += _lz_dist2_encoder.writeSymbol(match->dist2_code, writer);
-	}
-
-	if (match->emit_dist3) {
-		dist3_bits += _lz_dist3_encoder.writeSymbol(match->dist3_code, writer);
-	}
-
 	if (match->extra_bits) {
 		writer.writeBits(match->extra, match->extra_bits);
 	}
 
-	int bits = ee_bits + len_bits + dist_bits + dist1_bits + dist2_bits + dist3_bits + match->extra_bits;
+	int bits = ee_bits + len_bits + dist_bits + match->extra_bits;
 
 	if (match->length < 5) {
-		CAT_WARN("EMIT") << "ee=" << ee_bits << " len=" << len_bits << " dist=" << dist_bits << " dist1=" << dist1_bits << " dist2=" << dist2_bits << " dist3=" << dist3_bits << " extra=" << match->extra_bits << " : sum=" << bits;
+		CAT_WARN("EMIT") << "ee=" << ee_bits << " len=" << len_bits << " dist=" << dist_bits << " extra=" << match->extra_bits << " : sum=" << bits << " LDIST=" << match->emit_ldist;
 	}
 
 	return bits;
@@ -601,14 +600,14 @@ bool MonoMatchFinder::findMatches(const u8 *mono, int xsize, int ysize, MonoMatc
 
 			// If score is good,
 			if (score > 0) {
-				_matches.push_back(LZMatch(offset, best_distance, best_length));
+				_matches.push_back(LZMatch(offset, best_distance, best_length, 0));
 				//CAT_WARN("MONOTEST") << offset << " : " << best_distance << ", " << best_length;
 
-				mask(offset);
+				setMask(offset);
 
 				// Insert matched pixels
 				for (int jj = 1; jj < best_length; ++jj) {
-					mask(ii);
+					setMask(ii);
 					const u32 matched_hash = HashPixels(mono_now);
 					chain[ii] = table[matched_hash] + 1;
 					table[matched_hash] = ++ii;
@@ -625,7 +624,7 @@ bool MonoMatchFinder::findMatches(const u8 *mono, int xsize, int ysize, MonoMatc
 		}
 	}
 
-	_matches.push_back(LZMatch(GUARD_OFFSET, 0, 0));
+	_matches.push_back(LZMatch(GUARD_OFFSET, 0, 0, 0));
 
 	return true;
 }
