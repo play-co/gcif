@@ -181,7 +181,13 @@ public:
 	 *
 	 * Let D = Distance - 17.
 	 *
-	 * Symbols = 18 * 16 = 288
+	 * Longer distances are encoded using 288 symbols to represent the high
+	 * bits and the number of bits remaining at once.  Extra bits are emitted
+	 * and encoded with Huffman codes.
+	 *
+	 * To encode the extra bits, the high bits are compressed with 8-bit
+	 * Huffman codes.  Any remaining 1-7 bits are emitted without further
+	 * encoding.
 	 *
 	 * Converting from D to (Code, EB):
 	 * EB = Bits(D >> 5) + 1
@@ -191,50 +197,8 @@ public:
 	 * Converting from Code to (D0, EB):
 	 * EB = (Code >> 4) + 1
 	 * C0 = ((1 << (EB - 1)) - 1) << 5
-	 * D0 = ((Code - ((EB + 1) << 4)) << EB) + C0;
+	 * D0 = ((Code - ((EB - 1) << 4)) << EB) + C0;
 	 * D = D0 + ExtraBits(EB)
-	 *
-	 * 0 = D in [0, 1] + 1 extra bit emitted
-	 * 1 = D in [2, 3] + 1 extra bit emitted
-	 * 2 = D in [4, 5] + 1 extra bit emitted
-	 * 3 = D in [6, 7] + 1 extra bit emitted
-	 * 4 = D in [8, 11] + 2 extra bits emitted
-	 * 5 = D in [12, 15] + 2 extra bits emitted
-	 * 6 = D in [16, 19] + 2 extra bits emitted
-	 * 7 = D in [20, 23] + 2 extra bits emitted
-	 * 8 = D in [24, 31] + 3 extra bits emitted
-	 * 9 = D in [32, 39] + 3 extra bits emitted
-	 * 10 = D in [40, 47] + 3 extra bits emitted
-	 * 11 = D in [48, 55] + 3 extra bits emitted
-	 * 12 = D in [56, 71] + 4 extra bits emitted
-	 * ...
-	 * 68 = D in [524280, 655351] + 18 bits emitted
-	 * 69 = D in [655352, 786423] + 18 bits emitted
-	 * 70 = D in [786424, 917495] + 18 extra bits emitted
-	 * 71 = D in [917496, 1048567] + 18 extra bits emitted
-	 *
-	 * 0000000 - 0000111 <- 1 bit extra
-	 * 0001000 - 0010111 <- 2
-	 * 0011000 - 0110111 <- 3
-	 * 0100000
-	 * 0101000 <- 3 codes
-	 * 0110000
-	 * 0111000 - 1110111 <- 4
-	 *
-	 * Converting from D to (Code, EB):
-	 * EB = Bits(D >> 3) + 1
-	 * C0 = ((1 << (EB - 1)) - 1) << 3
-	 * Code = ((D - C0) >> EB) + 158 + ((EB - 1) * 4)
-	 *
-	 * Converting from Code to (D0, EB):
-	 * EB = ((Code - 158) >> 2) + 1
-	 * C0 = ((1 << (EB - 1)) - 1) << 3
-	 * D0 = (((Code - 154) - (EB * 4)) << EB) + C0;
-	 * D = D0 + ExtraBits(EB)
-	 *
-	 * To encode the extra bits, the high bits are compressed
-	 * with Huffman codes.  Any remaining 1-7 bits are
-	 * emitted without further encoding.
 	 */
 
 	static const int LZ_LEN_SYMS = 255;

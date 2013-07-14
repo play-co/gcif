@@ -64,7 +64,7 @@ bool RGBAMatchFinder::findMatches(const u32 *rgba, const u8 * CAT_RESTRICT resid
 	u16 x = 0, y = 0;
 	for (int ii = 0, iiend = pixels - MIN_MATCH; ii <= iiend;) {
 		const u32 hash = HashPixels(rgba_now);
-		u16 best_length = MIN_MATCH - 1;
+		u16 best_length = 1;
 		u32 best_distance = 0;
 		int best_score = 0;
 
@@ -114,33 +114,35 @@ bool RGBAMatchFinder::findMatches(const u32 *rgba, const u8 * CAT_RESTRICT resid
 							}
 						}
 
-						int bitsCost = 0;
-						if (distance == recent[0]) {
-							bitsCost = 7;
-						} else if (distance == recent[1]) {
-							bitsCost = 7;
-						} else if (distance == recent[2]) {
-							bitsCost = 7;
-						} else if (distance == recent[3]) {
-							bitsCost = 7;
-						} else if (distance >= _xsize*9) {
-							bitsCost = 20;
-						} else if (distance >= _xsize*2 + 8) {
-							bitsCost = 11;
-						} else {
-							bitsCost = 8;
-						}
+						if (match_len >= 2) {
+							int bitsCost = 0;
+							if (distance == recent[0]) {
+								bitsCost = 7;
+							} else if (distance == recent[1]) {
+								bitsCost = 7;
+							} else if (distance == recent[2]) {
+								bitsCost = 7;
+							} else if (distance == recent[3]) {
+								bitsCost = 7;
+							} else if (distance >= _xsize*8 + 9) {
+								bitsCost = 22;
+							} else if (distance >= _xsize*2 + 8) {
+								bitsCost = 12;
+							} else {
+								bitsCost = 10;
+							}
 
-						const int score = bitsSaved - bitsCost;
-						if (score > best_score) {
-							best_distance = distance;
-							best_length = match_len;
-							best_score = score;
+							const int score = bitsSaved - bitsCost;
+							if (score > best_score) {
+								best_distance = distance;
+								best_length = match_len;
+								best_score = score;
 
-							// If length is at the limit,
-							if (match_len >= MAX_MATCH) {
-								// Stop here
-								break;
+								// If length is at the limit,
+								if (match_len >= MAX_MATCH) {
+									// Stop here
+									break;
+								}
 							}
 						}
 					}
@@ -340,7 +342,7 @@ static void RGBAEncode(u32 *recent, int recent_ii, LZMatchFinder::LZMatch *match
 		CAT_DEBUG_ENFORCE(EBT == EB);
 		u32 C0T = ((1 << (EB - 1)) - 1) << 5;
 		CAT_DEBUG_ENFORCE(C0T == C0);
-		u32 DT = ((dist_code - ((EB + 1) << 4)) << EB) + C0;
+		u32 DT = ((dist_code - ((EB - 1) << 4)) << EB) + C0;
 		if (match->extra_bits) {
 			DT += match->extra;
 		}
