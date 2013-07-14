@@ -1,7 +1,11 @@
 GCIF
 ====
 
-Game Closure Image Format : 1.1
+Game Closure Image Format : 1.2 PRE-RELEASE
+
+NOTE: Right now only RGBA images are compressing properly and the decoder
+is not written yet for the new LZ77 bitstream format.  Check out the 1.1 tag
+for the latest stable version.
 
 This is a lossless RGBA image format suited for mobile game sprite-sheets and
 other usage cases (such as webpages) where you want to compress tightly once,
@@ -37,6 +41,7 @@ From one of our more challenging game sprite-sheets chosen at random:
 -rw-r--r--  1 cat  staff   877K Apr  2 14:05 noalpha.bcif (lossless)
 -rw-r--r--  1 cat  staff   803K Apr 28 18:47 noalpha.gci (lossless) <- GCIF 1.0
 -rw-r--r--  1 cat  staff   799K Jun 24 20:14 noalpha.gci (lossless) <- GCIF 1.1
+-rw-r--r--  1 cat  staff   790K Jul 14 10:51 noalpha.gci (lossless) <- GCIF 1.2
 -rw-r--r--@ 1 cat  staff   682K Apr 28 18:46 noalpha.jpg (lossy)
 -rw-r--r--@ 1 cat  staff   441K Apr 28 18:46 noalpha.gif (lossy)
 ~~~

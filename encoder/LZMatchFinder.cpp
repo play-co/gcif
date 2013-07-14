@@ -445,7 +445,7 @@ bool RGBAMatchFinder::init(const u32 * CAT_RESTRICT rgba, const u8 * CAT_RESTRIC
 	_lz_sdist_encoder.init(sdist_hist);
 	_lz_ldist_encoder.init(ldist_hist);
 
-	CAT_INFO("RGBA") << "Accepted " << accepts << " LZ matches. Rejected " << rejects;
+	CAT_INANE("RGBA") << "Accepted " << accepts << " LZ matches. Rejected " << rejects;
 
 	return true;
 }
@@ -492,11 +492,13 @@ int RGBAMatchFinder::write(EntropyEncoder &ee, ImageWriter &writer) {
 	}
 
 	int bits = ee_bits + len_bits + dist_bits + match->extra_bits;
-/*
+
+#ifdef CAT_DUMP_LZ
 	if (match->length < 5) {
 		CAT_WARN("EMIT") << "ee=" << ee_bits << " len=" << len_bits << " dist=" << dist_bits << " extra=" << match->extra_bits << " : sum=" << bits << " LDIST=" << match->emit_ldist;
 	}
-*/
+#endif
+
 	return bits;
 }
 
