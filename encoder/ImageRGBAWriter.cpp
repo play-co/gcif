@@ -31,17 +31,16 @@
 #include "../decoder/Filters.hpp"
 #include "EntropyEstimator.hpp"
 #include "Log.hpp"
-#include "ImageLZWriter.hpp"
-using namespace cat;
-
-#include <vector>
-using namespace std;
+#include "FilterScorer.hpp"
 
 #include "../decoder/lz4.h"
 #include "lz4hc.h"
 #include "Log.hpp"
 #include "HuffmanEncoder.hpp"
 #include "lodepng.h"
+
+using namespace cat;
+using namespace std;
 
 #ifdef CAT_DESYNCH_CHECKS
 #define DESYNC_TABLE() writer.writeWord(1234567);
@@ -56,24 +55,75 @@ using namespace std;
 
 //// ImageRGBAWriter
 
+static const u8 RESIDUALS_PRICE[256] = {
+	 1,  2,  4,  5,  5,  6,  6,  6,   6,  6,  6,  7,  7,  7,  7,  7,
+	 7,  7,  7,  7,  7,  7,  7,  7,   8,  8,  8,  8,  8,  8,  8,  8,
+	 9,  8,  8,  9,  8,  9,  9,  9,   9,  9,  9,  9,  9,  9, 10,  9,
+	 9, 10,  9,  9,  9,  9, 10, 10,  10, 10, 10, 10, 10, 10, 10, 10,
+	10, 10, 10, 10, 10, 10, 11, 10,  10, 10, 10, 11, 11, 11, 11, 11,
+	10, 11, 10, 10, 10, 11, 11, 10,  11, 12, 11, 12, 11, 11, 10, 11,
+	12, 11, 10, 11, 12, 12, 11, 11,  12, 12, 10, 11, 10, 11, 12, 12,
+	11, 12, 12, 11, 12, 12, 11, 12,  10, 11, 12, 12, 12, 10, 12, 11,
+	11, 11, 12, 12, 12, 12, 12, 12,  10, 11, 11, 12, 11, 12, 12, 10,
+	11, 12, 10, 11, 11, 11, 12, 11,  11, 12, 11, 11, 11, 11, 10, 11,
+	11, 10, 12, 11, 11, 10, 11, 11,  11, 11, 10, 14, 11, 10, 10, 11,
+	10, 11, 10, 10, 11, 11, 10, 10,  10, 10, 10, 11, 10, 10, 10, 10,
+	10, 10, 10,  9,  9, 10, 10, 10,   9, 10,  9,  9,  9,  9,  9,  9,
+	 9,  9,  9,  9,  9,  9,  9,  9,   8,  9,  9,  9,  9,  9,  8,  8,
+	 8,  8,  8,  8,  8,  8,  8,  8,   8,  7,  7,  8,  7,  7,  7,  7,
+	 7,  7,  7,  7,  7,  6,  6,  6,   6,  6,  6,  6,  5,  5,  4,  2,
+};
+
+void ImageRGBAWriter::priceResiduals() {
+	CAT_INANE("RGBA") << "Assigning approximate bit costs to residuals...";
+
+	// For each pixel of residuals,
+	u8 *residuals = _residuals.get();
+	for (u16 y = 0; y < _ysize; ++y) {
+		for (u16 x = 0; x < _xsize; ++x, residuals += 4) {
+			if (!IsMasked(x, y)) {
+				// Calculate it
+				u32 price = RESIDUALS_PRICE[residuals[0]];
+				price += RESIDUALS_PRICE[residuals[1]];
+				price += RESIDUALS_PRICE[residuals[2]];
+
+				// Store it
+				residuals[3] = price > 255 ? 255 : static_cast<u8>( price );
+			} else {
+				residuals[3] = 0;
+			}
+		}
+	}
+}
+
+void ImageRGBAWriter::designLZ() {
+	CAT_INANE("RGBA") << "Finding LZ77 matches...";
+
+	// Find LZ matches
+	const u32 *rgba = reinterpret_cast<const u32 *>( _rgba );
+	_lz.init(rgba, _residuals.get() + 3, _xsize, _ysize, _mask);
+
+	_lz_enabled = true;
+}
+
 void ImageRGBAWriter::maskTiles() {
 	const int tiles_size = _tiles_x * _tiles_y;
 	_sf_tiles.resizeZero(tiles_size);
 	_cf_tiles.resizeZero(tiles_size);
 
-	const u16 tile_size_x = _tile_size_x, tile_size_y = _tile_size_y;
-	const u16 size_x = _size_x, size_y = _size_y;
+	const u16 tile_xsize = _tile_xsize, tile_ysize = _tile_ysize;
+	const u16 xsize = _xsize, ysize = _ysize;
 	u8 *cf = _cf_tiles.get();
 
 	// For each tile,
-	for (u16 y = 0; y < size_y; y += tile_size_y) {
-		for (u16 x = 0; x < size_x; x += tile_size_x, ++cf) {
+	for (u16 y = 0; y < ysize; y += tile_ysize) {
+		for (u16 x = 0; x < xsize; x += tile_xsize, ++cf) {
 
 			// For each element in the tile,
-			u16 py = y, cy = tile_size_y;
-			while (cy-- > 0 && py < size_y) {
-				u16 px = x, cx = tile_size_x;
-				while (cx-- > 0 && px < size_x) {
+			u16 py = y, cy = tile_ysize;
+			while (cy-- > 0 && py < ysize) {
+				u16 px = x, cx = tile_xsize;
+				while (cx-- > 0 && px < xsize) {
 					// If it is not masked,
 					if (!IsMasked(px, py)) {
 						// We need to do this tile
@@ -93,26 +143,28 @@ next_tile:;
 }
 
 void ImageRGBAWriter::designFilters() {
+	const int SF_USED = _lz_enabled ? SF_COUNT : SF_BASIC_COUNT;
+
 	FilterScorer scores, awards;
-	scores.init(SF_COUNT);
-	awards.init(SF_COUNT);
+	scores.init(SF_USED);
+	awards.init(SF_USED);
 	awards.reset();
 	u8 FPT[3];
 	u32 total_score = 0;
 
-	CAT_INANE("RGBA") << "Designing spatial filters...";
+	CAT_INANE("RGBA") << "Designing spatial filters (LZ=" << _lz_enabled << ")...";
 
-	const u16 tile_size_x = _tile_size_x, tile_size_y = _tile_size_y;
-	const u16 size_x = _size_x, size_y = _size_y;
+	const u16 tile_xsize = _tile_xsize, tile_ysize = _tile_ysize;
+	const u16 xsize = _xsize, ysize = _ysize;
 
 	u8 *sf = _sf_tiles.get();
 	u8 *cf = _cf_tiles.get();
 	const u8 *topleft_row = _rgba;
 
-	for (int y = 0; y < _size_y; y += _tile_size_y) {
+	for (int y = 0; y < _ysize; y += _tile_ysize) {
 		const u8 *topleft = topleft_row;
 
-		for (int x = 0; x < _size_x; x += _tile_size_x, ++sf, ++cf, topleft += _tile_size_x * 4) {
+		for (int x = 0; x < _xsize; x += _tile_xsize, ++sf, ++cf, topleft += _tile_xsize * 4) {
 			if (*cf == MASK_TILE) {
 				continue;
 			}
@@ -121,19 +173,19 @@ void ImageRGBAWriter::designFilters() {
 
 			// For each element in the tile,
 			const u8 *row = topleft;
-			u16 py = y, cy = tile_size_y;
-			while (cy-- > 0 && py < size_y) {
+			u16 py = y, cy = tile_ysize;
+			while (cy-- > 0 && py < ysize) {
 				const u8 *data = row;
-				u16 px = x, cx = tile_size_x;
-				while (cx-- > 0 && px < size_x) {
+				u16 px = x, cx = tile_xsize;
+				while (cx-- > 0 && px < xsize) {
 					// If element is not masked,
 					if (!IsMasked(px, py)) {
 						const u8 r = data[0];
 						const u8 g = data[1];
 						const u8 b = data[2];
 
-						for (int f = 0; f < SF_COUNT; ++f) {
-							const u8 *pred = RGBA_FILTERS[f].safe(data, FPT, px, py, size_x);
+						for (int f = 0; f < SF_USED; ++f) {
+							const u8 *pred = RGBA_FILTERS[f].safe(data, FPT, px, py, xsize);
 
 							int score = RGBChaos::ResidualScore(r - pred[0]);
 							score += RGBChaos::ResidualScore(g - pred[1]);
@@ -146,7 +198,7 @@ void ImageRGBAWriter::designFilters() {
 					data += 4;
 				}
 				++py;
-				row += size_x * 4;
+				row += xsize * 4;
 			}
 
 			FilterScorer::Score *top = scores.getLow(4, true);
@@ -157,7 +209,7 @@ void ImageRGBAWriter::designFilters() {
 			awards.add(top[3].index, 1);
 		}
 
-		topleft_row += _size_x * 4 * _tile_size_y;
+		topleft_row += _xsize * 4 * _tile_ysize;
 	}
 
 	// Sort the best awards
@@ -197,11 +249,93 @@ void ImageRGBAWriter::designFilters() {
 	_sf_count = sf_count;
 }
 
+void ImageRGBAWriter::designTilesFast() {
+	CAT_INANE("RGBA") << "Designing SF/CF tiles (fast, low quality) for " << _tiles_x << "x" << _tiles_y << "...";
+	const u16 tile_xsize = _tile_xsize, tile_ysize = _tile_ysize;
+	const u16 xsize = _xsize, ysize = _ysize;
+	u8 FPT[3];
+
+	FilterScorer scores;
+	scores.init(_sf_count * CF_COUNT);
+
+	const u8 *topleft_row = _rgba;
+	int ty = 0;
+	u8 *sf = _sf_tiles.get();
+	u8 *cf = _cf_tiles.get();
+
+	// For each tile,
+	for (u16 y = 0; y < ysize; y += tile_ysize, ++ty) {
+		const u8 *topleft = topleft_row;
+		int tx = 0;
+
+		for (u16 x = 0; x < xsize; x += tile_xsize, ++sf, ++cf, topleft += tile_xsize * 4, ++tx) {
+			u8 ocf = *cf;
+
+			// If tile is masked,
+			if (ocf == MASK_TILE) {
+				continue;
+			}
+
+			int code_count = 0;
+
+			scores.reset();
+
+			// For each element in the tile,
+			const u8 *row = topleft;
+			u16 py = y, cy = tile_ysize;
+			while (cy-- > 0 && py < ysize) {
+				const u8 *data = row;
+				u16 px = x, cx = tile_xsize;
+				while (cx-- > 0 && px < xsize) {
+					// If element is not masked,
+					if (!IsMasked(px, py)) {
+						// For each spatial filter,
+						int index = 0;
+						for (int sfi = 0, sfi_end = _sf_count; sfi < sfi_end; ++sfi, index += CF_COUNT) {
+							const u8 *pred = _sf[sfi].safe(data, FPT, px, py, xsize);
+							u8 residual_rgb[3] = {
+								data[0] - pred[0],
+								data[1] - pred[1],
+								data[2] - pred[2]
+							};
+
+							// For each color filter,
+							for (int cfi = 0; cfi < CF_COUNT; ++cfi) {
+								u8 yuv[3];
+								RGB2YUV_FILTERS[cfi](residual_rgb, yuv);
+
+								// Score this combination of SF/CF
+								int score = RGBChaos::ResidualScore(yuv[0]) + RGBChaos::ResidualScore(yuv[1]) + RGBChaos::ResidualScore(yuv[2]);
+								scores.add(cfi + index, score);
+							}
+						}
+
+						++code_count;
+					}
+					++px;
+					data += 4;
+				}
+				++py;
+				row += xsize * 4;
+			}
+
+			FilterScorer::Score *top = scores.getLowest();
+			int best_sf = top->index / CF_COUNT;
+			int best_cf = top->index % CF_COUNT;
+
+			*sf = best_sf;
+			*cf = best_cf;
+		}
+
+		topleft_row += _xsize * 4 * _tile_ysize;
+	}
+}
+
 void ImageRGBAWriter::designTiles() {
 	CAT_INANE("RGBA") << "Designing SF/CF tiles for " << _tiles_x << "x" << _tiles_y << "...";
 
-	const u16 tile_size_x = _tile_size_x, tile_size_y = _tile_size_y;
-	const u16 size_x = _size_x, size_y = _size_y;
+	const u16 tile_xsize = _tile_xsize, tile_ysize = _tile_ysize;
+	const u16 xsize = _xsize, ysize = _ysize;
 	u8 FPT[3];
 
 	EntropyEstimator ee[3];
@@ -210,7 +344,7 @@ void ImageRGBAWriter::designTiles() {
 	ee[2].init();
 
 	// Allocate temporary space for entropy analysis
-	const u32 code_stride = _tile_size_x * _tile_size_y;
+	const u32 code_stride = _tile_xsize * _tile_ysize;
 	const u32 codes_size = code_stride * _sf_count * CF_COUNT;
 	_ecodes[0].resize(codes_size);
 	_ecodes[1].resize(codes_size);
@@ -231,11 +365,11 @@ void ImageRGBAWriter::designTiles() {
 		u8 *cf = _cf_tiles.get();
 
 		// For each tile,
-		for (u16 y = 0; y < size_y; y += tile_size_y, ++ty) {
+		for (u16 y = 0; y < ysize; y += tile_ysize, ++ty) {
 			const u8 *topleft = topleft_row;
 			int tx = 0;
 
-			for (u16 x = 0; x < size_x; x += tile_size_x, ++sf, ++cf, topleft += tile_size_x * 4, ++tx) {
+			for (u16 x = 0; x < xsize; x += tile_xsize, ++sf, ++cf, topleft += tile_xsize * 4, ++tx) {
 				u8 ocf = *cf;
 
 				// If tile is masked,
@@ -257,14 +391,14 @@ void ImageRGBAWriter::designTiles() {
 
 					// For each element in the tile,
 					const u8 *row = topleft;
-					u16 py = y, cy = tile_size_y;
-					while (cy-- > 0 && py < size_y) {
+					u16 py = y, cy = tile_ysize;
+					while (cy-- > 0 && py < ysize) {
 						const u8 *data = row;
-						u16 px = x, cx = tile_size_x;
-						while (cx-- > 0 && px < size_x) {
+						u16 px = x, cx = tile_xsize;
+						while (cx-- > 0 && px < xsize) {
 							// If element is not masked,
 							if (!IsMasked(px, py)) {
-								const u8 *pred = _sf[osf].safe(data, FPT, px, py, size_x);
+								const u8 *pred = _sf[osf].safe(data, FPT, px, py, xsize);
 								u8 residual_rgb[3] = {
 									data[0] - pred[0],
 									data[1] - pred[1],
@@ -283,7 +417,7 @@ void ImageRGBAWriter::designTiles() {
 							data += 4;
 						}
 						++py;
-						row += size_x * 4;
+						row += xsize * 4;
 					}
 
 					ee[0].subtract(codes[0], code_count);
@@ -295,11 +429,11 @@ void ImageRGBAWriter::designTiles() {
 
 				// For each element in the tile,
 				const u8 *row = topleft;
-				u16 py = y, cy = tile_size_y;
-				while (cy-- > 0 && py < size_y) {
+				u16 py = y, cy = tile_ysize;
+				while (cy-- > 0 && py < ysize) {
 					const u8 *data = row;
-					u16 px = x, cx = tile_size_x;
-					while (cx-- > 0 && px < size_x) {
+					u16 px = x, cx = tile_xsize;
+					while (cx-- > 0 && px < xsize) {
 						// If element is not masked,
 						if (!IsMasked(px, py)) {
 							u8 *dest_y = codes[0] + code_count;
@@ -308,7 +442,7 @@ void ImageRGBAWriter::designTiles() {
 
 							// For each spatial filter,
 							for (int sfi = 0, sfi_end = _sf_count; sfi < sfi_end; ++sfi) {
-								const u8 *pred = _sf[sfi].safe(data, FPT, px, py, size_x);
+								const u8 *pred = _sf[sfi].safe(data, FPT, px, py, xsize);
 								u8 residual_rgb[3] = {
 									data[0] - pred[0],
 									data[1] - pred[1],
@@ -335,7 +469,7 @@ void ImageRGBAWriter::designTiles() {
 						data += 4;
 					}
 					++py;
-					row += size_x * 4;
+					row += xsize * 4;
 				}
 
 				// Evaluate entropy of codes
@@ -378,7 +512,7 @@ void ImageRGBAWriter::designTiles() {
 				*cf = best_cf;
 			}
 
-			topleft_row += _size_x * 4 * _tile_size_y;
+			topleft_row += _xsize * 4 * _tile_ysize;
 		}
 
 		++passes;
@@ -414,13 +548,13 @@ bool ImageRGBAWriter::compressAlpha() {
 	CAT_INANE("RGBA") << "Compressing alpha channel...";
 
 	// Generate alpha matrix
-	const int alpha_size = _size_x * _size_y;
+	const int alpha_size = _xsize * _ysize;
 	_alpha.resize(alpha_size);
 
 	u8 *a = _alpha.get();
 	const u8 *rgba = _rgba;
-	for (int y = 0; y < _size_y; ++y) {
-		for (int x = 0; x < _size_x; ++x) {
+	for (int y = 0; y < _ysize; ++y) {
+		for (int x = 0; x < _xsize; ++x) {
 			*a++ = ~rgba[3]; // Same as 255 - a: Good default filter
 			rgba += 4;
 		}
@@ -430,14 +564,14 @@ bool ImageRGBAWriter::compressAlpha() {
 	params.knobs = _knobs;
 	params.data = _alpha.get();
 	params.num_syms = 256;
-	params.size_x = _size_x;
-	params.size_y = _size_y;
+	params.xsize = _xsize;
+	params.ysize = _ysize;
 	params.max_filters = 32;
 	params.min_bits = 2;
 	params.max_bits = 5;
-	params.sympal_thresh = 0.1;
-	params.filter_cover_thresh = 0.6;
-	params.filter_inc_thresh = 0.05;
+	params.sympal_thresh = 0.1f;
+	params.filter_cover_thresh = 0.6f;
+	params.filter_inc_thresh = 0.05f;
 	params.mask.SetMember<ImageRGBAWriter, &ImageRGBAWriter::IsMasked>(this);
 	params.AWARDS[0] = 5;
 	params.AWARDS[1] = 3;
@@ -445,6 +579,7 @@ bool ImageRGBAWriter::compressAlpha() {
 	params.AWARDS[3] = 1;
 	params.award_count = 4;
 	params.write_order = 0;
+	params.enable_lz = false;
 
 	_a_encoder.init(params);
 
@@ -454,22 +589,22 @@ bool ImageRGBAWriter::compressAlpha() {
 void ImageRGBAWriter::computeResiduals() {
 	CAT_INANE("RGBA") << "Executing tiles to generate residual matrix...";
 
-	const u16 tile_size_x = _tile_size_x, tile_size_y = _tile_size_y;
-	const u16 size_x = _size_x, size_y = _size_y;
+	const u16 tile_xsize = _tile_xsize, tile_ysize = _tile_ysize;
+	const u16 xsize = _xsize, ysize = _ysize;
 	u8 FPT[3];
 
 	const u8 *sf = _sf_tiles.get();
 	const u8 *cf = _cf_tiles.get();
 
-	_residuals.resize(_size_x * _size_y * 4);
+	_residuals.resize(_xsize * _ysize * 4);
 
 	// For each tile,
 	const u8 *topleft_row = _rgba;
 	size_t residual_delta = (size_t)(_residuals.get() - topleft_row);
-	for (u16 y = 0; y < size_y; y += tile_size_y) {
+	for (u16 y = 0; y < ysize; y += tile_ysize) {
 		const u8 *topleft = topleft_row;
 
-		for (u16 x = 0; x < size_x; x += tile_size_x, ++sf, ++cf, topleft += tile_size_x*4) {
+		for (u16 x = 0; x < xsize; x += tile_xsize, ++sf, ++cf, topleft += tile_xsize*4) {
 			const u8 cfi = *cf;
 
 			if (cfi == MASK_TILE) {
@@ -480,14 +615,14 @@ void ImageRGBAWriter::computeResiduals() {
 
 			// For each element in the tile,
 			const u8 *row = topleft;
-			u16 py = y, cy = tile_size_y;
-			while (cy-- > 0 && py < size_y) {
+			u16 py = y, cy = tile_ysize;
+			while (cy-- > 0 && py < ysize) {
 				const u8 *data = row;
-				u16 px = x, cx = tile_size_x;
-				while (cx-- > 0 && px < size_x) {
+				u16 px = x, cx = tile_xsize;
+				while (cx-- > 0 && px < xsize) {
 					// If element is not masked,
 					if (!IsMasked(px, py)) {
-						const u8 *pred = _sf[sfi].safe(data, FPT, px, py, size_x);
+						const u8 *pred = _sf[sfi].safe(data, FPT, px, py, xsize);
 						u8 residual_rgb[3] = {
 							data[0] - pred[0],
 							data[1] - pred[1],
@@ -507,90 +642,12 @@ void ImageRGBAWriter::computeResiduals() {
 					data += 4;
 				}
 				++py;
-				row += size_x*4;
+				row += xsize*4;
 			}
 		}
 
-		topleft_row += _size_x * 4 * _tile_size_y;
+		topleft_row += _xsize * 4 * _tile_ysize;
 	}
-
-#ifdef CAT_DUMP_RESIDUALS
-	SmartArray<u8> a, b, c;
-	a.resize(_size_x * _size_y);
-	b.resize(_size_x * _size_y);
-	c.resize(_size_x * _size_y);
-
-	for (u16 y = 0; y < size_y; ++y) {
-		for (u16 x = 0; x < size_x; ++x) {
-			int off = x + y * size_x;
-
-			a[off] = _residuals.get()[off * 4 + 0];
-			b[off] = _residuals.get()[off * 4 + 1];
-			c[off] = _residuals.get()[off * 4 + 2];
-		}
-	}
-
-	lodepng_encode_file("R.png", a.get(), size_x, size_y, LCT_GREY, 8);
-	lodepng_encode_file("G.png", b.get(), size_x, size_y, LCT_GREY, 8);
-	lodepng_encode_file("B.png", c.get(), size_x, size_y, LCT_GREY, 8);
-
-	const int size = size_x * size_y;
-	SmartArray<u8> la, lb, lc;
-	la.resize(LZ4_compressBound(size));
-	lb.resize(LZ4_compressBound(size));
-	lc.resize(LZ4_compressBound(size));
-
-	int las = LZ4_compressHC((char*)a.get(), (char*)la.get(), size);
-	int lbs = LZ4_compressHC((char*)b.get(), (char*)lb.get(), size);
-	int lcs = LZ4_compressHC((char*)c.get(), (char*)lc.get(), size);
-
-	CAT_WARN("TEST") << "R LZ = " << las << " bytes";
-	CAT_WARN("TEST") << "G LZ = " << lbs << " bytes";
-	CAT_WARN("TEST") << "B LZ = " << lcs << " bytes";
-
-	FreqHistogram<256> ha;
-	FreqHistogram<256> hb;
-	FreqHistogram<256> hc;
-
-	ha.init();
-	hb.init();
-	hc.init();
-
-	for (int ii = 0; ii < las; ++ii) {
-		ha.add(la[ii]);
-	}
-
-	for (int ii = 0; ii < lbs; ++ii) {
-		hb.add(lb[ii]);
-	}
-
-	for (int ii = 0; ii < lcs; ++ii) {
-		hc.add(lc[ii]);
-	}
-
-	HuffmanEncoder<256> ea;
-	HuffmanEncoder<256> eb;
-	HuffmanEncoder<256> ec;
-
-	ea.init(ha);
-	eb.init(hb);
-	ec.init(hc);
-
-	int bas = 0, bbs = 0, bcs = 0;
-	for (int ii = 0; ii < las; ++ii) {
-		bas += ea.simulateWrite(la[ii]);
-	}
-	for (int ii = 0; ii < lbs; ++ii) {
-		bbs += eb.simulateWrite(lb[ii]);
-	}
-	for (int ii = 0; ii < lcs; ++ii) {
-		bcs += ec.simulateWrite(lc[ii]);
-	}
-
-	CAT_WARN("TEST") << "R = " << bas/8 << " by";
-	CAT_WARN("TEST") << "G = " << bbs/8 << " by";
-	CAT_WARN("TEST") << "B = " << bcs/8 << " by";
-#endif
 }
 
 void ImageRGBAWriter::designChaos() {
@@ -603,23 +660,36 @@ void ImageRGBAWriter::designChaos() {
 
 	// For each chaos level,
 	for (int chaos_levels = 1; chaos_levels < MAX_CHAOS_LEVELS; ++chaos_levels) {
-		encoders->chaos.init(chaos_levels, _size_x);
+		encoders->chaos.init(chaos_levels, _xsize);
 		encoders->chaos.start();
 
 		// For each chaos level,
 		for (int ii = 0; ii < chaos_levels; ++ii) {
-			encoders->y[ii].init();
-			encoders->u[ii].init();
-			encoders->v[ii].init();
+			encoders->y[ii].init(ImageRGBAReader::NUM_Y_SYMS, ImageRGBAReader::NUM_ZRLE_SYMS);
+			encoders->u[ii].init(ImageRGBAReader::NUM_U_SYMS, ImageRGBAReader::NUM_ZRLE_SYMS);
+			encoders->v[ii].init(ImageRGBAReader::NUM_V_SYMS, ImageRGBAReader::NUM_ZRLE_SYMS);
 		}
+
+		// Reset LZ
+		u32 offset = 0;
+		_lz.reset();
 
 		// For each row,
 		const u8 *residuals = _residuals.get();
-		for (int y = 0; y < _size_y; ++y) {
+		for (int y = 0; y < _ysize; ++y) {
 			// For each column,
-			for (int x = 0; x < _size_x; ++x) {
-				// If masked,
+			for (int x = 0; x < _xsize; ++x, ++offset) {
+				// If we just hit the start of the next LZ copy region,
+				if (offset == _lz.peekOffset()) {
+					// Get chaos bin
+					u8 cy, cu, cv;
+					encoders->chaos.get(x, cy, cu, cv);
+
+					_lz.train(encoders->y[cy]);
+				}
+
 				if (IsMasked(x, y)) {
+					// Will eat LZ pixels too
 					encoders->chaos.zero(x);
 				} else {
 					// Get chaos bin
@@ -642,12 +712,9 @@ void ImageRGBAWriter::designChaos() {
 		// For each chaos level,
 		u32 entropy = 0;
 		for (int ii = 0; ii < chaos_levels; ++ii) {
-			encoders->y[ii].finalize();
-			entropy += encoders->y[ii].simulateAll();
-			encoders->u[ii].finalize();
-			entropy += encoders->u[ii].simulateAll();
-			encoders->v[ii].finalize();
-			entropy += encoders->v[ii].simulateAll();
+			entropy += encoders->y[ii].finalize();
+			entropy += encoders->u[ii].finalize();
+			entropy += encoders->v[ii].finalize();
 		}
 
 		// If this is the best chaos levels so far,
@@ -662,7 +729,7 @@ void ImageRGBAWriter::designChaos() {
 			}
 		}
 
-		// If we have not found a better one in 4 moves,
+		// If we have not found a better one in 2 moves,
 		if (chaos_levels - best->chaos.getBinCount() >= 2) {
 			// Stop early to save time
 			break;
@@ -680,7 +747,7 @@ void ImageRGBAWriter::designChaos() {
 void ImageRGBAWriter::generateWriteOrder() {
 	CAT_DEBUG_ENFORCE(_tile_bits_x == _tile_bits_y);
 
-	MonoWriter::generateWriteOrder(_size_x, _size_y,
+	MonoWriter::generateWriteOrder(_xsize, _ysize,
 		MonoWriter::MaskDelegate::FromMember<ImageRGBAWriter, &ImageRGBAWriter::IsMasked>(this),
 		_tile_bits_x, _filter_order);
 }
@@ -690,14 +757,14 @@ bool ImageRGBAWriter::compressSF() {
 	params.knobs = _knobs;
 	params.data = _sf_tiles.get();
 	params.num_syms = _sf_count;
-	params.size_x = _tiles_x;
-	params.size_y = _tiles_y;
+	params.xsize = _tiles_x;
+	params.ysize = _tiles_y;
 	params.max_filters = 32;
 	params.min_bits = 2;
 	params.max_bits = 5;
-	params.sympal_thresh = 0.1;
-	params.filter_cover_thresh = 0.6;
-	params.filter_inc_thresh = 0.05;
+	params.sympal_thresh = 0.1f;
+	params.filter_cover_thresh = 0.6f;
+	params.filter_inc_thresh = 0.05f;
 	params.mask.SetMember<ImageRGBAWriter, &ImageRGBAWriter::IsSFMasked>(this);
 	params.AWARDS[0] = 5;
 	params.AWARDS[1] = 3;
@@ -705,6 +772,7 @@ bool ImageRGBAWriter::compressSF() {
 	params.AWARDS[3] = 1;
 	params.award_count = 4;
 	params.write_order = &_filter_order[0];
+	params.enable_lz = false;
 
 	CAT_INANE("RGBA") << "Compressing spatial filter matrix...";
 
@@ -718,14 +786,14 @@ bool ImageRGBAWriter::compressCF() {
 	params.knobs = _knobs;
 	params.data = _cf_tiles.get();
 	params.num_syms = CF_COUNT;
-	params.size_x = _tiles_x;
-	params.size_y = _tiles_y;
+	params.xsize = _tiles_x;
+	params.ysize = _tiles_y;
 	params.max_filters = 32;
 	params.min_bits = 2;
 	params.max_bits = 5;
-	params.sympal_thresh = 0.1;
-	params.filter_cover_thresh = 0.6;
-	params.filter_inc_thresh = 0.05;
+	params.sympal_thresh = 0.1f;
+	params.filter_cover_thresh = 0.6f;
+	params.filter_inc_thresh = 0.05f;
 	params.mask.SetMember<ImageRGBAWriter, &ImageRGBAWriter::IsSFMasked>(this);
 	params.AWARDS[0] = 5;
 	params.AWARDS[1] = 3;
@@ -733,6 +801,7 @@ bool ImageRGBAWriter::compressCF() {
 	params.AWARDS[3] = 1;
 	params.award_count = 4;
 	params.write_order = &_filter_order[0];
+	params.enable_lz = false;
 
 	CAT_INANE("RGBA") << "Compressing color filter matrix...";
 
@@ -742,9 +811,9 @@ bool ImageRGBAWriter::compressCF() {
 }
 
 bool ImageRGBAWriter::IsMasked(u16 x, u16 y) {
-	CAT_DEBUG_ENFORCE(x < _size_x && y < _size_y);
+	CAT_DEBUG_ENFORCE(x < _xsize && y < _ysize);
 
-	return _mask->masked(x, y) || _lz->visited(x, y);
+	return _mask->masked(x, y) || (_lz_enabled && _lz.masked(x, y));
 }
 
 bool ImageRGBAWriter::IsSFMasked(u16 x, u16 y) {
@@ -753,13 +822,13 @@ bool ImageRGBAWriter::IsSFMasked(u16 x, u16 y) {
 	return _cf_tiles[x + _tiles_x * y] == MASK_TILE;
 }
 
-int ImageRGBAWriter::init(const u8 *rgba, int size_x, int size_y, ImageMaskWriter &mask, ImageLZWriter &lz, const GCIFKnobs *knobs) {
+int ImageRGBAWriter::init(const u8 *rgba, int xsize, int ysize, ImageMaskWriter &mask, const GCIFKnobs *knobs) {
 	_knobs = knobs;
 	_rgba = rgba;
 	_mask = &mask;
-	_lz = &lz;
+	_lz_enabled = false;
 
-	if (size_x < 0 || size_y < 0) {
+	if (xsize < 0 || ysize < 0) {
 		return GCIF_WE_BAD_DIMS;
 	}
 
@@ -767,25 +836,45 @@ int ImageRGBAWriter::init(const u8 *rgba, int size_x, int size_y, ImageMaskWrite
 		return GCIF_WE_BAD_PARAMS;
 	}
 
-	_size_x = size_x;
-	_size_y = size_y;
+	_xsize = xsize;
+	_ysize = ysize;
 
 	// Use constant tile size of 4x4 for now
 	_tile_bits_x = 2;
 	_tile_bits_y = 2;
-	_tile_size_x = 1 << _tile_bits_x;
-	_tile_size_y = 1 << _tile_bits_y;
-	_tiles_x = (_size_x + _tile_size_x - 1) >> _tile_bits_x;
-	_tiles_y = (_size_y + _tile_size_y - 1) >> _tile_bits_y;
+	_tile_xsize = 1 << _tile_bits_x;
+	_tile_ysize = 1 << _tile_bits_y;
+	_tiles_x = (_xsize + _tile_xsize - 1) >> _tile_bits_x;
+	_tiles_y = (_ysize + _tile_ysize - 1) >> _tile_bits_y;
 
+	// Do a fast first pass at natural compression to better inform LZ decisions
+	maskTiles();
+	designFilters();
+	designTilesFast();
+	sortFilters();
+	computeResiduals();
+	priceResiduals();
+
+	// Now do informed LZ77 compression
+	designLZ();
+
+	// Perform natural image compression post-LZ
 	maskTiles();
 	designFilters();
 	designTiles();
 	sortFilters();
 	computeResiduals();
+
+	// Compress alpha channel separately like a monochrome image
 	compressAlpha();
+
+	// Decide how many chaos levels to use
 	designChaos();
+
+	// Generate a write order matrix used for compressing SF/CF information
 	generateWriteOrder();
+
+	// Compress SF/CF subresolution tiles like a monochrome image
 	compressSF();
 	compressCF();
 
@@ -855,12 +944,17 @@ int ImageRGBAWriter::writeTables(ImageWriter &writer) {
 #endif // CAT_COLLECT_STATS
 	}
 
+	int lz_table_bits = _lz.writeTables(writer);
+
+	DESYNC_TABLE();
+
 #ifdef CAT_COLLECT_STATS
 	Stats.basic_overhead_bits = basic_bits;
 	Stats.sf_choice_bits = choice_bits;
 	Stats.sf_table_bits = sf_table_bits;
 	Stats.cf_table_bits = cf_table_bits;
 	Stats.a_table_bits = a_table_bits;
+	Stats.lz_table_bits = lz_table_bits;
 #endif // CAT_COLLECT_STATS
 
 	return GCIF_WE_OK;
@@ -870,7 +964,7 @@ bool ImageRGBAWriter::writePixels(ImageWriter &writer) {
 	CAT_INANE("RGBA") << "Writing interleaved pixel/filter data...";
 
 #ifdef CAT_COLLECT_STATS
-	int sf_bits = 0, cf_bits = 0, y_bits = 0, u_bits = 0, v_bits = 0, a_bits = 0, rgba_count = 0;
+	int sf_bits = 0, cf_bits = 0, y_bits = 0, u_bits = 0, v_bits = 0, a_bits = 0, rgba_count = 0, lz_count = 0, lz_bits = 0;
 #endif
 
 	_seen_filter.resize(_tiles_x);
@@ -883,10 +977,14 @@ bool ImageRGBAWriter::writePixels(ImageWriter &writer) {
 	}
 
 	const u8 *residuals = _residuals.get();
-	const u16 tile_mask_y = _tile_size_y - 1;
+	const u16 tile_mask_y = _tile_ysize - 1;
+
+	// Reset LZ
+	u32 offset = 0;
+	_lz.reset();
 
 	// For each scanline,
-	for (u16 y = 0; y < _size_y; ++y) {
+	for (u16 y = 0; y < _ysize; ++y) {
 		const u16 ty = y >> _tile_bits_y;
 
 		// If at the start of a tile row,
@@ -911,13 +1009,26 @@ bool ImageRGBAWriter::writePixels(ImageWriter &writer) {
 		_a_encoder.writeRowHeader(y, writer);
 
 		// For each pixel,
-		for (u16 x = 0, size_x = _size_x; x < size_x; ++x) {
+		for (u16 x = 0, xsize = _xsize; x < xsize; ++x, ++offset) {
 			DESYNC(x, y);
+
+			// If we just hit the start of the next LZ copy region,
+			if (offset == _lz.peekOffset()) {
+				// Get chaos bin
+				u8 cy, cu, cv;
+				_encoders->chaos.get(x, cy, cu, cv);
+
+				lz_bits += _lz.write(_encoders->y[cy], writer);
+			}
 
 			// If masked,
 			if (IsMasked(x, y)) {
 				_encoders->chaos.zero(x);
 				_a_encoder.zero(x);
+
+				if (_lz.masked(x, y)) {
+					++lz_count;
+				}
 			} else {
 				// If filter needs to be written,
 				u16 tx = x >> _tile_bits_x;
@@ -954,6 +1065,8 @@ bool ImageRGBAWriter::writePixels(ImageWriter &writer) {
 	}
 
 #ifdef CAT_COLLECT_STATS
+	Stats.lz_bits = lz_bits;
+	Stats.lz_count = lz_count;
 	Stats.rgba_count = rgba_count;
 	Stats.sf_bits = sf_bits;
 	Stats.cf_bits = cf_bits;
@@ -990,13 +1103,13 @@ void ImageRGBAWriter::write(ImageWriter &writer) {
 	rgba_total += Stats.a_bits;
 	Stats.rgba_bits = rgba_total;
 
-	int total = rgba_total;
-	total += _lz->Stats.huff_bits;
+	int total = rgba_total + Stats.lz_bits;
 	total += _mask->Stats.compressedDataBits;
 	Stats.total_bits = total;
 
+	Stats.lz_compression_ratio = Stats.lz_count * 32 / (double)Stats.lz_bits;
 	Stats.rgba_compression_ratio = Stats.rgba_count * 32 / (double)Stats.rgba_bits;
-	Stats.overall_compression_ratio = _size_x * _size_y * 32 / (double)Stats.total_bits;
+	Stats.overall_compression_ratio = _xsize * _ysize * 32 / (double)Stats.total_bits;
 #endif
 }
 
@@ -1018,15 +1131,19 @@ bool ImageRGBAWriter::dumpStats() {
 	CAT_INANE("stats") << "(RGBA Compress)   U Table Overhead : " << Stats.u_table_bits << " bits (" << Stats.u_table_bits/8 << " bytes, " << Stats.u_table_bits * 100.f / Stats.rgba_bits << "% of RGBA)";
 	CAT_INANE("stats") << "(RGBA Compress)   V Table Overhead : " << Stats.v_table_bits << " bits (" << Stats.v_table_bits/8 << " bytes, " << Stats.v_table_bits * 100.f / Stats.rgba_bits << "% of RGBA)";
 	CAT_INANE("stats") << "(RGBA Compress)   A Table Overhead : " << Stats.a_table_bits << " bits (" << Stats.a_table_bits/8 << " bytes, " << Stats.a_table_bits * 100.f / Stats.rgba_bits << "% of RGBA)";
+	CAT_INANE("stats") << "(RGBA Compress)  LZ Table Overhead : " << Stats.lz_table_bits << " bits (" << Stats.lz_table_bits/8 << " bytes, " << Stats.lz_table_bits * 100.f / Stats.total_bits << "% of Total)";
 	CAT_INANE("stats") << "(RGBA Compress)      SF Compressed : " << Stats.sf_bits << " bits (" << Stats.sf_bits/8 << " bytes, " << Stats.sf_bits * 100.f / Stats.rgba_bits << "% of RGBA)";
 	CAT_INANE("stats") << "(RGBA Compress)      CF Compressed : " << Stats.cf_bits << " bits (" << Stats.cf_bits/8 << " bytes, " << Stats.cf_bits * 100.f / Stats.rgba_bits << "% of RGBA)";
 	CAT_INANE("stats") << "(RGBA Compress)       Y Compressed : " << Stats.y_bits << " bits (" << Stats.y_bits/8 << " bytes, " << Stats.y_bits * 100.f / Stats.rgba_bits << "% of RGBA)";
 	CAT_INANE("stats") << "(RGBA Compress)       U Compressed : " << Stats.u_bits << " bits (" << Stats.u_bits/8 << " bytes, " << Stats.u_bits * 100.f / Stats.rgba_bits << "% of RGBA)";
 	CAT_INANE("stats") << "(RGBA Compress)       V Compressed : " << Stats.v_bits << " bits (" << Stats.v_bits/8 << " bytes, " << Stats.v_bits * 100.f / Stats.rgba_bits << "% of RGBA)";
 	CAT_INANE("stats") << "(RGBA Compress)       A Compressed : " << Stats.a_bits << " bits (" << Stats.a_bits/8 << " bytes, " << Stats.a_bits * 100.f / Stats.rgba_bits << "% of RGBA)";
-	CAT_INANE("stats") << "(RGBA Compress)  Overall RGBA Data : " << Stats.rgba_bits << " bits (" << Stats.rgba_bits/8 << " bytes, " << Stats.rgba_bits * 100.f / Stats.total_bits << "% of total)";
-	CAT_INANE("stats") << "(RGBA Compress)   RGBA write count : " << Stats.rgba_count << " pixels for " << _size_x << "x" << _size_y << " pixel image (" << Stats.rgba_count * 100.f / (_size_x * _size_y) << " % of total)";
-	CAT_INANE("stats") << "(RGBA Compress)    RGBA Compression Ratio : " << Stats.rgba_compression_ratio << ":1 compression ratio";
+	CAT_INANE("stats") << "(RGBA Compress)          RGBA Data : " << Stats.rgba_bits << " bits (" << Stats.rgba_bits/8 << " bytes, " << Stats.rgba_bits * 100.f / Stats.total_bits << "% of total)";
+	CAT_INANE("stats") << "(RGBA Compress)         RGBA Count : " << Stats.rgba_count << " pixels for " << _xsize << "x" << _ysize << " pixel image (" << Stats.rgba_count * 100.f / (_xsize * _ysize) << " % of total)";
+	CAT_INANE("stats") << "(RGBA Compress)   RGBA Compression : " << Stats.rgba_compression_ratio << ":1 compression ratio";
+	CAT_INANE("stats") << "(RGBA Compress)            LZ Data : " << Stats.lz_bits << " bits (" << Stats.lz_bits/8 << " bytes, " << Stats.lz_bits * 100.f / Stats.total_bits << "% of total)";
+	CAT_INANE("stats") << "(RGBA Compress)           LZ Count : " << Stats.lz_count << " pixels for " << _xsize << "x" << _ysize << " pixel image (" << Stats.lz_count * 100.f / (_xsize * _ysize) << " % of total)";
+	CAT_INANE("stats") << "(RGBA Compress)     LZ Compression : " << Stats.lz_compression_ratio << ":1 compression ratio";
 	CAT_INANE("stats") << "(RGBA Compress)              Overall Size : " << Stats.total_bits << " bits (" << Stats.total_bits/8 << " bytes)";
 	CAT_INANE("stats") << "(RGBA Compress) Overall Compression Ratio : " << Stats.overall_compression_ratio << ":1";
 

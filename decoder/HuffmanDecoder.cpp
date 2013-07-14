@@ -135,7 +135,7 @@ bool HuffmanDecoder::init(int count, const u8 * CAT_RESTRICT codelens, u32 table
 	_table_bits = table_bits;
 
 	if (table_bits > 0) {
-		u32 table_size = 1 << table_bits;
+		s32 table_size = 1 << table_bits;
 		if (_lookup.size() < table_size) {
 			_lookup.resize(table_size);
 		}
@@ -210,7 +210,17 @@ bool HuffmanDecoder::init(int count, const u8 * CAT_RESTRICT codelens, u32 table
 
 bool HuffmanDecoder::init(int num_syms_orig, ImageReader & CAT_RESTRICT reader, u32 table_bits) {
 	static const int HUFF_SYMS = MAX_CODE_SIZE + 1;
-	u8 codelens[MAX_SYMS];
+
+	// Allocate codelens array on stack if possible, else the heap
+	static const int STACK_SYMS = 512;
+	SmartArray<u8> heap_codelens;
+	u8 *codelens;
+	if (num_syms_orig > STACK_SYMS) {
+		heap_codelens.resize(num_syms_orig);
+		codelens = heap_codelens.get();
+	} else {
+		codelens = static_cast<u8 *>( alloca(num_syms_orig) );
+	}
 
 	CAT_DEBUG_ENFORCE(HUFF_SYMS == 17);
 	CAT_DEBUG_ENFORCE(num_syms_orig >= 2);

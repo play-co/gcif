@@ -165,12 +165,8 @@ Rich Geldreich
 + Fast static Huffman codec
 + LZHAM: https://code.google.com/p/lzham/
 
-Thomas Wang
-+ Integer hash function
-+ Closest URL: http://burtleburtle.net/bob/hash/integer.html
-
 Google
-+ Recursive subresolution compression
++ Recursive subresolution compression inspiration
 + WebP: https://developers.google.com/speed/webp/docs/webp_lossless_bitstream_specification
 
 

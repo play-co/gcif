@@ -32,7 +32,6 @@
 #include "../decoder/Platform.hpp"
 #include "ImageWriter.hpp"
 #include "GCIFWriter.h"
-#include "ImageLZWriter.hpp"
 #include "ImageMaskWriter.hpp"
 #include "../decoder/ImagePaletteReader.hpp"
 #include "MonoWriter.hpp"
@@ -68,17 +67,16 @@ class ImagePaletteWriter {
 
 	const u8 *_rgba;		// Original image
 	SmartArray<u8> _image;	// Palette-encoded image
-	int _size_x, _size_y;	// In pixels
+	int _xsize, _ysize;	// In pixels
 	int _palette_size;		// Number of palette entries
-	u8 _most_common;
-	u16 _masked_palette;	// Palette index for the mask
+	u8 _most_common;		// Most common palette index
+	u8 _masked_palette;		// Palette index for the mask
 
 	ImageMaskWriter *_mask;
-	ImageLZWriter *_lz;
 
 	PaletteOptimizer _optimizer;
 	std::vector<u32> _palette;		// Map index => color
-	std::map<u32, u16> _map;		// Map color => index
+	std::map<u32, u8> _map;			// Map color => index
 
 	MonoWriter _mono_writer;
 
@@ -107,13 +105,13 @@ public:
 #endif
 
 public:
-	int init(const u8 *rgba, int size_x, int size_y, const GCIFKnobs *knobs, ImageMaskWriter &mask, ImageLZWriter &lz);
+	int init(const u8 *rgba, int xsize, int ysize, const GCIFKnobs *knobs, ImageMaskWriter &mask);
 
 	CAT_INLINE bool enabled() {
 		return _palette_size > 0;
 	}
 
-	CAT_INLINE u8 getPaletteFromColor(u32 color) {
+	CAT_INLINE u16 getPaletteFromColor(u32 color) {
 		return _map[color];
 	}
 
@@ -126,7 +124,7 @@ public:
 	}
 
 	CAT_INLINE u8 *get(int x, int y) {
-		return _image.get() + x + y * _size_x;
+		return _image.get() + x + y * _xsize;
 	}
 
 	void write(ImageWriter &writer);

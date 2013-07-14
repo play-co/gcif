@@ -219,13 +219,15 @@ static void calculate_minimum_redundancy(int A[], int n) {
 }
 
 
-bool huffman::generate_huffman_codes(huffman_work_tables *state, u32 num_syms, const u16 *pFreq, u8 *pCodesizes, u32 &max_code_size, u32 &total_freq_ret, u32 &one_sym) {
+bool huffman::generate_huffman_codes(HuffmanWorkTables &state, u32 num_syms, const u16 *pFreq, u8 *pCodesizes, u32 &max_code_size, u32 &total_freq_ret, u32 &one_sym) {
 	one_sym = 0;
 
-	if ((!num_syms) || (num_syms > HuffmanDecoder::MAX_SYMS)) {
+	if (num_syms <= 0) {
 		CAT_DEBUG_EXCEPTION();
 		return false;
 	}
+
+	state.init(num_syms);
 
 	u32 max_freq = 0;
 	u32 total_freq = 0;
@@ -240,7 +242,7 @@ bool huffman::generate_huffman_codes(huffman_work_tables *state, u32 num_syms, c
 			total_freq += freq;
 			max_freq = max_freq > freq ? max_freq : freq;
 
-			sym_freq &sf = state->syms0[num_used_syms];
+			sym_freq &sf = state.get0(num_used_syms);
 			sf.left = static_cast<u16>( ii );
 			sf.right = UINT16_MAX;
 			sf.freq = freq;
@@ -251,14 +253,23 @@ bool huffman::generate_huffman_codes(huffman_work_tables *state, u32 num_syms, c
 	total_freq_ret = total_freq;
 
 	if (num_used_syms == 1) {
-		one_sym = state->syms0[0].left + 1;
+		one_sym = state.get0(0).left + 1;
 
 		return true;
 	}
 
-	sym_freq *syms = radix_sort_syms(num_used_syms, state->syms0, state->syms1);
+	sym_freq *syms = radix_sort_syms(num_used_syms, state.ptr0(), state.ptr1());
 
-	int x[HuffmanDecoder::MAX_SYMS];
+	// Allocate x array on stack if possible, else the heap
+	static const int STACK_SYMS = 512;
+	SmartArray<int> heap_x;
+	int *x;
+	if (num_syms > STACK_SYMS) {
+		heap_x.resize(num_syms);
+		x = heap_x.get();
+	} else {
+		x = static_cast<int *>( alloca(num_syms * sizeof(int)) );
+	}
 
 	for (u32 ii = 0; ii < num_used_syms; ++ii) {
 		x[ii] = syms[ii].freq;
@@ -285,7 +296,7 @@ bool huffman::generate_huffman_codes(huffman_work_tables *state, u32 num_syms, c
 bool huffman::limit_max_code_size(u32 num_syms, u8 *pCodesizes, u32 max_code_size) {
 	const u32 cMaxEverCodeSize = 34;
 
-	if ((!num_syms) || (num_syms > HuffmanDecoder::MAX_SYMS) || (max_code_size < 1) || (max_code_size > cMaxEverCodeSize)) {
+	if ((num_syms <= 0) || (max_code_size < 1) || (max_code_size > cMaxEverCodeSize)) {
 		CAT_EXCEPTION();
 		return false;
 	}
@@ -316,7 +327,7 @@ bool huffman::limit_max_code_size(u32 num_syms, u8 *pCodesizes, u32 max_code_siz
 		ofs += num_codes[ii];
 	}
 
-	if ((ofs < 2) || (ofs > HuffmanDecoder::MAX_SYMS)) {
+	if (ofs < 2) {
 		return true;
 	}
 
@@ -360,9 +371,18 @@ bool huffman::limit_max_code_size(u32 num_syms, u8 *pCodesizes, u32 max_code_siz
 		total--;   
 	} while (total != (1U << max_code_size));
 
-	u8 new_codesizes[HuffmanDecoder::MAX_SYMS];
-	u8 *p = new_codesizes;
+	// Allocate codelens array on stack if possible, else the heap
+	static const int STACK_SYMS = 512;
+	SmartArray<u8> heap_new_codesizes;
+	u8 *new_codesizes;
+	if (num_syms > STACK_SYMS) {
+		heap_new_codesizes.resize(num_syms);
+		new_codesizes = heap_new_codesizes.get();
+	} else {
+		new_codesizes = static_cast<u8 *>( alloca(num_syms) );
+	}
 
+	u8 *p = new_codesizes;
 	for (u32 ii = 1; ii <= max_code_size; ++ii) {
 		u32 n = num_codes[ii];
 
@@ -501,12 +521,28 @@ void cat::normalizeFreqs(u32 max_freq, int num_syms, u32 hist[], u16 freqs[]) {
 }
 
 void cat::collectArrayFreqs(int num_syms, int data_size, u8 data[], u16 freqs[]) {
-	u32 hist[HuffmanDecoder::MAX_SYMS] = {0};
+	// Allocate codelens array on stack if possible, else the heap
+	static const int STACK_SYMS = 512;
+	SmartArray<u32> heap_hist;
+	u32 *hist;
+	if (num_syms > STACK_SYMS) {
+		heap_hist.resize(num_syms);
+		hist = heap_hist.get();
+	} else {
+		hist = static_cast<u32 *>( alloca(num_syms * sizeof(u32)) );
+	}
+
+	CAT_CLR(hist, num_syms * sizeof(u32));
+
 	int max_freq = 0;
 
 	// Perform histogram, and find maximum symbol count
 	for (int ii = 0; ii < data_size; ++ii) {
-		int count = ++hist[data[ii]];
+		int sym = data[ii];
+
+		CAT_DEBUG_ENFORCE(sym < num_syms);
+
+		int count = ++hist[sym];
 
 		if (max_freq < count) {
 			max_freq = count;
@@ -522,7 +558,6 @@ int cat::writeCompressedHuffmanTable(int num_syms, u8 codelens[], ImageWriter &w
 
 	CAT_DEBUG_ENFORCE(HUFF_SYMS == 17);
 	CAT_DEBUG_ENFORCE(num_syms >= 2);
-
 /*
 	for (int ii = 0; ii < num_syms; ++ii) {
 		if (codelens[ii] > 0) {
@@ -829,7 +864,7 @@ int cat::writeCompressedHuffmanTable(int num_syms, u8 codelens[], ImageWriter &w
 
 void HuffmanTableEncoder::init() {
 	_zeroRun = 0;
-	_bz_hist.init();
+	_bz_hist.init(BZ_SYMS);
 }
 
 int HuffmanTableEncoder::simulateZeroRun(int run) {
@@ -903,7 +938,7 @@ void HuffmanTableEncoder::finalize() {
 }
 
 int HuffmanTableEncoder::writeTables(ImageWriter &writer) {
-	u8 *table_codelens = _bz._codelens;
+	u8 *table_codelens = _bz._codelens.get();
 	int bc = 0;
 
 	// Find last non-zero symbol

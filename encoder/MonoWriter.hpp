@@ -38,6 +38,7 @@
 #include "../decoder/Delegates.hpp"
 #include "../decoder/SmartArray.hpp"
 #include "PaletteOptimizer.hpp"
+#include "LZMatchFinder.hpp"
 
 #include <vector>
 
@@ -116,10 +117,11 @@ public:
 	// Parameters provided to process()
 	struct Parameters {
 		// Shared
-		u16 size_x, size_y;				// Data dimensions
+		u16 xsize, ysize;				// Data dimensions
 		u16 min_bits, max_bits;			// Tile size bit range to try
 		MaskDelegate mask;				// Function to call to determine if an element is masked out
 		u16 num_syms;					// Number of symbols in data [0..num_syms-1]
+		bool enable_lz;					// Enable LZ encoder
 
 		// Encoder-only
 		const GCIFKnobs *knobs;			// Global knobs
@@ -138,6 +140,7 @@ public:
 		int encoder_overhead_bits;
 		int filter_overhead_bits;
 		int data_bits;
+		int lz_bits, lz_table_bits;
 	} Stats;
 
 protected:
@@ -161,6 +164,7 @@ protected:
 	int _tile_bits_field_bc;				// Bits for tile bits field
 	u8 _sympal_filter_map[MAX_PALETTE];		// Filter index for this palette entry
 	u8 _prev_filter;						// Previous filter for row encoding
+	MonoMatchFinder _lz;					// LZ match finder
 	PaletteOptimizer _optimizer;			// Optimizer for filter indices
 	u32 _residual_entropy;					// Calculated entropy of residuals
 	SmartArray<u8> _ecodes;					// Used when evaluating options
@@ -170,12 +174,15 @@ protected:
 	// Row filter mode
 	SmartArray<u8> _row_filters;			// Selected row filters
 	u32 _row_filter_entropy;				// Calculated entropy from using row filters
-	EntropyEncoder<MAX_SYMS, ZRLE_SYMS> _row_filter_encoder;
+	EntropyEncoder _row_filter_encoder;
 	bool _use_row_filters;					// Using row filters?
 	bool _one_row_filter;					// Only one row filter?
 
 	// Mask function for child instance
 	bool IsMasked(u16 x, u16 y);
+
+	// Check for LZ matches
+	void designLZ();
 
 	// Try out a simple row filter for input data
 	void designRowFilters();
@@ -225,7 +232,7 @@ public:
 	}
 
 	// Generate write order to pass in
-	static void generateWriteOrder(u16 size_x, u16 size_y, MaskDelegate mask, u16 tile_shift_bits, std::vector<u16> &order);
+	static void generateWriteOrder(u16 xsize, u16 ysize, MaskDelegate mask, u16 tile_shift_bits, std::vector<u16> &order);
 
 	// Generate writer from this configuration
 	void init(const Parameters &params);
@@ -264,7 +271,7 @@ class MonoWriterProfile {
 	u32 tiles_count;						// Number of tiles
 	int tiles_x, tiles_y;					// Tiles in x,y
 	u16 tile_bits_x, tile_bits_y;			// Number of bits in size
-	u16 tile_size_x, tile_size_y;			// Size of tile
+	u16 tile_xsize, tile_ysize;			// Size of tile
 
 	CAT_INLINE u8 getTile(u16 tx, u16 ty) {
 		return tiles[tx + ty * tiles_x];
@@ -289,7 +296,7 @@ class MonoWriterProfile {
 	struct Encoders {
 		u32 bits;							// Bits required to encode residuals
 		MonoChaos chaos;					// Chaos bin lookup table
-		EntropyEncoder<MAX_SYMS, ZRLE_SYMS> encoder[MAX_CHAOS_LEVELS];
+		EntropyEncoder encoder[MAX_CHAOS_LEVELS];
 	} *encoders;
 
 	void cleanup();
@@ -302,7 +309,7 @@ public:
 		cleanup();
 	}
 
-	void init(u16 size_x, u16 size_y, u16 bits);
+	void init(u16 xsize, u16 ysize, u16 bits);
 };
 
 

@@ -29,8 +29,6 @@
 #include "SystemInfo.hpp"
 #include <cstdlib>
 #include <cstdio>
-using namespace std;
-using namespace cat;
 
 #if defined(CAT_OS_WINDOWS)
 # include "BitMath.hpp"
@@ -45,6 +43,9 @@ using namespace cat;
 #elif defined(CAT_OS_HPUX)
 # include <sys/mpctl.h>
 #endif
+
+using namespace std;
+using namespace cat;
 
 // Add your compiler here if it supports aligned malloc
 #if defined(CAT_COMPILER_MSVC)
@@ -140,7 +141,14 @@ static u32 GetProcessorCount()
 
 	ULONG_PTR ulpProcessAffinityMask, ulpSystemAffinityMask;
 	GetProcessAffinityMask(GetCurrentProcess(), &ulpProcessAffinityMask, &ulpSystemAffinityMask);
-	processor_count = (u32)BitCount(ulpProcessAffinityMask);
+
+	// For each set bit in affinity mask,
+	for (int ii = 0, len = sizeof(ulpProcessAffinityMask)*8; ii < len; ++ii) {
+		if (ulpProcessAffinityMask & 1) {
+			++processor_count;
+		}
+		ulpProcessAffinityMask >>= 1;
+	}
 
 #elif defined(CAT_OS_LINUX) || defined(CAT_OS_AIX) || defined(CAT_OS_SOLARIS)
 

@@ -178,6 +178,9 @@ namespace cat {
 #if !defined(CAT_TLS)
 # define CAT_TLS __declspec( thread )
 #endif
+#if defined(CAT_COMPILER_MSVC)
+# pragma warning(disable: 4227) // Squelch annoying warning from MSVC when using __restrict
+#endif
 #if !defined(CAT_RESTRICT)
 # define CAT_RESTRICT __restrict
 #endif

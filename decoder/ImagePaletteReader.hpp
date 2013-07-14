@@ -33,7 +33,6 @@
 #include "Enforcer.hpp"
 #include "MonoReader.hpp"
 #include "ImageMaskReader.hpp"
-#include "ImageLZReader.hpp"
 #include "SmartArray.hpp"
 
 /*
@@ -49,6 +48,7 @@ class ImagePaletteReader {
 public:
 	static const int PALETTE_MAX = 256;
 	static const int ENCODER_ZRLE_SYMS = 16;
+	static const int HUFF_LUT_BITS = 7;
 
 protected:
 	u32 _palette[PALETTE_MAX];
@@ -56,10 +56,9 @@ protected:
 	u8 _mask_palette;	// Masked palette index
 
 	ImageMaskReader * CAT_RESTRICT _mask;
-	ImageLZReader * CAT_RESTRICT _lz;
 
 	u8 * CAT_RESTRICT _rgba;
-	u16 _size_x, _size_y;
+	u16 _xsize, _ysize;
 
 	SmartArray<u8> _image;
 
@@ -85,7 +84,7 @@ public:
 		return _palette_size > 0;
 	}
 
-	int read(ImageReader & CAT_RESTRICT reader, ImageMaskReader & CAT_RESTRICT mask, ImageLZReader & CAT_RESTRICT lz, GCIFImage * CAT_RESTRICT image);
+	int read(ImageReader & CAT_RESTRICT reader, ImageMaskReader & CAT_RESTRICT mask, GCIFImage * CAT_RESTRICT image);
 
 #ifdef CAT_COLLECT_STATS
 	bool dumpStats();

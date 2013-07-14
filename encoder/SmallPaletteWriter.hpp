@@ -34,7 +34,6 @@
 #include "GCIFWriter.h"
 #include "ImageWriter.hpp"
 #include "ImageMaskWriter.hpp"
-#include "ImageLZWriter.hpp"
 #include "PaletteOptimizer.hpp"
 #include "MonoWriter.hpp"
 #include "../decoder/SmallPaletteReader.hpp"
@@ -70,20 +69,19 @@ class SmallPaletteWriter {
 
 	const GCIFKnobs *_knobs;
 
-	int _size_x, _size_y;	// In pixels
+	int _xsize, _ysize;	// In pixels
 	const u8 *_rgba;		// Original image
 
 	int _pack_x, _pack_y;	// In packed pixels
 	SmartArray<u8> _image;	// Repacked image
 
 	ImageMaskWriter *_mask;
-	ImageLZWriter *_lz;
 	PaletteOptimizer _optimizer;
 
 	int _palette_size;		// Number of palette entries (> 0 : enabled)
 
 	std::vector<u32> _palette;		// Map index => color
-	std::map<u32, u16> _map;		// Map color => index
+	std::map<u32, u8> _map;		// Map color => index
 
 	int _pack_palette_size;	// Palette size for repacked bytes
 	u8 _pack_palette[MAX_SYMS];
@@ -126,8 +124,8 @@ public:
 #endif
 
 public:
-	int init(const u8 *rgba, int size_x, int size_y, const GCIFKnobs *knobs);
-	int compress(ImageMaskWriter &mask, ImageLZWriter &lz);
+	int init(const u8 *rgba, int xsize, int ysize, const GCIFKnobs *knobs);
+	int compress(ImageMaskWriter &mask);
 
 	CAT_INLINE bool enabled() {
 		return _palette_size > 0;

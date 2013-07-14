@@ -49,17 +49,17 @@ int SmallPaletteReader::readSmallPalette(ImageReader & CAT_RESTRICT reader) {
 	}
 
 	if (_palette_size > 4) { // 3-4 bits/pixel
-		_pack_x = (_size_x + 1) >> 1;
-		_pack_y = _size_y;
+		_pack_x = (_xsize + 1) >> 1;
+		_pack_y = _ysize;
 	} else if (_palette_size > 2) { // 2 bits/pixel
-		_pack_x = (_size_x + 1) >> 1;
-		_pack_y = (_size_y + 1) >> 1;
+		_pack_x = (_xsize + 1) >> 1;
+		_pack_y = (_ysize + 1) >> 1;
 	} else if (_palette_size > 1) { // 1 bit/pixel
-		_pack_x = (_size_x + 3) >> 2;
-		_pack_y = (_size_y + 1) >> 1;
+		_pack_x = (_xsize + 3) >> 2;
+		_pack_y = (_ysize + 1) >> 1;
 	} else {
 		// Just emit that single color and done!
-		int count = _size_y * _size_x;
+		int count = _ysize * _xsize;
 		const u32 COLOR = _palette[0];
 		u32 * CAT_RESTRICT rgba = reinterpret_cast<u32 *>( _rgba );
 
@@ -106,8 +106,8 @@ int SmallPaletteReader::readTables(ImageReader & CAT_RESTRICT reader) {
 	// Build parameters for decoder
 	MonoReader::Parameters params;
 	params.data = _image.get();
-	params.size_x = _pack_x;
-	params.size_y = _pack_y;
+	params.xsize = _pack_x;
+	params.ysize = _pack_y;
 	params.min_bits = 2;
 	params.max_bits = 5;
 	params.num_syms = _pack_palette_size;
@@ -118,8 +118,6 @@ int SmallPaletteReader::readTables(ImageReader & CAT_RESTRICT reader) {
 int SmallPaletteReader::readPixels(ImageReader & CAT_RESTRICT reader) {
 	const u8 MASK_PAL = _mask_palette;
 
-	u16 trigger_x_lz = _lz->getTriggerX();
-
 #ifdef CAT_UNROLL_READER
 
 	// Unroll y = 0 scanline
@@ -128,34 +126,18 @@ int SmallPaletteReader::readPixels(ImageReader & CAT_RESTRICT reader) {
 
 		_mono_decoder.readRowHeader(y, reader);
 
-		if (y == _lz->getTriggerY()) {
-			_lz->triggerY();
-			trigger_x_lz = _lz->getTriggerX();
-		}
-		int lz_skip = 0;
-
 		const u32 *mask_next = _mask->nextScanline();
 		int mask_left = 0;
 		u32 mask;
 
 		for (int x = 0, xend = _pack_x; x < xend; ++x) {
-			// If LZ triggered,
-			if (x == trigger_x_lz) {
-				u8 *p = _mono_decoder.currentRow() + x;
-				lz_skip = _lz->triggerX(p, 0);
-				trigger_x_lz = _lz->getTriggerX();
-			}
-
 			// Next mask word
 			if (mask_left-- <= 0) {
 				mask = *mask_next++;
 				mask_left = 31;
 			}
 
-			if (lz_skip > 0) {
-				--lz_skip;
-				_mono_decoder.masked(x);
-			} else if ((s32)mask < 0) {
+			if ((s32)mask < 0) {
 				u8 *p = _mono_decoder.currentRow() + x;
 				_mono_decoder.masked(x);
 				*p = MASK_PAL;
@@ -176,12 +158,6 @@ int SmallPaletteReader::readPixels(ImageReader & CAT_RESTRICT reader) {
 	for (int y = 1, yend = _pack_y; y < yend; ++y) {
 		_mono_decoder.readRowHeader(y, reader);
 
-		if (y == _lz->getTriggerY()) {
-			_lz->triggerY();
-			trigger_x_lz = _lz->getTriggerX();
-		}
-		int lz_skip = 0;
-
 		const u32 *mask_next = _mask->nextScanline();
 		int mask_left;
 		u32 mask;
@@ -190,21 +166,11 @@ int SmallPaletteReader::readPixels(ImageReader & CAT_RESTRICT reader) {
 		{
 			const u16 x = 0;
 
-			// If LZ triggered,
-			if (x == trigger_x_lz) {
-				u8 *p = _mono_decoder.currentRow() + x;
-				lz_skip = _lz->triggerX(p, 0);
-				trigger_x_lz = _lz->getTriggerX();
-			}
-
 			// Next mask word
 			mask = *mask_next++;
 			mask_left = 31;
 
-			if (lz_skip > 0) {
-				--lz_skip;
-				_mono_decoder.masked(x);
-			} else if ((s32)mask < 0) {
+			if ((s32)mask < 0) {
 				u8 *p = _mono_decoder.currentRow() + x;
 				_mono_decoder.masked(x);
 				*p = MASK_PAL;
@@ -223,23 +189,13 @@ int SmallPaletteReader::readPixels(ImageReader & CAT_RESTRICT reader) {
 		//// THIS IS THE INNER LOOP ////
 
 		for (int x = 1, xend = (int)_pack_x - 1; x < xend; ++x) {
-			// If LZ triggered,
-			if (x == trigger_x_lz) {
-				u8 *p = _mono_decoder.currentRow() + x;
-				lz_skip = _lz->triggerX(p, 0);
-				trigger_x_lz = _lz->getTriggerX();
-			}
-
 			// Next mask word
 			if (mask_left-- <= 0) {
 				mask = *mask_next++;
 				mask_left = 31;
 			}
 
-			if (lz_skip > 0) {
-				--lz_skip;
-				_mono_decoder.masked(x);
-			} else if ((s32)mask < 0) {
+			if ((s32)mask < 0) {
 				u8 *p = _mono_decoder.currentRow() + x;
 				_mono_decoder.masked(x);
 				*p = MASK_PAL;
@@ -261,23 +217,13 @@ int SmallPaletteReader::readPixels(ImageReader & CAT_RESTRICT reader) {
 		{
 			const int x = _pack_x - 1;
 
-			// If LZ triggered,
-			if (x == trigger_x_lz) {
-				u8 *p = _mono_decoder.currentRow() + x;
-				lz_skip = _lz->triggerX(p, 0);
-				trigger_x_lz = _lz->getTriggerX();
-			}
-
 			// Next mask word
 			if (mask_left-- <= 0) {
 				mask = *mask_next++;
 				mask_left = 31;
 			}
 
-			if (lz_skip > 0) {
-				--lz_skip;
-				_mono_decoder.masked(x);
-			} else if ((s32)mask < 0) {
+			if ((s32)mask < 0) {
 				u8 *p = _mono_decoder.currentRow() + x;
 				_mono_decoder.masked(x);
 				*p = MASK_PAL;
@@ -297,34 +243,18 @@ int SmallPaletteReader::readPixels(ImageReader & CAT_RESTRICT reader) {
 	for (int y = 0, yend = _pack_y; y < yend; ++y) {
 		_mono_decoder.readRowHeader(y, reader);
 
-		if (y == _lz->getTriggerY()) {
-			_lz->triggerY();
-			trigger_x_lz = _lz->getTriggerX();
-		}
-		int lz_skip = 0;
-
 		const u32 *mask_next = _mask->nextScanline();
 		int mask_left = 0;
 		u32 mask;
 
 		for (int x = 0, xend = _pack_x; x < xend; ++x) {
-			// If LZ triggered,
-			if (x == trigger_x_lz) {
-				u8 *p = _mono_decoder.currentRow() + x;
-				lz_skip = _lz->triggerX(p, 0);
-				trigger_x_lz = _lz->getTriggerX();
-			}
-
 			// Next mask word
 			if (mask_left-- <= 0) {
 				mask = *mask_next++;
 				mask_left = 31;
 			}
 
-			if (lz_skip > 0) {
-				--lz_skip;
-				_mono_decoder.masked(x);
-			} else if ((s32)mask < 0) {
+			if ((s32)mask < 0) {
 				u8 *p = _mono_decoder.currentRow() + x;
 				_mono_decoder.masked(x);
 				*p = MASK_PAL;
@@ -353,13 +283,13 @@ int SmallPaletteReader::unpackPixels() {
 	const u8 *image = _image.get();
 
 	if (_palette_size > 4) { // 3-4 bits/pixel
-		CAT_DEBUG_ENFORCE(_pack_y == _size_y);
-		CAT_DEBUG_ENFORCE(_pack_x == (_size_x+1)/2);
+		CAT_DEBUG_ENFORCE(_pack_y == _ysize);
+		CAT_DEBUG_ENFORCE(_pack_x == (_xsize+1)/2);
 
 		for (int y = 0; y < _pack_y; ++y) {
 			u32 *pixel = rgba;
 
-			for (int x = 0, xlen = _size_x >> 1; x < xlen; ++x, pixel += 2) {
+			for (int x = 0, xlen = _xsize >> 1; x < xlen; ++x, pixel += 2) {
 				u8 p = *image++;
 
 				CAT_DEBUG_ENFORCE(p < _pack_palette_size);
@@ -370,7 +300,7 @@ int SmallPaletteReader::unpackPixels() {
 				pixel[1] = _palette[p & 15];
 			}
 
-			if (_size_x & 1) {
+			if (_xsize & 1) {
 				u8 p = *image++;
 
 				CAT_DEBUG_ENFORCE(p < _pack_palette_size);
@@ -380,16 +310,16 @@ int SmallPaletteReader::unpackPixels() {
 				pixel[0] = _palette[p];
 			}
 
-			rgba += _size_x;
+			rgba += _xsize;
 		}
 	} else if (_palette_size > 2) { // 2 bits/pixel
-		CAT_DEBUG_ENFORCE(_pack_y == (_size_y+1)/2);
-		CAT_DEBUG_ENFORCE(_pack_x == (_size_x+1)/2);
+		CAT_DEBUG_ENFORCE(_pack_y == (_ysize+1)/2);
+		CAT_DEBUG_ENFORCE(_pack_x == (_xsize+1)/2);
 
-		for (int y = 0, ylen = _size_y >> 1; y < ylen; ++y) {
+		for (int y = 0, ylen = _ysize >> 1; y < ylen; ++y) {
 			u32 *pixel = rgba;
 
-			for (int x = 0, xlen = _size_x >> 1; x < xlen; ++x, pixel += 2) {
+			for (int x = 0, xlen = _xsize >> 1; x < xlen; ++x, pixel += 2) {
 				u8 p = *image++;
 
 				CAT_DEBUG_ENFORCE(p < _pack_palette_size);
@@ -398,11 +328,11 @@ int SmallPaletteReader::unpackPixels() {
 
 				pixel[0] = _palette[p & 3];
 				pixel[1] = _palette[(p >> 2) & 3];
-				pixel[_size_x] = _palette[(p >> 4) & 3];
-				pixel[_size_x+1] = _palette[p >> 6];
+				pixel[_xsize] = _palette[(p >> 4) & 3];
+				pixel[_xsize+1] = _palette[p >> 6];
 			}
 
-			if (_size_x & 1) {
+			if (_xsize & 1) {
 				u8 p = *image++;
 
 				CAT_DEBUG_ENFORCE(p < _pack_palette_size);
@@ -410,16 +340,16 @@ int SmallPaletteReader::unpackPixels() {
 				p = _pack_palette[p];
 
 				pixel[0] = _palette[p & 3];
-				pixel[_size_x] = _palette[(p >> 4) & 3];
+				pixel[_xsize] = _palette[(p >> 4) & 3];
 			}
 
-			rgba += _size_x;
+			rgba += _xsize;
 		}
 
-		if (_size_y & 1) {
+		if (_ysize & 1) {
 			u32 *pixel = rgba;
 
-			for (int x = 0, xlen = _size_x >> 1; x < xlen; ++x, pixel += 2) {
+			for (int x = 0, xlen = _xsize >> 1; x < xlen; ++x, pixel += 2) {
 				u8 p = *image++;
 
 				CAT_DEBUG_ENFORCE(p < _pack_palette_size);
@@ -430,7 +360,7 @@ int SmallPaletteReader::unpackPixels() {
 				pixel[1] = _palette[(p >> 2) & 3];
 			}
 
-			if (_size_x & 1) {
+			if (_xsize & 1) {
 				u8 p = *image++;
 
 				CAT_DEBUG_ENFORCE(p < _pack_palette_size);
@@ -441,11 +371,11 @@ int SmallPaletteReader::unpackPixels() {
 			}
 		}
 	} else { // 1 bit/pixel
-		CAT_DEBUG_ENFORCE(_pack_y == (_size_y+1)/2);
-		CAT_DEBUG_ENFORCE(_pack_x == (_size_x+3)/4);
+		CAT_DEBUG_ENFORCE(_pack_y == (_ysize+1)/2);
+		CAT_DEBUG_ENFORCE(_pack_x == (_xsize+3)/4);
 
-		int x, xlen = _size_x >> 2;
-		for (int y = 0, ylen = _size_y >> 1; y < ylen; ++y) {
+		int x, xlen = _xsize >> 2;
+		for (int y = 0, ylen = _ysize >> 1; y < ylen; ++y) {
 			u32 *pixel = rgba;
 
 			for (x = 0; x < xlen; ++x, pixel += 4) {
@@ -460,14 +390,14 @@ int SmallPaletteReader::unpackPixels() {
 				pixel[1] = _palette[(p >> 6) & 1];
 				pixel[2] = _palette[(p >> 5) & 1];
 				pixel[3] = _palette[(p >> 4) & 1];
-				u32 *next = pixel + _size_x;
+				u32 *next = pixel + _xsize;
 				next[0] = _palette[(p >> 3) & 1];
 				next[1] = _palette[(p >> 2) & 1];
 				next[2] = _palette[(p >> 1) & 1];
 				next[3] = _palette[p & 1];
 			}
 
-			if (_size_x & 3) {
+			if (_xsize & 3) {
 				u8 p = *image++;
 
 				CAT_DEBUG_ENFORCE(p < _pack_palette_size);
@@ -479,23 +409,23 @@ int SmallPaletteReader::unpackPixels() {
 					for (int ii = 0; ii < 4; ++ii) {
 						int px = x + ii, py = y + jj;
 
-						if (px < _size_x && py < _size_y) {
+						if (px < _xsize && py < _ysize) {
 							out[ii] = _palette[p >> 7];
 						}
 
 						p <<= 1;
 					}
-					out += _size_x;
+					out += _xsize;
 				}
 			}
 
-			rgba += _size_x << 1;
+			rgba += _xsize << 1;
 		}
 
-		if (_size_y & 1) {
+		if (_ysize & 1) {
 			u32 *pixel = rgba;
 
-			for (x = 0, xlen = _size_x >> 2; x < xlen; ++x, pixel += 4) {
+			for (x = 0, xlen = _xsize >> 2; x < xlen; ++x, pixel += 4) {
 				u8 p = *image++;
 
 				CAT_DEBUG_ENFORCE(p < _pack_palette_size);
@@ -509,7 +439,7 @@ int SmallPaletteReader::unpackPixels() {
 				pixel[3] = _palette[(p >> 4) & 1];
 			}
 
-			if (_size_x & 3) {
+			if (_xsize & 3) {
 				u8 p = *image++;
 
 				CAT_DEBUG_ENFORCE(p < _pack_palette_size);
@@ -519,7 +449,7 @@ int SmallPaletteReader::unpackPixels() {
 				for (int ii = 0; ii < 4; ++ii) {
 					int px = x + ii;
 
-					if (px < _size_x) {
+					if (px < _xsize) {
 						pixel[ii] = _palette[p >> 7];
 					}
 
@@ -535,8 +465,8 @@ int SmallPaletteReader::unpackPixels() {
 int SmallPaletteReader::readHead(ImageReader & CAT_RESTRICT reader, u8 * CAT_RESTRICT rgba) {
 	// Initialize dimensions
 	ImageReader::Header *header = reader.getHeader();
-	_size_x = header->size_x;
-	_size_y = header->size_y;
+	_xsize = header->xsize;
+	_ysize = header->ysize;
 	_rgba = rgba;
 
 #ifdef CAT_COLLECT_STATS
@@ -563,9 +493,8 @@ int SmallPaletteReader::readHead(ImageReader & CAT_RESTRICT reader, u8 * CAT_RES
 	return GCIF_RE_OK;
 }
 
-int SmallPaletteReader::readTail(ImageReader & CAT_RESTRICT reader, ImageMaskReader & CAT_RESTRICT mask, ImageLZReader & CAT_RESTRICT lz) {
+int SmallPaletteReader::readTail(ImageReader & CAT_RESTRICT reader, ImageMaskReader & CAT_RESTRICT mask) {
 	_mask = &mask;
-	_lz = &lz;
 
 	CAT_DEBUG_ENFORCE(multipleColors());
 

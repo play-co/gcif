@@ -13,7 +13,7 @@ CPFLAGS = $(CFLAGS)
 # List of object files
 
 decode_objects = EndianNeutral.o Enforcer.o Filters.o GCIFReader.o
-decode_objects += HuffmanDecoder.o ImageRGBAReader.o ImageLZReader.o
+decode_objects += HuffmanDecoder.o ImageRGBAReader.o EntropyDecoder.o
 decode_objects += ImageMaskReader.o ImageReader.o MappedFile.o lz4.o
 decode_objects += ImagePaletteReader.o MonoReader.o SmallPaletteReader.o
 
@@ -22,10 +22,11 @@ gcif_objects += lz4hc.o HuffmanEncoder.o PaletteOptimizer.o
 gcif_objects += SystemInfo.o ImageWriter.o SmallPaletteWriter.o
 gcif_objects += ImageMaskWriter.o MonoWriter.o
 gcif_objects += ImageRGBAWriter.o FilterScorer.o
-gcif_objects += ImageLZWriter.o ImagePaletteWriter.o
+gcif_objects += LZMatchFinder.o ImagePaletteWriter.o
 gcif_objects += GCIFWriter.o EntropyEstimator.o WaitableFlag.o
 gcif_objects += $(decode_objects)
 #gcif_objects += ImageLPReader.o ImageLPWriter.o
+#gcif_objects += ImageLZReader.o ImageLZWriter.o
 
 
 # List of source files
@@ -34,13 +35,13 @@ DECODE_SRCS = decoder/EndianNeutral.cpp decoder/Enforcer.cpp
 DECODE_SRCS += decoder/Filters.cpp decoder/GCIFReader.cpp
 DECODE_SRCS += decoder/HuffmanDecoder.cpp
 DECODE_SRCS += decoder/ImageRGBAReader.cpp
-DECODE_SRCS += decoder/ImageLZReader.cpp
 DECODE_SRCS += decoder/ImagePaletteReader.cpp
 DECODE_SRCS += decoder/ImageMaskReader.cpp
 DECODE_SRCS += decoder/ImageReader.cpp
 DECODE_SRCS += decoder/MappedFile.cpp
 DECODE_SRCS += decoder/lz4.c decoder/SmallPaletteReader.cpp
 DECODE_SRCS += decoder/MonoReader.cpp
+DECODE_SRCS += decoder/EntropyDecoder.cpp
 
 SRCS = ./gcif.cpp encoder/lodepng.cpp encoder/Log.cpp encoder/Mutex.cpp
 SRCS += encoder/Clock.cpp encoder/Thread.cpp
@@ -50,13 +51,14 @@ SRCS += encoder/SystemInfo.cpp encoder/ImageWriter.cpp
 SRCS += encoder/ImageMaskWriter.cpp
 SRCS += encoder/ImageRGBAWriter.cpp
 SRCS += encoder/FilterScorer.cpp encoder/SmallPaletteWriter.cpp
-SRCS += encoder/ImageLZWriter.cpp
+SRCS += encoder/LZMatchFinder.cpp
 SRCS += encoder/GCIFWriter.cpp encoder/PaletteOptimizer.cpp
 SRCS += encoder/ImagePaletteWriter.cpp
 SRCS += encoder/EntropyEstimator.cpp encoder/WaitableFlag.cpp
 SRCS += encoder/MonoWriter.cpp
 SRCS += $(DECODE_SRCS)
 #SRCS += ImageLPReader.cpp ImageLPWriter.cpp
+#SRCS += ImageLZReader.cpp ImageLZWriter.cpp
 
 
 # Release target (default)
@@ -148,11 +150,11 @@ FilterScorer.o : encoder/FilterScorer.cpp
 Filters.o : decoder/Filters.cpp
 	$(CCPP) $(CPFLAGS) -c decoder/Filters.cpp
 
-ImageLZWriter.o : encoder/ImageLZWriter.cpp
-	$(CCPP) $(CPFLAGS) -c encoder/ImageLZWriter.cpp
+#ImageLZWriter.o : encoder/ImageLZWriter.cpp
+#	$(CCPP) $(CPFLAGS) -c encoder/ImageLZWriter.cpp
 
-ImageLZReader.o : decoder/ImageLZReader.cpp
-	$(CCPP) $(CPFLAGS) -c decoder/ImageLZReader.cpp
+#ImageLZReader.o : decoder/ImageLZReader.cpp
+#	$(CCPP) $(CPFLAGS) -c decoder/ImageLZReader.cpp
 
 ImagePaletteWriter.o : encoder/ImagePaletteWriter.cpp
 	$(CCPP) $(CPFLAGS) -c encoder/ImagePaletteWriter.cpp
@@ -201,6 +203,12 @@ SmallPaletteReader.o : decoder/SmallPaletteReader.cpp
 
 #ImageLPReader.o : ImageLPReader.cpp
 #	$(CCPP) $(CPFLAGS) -c ImageLPReader.cpp
+
+LZMatchFinder.o : encoder/LZMatchFinder.cpp
+	$(CCPP) $(CPFLAGS) -c encoder/LZMatchFinder.cpp
+
+EntropyDecoder.o : decoder/EntropyDecoder.cpp
+	$(CCPP) $(CPFLAGS) -c decoder/EntropyDecoder.cpp
 
 decomp.o : decomp.cpp
 	$(CCPP) $(CPFLAGS) -c decomp.cpp

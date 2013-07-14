@@ -59,27 +59,29 @@ namespace cat {
 
 //// EntropyEncoder
 
-template<int NUM_SYMS, int ZRLE_SYMS> class EntropyEncoder {
-public:
-	static const int BZ_SYMS = NUM_SYMS + ZRLE_SYMS;
-	static const int AZ_SYMS = NUM_SYMS;
-	static const int BZ_TAIL_SYM = BZ_SYMS - 1;
+class EntropyEncoder {
+	int _num_syms, _zrle_syms;
+	int _bz_syms; // NUM_SYMS + ZRLE_SYMS
+	int _az_syms; // NUM_SYMS
+	int _bz_tail_sym; // BZ_SYMS - 1
 
-protected:
-	FreqHistogram<BZ_SYMS> *_bz_hist;
-	FreqHistogram<AZ_SYMS> *_az_hist;
+	FreqHistogram _bz_hist;
+	FreqHistogram _az_hist;
+	HuffmanEncoder _bz;
+	HuffmanEncoder _az;
 
-	HuffmanEncoder<BZ_SYMS> _bz;
-	HuffmanEncoder<AZ_SYMS> _az;
-
-	std::vector<u8> _basic_syms;
-	FreqHistogram<NUM_SYMS> *_basic_hist;
-	HuffmanEncoder<NUM_SYMS> _basic;
+	FreqHistogram _basic_hist;
+	std::vector<u16> _basic_syms;
+	HuffmanEncoder _basic;
 	bool _using_basic;
 
 	int _zeroRun;
 	std::vector<int> _runList;
 	int _runListReadIndex;
+
+#ifdef CAT_DEBUG
+	int _basic_recall;
+#endif
 
 	int simulateZeroRun(int run) {
 		if (run <= 0) {
@@ -88,12 +90,12 @@ protected:
 
 		int bits;
 
-		if (run < ZRLE_SYMS) {
-			bits = _bz.simulateWrite(NUM_SYMS + run - 1);
+		if (run < _zrle_syms) {
+			bits = _bz.simulateWrite(_num_syms + run - 1);
 		} else {
-			bits = _bz.simulateWrite(BZ_TAIL_SYM);
+			bits = _bz.simulateWrite(_bz_tail_sym);
 
-			ImageWriter::simulate255255(run - ZRLE_SYMS);
+			ImageWriter::simulate255255(run - _zrle_syms);
 		}
 
 		return bits;
@@ -106,65 +108,57 @@ protected:
 
 		int bits;
 
-		if (run < ZRLE_SYMS) {
-			bits = _bz.writeSymbol(NUM_SYMS + run - 1, writer);
+		if (run < _zrle_syms) {
+			bits = _bz.writeSymbol(_num_syms + run - 1, writer);
 		} else {
-			bits = _bz.writeSymbol(BZ_TAIL_SYM, writer);
+			bits = _bz.writeSymbol(_bz_tail_sym, writer);
 
-			writer.write255255(run - ZRLE_SYMS);
+			writer.write255255(run - _zrle_syms);
 		}
 
 		return bits;
 	}
 
 public:
-	CAT_INLINE EntropyEncoder() {
-		_zeroRun = 0;
-		_bz_hist = 0;
-		_az_hist = 0;
-		_basic_hist = 0;
+	static const u16 FAKE_ZERO = 0xfffe;
+
+	CAT_INLINE bool InZeroRun() {
+		return _zeroRun > 0;
 	}
 
-	CAT_INLINE virtual ~EntropyEncoder() {
-		if (_bz_hist) {
-			delete _bz_hist;
-		}
-		if (_az_hist) {
-			delete _az_hist;
-		}
-		if (_basic_hist) {
-			delete _basic_hist;
-		}
-	}
-
-	void init() {
+	void init(int num_syms, int zrle_syms) {
 		_zeroRun = 0;
 
-		if (!_bz_hist) {
-			_bz_hist = new FreqHistogram<BZ_SYMS>;
-		}
-		if (!_az_hist) {
-			_az_hist = new FreqHistogram<AZ_SYMS>;
-		}
-		if (!_basic_hist) {
-			_basic_hist = new FreqHistogram<NUM_SYMS>;
-		}
+		_num_syms = num_syms;
+		_zrle_syms = zrle_syms;
+		_bz_syms = _num_syms + _zrle_syms;
+		_az_syms = _num_syms;
+		_bz_tail_sym = _bz_syms - 1;
 
-		_bz_hist->init();
-		_az_hist->init();
-		_basic_hist->init();
+		_bz_hist.init(_bz_syms);
+		_az_hist.init(_az_syms);
+		_basic_hist.init(_num_syms);
 
 		_runList.clear();
 		_basic_syms.clear();
+
+#ifdef CAT_DEBUG
+		_basic_recall = 0;
+#endif
 	}
 
 	void add(u16 symbol) {
-		CAT_DEBUG_ENFORCE(symbol < NUM_SYMS);
+		_basic_syms.push_back(symbol);
 
-		if (NUM_SYMS <= 256) {
-			_basic_hist->add(symbol);
-			_basic_syms.push_back(symbol);
+		// Convert fake zero to a zero
+		if (symbol == FAKE_ZERO) {
+			CAT_DEBUG_ENFORCE(_zeroRun > 0);
+			symbol = 0;
 		}
+
+		CAT_DEBUG_ENFORCE(symbol < _num_syms);
+
+		_basic_hist.add(symbol);
 
 		if (symbol == 0) {
 			++_zeroRun;
@@ -172,23 +166,23 @@ public:
 			const int zeroRun = _zeroRun;
 
 			if (zeroRun > 0) {
-				if (zeroRun < ZRLE_SYMS) {
-					_bz_hist->add(NUM_SYMS + zeroRun - 1);
-				} else {
-					_bz_hist->add(BZ_TAIL_SYM);
+				int code = _num_syms + zeroRun - 1;
+				if (code > _bz_tail_sym) {
+					code = _bz_tail_sym;
 				}
+				_bz_hist.add(code);
 
 				_runList.push_back(zeroRun);
 				_zeroRun = 0;
 
-				_az_hist->add(symbol);
+				_az_hist.add(symbol);
 			} else {
-				_bz_hist->add(symbol);
+				_bz_hist.add(symbol);
 			}
 		}
 	}
 
-	void finalize() {
+	int finalize() {
 		const int zeroRun = _zeroRun;
 
 		// If a zero run is in progress at the end,
@@ -197,65 +191,73 @@ public:
 			_runList.push_back(zeroRun);
 
 			// Record symbols that will be emitted
-			if (zeroRun < ZRLE_SYMS) {
-				_bz_hist->add(NUM_SYMS + zeroRun - 1);
-			} else {
-				_bz_hist->add(BZ_TAIL_SYM);
+			int code = _num_syms + zeroRun - 1;
+			if (code > _bz_tail_sym) {
+				code = _bz_tail_sym;
 			}
+			_bz_hist.add(code);
 		}
 
 		// Initialize Huffman encoders with histograms
-		_bz.init(*_bz_hist);
-		_az.init(*_az_hist);
+		_bz.init(_bz_hist);
+		_az.init(_az_hist);
 
 		reset();
 
 		_using_basic = false;
 
 		// Evaluate basic encoder
-		if (NUM_SYMS <= 256) {
-			_basic.init(*_basic_hist);
+		_basic.init(_basic_hist);
 
-			int basic_cost = 0;
-			for (int ii = 0, iiend = (int)_basic_syms.size(); ii < iiend; ++ii) {
-				u8 symbol = (u8)_basic_syms[ii];
+		int basic_cost = 0;
+		for (int ii = 0, iiend = (int)_basic_syms.size(); ii < iiend; ++ii) {
+			u16 symbol = _basic_syms[ii];
 
+			// If not a fake zero,
+			if (symbol < FAKE_ZERO) {
 				basic_cost += _basic.simulateWrite(symbol);
 			}
+		}
 
-			int az_cost = 64; // Bias for overhead cost
-			int run = 0;
-			int readIndex = 0;
-			for (int ii = 0, iiend = (int)_basic_syms.size(); ii < iiend; ++ii) {
-				u8 symbol = (u8)_basic_syms[ii];
+		int az_cost = 64; // Bias for overhead cost
+		int run = 0, readIndex = 0;
+		for (int ii = 0, iiend = (int)_basic_syms.size(); ii < iiend; ++ii) {
+			u16 symbol = _basic_syms[ii];
 
-				// If zero,
-				if (symbol == 0) {
-					// If starting a zero run,
-					if (run == 0) {
-						CAT_DEBUG_ENFORCE(readIndex < (int)_runList.size());
+			// Convert fake zero to a zero
+			if (symbol == FAKE_ZERO) {
+				symbol = 0;
+			}
 
-						// Write stored zero run
-						int runLength = _runList[readIndex++];
+			// If zero,
+			if (symbol == 0) {
+				// If starting a zero run,
+				if (run == 0) {
+					CAT_DEBUG_ENFORCE(readIndex < (int)_runList.size());
 
-						az_cost += simulateZeroRun(runLength);
-					}
+					// Write stored zero run
+					int runLength = _runList[readIndex++];
 
-					++run;
+					az_cost += simulateZeroRun(runLength);
+				}
+
+				++run;
+			} else {
+				// If just out of a zero run,
+				if (run > 0) {
+					run = 0;
+					az_cost += _az.simulateWrite(symbol);
 				} else {
-					// If just out of a zero run,
-					if (run > 0) {
-						run = 0;
-						az_cost += _az.simulateWrite(symbol);
-					} else {
-						az_cost += _bz.simulateWrite(symbol);
-					}
+					az_cost += _bz.simulateWrite(symbol);
 				}
 			}
+		}
 
-			if (basic_cost < az_cost + 64) {
-				_using_basic = true;
-			}
+		if (basic_cost < az_cost + 64) {
+			_using_basic = true;
+			return basic_cost;
+		} else {
+			return az_cost;
 		}
 	}
 
@@ -281,62 +283,29 @@ public:
 
 		// Set the run list read index for writing
 		_runListReadIndex = 0;
-	}
 
-	int simulateAll() {
-		CAT_DEBUG_ENFORCE(NUM_SYMS <= 256);
-
-		reset();
-
-		int bits = 0;
-		for (int ii = 0, len = (int)_basic_syms.size(); ii < len; ++ii) {
-			u8 sym = _basic_syms[ii];
-
-			bits += simulate(sym);
-		}
-
-		return bits;
-	}
-
-	int simulate(u16 symbol) {
-		CAT_DEBUG_ENFORCE(symbol < NUM_SYMS);
-
-		if (_using_basic) {
-			return _basic.simulateWrite(symbol);
-		}
-
-		int bits = 0;
-
-		// If zero,
-		if (symbol == 0) {
-			// If starting a zero run,
-			if (_zeroRun == 0) {
-				CAT_DEBUG_ENFORCE(_runListReadIndex < (int)_runList.size());
-
-				// Write stored zero run
-				int runLength = _runList[_runListReadIndex++];
-
-				bits += simulateZeroRun(runLength);
-			}
-
-			++_zeroRun;
-		} else {
-			// If just out of a zero run,
-			if (_zeroRun > 0) {
-				_zeroRun = 0;
-				bits += _az.simulateWrite(symbol);
-			} else {
-				bits += _bz.simulateWrite(symbol);
-			}
-		}
-
-		return bits;
+#ifdef CAT_DEBUG
+		_basic_recall = 0;
+#endif
 	}
 
 	int write(u16 symbol, ImageWriter &writer) {
-		CAT_DEBUG_ENFORCE(symbol < NUM_SYMS);
+		CAT_DEBUG_ENFORCE(symbol == _basic_syms[_basic_recall++]);
+
+		// Convert fake zero to a zero
+		if (symbol == FAKE_ZERO) {
+			CAT_DEBUG_ENFORCE(_using_basic || _zeroRun > 0);
+			return 0;
+		}
+
+		CAT_DEBUG_ENFORCE(symbol < _num_syms);
 
 		if (_using_basic) {
+			if (symbol == 0) {
+				_zeroRun++;
+			} else {
+				_zeroRun = 0;
+			}
 			return _basic.writeSymbol(symbol, writer);
 		}
 

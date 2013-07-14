@@ -31,14 +31,13 @@
 
 #include "ImageWriter.hpp"
 #include "ImageMaskWriter.hpp"
-#include "ImageLZWriter.hpp"
 #include "ImagePaletteWriter.hpp"
 #include "../decoder/ImageRGBAReader.hpp"
 #include "EntropyEncoder.hpp"
-#include "FilterScorer.hpp"
 #include "../decoder/Filters.hpp"
 #include "GCIFWriter.h"
 #include "PaletteOptimizer.hpp"
+#include "LZMatchFinder.hpp"
 
 #include <vector>
 
@@ -50,17 +49,18 @@
  * http://www.dsi.unifi.it/DRIIA/RaccoltaTesi/Brocchi.pdf
  *
  * Notable improvements:
- * + Much better compression ratios
+ * + Much better compression ratios and decoding speed
  * + Maintainable codebase for future improvements
- * + 2D LZ Exact Matc, Dominant Color Mask, and Global Palette integration
+ * + Alpha channel, LZ, Dominant Color Mask, and Palette modes
  * + Uses 4x4 tiles instead of 8x8
  * + More/better non-linear spatial and more color filters supported
- * + Linear spatial filters tuned to image where improvement is found
- * + Chaos metric is order-1 stats, so do not fuzz them, and use just 8 levels
+ * + Spatial filters tuned to image
+ * + Simpler Chaos metric with variable levels for context modeling / order-1 stats
  * + Encodes zero runs > ~256 without emitting more symbols for better AZ stats
- * + Better, context-modeled Huffman table compression
- * + Faster entropy estimation allows us to run entropy analysis exhaustively
+ * + Better Huffman table compression
+ * + Faster entropy estimation allows us to brute force entropy analysis of all options
  * + Revisit top of image after choosing filters for better selection
+ * + Palette optimization for improved subresolution monochrome data compression
  */
 
 namespace cat {
@@ -84,15 +84,16 @@ protected:
 
 	// Subsystems
 	ImageMaskWriter *_mask;
-	ImageLZWriter *_lz;
+	bool _lz_enabled; // LZ subsystem has initialized?
+	RGBAMatchFinder _lz;
 
 	// RGBA image
 	const u8 *_rgba;
-	u16 _size_x, _size_y;
+	u16 _xsize, _ysize;
 
 	// Filter tiles
 	u16 _tile_bits_x, _tile_bits_y;
-	u16 _tile_size_x, _tile_size_y;
+	u16 _tile_xsize, _tile_ysize;
 	u16 _tiles_x, _tiles_y;
 	SmartArray<u8> _sf_tiles;	// Filled with 0 for fully-masked tiles
 	SmartArray<u8> _cf_tiles;	// Set to MASK_TILE for fully-masked tiles
@@ -104,16 +105,40 @@ protected:
 	u16 _sf_indices[MAX_FILTERS];
 	int _sf_count;
 
-	// Write state
-	SmartArray<u8> _residuals, _seen_filter;
+	/*
+	 * Residuals format:
+	 *
+	 * Each pixel is represented by 4 bytes that are the result of applying the
+	 * selected spatial filter then color filter.
+	 *
+	 * From low to high index: [Y, U, V, A, Y, U, V, A ...] for each pixels
+	 * starting from the upper left to the lower right, row-first.
+	 *
+	 * The A channel is actually encoded separately so it is undefined in the
+	 * residuals array.
+	 *
+	 */
+	SmartArray<u8> _residuals;
+
+	/*
+	 * Seen Filter
+	 *
+	 * This data structure remembers which tiles have been sent during encoding
+	 * so that the filters can be sent as needed interleaved with the pixel
+	 * data, which allows for entirely masked tiles to go unwritten, which
+	 * improves compression.
+	 *
+	 * Each byte is one tile in the current row.  0= not seen, non-zero= seen
+	 */
+	SmartArray<u8> _seen_filter;
 
 	// RGB encoders
 	struct Encoders {
 		RGBChaos chaos;
 
-		EntropyEncoder<MAX_SYMS, ZRLE_SYMS> y[MAX_CHAOS_LEVELS];
-		EntropyEncoder<MAX_SYMS, ZRLE_SYMS> u[MAX_CHAOS_LEVELS];
-		EntropyEncoder<MAX_SYMS, ZRLE_SYMS> v[MAX_CHAOS_LEVELS];
+		EntropyEncoder y[MAX_CHAOS_LEVELS];
+		EntropyEncoder u[MAX_CHAOS_LEVELS];
+		EntropyEncoder v[MAX_CHAOS_LEVELS];
 	} *_encoders;
 
 	// Filter encoders
@@ -129,9 +154,12 @@ protected:
 
 	void maskTiles();
 	void designFilters();
+	void designTilesFast();
 	void designTiles();
 	void sortFilters();
 	void computeResiduals();
+	void priceResiduals();
+	void designLZ();
 	bool compressAlpha();
 	void designChaos();
 	void generateWriteOrder();
@@ -145,20 +173,20 @@ protected:
 public:
 	struct _Stats {
 		int basic_overhead_bits, sf_choice_bits;
-		int sf_table_bits, cf_table_bits, y_table_bits, u_table_bits, v_table_bits, a_table_bits;
-		int sf_bits, cf_bits, y_bits, u_bits, v_bits, a_bits;
+		int sf_table_bits, cf_table_bits, y_table_bits, u_table_bits, v_table_bits, a_table_bits, lz_table_bits;
+		int sf_bits, cf_bits, y_bits, u_bits, v_bits, a_bits, lz_bits;
 
-		int rgba_bits, total_bits; // Total includes LZ, mask overhead
+		int rgba_bits, total_bits; // Total includes mask overhead
 
-		u32 rgba_count, chaos_bins;
+		u32 rgba_count, lz_count, chaos_bins;
 		double rgba_compression_ratio;
-
+		double lz_compression_ratio;
 		double overall_compression_ratio;
 	} Stats;
 #endif // CAT_COLLECT_STATS
 
 public:
-	int init(const u8 *rgba, int size_x, int size_y, ImageMaskWriter &mask, ImageLZWriter &lz, const GCIFKnobs *knobs);
+	int init(const u8 *rgba, int xsize, int ysize, ImageMaskWriter &mask, const GCIFKnobs *knobs);
 
 	void write(ImageWriter &writer);
 

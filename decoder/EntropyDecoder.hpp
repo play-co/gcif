@@ -45,12 +45,14 @@ namespace cat {
 
 //// EntropyDecoder
 
-template<int NUM_SYMS, int ZRLE_SYMS> class EntropyDecoder {
+class EntropyDecoder {
 public:
-	static const int BZ_SYMS = NUM_SYMS + ZRLE_SYMS;
-	static const int AZ_SYMS = NUM_SYMS;
-	static const int BZ_TAIL_SYM = BZ_SYMS - 1;
-	static const int HUFF_LUT_BITS = 7; // Tuned for cellphones
+	int _num_syms, _zrle_offset;
+
+	// When AZ-BZ symbol mode is enabled:
+	// BZ_SYMS = NUM_SYMS + ZRLE_SYMS
+	// AZ_SYMS = NUM_SYMS
+	// BZ_TAIL_SYM = NUM_SYMS + ZRLE_SYMS - 1
 
 protected:
 	int _zeroRun;
@@ -58,61 +60,9 @@ protected:
 	bool _afterZero;
 
 public:
-	bool init(ImageReader &reader) {
-		// If using AZ symbols,
-		if (reader.readBit()) {
-			if (!_az.init(AZ_SYMS, reader, HUFF_LUT_BITS)) {
-				return false;
-			}
+	bool init(int num_syms, int zrle_syms, int huff_lut_bits, ImageReader &reader);
 
-			if (!_bz.init(BZ_SYMS, reader, HUFF_LUT_BITS)) {
-				return false;
-			}
-		} else {
-			// Cool: Does not slow down decoder to conditionally turn off zRLE!
-			if (!_bz.init(NUM_SYMS, reader, HUFF_LUT_BITS)) {
-				return false;
-			}
-		}
-
-		_afterZero = false;
-		_zeroRun = 0;
-
-		return true;
-	}
-
-	u16 next(ImageReader &reader) {
-		// If in a zero run,
-		if (_zeroRun > 0) {
-			--_zeroRun;
-			return 0;
-		}
-
-		// If after zero,
-		if (_afterZero) {
-			_afterZero = false;
-			return _az.next(reader);
-		}
-
-		// Read before-zero symbol
-		u16 sym = (u16)_bz.next(reader);
-
-		// If not a zero run,
-		if (sym < NUM_SYMS) {
-			return sym;
-		}
-
-		// If zRLE is represented by the symbol itself,
-		if (sym < BZ_TAIL_SYM) {
-			// Decode zero run from symbol
-			_zeroRun = sym - NUM_SYMS;
-		} else {
-			_zeroRun = reader.read255255() + ZRLE_SYMS - 1;
-		}
-
-		_afterZero = true;
-		return 0;
-	}
+	u16 next(ImageReader &reader);
 };
 
 } // namespace cat

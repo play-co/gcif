@@ -119,8 +119,8 @@ int ImageReader::init(const void * CAT_RESTRICT buffer, long fileSize) {
 	}
 
 	// Any input data here is OK
-	_header.size_x = readBits(MAX_X_BITS);
-	_header.size_y = readBits(MAX_Y_BITS);
+	_header.xsize = readBits(MAX_X_BITS);
+	_header.ysize = readBits(MAX_Y_BITS);
 
 	return GCIF_RE_OK;
 }

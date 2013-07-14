@@ -53,7 +53,7 @@ void Masker::applyFilter() {
 	const int stride = _stride;
 	u32 *lagger = _mask.get() + _size - stride;
 	u32 *writer = _filtered.get() + _size - stride;
-	int hctr = _size_y;
+	int hctr = _ysize;
 	while (--hctr) {
 		u32 cb = 0; // assume no delta from row above
 
@@ -81,20 +81,20 @@ void Masker::applyFilter() {
 	}
 }
 
-int Masker::init(const u8 *rgba, int planes, u32 color, u32 color_mask, int size_x, int size_y, const GCIFKnobs *knobs, int min_ratio) {
+int Masker::init(const u8 *rgba, int planes, u32 color, u32 color_mask, int xsize, int ysize, const GCIFKnobs *knobs, int min_ratio) {
 	_knobs = knobs;
 	_rgba = rgba;
-	_size_x = size_x;
-	_size_y = size_y;
+	_xsize = xsize;
+	_ysize = ysize;
 	_color = color;
 	_color_mask = color_mask;
 	_min_ratio = min_ratio;
-	_stride = (size_x + 31) >> 5;
-	_size = size_y * _stride;
+	_stride = (xsize + 31) >> 5;
+	_size = ysize * _stride;
 	_planes = planes;
 
 	// If image is too small,
-	if (size_x < MIN_SIZE && size_y < MIN_SIZE) {
+	if (xsize < MIN_SIZE && ysize < MIN_SIZE) {
 		// Do not use mask
 		_enabled = false;
 		return GCIF_WE_OK;
@@ -110,11 +110,11 @@ int Masker::init(const u8 *rgba, int planes, u32 color, u32 color_mask, int size
 	u32 *writer = _mask.get();
 
 	// For each scanline,
-	for (int y = 0; y < _size_y; ++y) {
+	for (int y = 0; y < _ysize; ++y) {
 		u32 bits = 0, seen = 0;
 
 		// For each pixel,
-		for (int x = 0, xend = _size_x; x < xend; ++x) {
+		for (int x = 0, xend = _xsize; x < xend; ++x) {
 			bits <<= 1;
 
 			// If using RGBA,
@@ -171,7 +171,7 @@ void Masker::performRLE() {
 
 	vector<int> deltas;
 
-	for (int ii = 0, iilen = _size_y; ii < iilen; ++ii) {
+	for (int ii = 0, iilen = _ysize; ii < iilen; ++ii) {
 		// for xdelta:
 		int zeroes = 0;
 
@@ -221,8 +221,8 @@ void Masker::performLZ() {
 	_lz.resize(lzSize);
 
 #ifdef CAT_COLLECT_STATS
-	Stats.rleBytes = _rle.size();
-	Stats.lzBytes = _lz.size();
+	Stats.rleBytes = static_cast<int>( _rle.size() );
+	Stats.lzBytes = static_cast<int>( _lz.size() );
 #endif // CAT_COLLECT_STATS
 
 	// Determine if encoder should be used
@@ -282,7 +282,7 @@ bool Masker::evaluate() {
 #endif // CAT_COLLECT_STATS
 
 	if (_using_encoder) {
-		CAT_ENFORCE(_encoder.init(freqs));
+		CAT_ENFORCE(_encoder.init(freqs, 256));
 	}
 
 #ifdef CAT_COLLECT_STATS
@@ -420,7 +420,7 @@ bool Masker::dumpStats() {
 		CAT_INANE("stats") << "(Mask Encoding) Compression ratio : " << Stats.compressionRatio << ":1 (" << Stats.compressedDataBits/8 << " bytes used overall)";
 	}
 
-	CAT_INANE("stats") << "(Mask Encoding) Pixels covered : " << Stats.covered << " (" << Stats.covered * 100. / (_size_x * _size_y) << " %total)";
+	CAT_INANE("stats") << "(Mask Encoding) Pixels covered : " << Stats.covered << " (" << Stats.covered * 100. / (_xsize * _ysize) << " %total)";
 
 	return true;
 }
@@ -437,7 +437,7 @@ u8 ImageMaskWriter::dominantMono() {
 	u32 hist[BINS] = {0};
 
 	const u8 *pixel = _rgba;
-	int count = _size_x * _size_y;
+	int count = _xsize * _ysize;
 	while (count--) {
 		hist[*pixel++]++;
 	}
@@ -465,7 +465,7 @@ u32 ImageMaskWriter::dominantRGBA() {
 
 	// Histogram all image colors
 	const u32 *pixel = reinterpret_cast<const u32 *>( _rgba );
-	int count = _size_x * _size_y;
+	int count = _xsize * _ysize;
 	u32 zeroes = 0;
 	while (count--) {
 		u32 p = *pixel++;
@@ -497,11 +497,11 @@ u32 ImageMaskWriter::dominantRGBA() {
 	return domColor;
 }
 
-int ImageMaskWriter::init(const u8 *rgba, int planes, int size_x, int size_y, const GCIFKnobs *knobs) {
+int ImageMaskWriter::init(const u8 *rgba, int planes, int xsize, int ysize, const GCIFKnobs *knobs) {
 	_knobs = knobs;
 	_rgba = rgba;
-	_size_x = size_x;
-	_size_y = size_y;
+	_xsize = xsize;
+	_ysize = ysize;
 	_planes = planes;
 
 	u32 domColor, mask;
@@ -518,7 +518,7 @@ int ImageMaskWriter::init(const u8 *rgba, int planes, int size_x, int size_y, co
 
 	int err;
 
-	if ((err = _color.init(rgba, planes, domColor, mask, size_x, size_y, knobs, _knobs->mask_minColorRat))) {
+	if ((err = _color.init(rgba, planes, domColor, mask, xsize, ysize, knobs, _knobs->mask_minColorRat))) {
 		return err;
 	}
 

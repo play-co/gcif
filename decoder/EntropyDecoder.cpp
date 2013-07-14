@@ -25,73 +25,72 @@
 	ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 	POSSIBILITY OF SUCH DAMAGE.
 */
+#include "EntropyDecoder.hpp"
+using namespace cat;
 
-#ifndef CAT_HUFFMAN_DECODER_HPP
-#define CAT_HUFFMAN_DECODER_HPP
+bool EntropyDecoder::init(int num_syms, int zrle_syms, int huff_lut_bits, ImageReader &reader) {
+	_num_syms = num_syms;
 
-#include "Platform.hpp"
-#include "ImageReader.hpp"
-#include "SmartArray.hpp"
+	CAT_DEBUG_ENFORCE(num_syms > 0 && zrle_syms > 0);
 
-// See copyright notice at the top of HuffmanEncoder.hpp
+	// If using AZ symbols,
+	if (reader.readBit()) {
+		_zrle_offset = zrle_syms - 1;
 
-namespace cat {
+		if (!_az.init(num_syms, reader, huff_lut_bits)) {
+			return false;
+		}
 
+		if (!_bz.init(num_syms + zrle_syms, reader, huff_lut_bits)) {
+			return false;
+		}
+	} else {
+		// Cool: Does not slow down decoder to conditionally turn off zRLE!
+		if (!_bz.init(num_syms, reader, huff_lut_bits)) {
+			return false;
+		}
+	}
 
-//// HuffmanDecoder
+	_afterZero = false;
+	_zeroRun = 0;
 
-class HuffmanDecoder {
-public:
-	static const u32 MAX_CODE_SIZE = 16; // Max bits per Huffman code (16 is upper limit)
-	static const u32 MAX_TABLE_BITS = 11; // Time-memory tradeoff LUT optimization limit
-	static const int TABLE_THRESH = 20; // Number of symbols before table is compressed
+	return true;
+}
 
-protected:
-	u32 _num_syms;
-	u32 _max_codes[MAX_CODE_SIZE + 1];
-	int _val_ptrs[MAX_CODE_SIZE + 1];
-	u32 _total_used_syms;
+u16 EntropyDecoder::next(ImageReader &reader) {
+	// If in a zero run,
+	if (_zeroRun > 0) {
+		--_zeroRun;
+		return 0;
+	}
 
-	SmartArray<u32> _sorted_symbol_order;
-	u32 _cur_sorted_symbol_order_size;
+	// If after zero,
+	if (_afterZero) {
+		_afterZero = false;
+		return _az.next(reader);
+	}
 
-	u8 _min_code_size, _max_code_size;
+	// Read before-zero symbol
+	const int num_syms = _num_syms;
+	u16 sym = (u16)_bz.next(reader);
 
-	u32 _table_bits;
+	// If not a zero run,
+	if (sym < num_syms) {
+		return sym;
+	}
 
-	SmartArray<u32> _lookup;
+	// Decode zero run
+	u32 zeroRun = sym - num_syms;
 
-	u32 _table_max_code;
-	u32 _decode_start_code_size;
+	// If extra bits were used,
+	if (sym >= _zrle_offset) {
+		CAT_DEBUG_ENFORCE(sym == _zrle_offset);
 
-	u32 _table_shift;
+		zeroRun += reader.read255255();
+	}
 
-	u32 _one_sym;
-
-public:
-	bool init(int num_syms, const u8 * CAT_RESTRICT codelens, u32 table_bits);
-	bool init(int num_syms, ImageReader & CAT_RESTRICT reader, u32 table_bits);
-
-	u32 next(ImageReader &reader);
-};
-
-
-// Decoder for Huffman tables
-class HuffmanTableDecoder {
-	static const int NUM_SYMS = HuffmanDecoder::MAX_CODE_SIZE + 1;
-
-	HuffmanDecoder _decoder;
-	int _zeroRun;
-	bool _lastZero;
-
-public:
-	bool init(ImageReader &reader);
-
-	u8 next(ImageReader &reader);
-};
-
-
-} // namespace cat
-
-#endif // CAT_HUFFMAN_DECODER_HPP
+	_zeroRun = zeroRun;
+	_afterZero = true;
+	return 0;
+}
 

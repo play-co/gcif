@@ -249,7 +249,7 @@ public:
 		_chaos_levels = 0;
 	}
 
-	void init(int chaos_levels, int size_x);
+	void init(int chaos_levels, int xsize);
 
 	CAT_INLINE int getBinCount() {
 		return _chaos_levels;
@@ -314,7 +314,7 @@ public:
 		_chaos_levels = 0;
 	}
 
-	void init(int chaos_levels, int size_x);
+	void init(int chaos_levels, int xsize);
 
 	CAT_INLINE int getBinCount() {
 		return _chaos_levels;
