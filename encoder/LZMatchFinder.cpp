@@ -492,11 +492,11 @@ int RGBAMatchFinder::write(EntropyEncoder &ee, ImageWriter &writer) {
 	}
 
 	int bits = ee_bits + len_bits + dist_bits + match->extra_bits;
-
+/*
 	if (match->length < 5) {
 		CAT_WARN("EMIT") << "ee=" << ee_bits << " len=" << len_bits << " dist=" << dist_bits << " extra=" << match->extra_bits << " : sum=" << bits << " LDIST=" << match->emit_ldist;
 	}
-
+*/
 	return bits;
 }
 
