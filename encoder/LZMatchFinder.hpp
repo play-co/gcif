@@ -130,21 +130,6 @@ public:
 //// RGBAMatchFinder
 
 class RGBAMatchFinder : public LZMatchFinder {
-protected:
-	HuffmanEncoder _lz_len_encoder;
-	HuffmanEncoder _lz_sdist_encoder;
-	HuffmanEncoder _lz_ldist_encoder;
-
-	bool findMatches(const u32 * CAT_RESTRICT rgba, const u8 * CAT_RESTRICT residuals, int xsize, int ysize, ImageMaskWriter *mask);
-
-public:
-	// Not worth matching fewer than MIN_MATCH
-	static const int MIN_MATCH = 2; // pixels
-	static const int MAX_MATCH = 256; // pixels
-	static const int WIN_SIZE = 1024 * 1024; // pixels
-
-	static const int LAST_COUNT = 4; // Keep track of recently emitted distances
-
 	static const int HASH_BITS = 18;
 	static const int HASH_SIZE = 1 << HASH_BITS;
 	static const u64 HASH_MULT = 0xc6a4a7935bd1e995ULL;
@@ -153,6 +138,20 @@ public:
 	static CAT_INLINE u32 HashPixels(const u32 * CAT_RESTRICT rgba) {
 		return (u32)( ( ((u64)rgba[0] << 32) | rgba[1] ) * HASH_MULT >> (64 - HASH_BITS) );
 	}
+
+	bool findMatches(const u32 * CAT_RESTRICT rgba, const u8 * CAT_RESTRICT residuals, int xsize, int ysize, ImageMaskWriter *mask);
+
+	// Encoders
+	HuffmanEncoder _lz_len_encoder;
+	HuffmanEncoder _lz_sdist_encoder;
+	HuffmanEncoder _lz_ldist_encoder;
+
+public:
+	// Not worth matching fewer than MIN_MATCH
+	static const int MIN_MATCH = 2; // pixels
+	static const int MAX_MATCH = 256; // pixels
+	static const int WIN_SIZE = 1024 * 1024; // pixels
+	static const int LAST_COUNT = 4; // Keep track of recently emitted distances
 
 	bool init(const u32 * CAT_RESTRICT rgba, const u8 * CAT_RESTRICT residuals, int xsize, int ysize, ImageMaskWriter *mask);
 
@@ -166,22 +165,6 @@ public:
 //// MonoMatchFinder
 
 class MonoMatchFinder : public LZMatchFinder {
-public:
-	// bool IsMasked(u16 x, u16 y)
-	typedef Delegate2<bool, u16, u16> MaskDelegate;
-
-	// Not worth matching fewer than MIN_MATCH
-	static const int MIN_MATCH = 2; // pixels
-	static const int MAX_MATCH = 256; // pixels
-	static const int WIN_SIZE = 1024 * 1024; // pixels
-
-protected:
-	HuffmanEncoder _lz_len_encoder;
-	HuffmanEncoder _lz_sdist_encoder;
-	HuffmanEncoder _lz_ldist_encoder;
-
-	bool findMatches(const u8 * CAT_RESTRICT mono, const u8 * CAT_RESTRICT residuals, int xsize, int ysize, MonoMatchFinder::MaskDelegate mask, const u8 mask_color);
-
 	static const int HASH_BITS = 18;
 	static const int HASH_SIZE = 1 << HASH_BITS;
 	//static const u64 HASH_MULT = 0xc6a4a7935bd1e995ULL;
@@ -191,6 +174,24 @@ protected:
 		const u16 word0 = *reinterpret_cast<const u16 *>( mono );
 		return word0;
 	}
+
+	// Encoders
+	HuffmanEncoder _lz_len_encoder;
+	HuffmanEncoder _lz_sdist_encoder;
+	HuffmanEncoder _lz_ldist_encoder;
+
+public:
+	// bool IsMasked(u16 x, u16 y)
+	typedef Delegate2<bool, u16, u16> MaskDelegate;
+
+	// Not worth matching fewer than MIN_MATCH
+	static const int MIN_MATCH = 2; // pixels
+	static const int MAX_MATCH = 256; // pixels
+	static const int WIN_SIZE = 1024 * 1024; // pixels
+	static const int LAST_COUNT = 4; // Keep track of recently emitted distances
+
+protected:
+	bool findMatches(const u8 * CAT_RESTRICT mono, const u8 * CAT_RESTRICT residuals, int xsize, int ysize, MonoMatchFinder::MaskDelegate mask);
 
 public:
 	bool init(const u8 * CAT_RESTRICT mono, const u8 * CAT_RESTRICT residuals, int xsize, int ysize, MonoMatchFinder::MaskDelegate mask);
