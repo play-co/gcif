@@ -138,7 +138,7 @@ protected:
 	bool findMatches(const u32 * CAT_RESTRICT rgba, const u8 * CAT_RESTRICT residuals, int xsize, int ysize, ImageMaskWriter *mask);
 
 public:
-	// Not worth matching less than MIN_MATCH
+	// Not worth matching fewer than MIN_MATCH
 	static const int MIN_MATCH = 2; // pixels
 	static const int MAX_MATCH = 256; // pixels
 	static const int WIN_SIZE = 1024 * 1024; // pixels
@@ -170,39 +170,32 @@ public:
 	// bool IsMasked(u16 x, u16 y)
 	typedef Delegate2<bool, u16, u16> MaskDelegate;
 
-	// Not worth matching less than MIN_MATCH
-	static const int MIN_MATCH = 6; // pixels
+	// Not worth matching fewer than MIN_MATCH
+	static const int MIN_MATCH = 2; // pixels
 	static const int MAX_MATCH = 256; // pixels
-	static const int WIN_SIZE = 512 * 512; // pixels
+	static const int WIN_SIZE = 1024 * 1024; // pixels
 
 protected:
-	HuffmanEncoder _lz_dist_encoder;
+	HuffmanEncoder _lz_len_encoder;
+	HuffmanEncoder _lz_sdist_encoder;
+	HuffmanEncoder _lz_ldist_encoder;
 
-	bool findMatches(const u8 * CAT_RESTRICT mono, int xsize, int ysize, MonoMatchFinder::MaskDelegate mask, const u8 mask_color);
-
-	/*
-	 * Encoding cost in bits for monochrome data:
-	 */
-	static const int DIST_PREFIX_COST = 7; // bits
-	static const int LEN_PREFIX_COST = 5; // bits
-	static const int SAVED_PIXEL_BITS = 1; // bits
+	bool findMatches(const u8 * CAT_RESTRICT mono, const u8 * CAT_RESTRICT residuals, int xsize, int ysize, MonoMatchFinder::MaskDelegate mask, const u8 mask_color);
 
 	static const int HASH_BITS = 18;
 	static const int HASH_SIZE = 1 << HASH_BITS;
-	static const u64 HASH_MULT = 0xc6a4a7935bd1e995ULL;
+	//static const u64 HASH_MULT = 0xc6a4a7935bd1e995ULL;
 
 	// Returns hash for MIN_MATCH pixels
 	static CAT_INLINE u32 HashPixels(const u8 * CAT_RESTRICT mono) {
-		const u32 word0 = *reinterpret_cast<const u32 *>( mono );
-
-		u16 word1 = mono[4];
-		word1 |= static_cast<u16>( mono[5] ) << 8;
-
-		return (u32)( ( ((u64)word1 << 32) | word0 ) * HASH_MULT >> (64 - HASH_BITS) );
+		const u16 word0 = *reinterpret_cast<const u16 *>( mono );
+		return word0;
 	}
 
 public:
-	bool init(const u8 * CAT_RESTRICT mono, int xsize, int ysize, MonoMatchFinder::MaskDelegate mask);
+	bool init(const u8 * CAT_RESTRICT mono, const u8 * CAT_RESTRICT residuals, int xsize, int ysize, MonoMatchFinder::MaskDelegate mask);
+
+	void train(EntropyEncoder &ee);
 
 	int writeTables(ImageWriter &writer);
 	int write(int num_syms, EntropyEncoder &ee, ImageWriter &writer);

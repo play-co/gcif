@@ -631,49 +631,171 @@ bool MonoMatchFinder::findMatches(const u8 *mono, int xsize, int ysize, MonoMatc
 	return true;
 }
 
-bool MonoMatchFinder::init(const u8 * CAT_RESTRICT mono, int xsize, int ysize, MonoMatchFinder::MaskDelegate mask) {
+bool MonoMatchFinder::init(const u8 * CAT_RESTRICT mono, const u8 CAT_RESTRICT residuals, int xsize, int ysize, MonoMatchFinder::MaskDelegate mask) {
+	CAT_DEBUG_ENFORCE(MIN_MATCH == 2);
+	CAT_DEBUG_ENFORCE(MAX_MATCH == 256);
+
 	_xsize = xsize;
 
-	if (!findMatches(mono, xsize, ysize, mask, 0)) {
+	if (!findMatches(mono, residuals, xsize, ysize, mask)) {
 		return false;
 	}
 
 	reset();
-/*
+
 	// Collect LZ distance symbol statistics
-	FreqHistogram lz_dist_hist;
-	lz_dist_hist.init(ImageRGBAReader::LZ_DIST_SYMS);
+	FreqHistogram len_hist, sdist_hist, ldist_hist;
+	len_hist.init(ImageRGBAReader::LZ_LEN_SYMS);
+	sdist_hist.init(ImageRGBAReader::LZ_SDIST_SYMS);
+	ldist_hist.init(ImageRGBAReader::LZ_LDIST_SYMS);
+
+	// Track recent distances
+	u32 recent[LAST_COUNT];
+	CAT_OBJCLR(recent);
+	int recent_ii = 0;
 
 	// While not at the end of the match list,
 	while (peekOffset() != LZMatchFinder::GUARD_OFFSET) {
 		LZMatch *match = pop();
 
-		// Record symbol instance
-		lz_dist_hist.add(match->dist_code);
+		RGBAEncode(recent, recent_ii, match, _xsize);
+
+		CAT_DEBUG_ENFORCE(match->escape_code >= ImageRGBAReader::NUM_LIT_SYMS);
+		CAT_DEBUG_ENFORCE(match->escape_code < ImageRGBAReader::NUM_Y_SYMS);
+
+		if (match->emit_len) {
+			len_hist.add(match->len_code);
+		}
+
+		if (match->emit_sdist) {
+			sdist_hist.add(match->sdist_code);
+		} else {
+			if (match->emit_ldist) {
+				CAT_DEBUG_ENFORCE(!match->emit_sdist);
+				ldist_hist.add(match->ldist_code);
+			}
+		}
+
+		// Update recent distances
+		recent[recent_ii++] = match->distance;
+		if (recent_ii >= LAST_COUNT) {
+			recent_ii = 0;
+		}
 	}
 
-	// Initialize the LZ distance encoder
-	_lz_dist_encoder.init(lz_dist_hist);
-*/
+	// Initialize encoders
+	_lz_len_encoder.init(len_hist);
+	_lz_sdist_encoder.init(sdist_hist);
+	_lz_ldist_encoder.init(ldist_hist);
+
+	reset();
+
+	int rejects = 0, accepts = 0;
+
+	len_hist.zero();
+	sdist_hist.zero();
+	ldist_hist.zero();
+
+	// While not at the end of the match list,
+	while (peekOffset() != LZMatchFinder::GUARD_OFFSET) {
+		LZMatch *match = pop();
+
+		// Choose low bound of 2 on escape code cost
+		int bits = 2 + match->extra_bits;
+
+		if (match->emit_len) {
+			bits += _lz_len_encoder.simulateWrite(match->len_code);
+		}
+
+		if (match->emit_sdist) {
+			bits += _lz_sdist_encoder.simulateWrite(match->sdist_code);
+		} else if (match->emit_ldist) {
+			bits += _lz_ldist_encoder.simulateWrite(match->ldist_code);
+		}
+
+		if (match->saved < bits) {
+			++rejects;
+			match->accepted = false;
+		} else {
+			++accepts;
+			match->accepted = true;
+			for (int jj = 0; jj < match->length; ++jj) {
+				setMask(jj + match->offset);
+			}
+
+			if (match->emit_len) {
+				len_hist.add(match->len_code);
+			}
+
+			if (match->emit_sdist) {
+				sdist_hist.add(match->sdist_code);
+			} else {
+				if (match->emit_ldist) {
+					CAT_DEBUG_ENFORCE(!match->emit_sdist);
+					ldist_hist.add(match->ldist_code);
+				}
+			}
+		}
+	}
+
+	_lz_len_encoder.init(len_hist);
+	_lz_sdist_encoder.init(sdist_hist);
+	_lz_ldist_encoder.init(ldist_hist);
+
+	CAT_INANE("Mono") << "Accepted " << accepts << " LZ matches. Rejected " << rejects;
+
 	return true;
 }
 
+void MonoMatchFinder::train(EntropyEncoder &ee) {
+	// Get LZ match information
+	LZMatch *match = pop();
+
+	ee.add(match->escape_code);
+}
+
 int MonoMatchFinder::writeTables(ImageWriter &writer) {
-	return _lz_dist_encoder.writeTable(writer);
+	int bits = 0;
+
+	bits += _lz_len_encoder.writeTable(writer);
+	bits += _lz_sdist_encoder.writeTable(writer);
+	bits += _lz_ldist_encoder.writeTable(writer);
+
+	return bits;
 }
 
 int MonoMatchFinder::write(int num_syms, EntropyEncoder &ee, ImageWriter &writer) {
-	int bits = 0;
-
 	// Get LZ match information
-	//LZMatch *match = pop();
-/*
-	// Write length code
-	bits += ee.write(num_syms + match->len_code, writer);
+	LZMatch *match = pop();
 
-	// Write distance code
-	bits += _lz_dist_encoder.writeSymbol(match->dist_code, writer);
-*/
+	int ee_bits = ee.write(match->escape_code, writer);
+
+	int len_bits = 0, dist_bits = 0;
+
+	if (match->emit_len) {
+		len_bits += _lz_len_encoder.writeSymbol(match->len_code, writer);
+	}
+
+	if (match->emit_sdist) {
+		dist_bits += _lz_sdist_encoder.writeSymbol(match->sdist_code, writer);
+	}
+
+	if (match->emit_ldist) {
+		dist_bits += _lz_ldist_encoder.writeSymbol(match->ldist_code, writer);
+	}
+
+	if (match->extra_bits) {
+		writer.writeBits(match->extra, match->extra_bits);
+	}
+
+	int bits = ee_bits + len_bits + dist_bits + match->extra_bits;
+
+#ifdef CAT_DUMP_LZ
+	if (match->length < 5) {
+		CAT_WARN("Mono") << "ee=" << ee_bits << " len=" << len_bits << " dist=" << dist_bits << " extra=" << match->extra_bits << " : sum=" << bits << " LDIST=" << match->emit_ldist;
+	}
+#endif
+
 	return bits;
 }
 
