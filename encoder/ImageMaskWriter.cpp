@@ -81,13 +81,12 @@ void Masker::applyFilter() {
 	}
 }
 
-int Masker::init(const u8 *rgba, int planes, u32 color, u32 color_mask, int xsize, int ysize, const GCIFKnobs *knobs, int min_ratio) {
+int Masker::init(const u8 *rgba, int planes, u32 color, int xsize, int ysize, const GCIFKnobs *knobs, int min_ratio) {
 	_knobs = knobs;
 	_rgba = rgba;
 	_xsize = xsize;
 	_ysize = ysize;
 	_color = color;
-	_color_mask = color_mask;
 	_min_ratio = min_ratio;
 	_stride = (xsize + 31) >> 5;
 	_size = ysize * _stride;
@@ -119,7 +118,7 @@ int Masker::init(const u8 *rgba, int planes, u32 color, u32 color_mask, int xsiz
 
 			// If using RGBA,
 			if (planes == 4) {
-				if ((*(const u32 *)pixel & color_mask) == color) {
+				if (*(const u32 *)pixel == color) {
 					++covered;
 					bits |= 1;
 				}
@@ -504,21 +503,16 @@ int ImageMaskWriter::init(const u8 *rgba, int planes, int xsize, int ysize, cons
 	_ysize = ysize;
 	_planes = planes;
 
-	u32 domColor, mask;
+	u32 domColor;
 	if (planes == 4) {
 		domColor = dominantRGBA();
-		mask = 0xffffffff;
-		if (domColor == 0) {
-			mask = getLE(0xff000000);
-		}
 	} else {
 		domColor = dominantMono();
-		mask = 0xff; // unused
 	}
 
 	int err;
 
-	if ((err = _color.init(rgba, planes, domColor, mask, xsize, ysize, knobs, _knobs->mask_minColorRat))) {
+	if ((err = _color.init(rgba, planes, domColor, xsize, ysize, knobs, _knobs->mask_minColorRat))) {
 		return err;
 	}
 

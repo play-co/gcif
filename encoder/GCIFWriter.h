@@ -61,8 +61,9 @@ const char *gcif_write_errstr(int err);
  * 		1 = Better
  * 		2 = Harder
  * 		3 = Stronger
+ * strip_transparent_color: 0 = No. 1 = Yes, strip RGB data from fully transparent pixels.
  */
-int gcif_write(const void *rgba, int xsize, int ysize, const char *output_file_path, int compression_level);
+int gcif_write(const void *rgba, int xsize, int ysize, const char *output_file_path, int compression_level, int strip_transparent_color);
 
 
 // Extra twiddly knobs to eke out better performance if you prefer
@@ -102,7 +103,7 @@ struct GCIFKnobs {
  * knobs structure which gives you full control over the available options
  * controlling how the compressor works.
  */
-int gcif_write_ex(const void *rgba, int xsize, int ysize, const char *output_file_path, const GCIFKnobs *knobs);
+int gcif_write_ex(const void *rgba, int xsize, int ysize, const char *output_file_path, const GCIFKnobs *knobs, int strip_transparent_color);
 
 
 #ifdef __cplusplus
