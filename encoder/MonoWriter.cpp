@@ -1278,6 +1278,9 @@ void MonoWriter::init(const Parameters &params) {
 	// Initialize
 	_params = params;
 
+	// Only allow LZ to be enabled when write order is not specified
+	CAT_DEBUG_ENFORCE(!params.enable_lz || !params.write_order);
+
 	_row_filters.resize(_params.ysize);
 
 	CAT_DEBUG_ENFORCE(params.num_syms > 0);
@@ -1297,8 +1300,23 @@ void MonoWriter::init(const Parameters &params) {
 	u32 best_entropy = 0x7fffffff;
 	MonoWriterProfile *best_profile = 0;
 
-	// Find LZ77 matches in input data and mask those out
-	designLZ();
+	// If LZ77 is enabled,
+	if (params.enable_lz) {
+		// Do a fast trial of filtering without LZ masking to measure the cost per bit
+		profile->init(params.xsize, params.ysize, params.min_bits);
+		_profile = profile;
+
+		// Compute residuals for the tightest filters to get a good upper bound
+		maskTiles();
+		designPaletteFilters();
+		designFilters();
+		designPaletteTiles();
+		designTiles();
+		computeResiduals();
+
+		// Design LZ matches
+		designLZ();
+	}
 
 	// Try simple row filter first
 	designRowFilters();
