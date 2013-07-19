@@ -89,13 +89,10 @@ void MonoWriter::cleanup() {
 }
 
 void MonoWriter::designLZ() {
-	// If not writing in random order,
-	if (_params.enable_lz) {
-		//CAT_INANE("Mono") << "Finding LZ77 matches for " << _params.xsize << "x" << _params.ysize << "...";
+	CAT_INANE("Mono") << "Finding LZ77 matches for " << _params.xsize << "x" << _params.ysize << "...";
 
-		// Find LZ matches
-		_lz.init(_params.data, _params.xsize, _params.ysize, _params.mask);
-	}
+	// Find LZ matches
+	_lz.init(_params.data, _profile->residuals.get(), _params.xsize, _params.ysize, _params.mask);
 }
 
 void MonoWriter::designRowFilters() {
@@ -1087,6 +1084,7 @@ void MonoWriter::recurseCompress() {
 	params.ysize = tiles_y;
 	params.mask.SetMember<MonoWriter, &MonoWriter::IsMasked>(this);
 	params.write_order = &_profile->write_order[0];
+	params.enable_lz = false;
 
 	_profile->filter_encoder->init(params);
 }
