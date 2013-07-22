@@ -1367,6 +1367,8 @@ void MonoWriter::init(const Parameters &params) {
 		designLZ();
 
 		_params.lz_enable = true;
+	} else {
+		_params.lz_enable = false;
 	}
 
 	// Try simple row filter first
