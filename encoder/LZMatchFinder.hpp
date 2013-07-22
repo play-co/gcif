@@ -134,6 +134,8 @@ class RGBAMatchFinder : public LZMatchFinder {
 	static const int HASH_SIZE = 1 << HASH_BITS;
 	static const u64 HASH_MULT = 0xc6a4a7935bd1e995ULL;
 
+	static const int ESCAPE_CODE_LOW_BOUND = 2; // bits
+
 	// Returns hash for MIN_MATCH pixels
 	static CAT_INLINE u32 HashPixels(const u32 * CAT_RESTRICT rgba) {
 		return (u32)( ( ((u64)rgba[0] << 32) | rgba[1] ) * HASH_MULT >> (64 - HASH_BITS) );
@@ -169,6 +171,8 @@ class MonoMatchFinder : public LZMatchFinder {
 	static const int HASH_SIZE = 1 << HASH_BITS;
 	//static const u64 HASH_MULT = 0xc6a4a7935bd1e995ULL;
 
+	static const int ESCAPE_CODE_LOW_BOUND = 2; // bits
+
 	// Returns hash for MIN_MATCH pixels
 	static CAT_INLINE u32 HashPixels(const u8 * CAT_RESTRICT mono) {
 		const u16 word0 = *reinterpret_cast<const u16 *>( mono );
@@ -191,10 +195,10 @@ public:
 	static const int LAST_COUNT = 4; // Keep track of recently emitted distances
 
 protected:
-	bool findMatches(const u8 * CAT_RESTRICT mono, const u8 * CAT_RESTRICT residuals, int xsize, int ysize, MonoMatchFinder::MaskDelegate mask);
+	bool findMatches(const u8 * CAT_RESTRICT mono, const u8 * CAT_RESTRICT residuals, int xsize, int ysize, u16 color_mask, MaskDelegate &mask);
 
 public:
-	bool init(const u8 * CAT_RESTRICT mono, const u8 * CAT_RESTRICT residuals, int xsize, int ysize, MonoMatchFinder::MaskDelegate mask);
+	bool init(const u8 * CAT_RESTRICT mono, int num_syms, const u8 * CAT_RESTRICT residuals, int xsize, int ysize, u16 color_mask, MaskDelegate &mask);
 
 	void train(EntropyEncoder &ee);
 

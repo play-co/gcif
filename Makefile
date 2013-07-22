@@ -20,7 +20,7 @@ decode_objects += ImagePaletteReader.o MonoReader.o SmallPaletteReader.o
 gcif_objects = gcif.o lodepng.o Log.o Mutex.o Clock.o Thread.o
 gcif_objects += lz4hc.o HuffmanEncoder.o PaletteOptimizer.o
 gcif_objects += SystemInfo.o ImageWriter.o SmallPaletteWriter.o
-gcif_objects += ImageMaskWriter.o MonoWriter.o
+gcif_objects += ImageMaskWriter.o MonoWriter.o EntropyEncoder.o
 gcif_objects += ImageRGBAWriter.o FilterScorer.o
 gcif_objects += LZMatchFinder.o ImagePaletteWriter.o
 gcif_objects += GCIFWriter.o EntropyEstimator.o WaitableFlag.o
@@ -46,7 +46,7 @@ DECODE_SRCS += decoder/EntropyDecoder.cpp
 SRCS = ./gcif.cpp encoder/lodepng.cpp encoder/Log.cpp encoder/Mutex.cpp
 SRCS += encoder/Clock.cpp encoder/Thread.cpp
 SRCS += encoder/lz4hc.c encoder/MonoWriter.cpp
-SRCS += encoder/HuffmanEncoder.cpp
+SRCS += encoder/HuffmanEncoder.cpp encoder/EntropyEncoder.cpp
 SRCS += encoder/SystemInfo.cpp encoder/ImageWriter.cpp
 SRCS += encoder/ImageMaskWriter.cpp
 SRCS += encoder/ImageRGBAWriter.cpp
@@ -206,6 +206,9 @@ SmallPaletteReader.o : decoder/SmallPaletteReader.cpp
 
 LZMatchFinder.o : encoder/LZMatchFinder.cpp
 	$(CCPP) $(CPFLAGS) -c encoder/LZMatchFinder.cpp
+
+EntropyEncoder.o : encoder/EntropyEncoder.cpp
+	$(CCPP) $(CPFLAGS) -c encoder/EntropyEncoder.cpp
 
 EntropyDecoder.o : decoder/EntropyDecoder.cpp
 	$(CCPP) $(CPFLAGS) -c decoder/EntropyDecoder.cpp

@@ -46,7 +46,7 @@ using namespace cat;
 
 //// Commands
 
-static int compress(const char *filename, const char *outfile, int compress_level) {
+static int compress(const char *filename, const char *outfile, int compress_level, int strip_transparent_color) {
 	vector<unsigned char> image;
 	unsigned xsize, ysize;
 
@@ -63,7 +63,7 @@ static int compress(const char *filename, const char *outfile, int compress_leve
 
 	int err;
 
-	if ((err = gcif_write(&image[0], xsize, ysize, outfile, compress_level))) {
+	if ((err = gcif_write(&image[0], xsize, ysize, outfile, compress_level, strip_transparent_color))) {
 		CAT_WARN("main") << "Error while compressing the image: " << gcif_write_errstr(err);
 		return err;
 	}
@@ -117,10 +117,12 @@ static int benchfile(string filename) {
 	string benchfile = filename + ".lz.gci";
 	const char *cbenchfile = benchfile.c_str();
 
+	const int strip_transparent_color = 1;
+
 #ifdef CAT_BENCH_ONE
 	CAT_WARN("main") << "Compressing: " << filename;
 #endif
-	if ((err = gcif_write(&image[0], xsize, ysize, cbenchfile, compress_level))) {
+	if ((err = gcif_write(&image[0], xsize, ysize, cbenchfile, compress_level, strip_transparent_color))) {
 		CAT_WARN("main") << "Error while compressing the image: " << gcif_write_errstr(err) << " for " << filename;
 		return err;
 	}
@@ -336,7 +338,9 @@ static int replacefile(string filename) {
 	string benchfile = filename + ".gci";
 	const char *cbenchfile = benchfile.c_str();
 
-	if ((err = gcif_write(&image[0], xsize, ysize, cbenchfile, compress_level))) {
+	const int strip_transparent_color = 1;
+
+	if ((err = gcif_write(&image[0], xsize, ysize, cbenchfile, compress_level, strip_transparent_color))) {
 		CAT_WARN("main") << "Error while compressing the image: " << gcif_write_errstr(err) << " for " << filename;
 		return err;
 	}
@@ -526,7 +530,9 @@ static int testfile(string filename) {
 	string benchfile = filename + ".gci";
 	const char *cbenchfile = benchfile.c_str();
 
-	if ((err = gcif_write(&image[0], xsize, ysize, cbenchfile, compress_level))) {
+	const int strip_transparent_color = 1;
+
+	if ((err = gcif_write(&image[0], xsize, ysize, cbenchfile, compress_level, strip_transparent_color))) {
 		CAT_WARN("main") << "Error while compressing the image: " << gcif_write_errstr(err) << " for " << filename;
 		return err;
 	}
@@ -600,7 +606,7 @@ static int profileit(const char *filename) {
 
 //// Command-line parameter parsing
 
-enum  optionIndex { UNKNOWN, HELP, L0, L1, L2, L3, VERBOSE, SILENT, COMPRESS, DECOMPRESS, TEST, BENCHMARK, PROFILE, REPLACE };
+enum  optionIndex { UNKNOWN, HELP, L0, L1, L2, L3, VERBOSE, SILENT, COMPRESS, DECOMPRESS, TEST, BENCHMARK, PROFILE, REPLACE, NOSTRIP };
 const option::Descriptor usage[] =
 {
   {UNKNOWN, 0,"" , ""    ,option::Arg::None, "USAGE: ./gcif [options] [output file path]\n\n"
@@ -618,6 +624,7 @@ const option::Descriptor usage[] =
   {BENCHMARK,0,"b" , "benchmark",option::Arg::Optional, "  --[b]enchmark <test set path> \tTest compression ratio and decompression speed for a whole directory at once" },
   {PROFILE,0,"p" , "profile",option::Arg::Optional, "  --[p]rofile <input GCI file path> \tDecode same GCI file 100x to enhance profiling of decoder" },
   {REPLACE,0,"r" , "replace",option::Arg::Optional, "  --[r]eplace <directory path> \tCompress all images in the given directory, replacing the original if the GCIF version is smaller without changing file name" },
+  {NOSTRIP,0,"n" , "nostrip",option::Arg::Optional, "  --[n]ostrip \tDo not strip RGB color data from fully-transparent pixels.  The default is to remove this color data.  Saving it can be useful in some rare cases" },
   {UNKNOWN, 0,"" ,  ""   ,option::Arg::None, "\nExamples:\n"
                                              "  ./gcif -c ./original.png test.gci\n"
                                              "  ./gcif -d ./test.gci decoded.png" },
@@ -640,7 +647,13 @@ int processParameters(option::Parser &parse, option::Option options[]) {
 		Log::ref()->SetThreshold(LVL_INANE);
 	}
 
-	int compression_level = 999999;
+	int strip_transparent_color = 1; // default
+	if (options[NOSTRIP]) {
+		strip_transparent_color = 0;
+	}
+
+	int compression_level = 999999; // default
+
 	if (options[L0]) {
 		compression_level = 0;
 	} else if (options[L1]) {
@@ -659,7 +672,7 @@ int processParameters(option::Parser &parse, option::Option options[]) {
 			const char *outFilePath = parse.nonOption(1);
 			int err;
 
-			if ((err = compress(inFilePath, outFilePath, compression_level))) {
+			if ((err = compress(inFilePath, outFilePath, compression_level, strip_transparent_color))) {
 				CAT_INFO("main") << "Error during conversion [retcode:" << err << "]";
 				return err;
 			}

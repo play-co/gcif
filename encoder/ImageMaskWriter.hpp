@@ -86,7 +86,6 @@ class Masker {
 	int _min_ratio;			// Minimum compression ratio to achieve
 
 	u32 _color;				// Color value for match
-	u32 _color_mask;		// Portion of color value that must match
 
 	std::vector<u8> _lz, _rle;
 	HuffmanEncoder _encoder; // 256 symbols
@@ -121,7 +120,7 @@ public:
 	}
 
 	// Create mask
-	int init(const u8 *rgba, int planes, u32 color, u32 color_mask, int xsize, int ysize, const GCIFKnobs *knobs, int min_ratio);
+	int init(const u8 *rgba, int planes, u32 color, int xsize, int ysize, const GCIFKnobs *knobs, int min_ratio);
 
 	// Evaluate compression ratio
 	bool evaluate();
