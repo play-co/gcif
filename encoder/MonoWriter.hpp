@@ -121,7 +121,8 @@ public:
 		u16 min_bits, max_bits;			// Tile size bit range to try
 		MaskDelegate mask;				// Function to call to determine if an element is masked out
 		u16 num_syms;					// Number of symbols in data [0..num_syms-1]
-		bool enable_lz;					// Enable LZ encoder
+		bool lz_enable;					// Enable LZ encoder
+		u16 lz_mask_color;				// Set mask color for LZ
 
 		// Encoder-only
 		const GCIFKnobs *knobs;			// Global knobs
@@ -146,7 +147,8 @@ public:
 protected:
 	static const int MAX_PASSES = 4;
 	static const int MAX_ROW_PASSES = 4;
-	static const int TILE_THRESH = 256*256;
+	static const int TILE_THRESH = 32*32;	// Pixel count minimum to use natural compressor
+	static const int LZ_THRESH = 32*32;		// Pixel count minimum to use LZ77 compressor
 
 	static const u8 UNUSED_SYMPAL = 255;
 	static const int ORDER_SENTINEL = 0xffff;
@@ -178,8 +180,14 @@ protected:
 	bool _use_row_filters;					// Using row filters?
 	bool _one_row_filter;					// Only one row filter?
 
+	// LZ workspace
+	SmartArray<u8> _pixel_price;			// Cost of encoding each pixel without LZ
+
 	// Mask function for child instance
 	bool IsMasked(u16 x, u16 y);
+
+	// Calculate natural compressor cost upper bound per pixel
+	void priceResiduals();
 
 	// Check for LZ matches
 	void designLZ();

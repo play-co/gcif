@@ -403,8 +403,9 @@ bool RGBAMatchFinder::init(const u32 * CAT_RESTRICT rgba, const u8 * CAT_RESTRIC
 	while (peekOffset() != LZMatchFinder::GUARD_OFFSET) {
 		LZMatch *match = pop();
 
-		// Choose low bound of 2 on escape code cost
-		int bits = 2 + match->extra_bits;
+		// Estimate bit cost of LZ match representation:
+
+		int bits = ESCAPE_CODE_LOW_BOUND + match->extra_bits;
 
 		if (match->emit_len) {
 			bits += _lz_len_encoder.simulateWrite(match->len_code);
@@ -415,6 +416,8 @@ bool RGBAMatchFinder::init(const u32 * CAT_RESTRICT rgba, const u8 * CAT_RESTRIC
 		} else if (match->emit_ldist) {
 			bits += _lz_ldist_encoder.simulateWrite(match->ldist_code);
 		}
+
+		// Verify it saves more than it costs:
 
 		if (match->saved < bits) {
 			++rejects;
@@ -505,11 +508,7 @@ int RGBAMatchFinder::write(EntropyEncoder &ee, ImageWriter &writer) {
 
 //// MonoMatchFinder
 
-bool MonoMatchFinder::findMatches(const u8 * CAT_RESTRICT mono, const u8 * CAT_RESTRICT residuals, int xsize, int ysize, MonoMatchFinder::MaskDelegate image_mask) {
-	// Setup mask
-	const u32 mask_color = image_mask->getColor();
-	const bool using_mask = image_mask->enabled();
-
+bool MonoMatchFinder::findMatches(const u8 * CAT_RESTRICT mono, const u8 * CAT_RESTRICT residuals, int xsize, int ysize, u16 mask_color, MaskDelegate &image_mask) {
 	// Allocate and zero the table and chain
 	const int pixels = xsize * ysize;
 	SmartArray<u32> table, chain;
@@ -527,17 +526,17 @@ bool MonoMatchFinder::findMatches(const u8 * CAT_RESTRICT mono, const u8 * CAT_R
 	int recent_ii = 0;
 
 	// For each pixel, stopping just before the last pixel:
-	const u32 *rgba_now = rgba;
+	const u8 *mono_now = mono;
 	u16 x = 0, y = 0;
 	for (int ii = 0, iiend = pixels - MIN_MATCH; ii <= iiend;) {
-		const u32 hash = HashPixels(rgba_now);
+		const u32 hash = HashPixels(mono_now);
 		u16 best_length = 1;
 		u32 best_distance = 0;
 		int best_score = 0;
 		int best_saved = 0;
 
 		// If not masked,
-		if (!using_mask || !image_mask->masked(x, y)) {
+		if (!image_mask(x, y)) {
 			// For each hash collision,
 			for (u32 node = table[hash]; node != 0; node = chain[node - 1]) {
 				--node; // Fix node from table data
@@ -550,16 +549,16 @@ bool MonoMatchFinder::findMatches(const u8 * CAT_RESTRICT mono, const u8 * CAT_R
 				}
 
 				// Fast reject potential matches that are too short
-				const u32 *rgba_node = rgba + node;
-				if (rgba_node[best_length] != rgba_now[best_length]) {
+				const u8 *mono_node = mono + node;
+				if (mono_node[best_length] != mono_now[best_length]) {
 					continue;
 				}
 
-				u32 base_color = rgba_now[0];
-				if (rgba_node[0] == base_color) {
+				u8 base_color = mono_now[0];
+				if (mono_node[0] == base_color) {
 					// Find match length
 					int match_len = 1;
-					for (; match_len < MAX_MATCH && rgba_node[match_len] == rgba_now[match_len]; ++match_len);
+					for (; match_len < MAX_MATCH && mono_node[match_len] == mono_now[match_len]; ++match_len);
 
 					// Future matches will be farther away (more expensive in distance)
 					// so they should be at least as long as previous matches to be considered
@@ -567,20 +566,14 @@ bool MonoMatchFinder::findMatches(const u8 * CAT_RESTRICT mono, const u8 * CAT_R
 						const u8 * CAT_RESTRICT saved = residuals;
 						int bitsSaved = 0;
 
-						if (using_mask) {
-							int fix_len = 0;
-							for (int jj = 0; jj < match_len; ++jj, saved += 4) {
-								if (rgba_now[jj] != mask_color) {
-									fix_len = jj + 1;
-									bitsSaved += saved[0];
-								}
-							}
-							match_len = fix_len;
-						} else {
-							for (int jj = 0; jj < match_len; ++jj, saved += 4) {
+						int fix_len = 0;
+						for (int jj = 0; jj < match_len; ++jj, saved += 4) {
+							if (mono_now[jj] != mask_color) {
+								fix_len = jj + 1;
 								bitsSaved += saved[0];
 							}
 						}
+						match_len = fix_len;
 
 						if (match_len >= 2) {
 							int bitsCost = 0;
@@ -624,9 +617,9 @@ bool MonoMatchFinder::findMatches(const u8 * CAT_RESTRICT mono, const u8 * CAT_R
 		// Insert current pixel
 		chain[ii] = table[hash] + 1;
 		table[hash] = ++ii;
-		++rgba_now;
+		++mono_now;
 		++x;
-		residuals += 4;
+		++residuals;
 
 		// If a best node was found,
 		if (best_distance > 0) {
@@ -643,10 +636,10 @@ bool MonoMatchFinder::findMatches(const u8 * CAT_RESTRICT mono, const u8 * CAT_R
 
 			// Insert matched pixels
 			for (int jj = 1; jj < best_length; ++jj) {
-				const u32 matched_hash = HashPixels(rgba_now);
+				const u32 matched_hash = HashPixels(mono_now);
 				chain[ii] = table[matched_hash] + 1;
 				table[matched_hash] = ++ii;
-				++rgba_now;
+				++mono_now;
 			}
 
 			// Skip ahead
@@ -667,8 +660,8 @@ bool MonoMatchFinder::findMatches(const u8 * CAT_RESTRICT mono, const u8 * CAT_R
 }
 
 static void MonoEncode(u32 *recent, int recent_ii, LZMatchFinder::LZMatch *match, int xsize) {
-	static const u16 SYM0 = ImageRGBAReader::NUM_LIT_SYMS;
-	static const int LAST_COUNT = RGBAMatchFinder::LAST_COUNT;
+	static const u16 SYM0 = 0; // Offset from 0 for now
+	static const int LAST_COUNT = MonoMatchFinder::LAST_COUNT;
 
 	match->emit_sdist = false;
 	match->emit_ldist = false;
@@ -680,8 +673,8 @@ static void MonoEncode(u32 *recent, int recent_ii, LZMatchFinder::LZMatch *match
 	CAT_DEBUG_ENFORCE(distance > 0);
 	CAT_DEBUG_ENFORCE(length >= 2);
 	CAT_DEBUG_ENFORCE(length <= 256);
-	CAT_DEBUG_ENFORCE(RGBAMatchFinder::MIN_MATCH == 2);
-	CAT_DEBUG_ENFORCE(RGBAMatchFinder::MAX_MATCH == 256);
+	CAT_DEBUG_ENFORCE(MonoMatchFinder::MIN_MATCH == 2);
+	CAT_DEBUG_ENFORCE(MonoMatchFinder::MAX_MATCH == 256);
 
 	// Try to represent the distance in the escape code:
 
@@ -801,13 +794,14 @@ static void MonoEncode(u32 *recent, int recent_ii, LZMatchFinder::LZMatch *match
 #endif
 }
 
-bool MonoMatchFinder::init(const u8 * CAT_RESTRICT mono, const u8 * CAT_RESTRICT residuals, int xsize, int ysize, MonoMatchFinder::MaskDelegate mask) {
+bool MonoMatchFinder::init(const u8 * CAT_RESTRICT mono, int num_syms, const u8 * CAT_RESTRICT residuals, int xsize, int ysize, u16 color_mask, MaskDelegate &image_mask) {
 	CAT_DEBUG_ENFORCE(MIN_MATCH == 2);
 	CAT_DEBUG_ENFORCE(MAX_MATCH == 256);
+	CAT_DEBUG_ENFORCE(num_syms <= 256);
 
 	_xsize = xsize;
 
-	if (!findMatches(mono, residuals, xsize, ysize, mask)) {
+	if (!findMatches(mono, residuals, xsize, ysize, color_mask, image_mask)) {
 		return false;
 	}
 
@@ -815,9 +809,9 @@ bool MonoMatchFinder::init(const u8 * CAT_RESTRICT mono, const u8 * CAT_RESTRICT
 
 	// Collect LZ distance symbol statistics
 	FreqHistogram len_hist, sdist_hist, ldist_hist;
-	len_hist.init(ImageRGBAReader::LZ_LEN_SYMS);
-	sdist_hist.init(ImageRGBAReader::LZ_SDIST_SYMS);
-	ldist_hist.init(ImageRGBAReader::LZ_LDIST_SYMS);
+	len_hist.init(MonoReader::LZ_LEN_SYMS);
+	sdist_hist.init(MonoReader::LZ_SDIST_SYMS);
+	ldist_hist.init(MonoReader::LZ_LDIST_SYMS);
 
 	// Track recent distances
 	u32 recent[LAST_COUNT];
@@ -830,8 +824,9 @@ bool MonoMatchFinder::init(const u8 * CAT_RESTRICT mono, const u8 * CAT_RESTRICT
 
 		MonoEncode(recent, recent_ii, match, _xsize);
 
-		CAT_DEBUG_ENFORCE(match->escape_code >= ImageRGBAReader::NUM_LIT_SYMS);
-		CAT_DEBUG_ENFORCE(match->escape_code < ImageRGBAReader::NUM_Y_SYMS);
+		// Fix escape code to start right after num_syms
+		CAT_DEBUG_ENFORCE(match->escape_code < MonoReader::LZ_LEN_SYMS);
+		match->escape_code += num_syms;
 
 		if (match->emit_len) {
 			len_hist.add(match->len_code);
@@ -870,8 +865,9 @@ bool MonoMatchFinder::init(const u8 * CAT_RESTRICT mono, const u8 * CAT_RESTRICT
 	while (peekOffset() != LZMatchFinder::GUARD_OFFSET) {
 		LZMatch *match = pop();
 
-		// Choose low bound of 2 on escape code cost
-		int bits = 2 + match->extra_bits;
+		// Estimate bit cost of LZ match representation:
+
+		int bits = ESCAPE_CODE_LOW_BOUND + match->extra_bits;
 
 		if (match->emit_len) {
 			bits += _lz_len_encoder.simulateWrite(match->len_code);
@@ -882,6 +878,8 @@ bool MonoMatchFinder::init(const u8 * CAT_RESTRICT mono, const u8 * CAT_RESTRICT
 		} else if (match->emit_ldist) {
 			bits += _lz_ldist_encoder.simulateWrite(match->ldist_code);
 		}
+
+		// Verify it saves more than it costs:
 
 		if (match->saved < bits) {
 			++rejects;

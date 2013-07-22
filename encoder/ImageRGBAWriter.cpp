@@ -579,7 +579,8 @@ bool ImageRGBAWriter::compressAlpha() {
 	params.AWARDS[3] = 1;
 	params.award_count = 4;
 	params.write_order = 0;
-	params.enable_lz = false;
+	params.lz_enable = true;
+	params.lz_mask_color = _mask->enabled() ? static_cast<u8>( ~(getLE(_mask->getColor()) >> 24) ) : 65535;
 
 	_a_encoder.init(params);
 
@@ -772,7 +773,7 @@ bool ImageRGBAWriter::compressSF() {
 	params.AWARDS[3] = 1;
 	params.award_count = 4;
 	params.write_order = &_filter_order[0];
-	params.enable_lz = false;
+	params.lz_enable = false;
 
 	CAT_INANE("RGBA") << "Compressing spatial filter matrix...";
 
@@ -801,7 +802,7 @@ bool ImageRGBAWriter::compressCF() {
 	params.AWARDS[3] = 1;
 	params.award_count = 4;
 	params.write_order = &_filter_order[0];
-	params.enable_lz = false;
+	params.lz_enable = false;
 
 	CAT_INANE("RGBA") << "Compressing color filter matrix...";
 
