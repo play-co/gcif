@@ -200,9 +200,8 @@ int EntropyEncoder::finalize() {
 	}
 }
 
-int EntropyEncoder::simulate(u16 symbol, int &zero_run) {
+int EntropyEncoder::price(u16 symbol) {
 	CAT_DEBUG_ENFORCE(symbol == _basic_syms[_basic_recall++]);
-	zero_run = 0;
 
 	// Convert fake zero to a zero
 	if (symbol == FAKE_ZERO) {
@@ -221,8 +220,6 @@ int EntropyEncoder::simulate(u16 symbol, int &zero_run) {
 		return _basic.simulateWrite(symbol);
 	}
 
-	int bits = 0;
-
 	// If zero,
 	if (symbol == 0) {
 		// If starting a zero run,
@@ -232,23 +229,27 @@ int EntropyEncoder::simulate(u16 symbol, int &zero_run) {
 			// Write stored zero run
 			int runLength = _runList[_runListReadIndex++];
 
-			bits += simulateZeroRun(runLength);
+			int bits = simulateZeroRun(runLength);
 
-			zero_run = runLength;
+			// Calculate average cost of encoding zeroes in this run
+			int zeroCost = bits / runLength;
+			if (zeroCost <= 0) {
+				zeroCost = 1; // min = 1 bit
+			}
+			_zeroCost = zeroCost;
 		}
 
 		++_zeroRun;
+		return _zeroCost;
 	} else {
 		// If just out of a zero run,
 		if (_zeroRun > 0) {
 			_zeroRun = 0;
-			bits += _az.simulateWrite(symbol);
+			return _az.simulateWrite(symbol);
 		} else {
-			bits += _bz.simulateWrite(symbol);
+			return _bz.simulateWrite(symbol);
 		}
 	}
-
-	return bits;
 }
 
 int EntropyEncoder::writeTables(ImageWriter &writer) {

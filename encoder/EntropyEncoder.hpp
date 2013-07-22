@@ -78,6 +78,7 @@ class EntropyEncoder {
 	int _zeroRun;
 	std::vector<int> _runList;
 	int _runListReadIndex;
+	int _zeroCost;
 
 #ifdef CAT_DEBUG
 	int _basic_recall;
@@ -109,7 +110,7 @@ public:
 	}
 
 	// Be sure to reset before/after simulation
-	int simulate(u16 symbol, int &zero_run); // Fills zero_run with zRLE count
+	int price(u16 symbol); // in bits (for zRLE = average bits >= 1)
 
 	int writeTables(ImageWriter &writer);
 	int write(u16 symbol, ImageWriter &writer);

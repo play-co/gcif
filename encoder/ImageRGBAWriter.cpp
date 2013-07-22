@@ -55,42 +55,38 @@ using namespace std;
 
 //// ImageRGBAWriter
 
-static const u8 RESIDUALS_PRICE[256] = {
-	 1,  2,  4,  5,  5,  6,  6,  6,   6,  6,  6,  7,  7,  7,  7,  7,
-	 7,  7,  7,  7,  7,  7,  7,  7,   8,  8,  8,  8,  8,  8,  8,  8,
-	 9,  8,  8,  9,  8,  9,  9,  9,   9,  9,  9,  9,  9,  9, 10,  9,
-	 9, 10,  9,  9,  9,  9, 10, 10,  10, 10, 10, 10, 10, 10, 10, 10,
-	10, 10, 10, 10, 10, 10, 11, 10,  10, 10, 10, 11, 11, 11, 11, 11,
-	10, 11, 10, 10, 10, 11, 11, 10,  11, 12, 11, 12, 11, 11, 10, 11,
-	12, 11, 10, 11, 12, 12, 11, 11,  12, 12, 10, 11, 10, 11, 12, 12,
-	11, 12, 12, 11, 12, 12, 11, 12,  10, 11, 12, 12, 12, 10, 12, 11,
-	11, 11, 12, 12, 12, 12, 12, 12,  10, 11, 11, 12, 11, 12, 12, 10,
-	11, 12, 10, 11, 11, 11, 12, 11,  11, 12, 11, 11, 11, 11, 10, 11,
-	11, 10, 12, 11, 11, 10, 11, 11,  11, 11, 10, 14, 11, 10, 10, 11,
-	10, 11, 10, 10, 11, 11, 10, 10,  10, 10, 10, 11, 10, 10, 10, 10,
-	10, 10, 10,  9,  9, 10, 10, 10,   9, 10,  9,  9,  9,  9,  9,  9,
-	 9,  9,  9,  9,  9,  9,  9,  9,   8,  9,  9,  9,  9,  9,  8,  8,
-	 8,  8,  8,  8,  8,  8,  8,  8,   8,  7,  7,  8,  7,  7,  7,  7,
-	 7,  7,  7,  7,  7,  6,  6,  6,   6,  6,  6,  6,  5,  5,  4,  2,
-};
-
 void ImageRGBAWriter::priceResiduals() {
 	CAT_INANE("RGBA") << "Assigning approximate bit costs to residuals...";
+
+	_encoders->chaos.start();
+
+	for (int ii = 0, iiend = _encoders->chaos.getBinCount(); ii < iiend; ++ii) {
+		_encoders->y[ii].reset();
+		_encoders->u[ii].reset();
+		_encoders->v[ii].reset();
+	}
 
 	// For each pixel of residuals,
 	u8 *residuals = _residuals.get();
 	for (u16 y = 0; y < _ysize; ++y) {
 		for (u16 x = 0; x < _xsize; ++x, residuals += 4) {
-			if (!IsMasked(x, y)) {
-				// Calculate it
-				u32 price = RESIDUALS_PRICE[residuals[0]];
-				price += RESIDUALS_PRICE[residuals[1]];
-				price += RESIDUALS_PRICE[residuals[2]];
-
-				// Store it
-				residuals[3] = price > 255 ? 255 : static_cast<u8>( price );
-			} else {
+			if (_mask->masked(x, y)) {
+				_encoders->chaos.zero(x);
 				residuals[3] = 0;
+			} else {
+				// Get chaos bin
+				u8 cy, cu, cv;
+				_encoders->chaos.get(x, cy, cu, cv);
+
+				// Update chaos
+				_encoders->chaos.store(x, residuals);
+
+				int bits = _encoders->y[cy].price(residuals[0]);
+				bits += _encoders->u[cu].price(residuals[1]);
+				bits += _encoders->v[cv].price(residuals[2]);
+
+				CAT_DEBUG_ENFORCE(bits < 256);
+				residuals[3] = static_cast<u8>( bits );
 			}
 		}
 	}
@@ -676,7 +672,9 @@ void ImageRGBAWriter::designChaos() {
 
 		// Reset LZ
 		u32 offset = 0;
-		_lz.reset();
+		if (_lz_enabled) {
+			_lz.reset();
+		}
 
 		// For each row,
 		const u8 *residuals = _residuals.get();
@@ -684,7 +682,7 @@ void ImageRGBAWriter::designChaos() {
 			// For each column,
 			for (int x = 0; x < _xsize; ++x, ++offset) {
 				// If we just hit the start of the next LZ copy region,
-				if (offset == _lz.peekOffset()) {
+				if (_lz_enabled && offset == _lz.peekOffset()) {
 					// Get chaos bin
 					u8 cy, cu, cv;
 					encoders->chaos.get(x, cy, cu, cv);
@@ -857,6 +855,7 @@ int ImageRGBAWriter::init(const u8 *rgba, int xsize, int ysize, ImageMaskWriter 
 	designTilesFast();
 	sortFilters();
 	computeResiduals();
+	designChaos();
 	priceResiduals();
 
 	// Now do informed LZ77 compression
