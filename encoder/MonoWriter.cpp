@@ -91,7 +91,7 @@ void MonoWriter::cleanup() {
 void MonoWriter::priceResiduals() {
 	CAT_INANE("Mono") << "Assigning approximate bit costs to residuals...";
 
-	_pixel_price.resize(_params.xsize * _params.ysize);
+	_prices.resize(_params.xsize * _params.ysize);
 
 	_profile->encoders->chaos.start();
 
@@ -99,34 +99,59 @@ void MonoWriter::priceResiduals() {
 		_profile->encoders->encoder[ii].reset();
 	}
 
+	int zero_run = 0;
+	u8 zero_cost;
+
 	// For each pixel of residuals,
 	const u8 *residuals = _profile->residuals.get();
-	u8 *prices = _pixel_price.get();
+	u8 *prices = _prices.get();
 	for (u16 y = 0; y < _params.ysize; ++y) {
 		for (u16 x = 0; x < _params.xsize; ++x, ++residuals, ++prices) {
-			int residual;
-			int bits;
-
 			// Get tile
 			const u16 tx = x >> _profile->tile_bits_x;
 			const u16 ty = y >> _profile->tile_bits_y;
 			const u8 f = _profile->getTile(tx, ty);
 
-			CAT_DEBUG_ENFORCE(!IsMasked(tx, ty));
-
 			// If using sympal,
-			if (_profile->filter_indices[f] >= SF_COUNT) {
+			if (IsMasked(tx, ty) || _profile->filter_indices[f] >= SF_COUNT || _params.mask(x, y)) {
 				_profile->encoders->chaos.zero(x);
+				prices[0] = 0;
 			} else {
 				// Look up residual sym
-				u8 residual = _profile->residuals[x + y * _params.xsize];
+				const u8 residual = residuals[0];
 
 				// Calculate local chaos
 				int chaos = _profile->encoders->chaos.get(x);
 				_profile->encoders->chaos.store(x, residual, _params.num_syms);
 
 				// Write the residual value
-				prices[0] = _profile->encoders->encoder[chaos].simulate(residual);
+				if (zero_run) {
+					int zrle_zero;
+					int zrle_cost = _profile->encoders->encoder[chaos].simulate(residual, zrle_zero);
+					CAT_DEBUG_ENFORCE(zrle_zero == 0 && zrle_cost == 0);
+
+					// Store average zero cost for this run
+					prices[0] = zero_cost;
+					--zero_run;
+				} else {
+					u8 bits = static_cast<u8>( _profile->encoders->encoder[chaos].simulate(residual, zero_run) );
+
+					// If zero run is starting,
+					if (zero_run > 0) {
+						CAT_DEBUG_ENFORCE(bits > 0 && residual == 0);
+						// Calculate average cost of zeroes
+						zero_cost = static_cast<u8>( bits / zero_run );
+						if (zero_cost <= 0) {
+							zero_cost = 1;
+						}
+						bits = zero_cost;
+						--zero_run;
+					} else {
+						CAT_DEBUG_ENFORCE(residual != 0);
+					}
+
+					prices[0] = bits;
+				}
 			}
 		}
 	}
@@ -136,7 +161,7 @@ void MonoWriter::designLZ() {
 	CAT_INANE("Mono") << "Finding LZ77 matches for " << _params.xsize << "x" << _params.ysize << "...";
 
 	// Find LZ matches
-	_lz.init(_params.data, _params.num_syms, _profile->residuals.get(), _params.xsize, _params.ysize, _params.lz_mask_color, _params.mask);
+	_lz.init(_params.data, _params.num_syms, _prices.get(), _params.xsize, _params.ysize, _params.lz_mask_color, _params.mask);
 }
 
 void MonoWriter::designRowFilters() {
@@ -1361,6 +1386,9 @@ void MonoWriter::init(const Parameters &params) {
 		designPaletteTiles();
 		designTiles();
 		computeResiduals();
+		optimizeTiles();
+		designChaos();
+		priceResiduals();
 
 		// Design LZ matches
 		designLZ();

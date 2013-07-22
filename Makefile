@@ -207,8 +207,8 @@ SmallPaletteReader.o : decoder/SmallPaletteReader.cpp
 LZMatchFinder.o : encoder/LZMatchFinder.cpp
 	$(CCPP) $(CPFLAGS) -c encoder/LZMatchFinder.cpp
 
-EntropyEncoder.o : decoder/EntropyEncoder.cpp
-	$(CCPP) $(CPFLAGS) -c decoder/EntropyEncoder.cpp
+EntropyEncoder.o : encoder/EntropyEncoder.cpp
+	$(CCPP) $(CPFLAGS) -c encoder/EntropyEncoder.cpp
 
 EntropyDecoder.o : decoder/EntropyDecoder.cpp
 	$(CCPP) $(CPFLAGS) -c decoder/EntropyDecoder.cpp

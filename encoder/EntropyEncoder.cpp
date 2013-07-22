@@ -200,8 +200,9 @@ int EntropyEncoder::finalize() {
 	}
 }
 
-int EntropyEncoder::simulate(u16 symbol) {
+int EntropyEncoder::simulate(u16 symbol, int &zero_run) {
 	CAT_DEBUG_ENFORCE(symbol == _basic_syms[_basic_recall++]);
+	zero_run = 0;
 
 	// Convert fake zero to a zero
 	if (symbol == FAKE_ZERO) {
@@ -232,6 +233,8 @@ int EntropyEncoder::simulate(u16 symbol) {
 			int runLength = _runList[_runListReadIndex++];
 
 			bits += simulateZeroRun(runLength);
+
+			zero_run = runLength;
 		}
 
 		++_zeroRun;

@@ -109,7 +109,7 @@ public:
 	}
 
 	// Be sure to reset before/after simulation
-	int simulate(u16 symbol);
+	int simulate(u16 symbol, int &zero_run); // Fills zero_run with zRLE count
 
 	int writeTables(ImageWriter &writer);
 	int write(u16 symbol, ImageWriter &writer);

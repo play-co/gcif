@@ -181,7 +181,7 @@ protected:
 	bool _one_row_filter;					// Only one row filter?
 
 	// LZ workspace
-	SmartArray<u8> _pixel_price;			// Cost of encoding each pixel without LZ
+	SmartArray<u8> _prices;					// Cost of encoding each pixel without LZ
 
 	// Mask function for child instance
 	bool IsMasked(u16 x, u16 y);
