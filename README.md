@@ -181,7 +181,7 @@ Specification
 ### Philosophy
 
 GCIF follows the philosophy that different types of images should be encoded
-in different ways.  There are three major image qualities that make them easy
+in different ways.  There are four major image qualities that make them easy
 to compress:
 
 + Often times images will have a dominant color that covers more than 50% of
