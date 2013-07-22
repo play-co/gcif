@@ -181,20 +181,21 @@ Specification
 ### Philosophy
 
 GCIF follows the philosophy that different types of images should be encoded
-in different ways.  There are three major image qualities that make them easy
-to compress:
+in different ways.  There are four major qualities that game graphics tend
+to have that make them easier to compress:
 
 + Often times images will have a dominant color that covers more than 50% of
-the pixels.  GCIF encodes this as a separate bitmask.
+the pixels (such as a transparent background).  GCIF encodes this as a
+separate bitmask.
 
 + Images with only a few colors should be compressed in a way that can take
 advantage of the limited color palette, so a paletted mode is preferred for
 these types of images.
 
 + Photographic (natural) images are best compressed using the BCIF-like
-tiled filter approach that we take.
+tiled filter approach.
 
-+ Computer art images can have a large color palette but still contain a lot
++ Computer art images may have a large color palette but still contain a lot
 of repetitive pixel patterns that should be compressed using LZ77 with a
 bitstream format that is optimized for images.
 
