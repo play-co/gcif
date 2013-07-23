@@ -24,6 +24,7 @@ gcif_objects += ImageMaskWriter.o MonoWriter.o EntropyEncoder.o
 gcif_objects += ImageRGBAWriter.o FilterScorer.o
 gcif_objects += LZMatchFinder.o ImagePaletteWriter.o
 gcif_objects += GCIFWriter.o EntropyEstimator.o WaitableFlag.o
+gcif_objects += divsufsort.o sssort.o trsort.o ssutils.o
 gcif_objects += $(decode_objects)
 #gcif_objects += ImageLPReader.o ImageLPWriter.o
 #gcif_objects += ImageLZReader.o ImageLZWriter.o
@@ -56,6 +57,10 @@ SRCS += encoder/GCIFWriter.cpp encoder/PaletteOptimizer.cpp
 SRCS += encoder/ImagePaletteWriter.cpp
 SRCS += encoder/EntropyEstimator.cpp encoder/WaitableFlag.cpp
 SRCS += encoder/MonoWriter.cpp
+SRCS += encoder/libdivsufsort/divsufsort.c
+SRCS += encoder/libdivsufsort/sssort.c
+SRCS += encoder/libdivsufsort/trsort.c
+SRCS += encoder/libdivsufsort/utils.c
 SRCS += $(DECODE_SRCS)
 #SRCS += ImageLPReader.cpp ImageLPWriter.cpp
 #SRCS += ImageLZReader.cpp ImageLZWriter.cpp
@@ -212,6 +217,18 @@ EntropyEncoder.o : encoder/EntropyEncoder.cpp
 
 EntropyDecoder.o : decoder/EntropyDecoder.cpp
 	$(CCPP) $(CPFLAGS) -c decoder/EntropyDecoder.cpp
+
+divsufsort.o : encoder/libdivsufsort/divsufsort.c
+	$(CC) $(CFLAGS) -c encoder/libdivsufsort/divsufsort.c
+
+sssort.o : encoder/libdivsufsort/sssort.c
+	$(CC) $(CFLAGS) -c encoder/libdivsufsort/sssort.c
+
+trsort.o : encoder/libdivsufsort/trsort.c
+	$(CC) $(CFLAGS) -c encoder/libdivsufsort/trsort.c
+
+ssutils.o : encoder/libdivsufsort/utils.c
+	$(CC) $(CFLAGS) -c encoder/libdivsufsort/utils.c
 
 decomp.o : decomp.cpp
 	$(CCPP) $(CPFLAGS) -c decomp.cpp
