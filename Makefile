@@ -21,7 +21,7 @@ gcif_objects = gcif.o lodepng.o Log.o Mutex.o Clock.o Thread.o
 gcif_objects += lz4hc.o HuffmanEncoder.o PaletteOptimizer.o
 gcif_objects += SystemInfo.o ImageWriter.o SmallPaletteWriter.o
 gcif_objects += ImageMaskWriter.o MonoWriter.o EntropyEncoder.o
-gcif_objects += ImageRGBAWriter.o FilterScorer.o
+gcif_objects += ImageRGBAWriter.o FilterScorer.o SuffixArray3.o
 gcif_objects += LZMatchFinder.o ImagePaletteWriter.o
 gcif_objects += GCIFWriter.o EntropyEstimator.o WaitableFlag.o
 gcif_objects += divsufsort.o sssort.o trsort.o ssutils.o
@@ -52,7 +52,7 @@ SRCS += encoder/SystemInfo.cpp encoder/ImageWriter.cpp
 SRCS += encoder/ImageMaskWriter.cpp
 SRCS += encoder/ImageRGBAWriter.cpp
 SRCS += encoder/FilterScorer.cpp encoder/SmallPaletteWriter.cpp
-SRCS += encoder/LZMatchFinder.cpp
+SRCS += encoder/LZMatchFinder.cpp encoder/SuffixArray3.cpp
 SRCS += encoder/GCIFWriter.cpp encoder/PaletteOptimizer.cpp
 SRCS += encoder/ImagePaletteWriter.cpp
 SRCS += encoder/EntropyEstimator.cpp encoder/WaitableFlag.cpp
@@ -217,6 +217,9 @@ EntropyEncoder.o : encoder/EntropyEncoder.cpp
 
 EntropyDecoder.o : decoder/EntropyDecoder.cpp
 	$(CCPP) $(CPFLAGS) -c decoder/EntropyDecoder.cpp
+
+SuffixArray3.o : encoder/SuffixArray3.cpp
+	$(CCPP) $(CPFLAGS) -c encoder/SuffixArray3.cpp
 
 divsufsort.o : encoder/libdivsufsort/divsufsort.c
 	$(CC) $(CFLAGS) -c encoder/libdivsufsort/divsufsort.c
