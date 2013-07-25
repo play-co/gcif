@@ -185,7 +185,8 @@ enum ColorFilters {
 	CF_YCgCo_R,	// Malvar's YCgCo-R
 	CF_GB_RB,	// from BCIF
 	CF_NONE,	// No modification
-	CF_COUNT,
+
+	CF_COUNT
 };
 
 typedef void (*RGB2YUVFilterFunction)(const u8 * CAT_RESTRICT rgb_in, u8 * CAT_RESTRICT yuv_out);

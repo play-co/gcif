@@ -2661,7 +2661,7 @@ void CFF_R2Y_D9(const u8 * CAT_RESTRICT rgb, u8 * CAT_RESTRICT yuv) {
 	const u8 R = rgb[0];
 	const u8 G = rgb[1];
 	yuv[0] = R;
-	yuv[1] = rgb[2] - static_cast<u8>( (R + (static_cast<u16>( G ) << 1) + G) >> 2) );
+	yuv[1] = rgb[2] - static_cast<u8>( (R + (static_cast<u16>( G ) << 1) + G) >> 2 );
 	yuv[2] = G - R;
 }
 
@@ -2842,8 +2842,9 @@ void CFF_Y2R_E2_R(const u8 * CAT_RESTRICT yuv, u8 * CAT_RESTRICT rgb) {
 	const s8 Cg = yuv[1];
 	const s16 t = yuv[0] - (Cg >> 1);
 	rgb[2] = static_cast<u8>( Cg + t );
-	rgb[1] = static_cast<u8>( t - (Co >> 1) );
+	const u8 G = static_cast<u8>( t - (Co >> 1) );
 	rgb[0] = Co + G;
+	rgb[1] = G;
 }
 
 void CFF_Y2R_BG_RG(const u8 * CAT_RESTRICT yuv, u8 * CAT_RESTRICT rgb) {
@@ -2941,6 +2942,40 @@ const YUV2RGBFilterFunction cat::YUV2RGB_FILTERS[CF_COUNT] = {
 	CFF_Y2R_GB_RB,
 	CFF_Y2R_NONE
 };
+
+/*
+
+   Simple verification program:
+
+int main() {
+	cout << "Color filter verification" << endl;
+
+	u8 rgb[3], yuv[3], test[3];
+	for (int ii = 0; ii < 256; ++ii) {
+		rgb[0] = ii;
+		for (int jj = 0; jj < 256; ++jj) {
+			rgb[1] = jj;
+			for (int kk = 0; kk < 256; ++kk) {
+				rgb[2] = kk;
+				for (int f = 0; f < CF_COUNT; ++f) {
+					RGB2YUV_FILTERS[f](rgb, yuv);
+					YUV2RGB_FILTERS[f](yuv, test);
+
+					if (test[0] != ii || test[1] != jj || test[2] != kk) {
+						cout << "Color filter " << f << " failed test" << endl;
+						return 1;
+					}
+				}
+			}
+		}
+	}
+
+	cout << "All filters are reversible for all input" << endl;
+
+	return 0;
+}
+
+ */
 
 
 //// Chaos
