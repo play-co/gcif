@@ -2634,193 +2634,135 @@ const MonoFilterFuncs cat::MONO_FILTERS[SF_COUNT] = {
 
 //// Color Filters
 
-#define START_R2Y \
-	const u8 R = rgb[0]; \
-	const u8 G = rgb[1]; \
-	const u8 B = rgb[2]; \
-	u8 Y, U, V;
-
-#define END_R2Y \
-	yuv[0] = Y; \
-	yuv[1] = U; \
-	yuv[2] = V;
-
 void CFF_R2Y_GB_RG(const u8 * CAT_RESTRICT rgb, u8 * CAT_RESTRICT yuv) {
-	START_R2Y;
-
-	Y = B;
-	U = G - B;
-	V = G - R;
-
-	END_R2Y;
+	const u8 G = rgb[1], B = rgb[2];
+	yuv[0] = B;
+	yuv[1] = G - B;
+	yuv[2] = G - rgb[0];
 }
 
 void CFF_R2Y_GR_BG(const u8 * CAT_RESTRICT rgb, u8 * CAT_RESTRICT yuv) {
-	START_R2Y;
-
-	Y = G - B;
-	U = G - R;
-	V = R;
-
-	END_R2Y;
+	const u8 R = rgb[0], G = rgb[1];
+	yuv[0] = G - rgb[2];
+	yuv[1] = G - R;
+	yuv[2] = R;
 }
 
 void CFF_R2Y_YUVr(const u8 * CAT_RESTRICT rgb, u8 * CAT_RESTRICT yuv) {
-	START_R2Y;
-
-	U = B - G;
-	V = R - G;
-	Y = G + (((char)U + (char)V) >> 2);
-
-	END_R2Y;
+	const u8 G = rgb[1];
+	const u8 U = rgb[2] - G;
+	const u8 V = rgb[0] - G;
+	yuv[0] = G + (((s8)U + (s8)V) >> 2);
+	yuv[1] = U;
+	yuv[2] = V;
 }
 
 void CFF_R2Y_D9(const u8 * CAT_RESTRICT rgb, u8 * CAT_RESTRICT yuv) {
-	START_R2Y;
-
-	Y = R;
-	U = B - ((R + G*3) >> 2);
-	V = G - R;
-
-	END_R2Y;
+	const u8 R = rgb[0];
+	const u16 G = rgb[1];
+	yuv[0] = R;
+	yuv[1] = rgb[2] - static_cast<u8>( (R + (G << 1) + G) >> 2) );
+	yuv[2] = static_cast<u8>( G ) - R;
 }
 
 void CFF_R2Y_D12(const u8 * CAT_RESTRICT rgb, u8 * CAT_RESTRICT yuv) {
-	START_R2Y;
-
-	Y = B;
-	U = G - ((R*3 + B) >> 2);
-	V = R - B;
-
-	END_R2Y;
+	const u8 B = rgb[2];
+	const u16 R = rgb[0];
+	yuv[0] = B;
+	yuv[1] = rgb[1] - static_cast<u8>( ((R << 1) + R + B) >> 2 );
+	yuv[2] = static_cast<u8>( R ) - B;
 }
 
 void CFF_R2Y_D8(const u8 * CAT_RESTRICT rgb, u8 * CAT_RESTRICT yuv) {
-	START_R2Y;
-
-	Y = R;
-	U = B - ((R + G) >> 1);
-	V = G - R;
-
-	END_R2Y;
+	const u8 R = rgb[0];
+	const u16 G = rgb[1];
+	yuv[0] = R;
+	yuv[1] = rgb[2] - static_cast<u8>( (R + G) >> 1 );
+	yuv[2] = static_cast<u8>( G ) - R;
 }
 
 void CFF_R2Y_E2_R(const u8 * CAT_RESTRICT rgb, u8 * CAT_RESTRICT yuv) {
-	START_R2Y;
-
-	char Co = R - G;
-	int t = G + (Co >> 1);
-	char Cg = B - t;
-
-	Y = t + (Cg >> 1);
-	U = Cg;
-	V = Co;
-
-	END_R2Y;
+	const s8 Co = rgb[0] - rgb[1];
+	const s16 t = rgb[1] + (Co >> 1);
+	const s8 Cg = static_cast<s8>( rgb[2] - t );
+	yuv[0] = static_cast<u8>( t + (Cg >> 1) );
+	yuv[1] = Cg;
+	yuv[2] = Co;
 }
 
 void CFF_R2Y_BG_RG(const u8 * CAT_RESTRICT rgb, u8 * CAT_RESTRICT yuv) {
-	START_R2Y;
-
-	Y = G - B;
-	U = G;
-	V = G - R;
-
-	END_R2Y;
+	const u8 G = rgb[1];
+	yuv[0] = G - rgb[2];
+	yuv[1] = G;
+	yuv[2] = G - rgb[0];
 }
 
 void CFF_R2Y_GR_BR(const u8 * CAT_RESTRICT rgb, u8 * CAT_RESTRICT yuv) {
-	START_R2Y;
-
-	Y = B - R;
-	U = G - R;
-	V = R;
-
-	END_R2Y;
+	const u8 R = rgb[0];
+	yuv[0] = rgb[2] - R;
+	yuv[1] = rgb[1] - R;
+	yuv[2] = R;
 }
 
 void CFF_R2Y_D18(const u8 * CAT_RESTRICT rgb, u8 * CAT_RESTRICT yuv) {
-	START_R2Y;
-
-	Y = B;
-	U = R - ((G*3 + B) >> 2);
-	V = G - B;
-
-	END_R2Y;
+	const u8 B = rgb[2];
+	const u16 G = rgb[1];
+	yuv[0] = B;
+	yuv[1] = rgb[0] - static_cast<u8>( ((G << 1) + G + B) >> 2 );
+	yuv[2] = static_cast<u8>( G ) - B;
 }
 
 void CFF_R2Y_B_GR_R(const u8 * CAT_RESTRICT rgb, u8 * CAT_RESTRICT yuv) {
-	START_R2Y;
-
-	Y = B;
-	U = G - R;
-	V = R;
-
-	END_R2Y;
+	const u8 R = rgb[0];
+	yuv[0] = rgb[2];
+	yuv[1] = rgb[1] - R;
+	yuv[2] = R;
 }
 
 void CFF_R2Y_D11(const u8 * CAT_RESTRICT rgb, u8 * CAT_RESTRICT yuv) {
-	START_R2Y;
-
-	Y = B;
-	U = G - ((R + B) >> 1);
-	V = R - B;
-
-	END_R2Y;
+	const u8 B = rgb[2];
+	const u16 R = rgb[0];
+	yuv[0] = B;
+	yuv[1] = rgb[1] - static_cast<u8>( (R + B) >> 1 );
+	yuv[2] = static_cast<u8>( R ) - B;
 }
 
 void CFF_R2Y_D14(const u8 * CAT_RESTRICT rgb, u8 * CAT_RESTRICT yuv) {
-	START_R2Y;
-
-	Y = R;
-	U = G - ((R + B) >> 1);
-	V = B - R;
-
-	END_R2Y;
+	const u8 R = rgb[0];
+	const u16 B = rgb[2];
+	yuv[0] = R;
+	yuv[1] = rgb[1] - static_cast<u8>( (R + B) >> 1 );
+	yuv[2] = static_cast<u8>( B ) - R;
 }
 
 void CFF_R2Y_D10(const u8 * CAT_RESTRICT rgb, u8 * CAT_RESTRICT yuv) {
-	START_R2Y;
-
-	Y = B;
-	U = G - ((R + B*3) >> 2);
-	V = R - B;
-
-	END_R2Y;
+	const u8 R = rgb[0];
+	const u16 B = rgb[2];
+	yuv[0] = B;
+	yuv[1] = rgb[1] - static_cast<u8>( (R + (B << 1) + B) >> 2 );
+	yuv[2] = R - B;
 }
 
 void CFF_R2Y_YCgCo_R(const u8 * CAT_RESTRICT rgb, u8 * CAT_RESTRICT yuv) {
-	START_R2Y;
-
-	char Co = R - B;
-	int t = B + (Co >> 1);
-	char Cg = G - t;
-
-	Y = t + (Cg >> 1);
-	U = Cg;
-	V = Co;
-
-	END_R2Y;
+	const s8 Co = rgb[0] - rgb[2];
+	const s16 t = rgb[2] + (Co >> 1);
+	const s8 Cg = static_cast<s8>( rgb[1] - t );
+	yuv[0] = static_cast<u8>( t + (Cg >> 1) );
+	yuv[1] = Cg;
+	yuv[2] = Co;
 }
 
 void CFF_R2Y_GB_RB(const u8 * CAT_RESTRICT rgb, u8 * CAT_RESTRICT yuv) {
-	START_R2Y;
-
-	Y = B;
-	U = G - B;
-	V = R - B;
-
-	END_R2Y;
+	const u8 B = rgb[2];
+	yuv[0] = B;
+	yuv[1] = rgb[1] - B;
+	yuv[2] = rgb[0] - B;
 }
 
 void CFF_R2Y_NONE(const u8 * CAT_RESTRICT rgb, u8 * CAT_RESTRICT yuv) {
-	START_R2Y;
-
-	Y = B;
-	U = G;
-	V = R;
-
-	END_R2Y;
+	yuv[0] = rgb[0];
+	yuv[1] = rgb[1];
+	yuv[2] = rgb[2];
 }
 
 #undef START_R2Y
