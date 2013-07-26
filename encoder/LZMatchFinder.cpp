@@ -29,6 +29,7 @@
 #include "LZMatchFinder.hpp"
 #include "../decoder/BitMath.hpp"
 #include "Log.hpp"
+#include "SuffixArray3.hpp"
 using namespace cat;
 
 #include <iostream>
@@ -509,6 +510,10 @@ int RGBAMatchFinder::write(EntropyEncoder &ee, ImageWriter &writer) {
 //// MonoMatchFinder
 
 bool MonoMatchFinder::findMatches(const u8 * CAT_RESTRICT mono, const u8 * CAT_RESTRICT residuals, int xsize, int ysize, u16 mask_color, MaskDelegate &image_mask) {
+	SuffixArray3_State sa3state;
+
+	SuffixArray3_Init(&sa3state, (u8*)mono, xsize*ysize, 1024*1024);
+
 	// Allocate and zero the table and chain
 	const int pixels = xsize * ysize;
 	SmartArray<u32> table, chain;
@@ -529,6 +534,14 @@ bool MonoMatchFinder::findMatches(const u8 * CAT_RESTRICT mono, const u8 * CAT_R
 	const u8 *mono_now = mono;
 	u16 x = 0, y = 0;
 	for (int ii = 0, iiend = pixels - MIN_MATCH; ii <= iiend;) {
+		int match_offset;
+		int ml = SuffixArray3_BestML(&sa3state, ii, match_offset);
+		if (ml > 0) {
+			CAT_WARN("TEST") << "ML" << ml << " at " << ii << " -> " << match_offset;
+		}
+		++ii;
+		continue;
+
 		const u32 hash = HashPixels(mono_now);
 		u16 best_length = 1;
 		u32 best_distance = 0;

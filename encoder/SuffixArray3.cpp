@@ -534,7 +534,7 @@ static int SuffixArray3_BestML(const SuffixArraySearcher * SAS,int pos,
 	return bestml;
 }
 
-void SuffixArray3_Init(SuffixArray3_State *state, u8 *ubuf, int size, int window_size) {
+void cat::SuffixArray3_Init(SuffixArray3_State *state, u8 *ubuf, int size, int window_size) {
 	SuffixArraySearcher_Build(&state->SAS, ubuf, size);
 
 	int numLevels = 1;
@@ -553,7 +553,7 @@ void SuffixArray3_Init(SuffixArray3_State *state, u8 *ubuf, int size, int window
 	state->window_size = window_size;
 }
 
-int SuffixArray3_BestML(SuffixArray3_State *state, int pos, int &match_offset) {
-	return SuffixArray3_BestML(&state->SAS, pos, state->intervalLevels.data(), state->numLevels, state->window_size, match_offset);
+int cat::SuffixArray3_BestML(SuffixArray3_State *state, int pos, int &match_offset) {
+	return ::SuffixArray3_BestML(&state->SAS, pos, state->intervalLevels.data(), state->numLevels, state->window_size, match_offset);
 }
 
