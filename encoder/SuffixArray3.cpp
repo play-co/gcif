@@ -5,6 +5,8 @@
 using namespace std;
 using namespace cat;
 
+#define MINMATCH 2
+
 static int matchlen(const u8 *a, const u8 *b, const u8 *end) {
 	int len = 0;
 
@@ -151,14 +153,14 @@ static int t_dir_SuffixArraySearcher_BestML(int pos,int sortPos,
 		int curSortSameLen = pSortSameLen[ vsSortPos ];
         // pSortSameLen is zero when you go off the edge of the array
         
-        if ( curSortSameLen < 4 )
+        if ( curSortSameLen < MINMATCH )
 			return 0;
 
 		if (walkingMatchLen > curSortSameLen) {
 			walkingMatchLen = curSortSameLen;
 		}
 
-		CAT_DEBUG_ENFORCE( walkingMatchLen >= 4 );
+		CAT_DEBUG_ENFORCE( walkingMatchLen >= MINMATCH );
 		
 		// check for forward offset :
 		int vsPos = pSortIndex[ vsSortPos ];
@@ -325,14 +327,14 @@ do_single_step:
 			int curSortSameLen = pSortSameLen[ curSortPos ];
 			// pSortSameLen is zero when you go off the edge of the array
 	        
-			if ( curSortSameLen < 4 )
+			if ( curSortSameLen < MINMATCH )
 				return 0;
 
 			if (walkingMatchLen > curSortSameLen) {
 				walkingMatchLen = curSortSameLen;
 			}
 
-			CAT_DEBUG_ENFORCE( walkingMatchLen >= 4 );
+			CAT_DEBUG_ENFORCE( walkingMatchLen >= MINMATCH );
 			
 			// check for nonallowed offset :
 			int vsPos = pSortIndex[ curSortPos ];
@@ -406,7 +408,7 @@ step_further:
 				if (walkingMatchLen > cur.ml) {
 					walkingMatchLen = cur.ml;
 				}
-				if ( walkingMatchLen < 4 ) return 0;
+				if ( walkingMatchLen < MINMATCH ) return 0;
 				
 				if ( t_dir == 1 )
 				{
@@ -461,7 +463,7 @@ step_further:
 					if (walkingMatchLen > cur.ml) {
 						walkingMatchLen = cur.ml;
 					}
-					if ( walkingMatchLen < 4 ) return 0;
+					if ( walkingMatchLen < MINMATCH ) return 0;
 					
 					if ( t_dir == 1 )
 					{
