@@ -231,7 +231,7 @@ trsort.o : encoder/libdivsufsort/trsort.c
 	$(CC) $(CFLAGS) -c encoder/libdivsufsort/trsort.c
 
 ssutils.o : encoder/libdivsufsort/utils.c
-	$(CC) $(CFLAGS) -c encoder/libdivsufsort/utils.c
+	$(CC) $(CFLAGS) -c encoder/libdivsufsort/utils.c -o ssutils.o
 
 decomp.o : decomp.cpp
 	$(CCPP) $(CPFLAGS) -c decomp.cpp

@@ -5,6 +5,20 @@
 using namespace std;
 using namespace cat;
 
+static int matchlen(const u8 *a, const u8 *b, const u8 *end) {
+	int len = 0;
+
+	while (a < end && b < end) {
+		if (*a++ == *b++) {
+			++len;
+		} else {
+			break;
+		}
+	}
+
+	return len;
+}
+
 /*     
 
 from :
@@ -152,38 +166,18 @@ static int t_dir_SuffixArraySearcher_BestML(int pos,int sortPos,
 		if ( vsPos > pos )
 			continue;
 		
-		#ifdef _DEBUG
+		#ifdef CAT_DEBUG
 		{
-			const uint8 * pMe = ubuf+pos;
-			const uint8 * pVs = ubuf+vsPos;
+			const u8 * pMe = ubuf+pos;
+			const u8 * pVs = ubuf+vsPos;
 			int ml = matchlen(pMe,pVs,ubuf+size);
-			ASSERT( ml == walkingMatchLen );
+			CAT_DEBUG_ENFORCE( ml == walkingMatchLen );
 		}
 		#endif
 		
 		// good!
 		return walkingMatchLen;
 	}		
-}
-
-static int SuffixArraySearcher_BestML(SuffixArraySearcher * SAS,int pos)
-{
-	int * pSortIndex = SAS->sortIndex.data();
-	int * pSortLookup = SAS->sortIndexInverse.data();
-	int * pSortSameLen = SAS->pSortSameLen;
-	const u8 * ubuf = SAS->ubuf;
-	int size = SAS->size;
-	
-	//const uint8 * ptr = ubuf+pos;
-	int sortPos = pSortLookup[pos];
-	//ASSERT( sortIndex[sortPos] == pos );
-       
-    int bestml_n = t_dir_SuffixArraySearcher_BestML<-1>(pos,sortPos,pSortIndex,pSortLookup,pSortSameLen,ubuf,size);
-    int bestml_p = t_dir_SuffixArraySearcher_BestML< 1>(pos,sortPos,pSortIndex,pSortLookup,pSortSameLen,ubuf,size);
-    
-    int bestml = bestml_p < bestml_n ? bestml_n : bestml_p;
-    	
-	return bestml;
 }
 
 #define	MIN_INTERVAL_SHIFT	5	// larger is faster except on the stress cases
@@ -350,8 +344,8 @@ do_single_step:
 			
 			#ifdef CAT_DEBUG
 			{
-				const uint8 * pMe = ubuf+pos;
-				const uint8 * pVs = ubuf+vsPos;
+				const u8 * pMe = ubuf+pos;
+				const u8 * pVs = ubuf+vsPos;
 				int ml = matchlen(pMe,pVs,ubuf+size);
 				CAT_DEBUG_ENFORCE( ml == walkingMatchLen );
 			}
