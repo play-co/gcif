@@ -534,14 +534,6 @@ bool MonoMatchFinder::findMatches(const u8 * CAT_RESTRICT mono, const u8 * CAT_R
 	const u8 *mono_now = mono;
 	u16 x = 0, y = 0;
 	for (int ii = 0, iiend = pixels - MIN_MATCH; ii <= iiend;) {
-		int match_offset;
-		int ml = SuffixArray3_BestML(&sa3state, ii, match_offset);
-		if (ml > 0) {
-			CAT_WARN("TEST") << "ML" << ml << " at " << ii << " -> " << match_offset;
-		}
-		++ii;
-		continue;
-
 		const u32 hash = HashPixels(mono_now);
 		u16 best_length = 1;
 		u32 best_distance = 0;
@@ -550,82 +542,98 @@ bool MonoMatchFinder::findMatches(const u8 * CAT_RESTRICT mono, const u8 * CAT_R
 
 		// If not masked,
 		if (!image_mask(x, y)) {
-			// For each hash collision,
-			for (u32 node = table[hash]; node != 0; node = chain[node - 1]) {
-				--node; // Fix node from table data
+			u32 node = table[hash];
 
-				// If distance is beyond the window size,
-				u32 distance = ii - node;
-				if (distance > WIN_SIZE) {
-					// Stop searching here
-					break;
+			// If this pixel pair has ever been seen,
+			if (node != 0) {
+				// Find longest match
+				int match_offset;
+				int ml = SuffixArray3_BestML(&sa3state, ii, match_offset);
+
+				// If longest match is particularly long,
+				if (ml > 8) {
+					// TODO
 				}
 
-				// Fast reject potential matches that are too short
-				const u8 *mono_node = mono + node;
-				if (mono_node[best_length] != mono_now[best_length]) {
-					continue;
-				}
+				do {
+					--node;
 
-				u8 base_color = mono_now[0];
-				if (mono_node[0] == base_color) {
-					// Find match length
-					int match_len = 1;
-					for (; match_len < MAX_MATCH && mono_node[match_len] == mono_now[match_len]; ++match_len);
+					// If distance is beyond the window size,
+					u32 distance = ii - node;
+					if (distance > WIN_SIZE) {
+						// Stop searching here
+						break;
+					}
 
-					// Future matches will be farther away (more expensive in distance)
-					// so they should be at least as long as previous matches to be considered
-					if (match_len > best_length) {
-						const u8 * CAT_RESTRICT saved = residuals;
-						int bitsSaved = 0;
+					// Fast reject potential matches that are too short
+					const u8 *mono_node = mono + node;
+					if (mono_node[best_length] != mono_now[best_length]) {
+						continue;
+					}
 
-						int fix_len = 0;
-						for (int jj = 0; jj < match_len; ++jj, saved += 4) {
-							if (mono_now[jj] != mask_color) {
-								fix_len = jj + 1;
-								bitsSaved += saved[0];
+					u8 base_color = mono_now[0];
+					if (mono_node[0] == base_color) {
+						// Find match length
+						int match_len = 1;
+						for (; match_len < MAX_MATCH && mono_node[match_len] == mono_now[match_len]; ++match_len);
+
+						// Future matches will be farther away (more expensive in distance)
+						// so they should be at least as long as previous matches to be considered
+						if (match_len > best_length) {
+							const u8 * CAT_RESTRICT saved = residuals;
+							int bitsSaved = 0;
+
+							int fix_len = 0;
+							for (int jj = 0; jj < match_len; ++jj, saved += 4) {
+								if (mono_now[jj] != mask_color) {
+									fix_len = jj + 1;
+									bitsSaved += saved[0];
+								}
 							}
-						}
-						match_len = fix_len;
+							match_len = fix_len;
 
-						if (match_len >= 2) {
-							int bitsCost = 0;
-							if (distance == recent[0]) {
-								bitsCost = 6;
-							} else if (distance == recent[1]) {
-								bitsCost = 7;
-							} else if (distance == recent[2]) {
-								bitsCost = 7;
-							} else if (distance == recent[3]) {
-								bitsCost = 7;
-							} else if (distance <= 6) {
-								bitsCost = 8;
-							} else if (distance >= _xsize*8 + 9) {
-								bitsCost = 15 + BSR32(distance) - 4;
-							} else if (distance >= _xsize*2 + 8) {
-								bitsCost = 13;
-							} else {
-								bitsCost = 12;
-							}
+							if (match_len >= 2) {
+								int bitsCost = 0;
+								if (distance == recent[0]) {
+									bitsCost = 6;
+								} else if (distance == recent[1]) {
+									bitsCost = 7;
+								} else if (distance == recent[2]) {
+									bitsCost = 7;
+								} else if (distance == recent[3]) {
+									bitsCost = 7;
+								} else if (distance <= 6) {
+									bitsCost = 8;
+								} else if (distance >= _xsize*8 + 9) {
+									bitsCost = 15 + BSR32(distance) - 4;
+								} else if (distance >= _xsize*2 + 8) {
+									bitsCost = 13;
+								} else {
+									bitsCost = 12;
+								}
 
-							const int score = bitsSaved - bitsCost;
-							if (score > best_score) {
-								best_distance = distance;
-								best_length = match_len;
-								best_score = score;
-								best_saved = bitsSaved;
+								const int score = bitsSaved - bitsCost;
+								if (score > best_score) {
+									best_distance = distance;
+									best_length = match_len;
+									best_score = score;
+									best_saved = bitsSaved;
 
-								// If length is at the limit,
-								if (match_len >= MAX_MATCH) {
-									// Stop here
-									break;
+									// If length is at the limit,
+									if (match_len >= MAX_MATCH) {
+										// Stop here
+										break;
+									}
 								}
 							}
 						}
 					}
-				}
+					node = chain[node - 1];
+				} while (node != 0);
 			}
 		}
+
+		// TODO: make sure this code runs
 
 		// Insert current pixel
 		chain[ii] = table[hash] + 1;
