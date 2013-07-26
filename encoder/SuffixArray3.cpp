@@ -298,9 +298,6 @@ static int t_dir_SuffixArray3_BestML(int pos,int sortPos,
 {
 	CAT_DEBUG_ENFORCE( t_dir == -1 || t_dir == 1 );
 
-	// TODO: Fill in match offset
-	// TODO: Step more times to find the shortest distance
-
 	// walk the sorted list going away from sortpos :
 	//int numChecks = 0;
 	int walkingMatchLen = size-pos;
@@ -323,7 +320,7 @@ static int t_dir_SuffixArray3_BestML(int pos,int sortPos,
     if ( t_dir == 1 ) singleStepEnd += MIN_INTERVAL;
        
 	{
-		do_single_step:
+do_single_step:
 		
 		for(;;)
 		{
@@ -361,6 +358,7 @@ static int t_dir_SuffixArray3_BestML(int pos,int sortPos,
 			#endif
 			
 			// good!
+			match_offset = vsPos;
 			return walkingMatchLen;
 		}	
 	}
@@ -373,7 +371,7 @@ static int t_dir_SuffixArray3_BestML(int pos,int sortPos,
 		// start from curSortPos
 		// step to the end of biggest interval I can use
 
-		step_further:
+step_further:
 
 		CAT_DEBUG_ENFORCE( (curSortPos & MIN_INTERVAL_MASK) == 0 );
 
@@ -489,7 +487,7 @@ static int t_dir_SuffixArray3_BestML(int pos,int sortPos,
 				}
 			}
 		}
-		
+	
 		// it must be in [curSortPos,curSortPos+MIN_INTERVAL]
 		singleStepEnd = curSortPos + MIN_INTERVAL * t_dir;
 		goto do_single_step;
