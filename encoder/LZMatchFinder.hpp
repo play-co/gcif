@@ -172,8 +172,6 @@ class MonoMatchFinder : public LZMatchFinder {
 	static const int HASH_SIZE = 1 << HASH_BITS;
 	//static const u64 HASH_MULT = 0xc6a4a7935bd1e995ULL;
 
-	static const int ESCAPE_CODE_LOW_BOUND = 2; // bits
-
 	// Returns hash for MIN_MATCH pixels
 	static CAT_INLINE u32 HashPixels(const u8 * CAT_RESTRICT mono) {
 		const u16 word0 = *reinterpret_cast<const u16 *>( mono );
