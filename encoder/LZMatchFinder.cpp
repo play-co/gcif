@@ -509,6 +509,49 @@ int RGBAMatchFinder::write(EntropyEncoder &ee, ImageWriter &writer) {
 
 //// MonoMatchFinder
 
+int MonoMatchFinder::scoreMatch(int distance, const u32 *recent, const u8 *residuals, int &match_len, int &bits_saved) {
+	bits_saved = 0;
+
+	// Calculate bits saved and fix match length
+	int fix_len = 0;
+	for (int jj = 0; jj < match_len; ++jj) {
+		int saved = residuals[jj];
+
+		if (saved > 0) {
+			fix_len = jj;
+			bits_saved += saved;
+		}
+	}
+	match_len = fix_len + 1;
+
+	// If minimum match length found,
+	if (match_len < MIN_MATCH) {
+		return 0;
+	}
+
+	// Add cost based on distance encoding
+	int bits_cost;
+	if (distance == recent[0]) {
+		bits_cost = 6;
+	} else if (distance == recent[1]) {
+		bits_cost = 7;
+	} else if (distance == recent[2]) {
+		bits_cost = 7;
+	} else if (distance == recent[3]) {
+		bits_cost = 8;
+	} else if (distance <= 6) {
+		bits_cost = 8;
+	} else if (distance >= _xsize*8 + 9) {
+		bits_cost = 15 + BSR32(distance) - 4;
+	} else if (distance >= _xsize*2 + 8) {
+		bits_cost = 13;
+	} else {
+		bits_cost = 12;
+	}
+
+	return bits_saved - bits_cost;
+}
+
 bool MonoMatchFinder::findMatches(const u8 * CAT_RESTRICT mono, const u8 * CAT_RESTRICT residuals, int xsize, int ysize, u16 mask_color, MaskDelegate &image_mask) {
 	SuffixArray3_State sa3state;
 
@@ -535,7 +578,7 @@ bool MonoMatchFinder::findMatches(const u8 * CAT_RESTRICT mono, const u8 * CAT_R
 	u16 x = 0, y = 0;
 	for (int ii = 0, iiend = pixels - MIN_MATCH; ii <= iiend;) {
 		const u32 hash = HashPixels(mono_now);
-		u16 best_length = 1;
+		u16 best_length = MIN_MATCH - 1;
 		u32 best_distance = 0;
 		int best_score = 0;
 		int best_saved = 0;
@@ -548,13 +591,31 @@ bool MonoMatchFinder::findMatches(const u8 * CAT_RESTRICT mono, const u8 * CAT_R
 			if (node != 0) {
 				// Find longest match
 				int match_offset;
-				int ml = SuffixArray3_BestML(&sa3state, ii, match_offset);
+				int match_len = SuffixArray3_BestML(&sa3state, ii, match_offset);
 
-				// If longest match is particularly long,
-				if (ml > 8) {
-					// TODO
+				if (match_len >= MIN_MATCH) {
+					u32 distance = ii - match_offset;
+
+					// If match length is too long,
+					if (match_len > MAX_MATCH) {
+						// Reign it in
+						match_len = MAX_MATCH;
+					}
+
+					int bits_saved;
+					int score = scoreMatch(distance, recent, residuals, match_len, bits_saved);
+
+					// If match length is still long enough,
+					if (match_len >= MIN_MATCH) {
+						best_distance = distance;
+						best_length = match_len;
+						best_score = score;
+						best_saved = bits_saved;
+					}
 				}
 
+				// For each hash chain suggested start point,
+				int limit = CHAIN_LIMIT;
 				do {
 					--node;
 
@@ -580,56 +641,27 @@ bool MonoMatchFinder::findMatches(const u8 * CAT_RESTRICT mono, const u8 * CAT_R
 						// Future matches will be farther away (more expensive in distance)
 						// so they should be at least as long as previous matches to be considered
 						if (match_len > best_length) {
-							const u8 * CAT_RESTRICT saved = residuals;
-							int bitsSaved = 0;
+							int bits_saved;
+							int score = scoreMatch(distance, recent, residuals, match_len, bits_saved);
 
-							int fix_len = 0;
-							for (int jj = 0; jj < match_len; ++jj, saved += 4) {
-								if (mono_now[jj] != mask_color) {
-									fix_len = jj + 1;
-									bitsSaved += saved[0];
-								}
-							}
-							match_len = fix_len;
+							if (score > best_score) {
+								best_distance = distance;
+								best_length = match_len;
+								best_score = score;
+								best_saved = bits_saved;
 
-							if (match_len >= 2) {
-								int bitsCost = 0;
-								if (distance == recent[0]) {
-									bitsCost = 6;
-								} else if (distance == recent[1]) {
-									bitsCost = 7;
-								} else if (distance == recent[2]) {
-									bitsCost = 7;
-								} else if (distance == recent[3]) {
-									bitsCost = 7;
-								} else if (distance <= 6) {
-									bitsCost = 8;
-								} else if (distance >= _xsize*8 + 9) {
-									bitsCost = 15 + BSR32(distance) - 4;
-								} else if (distance >= _xsize*2 + 8) {
-									bitsCost = 13;
-								} else {
-									bitsCost = 12;
-								}
-
-								const int score = bitsSaved - bitsCost;
-								if (score > best_score) {
-									best_distance = distance;
-									best_length = match_len;
-									best_score = score;
-									best_saved = bitsSaved;
-
-									// If length is at the limit,
-									if (match_len >= MAX_MATCH) {
-										// Stop here
-										break;
-									}
+								// If length is at the limit,
+								if (match_len >= MAX_MATCH) {
+									// Stop here
+									break;
 								}
 							}
 						}
 					}
+
+					// Next node
 					node = chain[node - 1];
-				} while (node != 0);
+				} while (node != 0 && --limit);
 			}
 		}
 

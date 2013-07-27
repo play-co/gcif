@@ -167,6 +167,8 @@ public:
 //// MonoMatchFinder
 
 class MonoMatchFinder : public LZMatchFinder {
+	static const int CHAIN_LIMIT = 32;
+
 	static const int HASH_BITS = 18;
 	static const int HASH_SIZE = 1 << HASH_BITS;
 	//static const u64 HASH_MULT = 0xc6a4a7935bd1e995ULL;
@@ -195,6 +197,8 @@ public:
 	static const int LAST_COUNT = 4; // Keep track of recently emitted distances
 
 protected:
+	int scoreMatch(int distance, const u32 *recent, const u8 *residuals, int &match_len, int &bits_saved);
+
 	bool findMatches(const u8 * CAT_RESTRICT mono, const u8 * CAT_RESTRICT residuals, int xsize, int ysize, u16 color_mask, MaskDelegate &mask);
 
 public:
