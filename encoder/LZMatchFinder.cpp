@@ -853,11 +853,16 @@ bool MonoMatchFinder::init(const u8 * CAT_RESTRICT mono, int num_syms, const u8 
 	sdist_hist.init(MonoReader::LZ_SDIST_SYMS);
 	ldist_hist.init(MonoReader::LZ_LDIST_SYMS);
 
+	int active_pixels = 0;
 	for (int ii = 0; ii < pixels; ++ii) {
 		const u8 cost = costs[ii];
 		if (cost != 0) {
-			escape_hist.add(cost);
+			++active_pixels;
 		}
+	}
+	int avg_cost = active_pixels / num_syms + 1;
+	for (int ii = 0; ii < num_syms; ++ii) {
+		escape_hist.addMore(ii, avg_cost);
 	}
 
 	// Track recent distances
@@ -874,6 +879,7 @@ bool MonoMatchFinder::init(const u8 * CAT_RESTRICT mono, int num_syms, const u8 
 		// Fix escape code to start right after num_syms
 		CAT_DEBUG_ENFORCE(match->escape_code < MonoReader::LZ_LEN_SYMS);
 		match->escape_code += num_syms;
+		escape_hist.add(match->escape_code);
 
 		if (match->emit_len) {
 			len_hist.add(match->len_code);
@@ -895,6 +901,11 @@ bool MonoMatchFinder::init(const u8 * CAT_RESTRICT mono, int num_syms, const u8 
 		}
 	}
 
+	// Estimate encoding costs
+	HuffmanEncoder escape_encoder;
+	escape_encoder.init(escape_hist);
+	const u8 *escape_codelens = escape_encoder._codelens.get();
+
 	// Initialize encoders
 	_lz_len_encoder.init(len_hist);
 	_lz_sdist_encoder.init(sdist_hist);
@@ -914,7 +925,7 @@ bool MonoMatchFinder::init(const u8 * CAT_RESTRICT mono, int num_syms, const u8 
 
 		// Estimate bit cost of LZ match representation:
 
-		int bits = ESCAPE_CODE_LOW_BOUND + match->extra_bits;
+		int bits = escape_codelens[match->escape_code] + match->extra_bits;
 
 		if (match->emit_len) {
 			bits += _lz_len_encoder.simulateWrite(match->len_code);
