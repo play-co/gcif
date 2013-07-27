@@ -698,7 +698,7 @@ bool MonoMatchFinder::findMatches(const u8 * CAT_RESTRICT mono, const u8 * CAT_R
 			// Skip ahead
 			--best_length;
 			x += best_length;
-			residuals += best_length << 2;
+			residuals += best_length;
 		}
 
 		while (x >= xsize) {
