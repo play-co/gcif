@@ -548,7 +548,7 @@ int MonoMatchFinder::scoreMatch(int distance, const u32 *recent, const u8 *costs
 		bits_cost = 12;
 	}
 
-	return bits_saved - bits_cost - 3;
+	return bits_saved - bits_cost;
 }
 
 bool MonoMatchFinder::findMatches(SuffixArray3_State *sa3state, const u8 * CAT_RESTRICT mono, const u8 * CAT_RESTRICT costs, int xsize, int ysize) {
