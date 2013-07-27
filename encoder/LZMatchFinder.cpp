@@ -616,8 +616,7 @@ bool MonoMatchFinder::findMatches(SuffixArray3_State *sa3state, const u8 * CAT_R
 						const u8 *mono_node = mono + node;
 						if (mono_node[best_length] == mono_now[best_length]) {
 							// Unroll first one
-							u8 base_color = mono_now[0];
-							if (mono_node[0] == base_color) {
+							if (mono_node[0] == mono_now[0]) {
 								// Find match length
 								int match_len = 1;
 								for (; match_len < MAX_MATCH && mono_node[match_len] == mono_now[match_len]; ++match_len);
