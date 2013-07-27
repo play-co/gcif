@@ -144,9 +144,7 @@ class RGBAMatchFinder : public LZMatchFinder {
 	bool findMatches(const u32 * CAT_RESTRICT rgba, const u8 * CAT_RESTRICT residuals, int xsize, int ysize, ImageMaskWriter *mask);
 
 	// Encoders
-	HuffmanEncoder _lz_len_encoder;
-	HuffmanEncoder _lz_sdist_encoder;
-	HuffmanEncoder _lz_ldist_encoder;
+	HuffmanEncoder _lz_len_encoder, _lz_sdist_encoder, _lz_ldist_encoder;
 
 public:
 	// Not worth matching fewer than MIN_MATCH
@@ -182,9 +180,7 @@ class MonoMatchFinder : public LZMatchFinder {
 	}
 
 	// Encoders
-	HuffmanEncoder _lz_len_encoder;
-	HuffmanEncoder _lz_sdist_encoder;
-	HuffmanEncoder _lz_ldist_encoder;
+	HuffmanEncoder _lz_len_encoder, _lz_sdist_encoder, _lz_ldist_encoder;
 
 public:
 	// bool IsMasked(u16 x, u16 y)

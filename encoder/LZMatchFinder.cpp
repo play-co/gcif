@@ -587,85 +587,85 @@ bool MonoMatchFinder::findMatches(const u8 * CAT_RESTRICT mono, const u8 * CAT_R
 		if (!image_mask(x, y)) {
 			u32 node = table[hash];
 
-			// If this pixel pair has ever been seen,
+			// If any matches exist,
 			if (node != 0) {
 				// Find longest match
 				int match_offset;
 				int match_len = SuffixArray3_BestML(&sa3state, ii, match_offset);
 
+				// If longest match exists,
 				if (match_len >= MIN_MATCH) {
+					// Calculate distance to it
 					u32 distance = ii - match_offset;
 
 					// If match length is too long,
 					if (match_len > MAX_MATCH) {
-						// Reign it in
 						match_len = MAX_MATCH;
 					}
 
+					// Score match based on residuals
 					int bits_saved;
 					int score = scoreMatch(distance, recent, residuals, match_len, bits_saved);
 
-					// If match length is still long enough,
+					// If best match is valid,
 					if (score > 0) {
 						best_distance = distance;
 						best_length = match_len;
 						best_score = score;
 						best_saved = bits_saved;
 					}
-				}
 
-				// For each hash chain suggested start point,
-				int limit = CHAIN_LIMIT;
-				do {
-					--node;
+					// For each hash chain suggested start point,
+					int limit = CHAIN_LIMIT; // up to a recursion limit
+					do {
+						--node;
 
-					// If distance is beyond the window size,
-					u32 distance = ii - node;
-					if (distance > WIN_SIZE) {
-						// Stop searching here
-						break;
-					}
+						// If distance is beyond the window size,
+						u32 distance = ii - node;
+						if (distance > WIN_SIZE) {
+							// Stop searching here
+							break;
+						}
 
-					// Fast reject potential matches that are too short
-					const u8 *mono_node = mono + node;
-					if (mono_node[best_length] != mono_now[best_length]) {
-						continue;
-					}
+						// Fast reject potential matches that are too short
+						const u8 *mono_node = mono + node;
+						if (mono_node[best_length] != mono_now[best_length]) {
+							continue;
+						}
 
-					u8 base_color = mono_now[0];
-					if (mono_node[0] == base_color) {
-						// Find match length
-						int match_len = 1;
-						for (; match_len < MAX_MATCH && mono_node[match_len] == mono_now[match_len]; ++match_len);
+						u8 base_color = mono_now[0];
+						if (mono_node[0] == base_color) {
+							// Find match length
+							int match_len = 1;
+							for (; match_len < MAX_MATCH && mono_node[match_len] == mono_now[match_len]; ++match_len);
 
-						// Future matches will be farther away (more expensive in distance)
-						// so they should be at least as long as previous matches to be considered
-						if (match_len > best_length) {
-							int bits_saved;
-							int score = scoreMatch(distance, recent, residuals, match_len, bits_saved);
+							// Future matches will be farther away (more expensive in distance)
+							// so they should be at least as long as previous matches to be considered
+							if (match_len > best_length) {
+								int bits_saved;
+								int score = scoreMatch(distance, recent, residuals, match_len, bits_saved);
 
-							if (score > best_score) {
-								best_distance = distance;
-								best_length = match_len;
-								best_score = score;
-								best_saved = bits_saved;
+								if (score > best_score) {
+									best_distance = distance;
+									best_length = match_len;
+									best_score = score;
+									best_saved = bits_saved;
 
-								// If length is at the limit,
-								if (match_len >= MAX_MATCH) {
-									// Stop here
-									break;
+									// If length is at the limit,
+									if (match_len >= MAX_MATCH) {
+										// Stop here
+										break;
+									}
 								}
 							}
 						}
-					}
 
-					// Next node
-					node = chain[node - 1];
-				} while (node != 0 && --limit);
+						// Next node
+						node = chain[node - 1];
+					} while (node != 0 && --limit);
+				}
 			}
 		}
-
-		// TODO: make sure this code runs
 
 		// Insert current pixel
 		chain[ii] = table[hash] + 1;
