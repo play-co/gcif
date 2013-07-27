@@ -7,6 +7,20 @@ using namespace cat;
 
 #define MINMATCH 2
 
+static int matchlen(const u8 *a, const u8 *b, const u8 *end) {
+	int len = 0;
+
+	while (a < end && b < end) {
+		if (*a++ == *b++) {
+			++len;
+		} else {
+			break;
+		}
+	}
+
+	return len;
+}
+
 /*     
 
 from :

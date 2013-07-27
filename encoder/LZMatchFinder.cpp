@@ -555,7 +555,7 @@ int MonoMatchFinder::scoreMatch(int distance, const u32 *recent, const u8 *resid
 bool MonoMatchFinder::findMatches(const u8 * CAT_RESTRICT mono, const u8 * CAT_RESTRICT residuals, int xsize, int ysize, u16 mask_color, MaskDelegate &image_mask) {
 	SuffixArray3_State sa3state;
 
-	SuffixArray3_Init(&sa3state, (u8*)mono, xsize*ysize, 1024*1024);
+	SuffixArray3_Init(&sa3state, (u8*)mono, xsize*ysize, WIN_SIZE);
 
 	// Allocate and zero the table and chain
 	const int pixels = xsize * ysize;
@@ -580,8 +580,7 @@ bool MonoMatchFinder::findMatches(const u8 * CAT_RESTRICT mono, const u8 * CAT_R
 		const u32 hash = HashPixels(mono_now);
 		u16 best_length = MIN_MATCH - 1;
 		u32 best_distance = 0;
-		int best_score = 0;
-		int best_saved = 0;
+		int best_score = 0, best_saved = 0;
 
 		// If not masked,
 		if (!image_mask(x, y)) {
@@ -621,33 +620,32 @@ bool MonoMatchFinder::findMatches(const u8 * CAT_RESTRICT mono, const u8 * CAT_R
 
 						// Fast reject potential matches that are too short
 						const u8 *mono_node = mono + node;
-						if (mono_node[best_length] != mono_now[best_length]) {
-							continue;
-						}
+						if (mono_node[best_length] == mono_now[best_length]) {
+							// Unroll first one
+							u8 base_color = mono_now[0];
+							if (mono_node[0] == base_color) {
+								// Find match length
+								int match_len = 1;
+								for (; match_len < MAX_MATCH && mono_node[match_len] == mono_now[match_len]; ++match_len);
 
-						u8 base_color = mono_now[0];
-						if (mono_node[0] == base_color) {
-							// Find match length
-							int match_len = 1;
-							for (; match_len < MAX_MATCH && mono_node[match_len] == mono_now[match_len]; ++match_len);
+								// Future matches will be farther away (more expensive in distance)
+								// so they should be at least as long as previous matches to be considered
+								if (match_len >= MIN_MATCH) {
+									int bits_saved;
+									int score = scoreMatch(distance, recent, residuals, match_len, bits_saved);
 
-							// Future matches will be farther away (more expensive in distance)
-							// so they should be at least as long as previous matches to be considered
-							if (match_len >= MIN_MATCH) {
-								int bits_saved;
-								int score = scoreMatch(distance, recent, residuals, match_len, bits_saved);
+									// If score is an improvement,
+									if (score > best_score) {
+										best_distance = distance;
+										best_length = match_len;
+										best_score = score;
+										best_saved = bits_saved;
 
-								// If score is an improvement,
-								if (score > best_score) {
-									best_distance = distance;
-									best_length = match_len;
-									best_score = score;
-									best_saved = bits_saved;
-
-									// If length is at the limit,
-									if (match_len >= MAX_MATCH) {
-										// Stop here
-										break;
+										// If length is at the limit,
+										if (match_len >= MAX_MATCH) {
+											// Stop here
+											break;
+										}
 									}
 								}
 							}
