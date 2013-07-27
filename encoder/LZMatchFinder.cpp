@@ -590,30 +590,22 @@ bool MonoMatchFinder::findMatches(const u8 * CAT_RESTRICT mono, const u8 * CAT_R
 			// If any matches exist,
 			if (node != 0) {
 				// Find longest match
-				int match_offset;
-				int match_len = SuffixArray3_BestML(&sa3state, ii, match_offset);
+				int longest_match_offset;
+				int longest_match_len = SuffixArray3_BestML(&sa3state, ii, longest_match_offset);
 
 				// If longest match exists,
-				if (match_len >= MIN_MATCH) {
+				if (longest_match_len >= MIN_MATCH) {
 					// Calculate distance to it
-					u32 distance = ii - match_offset;
+					u32 longest_distance = ii - longest_match_offset;
 
 					// If match length is too long,
-					if (match_len > MAX_MATCH) {
-						match_len = MAX_MATCH;
+					if (longest_match_len > MAX_MATCH) {
+						longest_match_len = MAX_MATCH;
 					}
 
 					// Score match based on residuals
-					int bits_saved;
-					int score = scoreMatch(distance, recent, residuals, match_len, bits_saved);
-
-					// If best match is valid,
-					if (score > 0) {
-						best_distance = distance;
-						best_length = match_len;
-						best_score = score;
-						best_saved = bits_saved;
-					}
+					int longest_bits_saved;
+					int longest_score = scoreMatch(longest_distance, recent, residuals, longest_match_len, longest_bits_saved);
 
 					// For each hash chain suggested start point,
 					int limit = CHAIN_LIMIT; // up to a recursion limit
@@ -641,10 +633,11 @@ bool MonoMatchFinder::findMatches(const u8 * CAT_RESTRICT mono, const u8 * CAT_R
 
 							// Future matches will be farther away (more expensive in distance)
 							// so they should be at least as long as previous matches to be considered
-							if (match_len > best_length) {
+							if (match_len >= MIN_MATCH) {
 								int bits_saved;
 								int score = scoreMatch(distance, recent, residuals, match_len, bits_saved);
 
+								// If score is an improvement,
 								if (score > best_score) {
 									best_distance = distance;
 									best_length = match_len;
@@ -663,6 +656,15 @@ bool MonoMatchFinder::findMatches(const u8 * CAT_RESTRICT mono, const u8 * CAT_R
 						// Next node
 						node = chain[node - 1];
 					} while (node != 0 && --limit);
+
+					// If best match is valid,
+					if (longest_score > best_score) {
+						best_distance = longest_distance;
+						best_length = longest_match_len;
+						best_score = longest_score;
+						best_saved = longest_bits_saved;
+					}
+
 				}
 			}
 		}
