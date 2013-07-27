@@ -122,7 +122,6 @@ public:
 		MaskDelegate mask;				// Function to call to determine if an element is masked out
 		u16 num_syms;					// Number of symbols in data [0..num_syms-1]
 		bool lz_enable;					// Enable LZ encoder
-		u16 lz_mask_color;				// Set mask color for LZ
 
 		// Encoder-only
 		const GCIFKnobs *knobs;			// Global knobs

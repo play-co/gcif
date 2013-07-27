@@ -29,7 +29,6 @@
 #include "LZMatchFinder.hpp"
 #include "../decoder/BitMath.hpp"
 #include "Log.hpp"
-#include "SuffixArray3.hpp"
 using namespace cat;
 
 #include <iostream>
@@ -552,11 +551,7 @@ int MonoMatchFinder::scoreMatch(int distance, const u32 *recent, const u8 *resid
 	return bits_saved - bits_cost;
 }
 
-bool MonoMatchFinder::findMatches(const u8 * CAT_RESTRICT mono, const u8 * CAT_RESTRICT residuals, int xsize, int ysize, u16 mask_color, MaskDelegate &image_mask) {
-	SuffixArray3_State sa3state;
-
-	SuffixArray3_Init(&sa3state, (u8*)mono, xsize*ysize, WIN_SIZE);
-
+bool MonoMatchFinder::findMatches(SuffixArray3_State *sa3state, const u8 * CAT_RESTRICT mono, const u8 * CAT_RESTRICT residuals, int xsize, int ysize) {
 	// Allocate and zero the table and chain
 	const int pixels = xsize * ysize;
 	SmartArray<u32> table, chain;
@@ -575,7 +570,6 @@ bool MonoMatchFinder::findMatches(const u8 * CAT_RESTRICT mono, const u8 * CAT_R
 
 	// For each pixel, stopping just before the last pixel:
 	const u8 *mono_now = mono;
-	u16 x = 0, y = 0;
 	for (int ii = 0, iiend = pixels - MIN_MATCH; ii <= iiend;) {
 		const u32 hash = HashPixels(mono_now);
 		u16 best_length = MIN_MATCH - 1;
@@ -583,14 +577,14 @@ bool MonoMatchFinder::findMatches(const u8 * CAT_RESTRICT mono, const u8 * CAT_R
 		int best_score = 0, best_saved = 0;
 
 		// If not masked,
-		if (!image_mask(x, y)) {
+		if (residuals[0] != 0) {
 			u32 node = table[hash];
 
 			// If any matches exist,
 			if (node != 0) {
 				// Find longest match
 				int longest_match_offset;
-				int longest_match_len = SuffixArray3_BestML(&sa3state, ii, longest_match_offset);
+				int longest_match_len = SuffixArray3_BestML(sa3state, ii, longest_match_offset);
 
 				// If longest match exists,
 				if (longest_match_len >= MIN_MATCH) {
@@ -671,7 +665,6 @@ bool MonoMatchFinder::findMatches(const u8 * CAT_RESTRICT mono, const u8 * CAT_R
 		chain[ii] = table[hash] + 1;
 		table[hash] = ++ii;
 		++mono_now;
-		++x;
 		++residuals;
 
 		// If a best node was found,
@@ -697,13 +690,7 @@ bool MonoMatchFinder::findMatches(const u8 * CAT_RESTRICT mono, const u8 * CAT_R
 
 			// Skip ahead
 			--best_length;
-			x += best_length;
 			residuals += best_length;
-		}
-
-		while (x >= xsize) {
-			x -= xsize;
-			++y;
 		}
 	}
 
@@ -847,14 +834,17 @@ static void MonoEncode(u32 *recent, int recent_ii, LZMatchFinder::LZMatch *match
 #endif
 }
 
-bool MonoMatchFinder::init(const u8 * CAT_RESTRICT mono, int num_syms, const u8 * CAT_RESTRICT residuals, int xsize, int ysize, u16 color_mask, MaskDelegate &image_mask) {
+bool MonoMatchFinder::init(const u8 * CAT_RESTRICT mono, int num_syms, const u8 * CAT_RESTRICT residuals, int xsize, int ysize) {
 	CAT_DEBUG_ENFORCE(MIN_MATCH == 2);
 	CAT_DEBUG_ENFORCE(MAX_MATCH == 256);
 	CAT_DEBUG_ENFORCE(num_syms <= 256);
 
 	_xsize = xsize;
 
-	if (!findMatches(mono, residuals, xsize, ysize, color_mask, image_mask)) {
+	SuffixArray3_State sa3state;
+	SuffixArray3_Init(&sa3state, (u8*)mono, xsize*ysize, WIN_SIZE);
+
+	if (!findMatches(&sa3state, mono, residuals, xsize, ysize)) {
 		return false;
 	}
 

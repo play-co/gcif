@@ -35,6 +35,7 @@
 #include "EntropyEncoder.hpp"
 #include "../decoder/ImageRGBAReader.hpp"
 #include "../decoder/MonoReader.hpp"
+#include "SuffixArray3.hpp"
 
 #include <vector>
 
@@ -181,6 +182,7 @@ class MonoMatchFinder : public LZMatchFinder {
 
 	// Encoders
 	HuffmanEncoder _lz_len_encoder, _lz_sdist_encoder, _lz_ldist_encoder;
+	bool _simulate;
 
 public:
 	// bool IsMasked(u16 x, u16 y)
@@ -195,10 +197,10 @@ public:
 protected:
 	int scoreMatch(int distance, const u32 *recent, const u8 *residuals, int &match_len, int &bits_saved);
 
-	bool findMatches(const u8 * CAT_RESTRICT mono, const u8 * CAT_RESTRICT residuals, int xsize, int ysize, u16 color_mask, MaskDelegate &mask);
+	bool findMatches(SuffixArray3_State *sa3state, const u8 * CAT_RESTRICT mono, const u8 * CAT_RESTRICT residuals, int xsize, int ysize);
 
 public:
-	bool init(const u8 * CAT_RESTRICT mono, int num_syms, const u8 * CAT_RESTRICT residuals, int xsize, int ysize, u16 color_mask, MaskDelegate &mask);
+	bool init(const u8 * CAT_RESTRICT mono, int num_syms, const u8 * CAT_RESTRICT residuals, int xsize, int ysize);
 
 	void train(EntropyEncoder &ee);
 

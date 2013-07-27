@@ -195,7 +195,6 @@ void ImagePaletteWriter::generateMonoWriter() {
 	params.award_count = 4;
 	params.write_order = 0;
 	params.lz_enable = true;
-	params.lz_mask_color = _mask->enabled() ? _mask->getColor() : 65535;
 
 	_mono_writer.init(params);
 }

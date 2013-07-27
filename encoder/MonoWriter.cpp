@@ -134,7 +134,7 @@ void MonoWriter::designLZ() {
 	CAT_INANE("Mono") << "Finding LZ77 matches for " << _params.xsize << "x" << _params.ysize << "...";
 
 	// Find LZ matches
-	_lz.init(_params.data, _params.num_syms, _prices.get(), _params.xsize, _params.ysize, _params.lz_mask_color, _params.mask);
+	_lz.init(_params.data, _params.num_syms, _prices.get(), _params.xsize, _params.ysize);
 }
 
 void MonoWriter::designRowFilters() {
