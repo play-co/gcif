@@ -612,32 +612,29 @@ bool MonoMatchFinder::findMatches(SuffixArray3_State *sa3state, const u8 * CAT_R
 							break;
 						}
 
-						// Fast reject potential matches that are too short
+						// Unroll first two
 						const u8 *mono_node = mono + node;
-						if (mono_node[best_length] == mono_now[best_length]) {
-							// Unroll first one
-							if (mono_node[0] == mono_now[0] &&
-								mono_node[1] == mono_now[1]) {
-								// Find match length
-								int match_len = 2;
-								for (; match_len < MAX_MATCH && mono_node[match_len] == mono_now[match_len]; ++match_len);
+						if (mono_node[0] == mono_now[0] &&
+							mono_node[1] == mono_now[1]) {
+							// Find match length
+							int match_len = 2;
+							for (; match_len < MAX_MATCH && mono_node[match_len] == mono_now[match_len]; ++match_len);
 
-								// Score match
-								int bits_saved;
-								int score = scoreMatch(distance, recent, residuals, match_len, bits_saved);
+							// Score match
+							int bits_saved;
+							int score = scoreMatch(distance, recent, residuals, match_len, bits_saved);
 
-								// If score is an improvement,
-								if (score > best_score) {
-									best_distance = distance;
-									best_length = match_len;
-									best_score = score;
-									best_saved = bits_saved;
+							// If score is an improvement,
+							if (score > best_score) {
+								best_distance = distance;
+								best_length = match_len;
+								best_score = score;
+								best_saved = bits_saved;
 
-									// If length is at the limit,
-									if (match_len >= MAX_MATCH) {
-										// Stop here
-										break;
-									}
+								// If length is at the limit,
+								if (match_len >= MAX_MATCH) {
+									// Stop here
+									break;
 								}
 							}
 						}
