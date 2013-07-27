@@ -182,7 +182,6 @@ class MonoMatchFinder : public LZMatchFinder {
 
 	// Encoders
 	HuffmanEncoder _lz_len_encoder, _lz_sdist_encoder, _lz_ldist_encoder;
-	bool _simulate;
 
 public:
 	// bool IsMasked(u16 x, u16 y)
@@ -195,12 +194,12 @@ public:
 	static const int LAST_COUNT = 4; // Keep track of recently emitted distances
 
 protected:
-	int scoreMatch(int distance, const u32 *recent, const u8 *residuals, int &match_len, int &bits_saved);
+	int scoreMatch(int distance, const u32 *recent, const u8 *costs, int &match_len, int &bits_saved);
 
-	bool findMatches(SuffixArray3_State *sa3state, const u8 * CAT_RESTRICT mono, const u8 * CAT_RESTRICT residuals, int xsize, int ysize);
+	bool findMatches(SuffixArray3_State *sa3state, const u8 * CAT_RESTRICT mono, const u8 * CAT_RESTRICT costs, int xsize, int ysize);
 
 public:
-	bool init(const u8 * CAT_RESTRICT mono, int num_syms, const u8 * CAT_RESTRICT residuals, int xsize, int ysize);
+	bool init(const u8 * CAT_RESTRICT mono, int num_syms, const u8 * CAT_RESTRICT costs, int xsize, int ysize);
 
 	void train(EntropyEncoder &ee);
 

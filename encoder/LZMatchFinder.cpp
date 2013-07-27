@@ -508,20 +508,20 @@ int RGBAMatchFinder::write(EntropyEncoder &ee, ImageWriter &writer) {
 
 //// MonoMatchFinder
 
-int MonoMatchFinder::scoreMatch(int distance, const u32 *recent, const u8 *residuals, int &match_len, int &bits_saved) {
+int MonoMatchFinder::scoreMatch(int distance, const u32 *recent, const u8 *costs, int &match_len, int &bits_saved) {
 	bits_saved = 0;
 
 	// Calculate bits saved and fix match length
 	int fix_len = 0;
 	for (int jj = 0; jj < match_len; ++jj) {
-		int saved = residuals[jj];
+		int saved = costs[jj];
 
 		if (saved > 0) {
-			fix_len = jj;
+			fix_len = jj + 1;
 			bits_saved += saved;
 		}
 	}
-	match_len = fix_len + 1;
+	match_len = fix_len;
 
 	// If minimum match length found,
 	if (match_len < MIN_MATCH) {
@@ -548,10 +548,10 @@ int MonoMatchFinder::scoreMatch(int distance, const u32 *recent, const u8 *resid
 		bits_cost = 12;
 	}
 
-	return bits_saved - bits_cost;
+	return bits_saved - bits_cost - 3;
 }
 
-bool MonoMatchFinder::findMatches(SuffixArray3_State *sa3state, const u8 * CAT_RESTRICT mono, const u8 * CAT_RESTRICT residuals, int xsize, int ysize) {
+bool MonoMatchFinder::findMatches(SuffixArray3_State *sa3state, const u8 * CAT_RESTRICT mono, const u8 * CAT_RESTRICT costs, int xsize, int ysize) {
 	// Allocate and zero the table and chain
 	const int pixels = xsize * ysize;
 	SmartArray<u32> table, chain;
@@ -577,7 +577,7 @@ bool MonoMatchFinder::findMatches(SuffixArray3_State *sa3state, const u8 * CAT_R
 		int best_score = 0, best_saved = 0;
 
 		// If not masked,
-		if (residuals[0] != 0) {
+		if (costs[0] != 0) {
 			u32 node = table[hash];
 
 			// If any matches exist,
@@ -598,7 +598,7 @@ bool MonoMatchFinder::findMatches(SuffixArray3_State *sa3state, const u8 * CAT_R
 
 					// Score match based on residuals
 					int longest_bits_saved;
-					int longest_score = scoreMatch(longest_distance, recent, residuals, longest_match_len, longest_bits_saved);
+					int longest_score = scoreMatch(longest_distance, recent, costs, longest_match_len, longest_bits_saved);
 
 					// For each hash chain suggested start point,
 					int limit = CHAIN_LIMIT; // up to a recursion limit
@@ -622,19 +622,21 @@ bool MonoMatchFinder::findMatches(SuffixArray3_State *sa3state, const u8 * CAT_R
 
 							// Score match
 							int bits_saved;
-							int score = scoreMatch(distance, recent, residuals, match_len, bits_saved);
+							int score = scoreMatch(distance, recent, costs, match_len, bits_saved);
 
 							// If score is an improvement,
-							if (score > best_score) {
-								best_distance = distance;
-								best_length = match_len;
-								best_score = score;
-								best_saved = bits_saved;
+							if (match_len >= MIN_MATCH) {
+								if (score > best_score || best_distance == 0) {
+									best_distance = distance;
+									best_length = match_len;
+									best_score = score;
+									best_saved = bits_saved;
 
-								// If length is at the limit,
-								if (match_len >= MAX_MATCH) {
-									// Stop here
-									break;
+									// If length is at the limit,
+									if (match_len >= MAX_MATCH) {
+										// Stop here
+										break;
+									}
 								}
 							}
 						}
@@ -650,7 +652,6 @@ bool MonoMatchFinder::findMatches(SuffixArray3_State *sa3state, const u8 * CAT_R
 						best_score = longest_score;
 						best_saved = longest_bits_saved;
 					}
-
 				}
 			}
 		}
@@ -659,7 +660,7 @@ bool MonoMatchFinder::findMatches(SuffixArray3_State *sa3state, const u8 * CAT_R
 		chain[ii] = table[hash] + 1;
 		table[hash] = ++ii;
 		++mono_now;
-		++residuals;
+		++costs;
 
 		// If a best node was found,
 		if (best_distance > 0) {
@@ -683,8 +684,7 @@ bool MonoMatchFinder::findMatches(SuffixArray3_State *sa3state, const u8 * CAT_R
 			}
 
 			// Skip ahead
-			--best_length;
-			residuals += best_length;
+			costs += best_length - 1;
 		}
 	}
 
@@ -828,27 +828,37 @@ static void MonoEncode(u32 *recent, int recent_ii, LZMatchFinder::LZMatch *match
 #endif
 }
 
-bool MonoMatchFinder::init(const u8 * CAT_RESTRICT mono, int num_syms, const u8 * CAT_RESTRICT residuals, int xsize, int ysize) {
+bool MonoMatchFinder::init(const u8 * CAT_RESTRICT mono, int num_syms, const u8 * CAT_RESTRICT costs, int xsize, int ysize) {
 	CAT_DEBUG_ENFORCE(MIN_MATCH == 2);
 	CAT_DEBUG_ENFORCE(MAX_MATCH == 256);
 	CAT_DEBUG_ENFORCE(num_syms <= 256);
 
 	_xsize = xsize;
 
-	SuffixArray3_State sa3state;
-	SuffixArray3_Init(&sa3state, (u8*)mono, xsize*ysize, WIN_SIZE);
+	const int pixels = xsize * ysize;
 
-	if (!findMatches(&sa3state, mono, residuals, xsize, ysize)) {
+	SuffixArray3_State sa3state;
+	SuffixArray3_Init(&sa3state, (u8*)mono, pixels, WIN_SIZE);
+
+	if (!findMatches(&sa3state, mono, costs, xsize, ysize)) {
 		return false;
 	}
 
 	reset();
 
 	// Collect LZ distance symbol statistics
-	FreqHistogram len_hist, sdist_hist, ldist_hist;
+	FreqHistogram len_hist, sdist_hist, ldist_hist, escape_hist;
+	escape_hist.init(num_syms + MonoReader::LZ_ESCAPE_SYMS);
 	len_hist.init(MonoReader::LZ_LEN_SYMS);
 	sdist_hist.init(MonoReader::LZ_SDIST_SYMS);
 	ldist_hist.init(MonoReader::LZ_LDIST_SYMS);
+
+	for (int ii = 0; ii < pixels; ++ii) {
+		const u8 cost = costs[ii];
+		if (cost != 0) {
+			escape_hist.add(cost);
+		}
+	}
 
 	// Track recent distances
 	u32 recent[LAST_COUNT];
