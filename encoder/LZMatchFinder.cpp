@@ -606,7 +606,7 @@ bool MonoMatchFinder::findMatches(const u8 * CAT_RESTRICT mono, const u8 * CAT_R
 					int score = scoreMatch(distance, recent, residuals, match_len, bits_saved);
 
 					// If match length is still long enough,
-					if (match_len >= MIN_MATCH) {
+					if (score > 0) {
 						best_distance = distance;
 						best_length = match_len;
 						best_score = score;
