@@ -46,8 +46,9 @@ namespace cat {
 	};
 
 	void SuffixArray3_Init(SuffixArray3_State *state, u8 *ubuf, int size, int window_size);
-	int SuffixArray3_BestML(SuffixArray3_State *state, int pos, int &match_offset);
 
+	// Return top two matches
+	void SuffixArray3_BestML(SuffixArray3_State *state, int pos, int &bestoff_n, int &bestoff_p, int &bestml_n, int &bestml_p);
 } // namespace cat
 
 #endif // SUFFIX_ARRAY_3_HPP

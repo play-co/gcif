@@ -7,6 +7,8 @@ using namespace cat;
 
 #define MINMATCH 2
 
+#ifdef CAT_DEBUG
+
 static int matchlen(const u8 *a, const u8 *b, const u8 *end) {
 	int len = 0;
 
@@ -21,7 +23,9 @@ static int matchlen(const u8 *a, const u8 *b, const u8 *end) {
 	return len;
 }
 
-/*     
+#endif
+
+/*
 
 from :
 
@@ -306,12 +310,12 @@ static int t_dir_SuffixArray3_BestML(int pos,int sortPos,
 	if ( t_dir == 1 ) pSortSameLen --;
 
 	int curSortPos = sortPos;
-		
+
 	// longest match len is 
 	//  sortSameLen[pos] or sortSameLen[pos-1]
 	// as you walk in one direction you can update matchlen by taking RR_MIN(sortSameLen)
     // sortSameLen[i] is match len between {i and i+1}
-    
+ 
     int singleStepEnd = curSortPos & (~MIN_INTERVAL_MASK);
     if ( t_dir == 1 ) singleStepEnd += MIN_INTERVAL;
        
@@ -485,14 +489,18 @@ step_further:
 		}
 	
 		// it must be in [curSortPos,curSortPos+MIN_INTERVAL]
-		singleStepEnd = curSortPos + MIN_INTERVAL * t_dir;
+		if (t_dir == 1) {
+			singleStepEnd = curSortPos + MIN_INTERVAL;
+		} else {
+			singleStepEnd = curSortPos - MIN_INTERVAL;
+		}
 		goto do_single_step;
 	}
 }
 
-static int SuffixArray3_BestML(const SuffixArraySearcher * SAS,int pos,
+static void SuffixArray3_BestML(const SuffixArraySearcher * SAS,int pos,
 	const vector<IntervalData> * pIntervalLevels,int numLevels,
-	int window_size, int &match_offset)
+	int window_size, int &bestoff_n, int &bestoff_p, int &bestml_n, int &bestml_p)
 {	
 	const int * pSortLookup = SAS->sortIndexInverse.data();
 	int sortPos = pSortLookup[pos];
@@ -503,37 +511,30 @@ static int SuffixArray3_BestML(const SuffixArraySearcher * SAS,int pos,
 	const u8 * ubuf = SAS->ubuf;
 	int size = SAS->size;
 
-	int bestoff_n, bestoff_p;
-    int bestml_n = t_dir_SuffixArray3_BestML<-1>(pos,sortPos,pSortIndex,pSortLookup,pSortSameLen,ubuf,size,pIntervalLevels,numLevels,window_size, bestoff_n);
-    int bestml_p = t_dir_SuffixArray3_BestML< 1>(pos,sortPos,pSortIndex,pSortLookup,pSortSameLen,ubuf,size,pIntervalLevels,numLevels,window_size, bestoff_p);
+    bestml_n = t_dir_SuffixArray3_BestML<-1>(pos,sortPos,pSortIndex,pSortLookup,pSortSameLen,ubuf,size,pIntervalLevels,numLevels,window_size, bestoff_n);
+    bestml_p = t_dir_SuffixArray3_BestML< 1>(pos,sortPos,pSortIndex,pSortLookup,pSortSameLen,ubuf,size,pIntervalLevels,numLevels,window_size, bestoff_p);
  
+    #ifdef CAT_DEBUG
 	int bestml;
 	if (bestml_p < bestml_n) {
 		bestml = bestml_n;
-		match_offset = bestoff_n;
 	} else {
 		bestml = bestml_p;
-		match_offset = bestoff_p;
 	}
 
-    #ifdef CAT_DEBUG
     if ( window_size > size )
     {
-    
-    int check_bestml_n = t_dir_SuffixArraySearcher_BestML<-1>(pos,sortPos,pSortIndex,pSortLookup,pSortSameLen,ubuf,size);
-    int check_bestml_p = t_dir_SuffixArraySearcher_BestML< 1>(pos,sortPos,pSortIndex,pSortLookup,pSortSameLen,ubuf,size);
-    
-    CAT_DEBUG_ENFORCE( bestml_n == check_bestml_n );
-    CAT_DEBUG_ENFORCE( bestml_p == check_bestml_p );
-    
-    int check_bestml = check_bestml_p < check_bestml_n ? check_bestml_n : check_bestml_p;
-    
-    CAT_DEBUG_ENFORCE( bestml == check_bestml );
-    
+		int check_bestml_n = t_dir_SuffixArraySearcher_BestML<-1>(pos,sortPos,pSortIndex,pSortLookup,pSortSameLen,ubuf,size);
+		int check_bestml_p = t_dir_SuffixArraySearcher_BestML< 1>(pos,sortPos,pSortIndex,pSortLookup,pSortSameLen,ubuf,size);
+
+		CAT_DEBUG_ENFORCE( bestml_n == check_bestml_n );
+		CAT_DEBUG_ENFORCE( bestml_p == check_bestml_p );
+
+		int check_bestml = check_bestml_p < check_bestml_n ? check_bestml_n : check_bestml_p;
+
+		CAT_DEBUG_ENFORCE( bestml == check_bestml );
     }
     #endif
-    
-	return bestml;
 }
 
 void cat::SuffixArray3_Init(SuffixArray3_State *state, u8 *ubuf, int size, int window_size) {
@@ -555,7 +556,7 @@ void cat::SuffixArray3_Init(SuffixArray3_State *state, u8 *ubuf, int size, int w
 	state->window_size = window_size;
 }
 
-int cat::SuffixArray3_BestML(SuffixArray3_State *state, int pos, int &match_offset) {
-	return ::SuffixArray3_BestML(&state->SAS, pos, state->intervalLevels.data(), state->numLevels, state->window_size, match_offset);
+void cat::SuffixArray3_BestML(SuffixArray3_State *state, int pos, int &bestoff_n, int &bestoff_p, int &bestml_n, int &bestml_p) {
+	::SuffixArray3_BestML(&state->SAS, pos, state->intervalLevels.data(), state->numLevels, state->window_size, bestoff_n, bestoff_p, bestml_n, bestml_p);
 }
 

@@ -176,9 +176,7 @@ void ImageRGBAWriter::designFilters() {
 				while (cx-- > 0 && px < xsize) {
 					// If element is not masked,
 					if (!IsMasked(px, py)) {
-						const u8 r = data[0];
-						const u8 g = data[1];
-						const u8 b = data[2];
+						const u8 r = data[0], g = data[1], b = data[2];
 
 						for (int f = 0; f < SF_USED; ++f) {
 							const u8 *pred = RGBA_FILTERS[f].safe(data, FPT, px, py, xsize);
