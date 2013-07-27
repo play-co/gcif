@@ -123,7 +123,7 @@ void MonoWriter::priceResiduals() {
 
 				// Record price in bits
 				int bits = _profile->encoders->encoder[chaos].price(residual);
-				CAT_DEBUG_ENFORCE(bits < 256);
+				CAT_DEBUG_ENFORCE(bits > 0 && bits < 256);
 				prices[0] = static_cast<u8>( bits );
 			}
 		}

@@ -925,6 +925,9 @@ bool MonoMatchFinder::init(const u8 * CAT_RESTRICT mono, int num_syms, const u8 
 
 		// Estimate bit cost of LZ match representation:
 
+		// TODO: Fix recent distances
+		// TODO: Encode length with fewer bits
+
 		int bits = escape_codelens[match->escape_code] + match->extra_bits;
 
 		if (match->emit_len) {
