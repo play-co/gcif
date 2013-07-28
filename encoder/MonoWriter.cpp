@@ -1158,7 +1158,7 @@ void MonoWriter::designChaos() {
 
 		// For each chaos level,
 		for (int ii = 0; ii < chaos_levels; ++ii) {
-			encoders->encoder[ii].init(_params.num_syms + (_params.lz_enable ? MonoReader::LZ_ESCAPE_SYMS : 0), ZRLE_SYMS);
+			encoders->encoder[ii].init(_params.num_syms + (_params.lz_enable ? LZ_ESCAPE_SYMS : 0), ZRLE_SYMS);
 		}
 
 		if (_params.lz_enable) {
