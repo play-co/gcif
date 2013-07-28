@@ -267,7 +267,7 @@ void MonoWriter::designRowFilters() {
 		const u16 *order = _params.write_order;
 		const u8 *data = _params.data;
 
-		_row_filter_encoder.init(_params.num_syms + (_params.lz_enable ? LZ_ESCAPE_SYMS : 0), ZRLE_SYMS);
+		_row_filter_encoder.init(_params.num_syms + (_params.lz_enable ? LZReader::ESCAPE_SYMS : 0), ZRLE_SYMS);
 
 		// Setup LZ
 		LZMatchFinder::LZMatch *lzm = _lz.getHead();
@@ -1159,7 +1159,7 @@ void MonoWriter::designChaos() {
 
 		// For each chaos level,
 		for (int ii = 0; ii < chaos_levels; ++ii) {
-			encoders->encoder[ii].init(_params.num_syms + (_params.lz_enable ? LZ_ESCAPE_SYMS : 0), ZRLE_SYMS);
+			encoders->encoder[ii].init(_params.num_syms + (_params.lz_enable ? LZReader::ESCAPE_SYMS : 0), ZRLE_SYMS);
 		}
 
 		LZMatchFinder::LZMatch *lzm = _lz.getHead();

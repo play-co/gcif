@@ -16,7 +16,7 @@ decode_objects = EndianNeutral.o Enforcer.o Filters.o GCIFReader.o
 decode_objects += HuffmanDecoder.o ImageRGBAReader.o EntropyDecoder.o
 decode_objects += ImageMaskReader.o ImageReader.o MappedFile.o lz4.o
 decode_objects += ImagePaletteReader.o MonoReader.o SmallPaletteReader.o
-decoder_objects += ChaosMetric.o
+decode_objects += ChaosMetric.o
 
 gcif_objects = gcif.o lodepng.o Log.o Mutex.o Clock.o Thread.o
 gcif_objects += lz4hc.o HuffmanEncoder.o PaletteOptimizer.o

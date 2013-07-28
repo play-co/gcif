@@ -36,7 +36,7 @@ using namespace cat;
 using namespace std;
 
 
-static void MatchEncode(u32 *recent, int recent_ii, LZMatchFinder::LZMatch *match, int xsize) {
+static void MatchEncode(u32 * CAT_RESTRICT recent, int recent_ii, LZMatchFinder::LZMatch * CAT_RESTRICT match, int xsize) {
 	static const int LAST_COUNT = MonoMatchFinder::LAST_COUNT;
 
 	match->emit_sdist = false;
@@ -190,16 +190,14 @@ void LZMatchFinder::init(Parameters &params) {
 void LZMatchFinder::rejectMatches() {
 	const u8 *costs = _params.costs;
 
-	// TODO: Set up pointers
-	// TODO: Set mask
-
 	// Collect LZ distance symbol statistics
 	FreqHistogram len_hist, sdist_hist, ldist_hist, escape_hist;
-	escape_hist.init(_params.num_syms + LZ_ESCAPE_SYMS);
-	len_hist.init(LZ_LEN_SYMS);
-	sdist_hist.init(LZ_SDIST_SYMS);
-	ldist_hist.init(LZ_LDIST_SYMS);
+	escape_hist.init(_params.num_syms + ESCAPE_SYMS);
+	len_hist.init(LEN_SYMS);
+	sdist_hist.init(SDIST_SYMS);
+	ldist_hist.init(LDIST_SYMS);
 
+	// Calculate active pixels
 	int active_pixels = 0;
 	for (int ii = 0; ii < _pixels; ++ii) {
 		const u8 cost = costs[ii];
@@ -207,25 +205,24 @@ void LZMatchFinder::rejectMatches() {
 			++active_pixels;
 		}
 	}
-	int avg_cost = active_pixels / num_syms + 1;
-	for (int ii = 0; ii < num_syms; ++ii) {
-		escape_hist.addMore(ii, avg_cost);
-	}
+
+	// Set up escape prices
+	escape_hist.addMore(0, active_pixels);
 
 	// Track recent distances
 	u32 recent[LAST_COUNT];
 	CAT_OBJCLR(recent);
 	int recent_ii = 0;
 
-	// While not at the end of the match list,
-	while (peekOffset() != LZMatchFinder::GUARD_OFFSET) {
-		LZMatch *match = pop();
+	// For each match,
+	for (int jj = 0; jj < _matches.size(); ++jj) {
+		LZMatch * CAT_RESTRICT match = &_matches[jj];
 
-		MatchEncode(recent, recent_ii, match, _xsize);
+		MatchEncode(recent, recent_ii, match, _params.xsize);
 
 		// Fix escape code to start right after num_syms
-		CAT_DEBUG_ENFORCE(match->escape_code < MonoReader::LZ_LEN_SYMS);
-		match->escape_code += num_syms;
+		CAT_DEBUG_ENFORCE(match->escape_code < ESCAPE_SYMS);
+		match->escape_code += _params.num_syms;
 		escape_hist.add(match->escape_code);
 
 		if (match->emit_len) {
@@ -248,32 +245,39 @@ void LZMatchFinder::rejectMatches() {
 		}
 	}
 
-	// Estimate encoding costs
+	// Estimate encoding costs for escape symbols
 	HuffmanEncoder escape_encoder;
 	escape_encoder.init(escape_hist);
-	const u8 *escape_codelens = escape_encoder._codelens.get();
+	const u8 * CAT_RESTRICT escape_codelens = escape_encoder._codelens.get();
 
 	// Initialize encoders
 	_lz_len_encoder.init(len_hist);
 	_lz_sdist_encoder.init(sdist_hist);
 	_lz_ldist_encoder.init(ldist_hist);
 
-	reset();
-
+	// Zero stats counters
 	int rejects = 0, accepts = 0;
 
+	// Reset histograms
 	len_hist.zero();
 	sdist_hist.zero();
 	ldist_hist.zero();
 
-	// While not at the end of the match list,
-	while (peekOffset() != LZMatchFinder::GUARD_OFFSET) {
-		LZMatch *match = pop();
+	// Reset recent distances
+	CAT_OBJCLR(recent);
+	recent_ii = 0;
+
+	// Zero linked list workspace
+	LZMatch *prev = 0;
+
+	// For each match,
+	for (int jj = 0; jj < _matches.size(); ++jj) {
+		LZMatch * CAT_RESTRICT match = &_matches[jj];
+
+		// Re-encode the match since the recent distances have changed
+		MatchEncode(recent, recent_ii, match, _params.xsize);
 
 		// Estimate bit cost of LZ match representation:
-
-		// TODO: Fix recent distances
-		// TODO: Encode length with fewer bits
 
 		int bits = escape_codelens[match->escape_code] + match->extra_bits;
 
@@ -291,10 +295,17 @@ void LZMatchFinder::rejectMatches() {
 
 		if (match->saved < bits) {
 			++rejects;
-			match->accepted = false;
 		} else {
 			++accepts;
-			match->accepted = true;
+
+			// Continue linked list
+			if (prev) {
+				prev->next = match;
+			} else {
+				_match_head = match;
+			}
+
+			// Set up mask
 			for (int jj = 0; jj < match->length; ++jj) {
 				setMask(jj + match->offset);
 			}
@@ -305,15 +316,13 @@ void LZMatchFinder::rejectMatches() {
 
 			if (match->emit_sdist) {
 				sdist_hist.add(match->sdist_code);
-			} else {
-				if (match->emit_ldist) {
-					CAT_DEBUG_ENFORCE(!match->emit_sdist);
-					ldist_hist.add(match->ldist_code);
-				}
+			} else if (match->emit_ldist) {
+				ldist_hist.add(match->ldist_code);
 			}
 		}
 	}
 
+	// Initialize Huffman encoders
 	_lz_len_encoder.init(len_hist);
 	_lz_sdist_encoder.init(sdist_hist);
 	_lz_ldist_encoder.init(ldist_hist);
@@ -321,7 +330,7 @@ void LZMatchFinder::rejectMatches() {
 	CAT_INANE("Mono") << "Accepted " << accepts << " LZ matches. Rejected " << rejects;
 }
 
-int LZMatchFinder::scoreMatch(int distance, const u32 *recent, const u8 *costs, int &match_len, int &bits_saved) {
+int LZMatchFinder::scoreMatch(int distance, const u32 * CAT_RESTRICT recent, const u8 * CAT_RESTRICT costs, int &match_len, int &bits_saved) {
 	bits_saved = 0;
 
 	// Calculate bits saved and fix match length
@@ -353,9 +362,9 @@ int LZMatchFinder::scoreMatch(int distance, const u32 *recent, const u8 *costs, 
 		bits_cost = 8;
 	} else if (distance <= 6) {
 		bits_cost = 8;
-	} else if (distance >= _xsize*8 + 9) {
+	} else if (distance >= _params.xsize*8 + 9) {
 		bits_cost = 15 + BSR32(distance) - 4;
-	} else if (distance >= _xsize*2 + 8) {
+	} else if (distance >= _params.xsize*2 + 8) {
 		bits_cost = 13;
 	} else {
 		bits_cost = 12;
@@ -364,7 +373,7 @@ int LZMatchFinder::scoreMatch(int distance, const u32 *recent, const u8 *costs, 
 	return bits_saved - bits_cost;
 }
 
-void LZMatchFinder::train(LZMatch *match, EntropyEncoder &ee) {
+void LZMatchFinder::train(LZMatch * CAT_RESTRICT match, EntropyEncoder &ee) {
 	ee.add(match->escape_code);
 }
 
@@ -378,7 +387,7 @@ int LZMatchFinder::writeTables(ImageWriter &writer) {
 	return bits;
 }
 
-int LZMatchFinder::write(LZMatch *match, EntropyEncoder &ee, ImageWriter &writer) {
+int LZMatchFinder::write(LZMatch * CAT_RESTRICT match, EntropyEncoder &ee, ImageWriter &writer) {
 	int ee_bits = ee.write(match->escape_code, writer);
 
 	int len_bits = 0, dist_bits = 0;
@@ -413,7 +422,7 @@ int LZMatchFinder::write(LZMatch *match, EntropyEncoder &ee, ImageWriter &writer
 
 //// RGBAMatchFinder
 
-bool RGBAMatchFinder::findMatches(SuffixArray3_State *sa3state, const u32 *rgba, const u8 * CAT_RESTRICT costs, int xsize, int ysize) {
+bool RGBAMatchFinder::findMatches(SuffixArray3_State * CAT_RESTRICT sa3state, const u32 * CAT_RESTRICT rgba) {
 	// Allocate and zero the table and chain
 	SmartArray<u32> table, chain;
 	table.resizeZero(HASH_SIZE);
@@ -433,8 +442,9 @@ bool RGBAMatchFinder::findMatches(SuffixArray3_State *sa3state, const u32 *rgba,
 	const int CHAIN_LIMIT = _params.chain_limit;
 
 	// For each pixel, stopping just before the last pixel:
-	const u32 *rgba_now = rgba;
-	for (int ii = 0, iiend = pixels - MIN_MATCH; ii <= iiend; ++ii, ++rgba_now, ++costs) {
+	const u32 * CAT_RESTRICT rgba_now = rgba;
+	const u8 * CAT_RESTRICT costs = _params.costs;
+	for (int ii = 0, iiend = _pixels - MIN_MATCH; ii <= iiend; ++ii, ++rgba_now, ++costs) {
 		u16 best_length = MIN_MATCH - 1;
 		u32 best_distance = 0;
 		int best_score = 0, best_saved = 0;
@@ -571,28 +581,28 @@ bool RGBAMatchFinder::findMatches(SuffixArray3_State *sa3state, const u32 *rgba,
 		}
 	}
 
-	_matches.push_back(LZMatch(GUARD_OFFSET, 0, 0, 0));
-
 	return true;
 }
 
-bool RGBAMatchFinder::init(const u32 * CAT_RESTRICT rgba, const u8 * CAT_RESTRICT costs, int xsize, int ysize, Parameters &params) {
-	init(SYM0, xsize, ysize, params);
+bool RGBAMatchFinder::init(const u32 * CAT_RESTRICT rgba, Parameters &params) {
+	LZMatchFinder::init(params);
 
 	SuffixArray3_State sa3state;
 	SuffixArray3_Init(&sa3state, (u8*)rgba, _pixels, WIN_SIZE * 4);
 
-	if (!findMatches(&sa3state, rgba, residuals)) {
+	if (!findMatches(&sa3state, rgba)) {
 		return false;
 	}
 
-	rejectMatches(costs);
+	rejectMatches();
+
+	return true;
 }
 
 
 //// MonoMatchFinder
 
-bool MonoMatchFinder::findMatches(SuffixArray3_State *sa3state, const u8 * CAT_RESTRICT mono, const u8 * CAT_RESTRICT costs) {
+bool MonoMatchFinder::findMatches(SuffixArray3_State * CAT_RESTRICT sa3state, const u8 * CAT_RESTRICT mono) {
 	// Allocate and zero the table and chain
 	SmartArray<u32> table, chain;
 	table.resizeZero(HASH_SIZE);
@@ -608,8 +618,9 @@ bool MonoMatchFinder::findMatches(SuffixArray3_State *sa3state, const u8 * CAT_R
 	const int CHAIN_LIMIT = _params.chain_limit;
 
 	// For each pixel, stopping just before the last pixel:
-	const u8 *mono_now = mono;
-	for (int ii = 0, iiend = pixels - MIN_MATCH; ii <= iiend; ++ii, ++mono_now, ++costs) {
+	const u8 * CAT_RESTRICT mono_now = mono;
+	const u8 * CAT_RESTRICT costs = _params.costs;
+	for (int ii = 0, iiend = _pixels - MIN_MATCH; ii <= iiend; ++ii, ++mono_now, ++costs) {
 		u16 best_length = MIN_MATCH - 1;
 		u32 best_distance = 0;
 		int best_score = 0, best_saved = 0;
@@ -738,24 +749,20 @@ bool MonoMatchFinder::findMatches(SuffixArray3_State *sa3state, const u8 * CAT_R
 		}
 	}
 
-	_matches.push_back(LZMatch(GUARD_OFFSET, 0, 0, 0));
-
 	return true;
 }
 
-bool MonoMatchFinder::init(const u8 * CAT_RESTRICT mono, int num_syms, const u8 * CAT_RESTRICT costs, int xsize, int ysize, Parameters &params) {
-	CAT_DEBUG_ENFORCE(num_syms <= 256);
-
-	init(num_syms, xsize, ysize, params);
+bool MonoMatchFinder::init(const u8 * CAT_RESTRICT mono, Parameters &params) {
+	LZMatchFinder::init(params);
 
 	SuffixArray3_State sa3state;
 	SuffixArray3_Init(&sa3state, (u8*)mono, _pixels, WIN_SIZE);
 
-	if (!findMatches(&sa3state, mono, costs, xsize, ysize)) {
+	if (!findMatches(&sa3state, mono)) {
 		return false;
 	}
 
-	rejectMatches(costs);
+	rejectMatches();
 
 	return true;
 }

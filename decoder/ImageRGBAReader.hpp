@@ -36,6 +36,7 @@
 #include "EntropyDecoder.hpp"
 #include "MonoReader.hpp"
 #include "SmartArray.hpp"
+#include "LZReader.hpp"
 
 /*
  * Game Closure RGBA Decompression
@@ -68,7 +69,7 @@ public:
 	static const int NUM_COLORS = 256;
 
 	static const int NUM_LIT_SYMS = NUM_COLORS;
-	static const int NUM_Y_SYMS = NUM_LIT_SYMS + LZ_ESCAPE_SYMS;
+	static const int NUM_Y_SYMS = NUM_LIT_SYMS + LZReader::ESCAPE_SYMS;
 	static const int NUM_U_SYMS = NUM_LIT_SYMS;
 	static const int NUM_V_SYMS = NUM_LIT_SYMS;
 	static const int NUM_ZRLE_SYMS = 128;

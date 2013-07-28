@@ -102,7 +102,7 @@ protected:
 
 	// Match list
 	std::vector<LZMatch> _matches;
-	LZMatch *_match_head;
+	LZMatch * CAT_RESTRICT _match_head;
 
 	// Encoders
 	HuffmanEncoder _lz_len_encoder, _lz_sdist_encoder, _lz_ldist_encoder;
@@ -115,7 +115,7 @@ protected:
 	}
 
 	void init(Parameters &params);
-	int scoreMatch(int distance, const u32 *recent, const u8 *costs, int &match_len, int &bits_saved);
+	int scoreMatch(int distance, const u32 * CAT_RESTRICT recent, const u8 * CAT_RESTRICT costs, int &match_len, int &bits_saved);
 	void rejectMatches();
 
 public:
@@ -128,10 +128,10 @@ public:
 		return _match_head;
 	}
 
-	void train(LZMatch *match, EntropyEncoder &ee);
+	void train(LZMatch * CAT_RESTRICT match, EntropyEncoder &ee);
 
 	int writeTables(ImageWriter &writer);
-	int write(LZMatch *match, EntropyEncoder &ee, ImageWriter &writer);
+	int write(LZMatch * CAT_RESTRICT match, EntropyEncoder &ee, ImageWriter &writer);
 };
 
 
@@ -147,7 +147,7 @@ class RGBAMatchFinder : public LZMatchFinder {
 		return (u32)( ( ((u64)rgba[0] << 32) | rgba[1] ) * HASH_MULT >> (64 - HASH_BITS) );
 	}
 
-	bool findMatches(SuffixArray3_State *sa3state, const u32 * CAT_RESTRICT rgba);
+	bool findMatches(SuffixArray3_State * CAT_RESTRICT sa3state, const u32 * CAT_RESTRICT rgba);
 
 public:
 	bool init(const u32 * CAT_RESTRICT rgba, Parameters &params);
@@ -168,7 +168,7 @@ protected:
 		return word0;
 	}
 
-	bool findMatches(SuffixArray3_State *sa3state, const u8 * CAT_RESTRICT mono);
+	bool findMatches(SuffixArray3_State * CAT_RESTRICT sa3state, const u8 * CAT_RESTRICT mono);
 
 public:
 	bool init(const u8 * CAT_RESTRICT mono, Parameters &params);

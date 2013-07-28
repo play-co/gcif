@@ -26,7 +26,7 @@
 	POSSIBILITY OF SUCH DAMAGE.
 */
 
-#include "Filters.hpp"
+#include "ChaosMetric.hpp"
 #include "Enforcer.hpp"
 #include "BitMath.hpp"
 using namespace cat;

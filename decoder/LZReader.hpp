@@ -31,8 +31,15 @@
 
 #include "Platform.hpp"
 
+// TODO: Encode length with fewer bits
+
 /*
- * LZ Escape Bitstream Format
+ * Game Closure LZ77 Image Compression
+ *
+ * GCIF introduces a new LZ77 variant for 2D graphics data.
+ *
+ * Escaping into LZ mode is done by adding more symbols to the Huffman symbol set
+ * for residual image data:
  *
  * RGBA:
  * Attached to the Y channel of the YUV encoder output are a number of
@@ -44,23 +51,18 @@
  * that act like the RGBA escapes.
  *
  *
- * Nice features of this format:
+ * Other nice features of this format:
  *
- * (1) Include "same as last 1-4 distance" code and use it as often as possible.
+ * (1) Includes "same as last 1-4 distance" code.
  *
  * (2) Use most common 2D distance matches for escape codes in addition to common
- * lengths.  This results in LZ matches under 5 pixels that often take only 7-9 bits
- * to represent overall.
+ * lengths.
  *
  * (3) Use only short literal lengths for escape codes.  This is great because only
  * long matches will make it through to the default "complex LZ" escape code, where
  * I do not care too much about being careful about bit representation.
  *
- * (4) Only match up to 256 and if I have to emit a match length, emit a literal
- * Huffman code for 2-256.  Longer matches do not matter and this makes full use of
- * the statistics.
- *
- * (5) To encode distances, an extended "local region" of pixels up to 16 to the
+ * (4) To encode distances, an extended "local region" of pixels up to 16 to the
  * left/right for the current and previous row, and -8 through +8 for the next 7
  * rows are assigned symbols in a Huffman code, in addition to a bit count encoding
  * that indicates how many bits the distance contains as well as some of the high bits.
@@ -172,8 +174,6 @@ public:
 	static const int LEN_SYMS = 255;			// Length code symbols
 	static const int LDIST_SYMS = 256;			// Long-distance code symbols
 	static const int SDIST_SYMS = 158;			// Short-distance code symbols
-
-	// Not worth matching fewer than MIN_MATCH
 	static const int MIN_MATCH = 2;				// pixels
 	static const int MAX_MATCH = 256;			// pixels
 	static const int WIN_SIZE = 1024 * 1024;	// pixels
