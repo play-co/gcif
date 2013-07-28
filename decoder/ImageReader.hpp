@@ -36,6 +36,10 @@
 namespace cat {
 
 
+//// Shared Constants
+
+static const int LZ_ESCAPE_SYMS = 32;
+
 
 //// ImageReader
 

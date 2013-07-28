@@ -181,7 +181,6 @@ public:
 	 */
 
 	static const int LZ_LEN_SYMS = 255;
-	static const int LZ_ESCAPE_SYMS = 32;
 	static const int LZ_LDIST_SYMS = 256;
 	static const int LZ_SDIST_SYMS = 158;
 
@@ -255,7 +254,9 @@ public:
 		return ( _mask[off >> 5] & (1 << (off & 31)) ) != 0;
 	}
 
-	CAT_INLINE LZMatch *getHead();
+	CAT_INLINE LZMatch *getHead() {
+		return _head_match;
+	}
 
 	void train(EntropyEncoder &ee);
 
