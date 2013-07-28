@@ -133,8 +133,11 @@ void MonoWriter::priceResiduals() {
 void MonoWriter::designLZ() {
 	CAT_INANE("Mono") << "Finding LZ77 matches for " << _params.xsize << "x" << _params.ysize << "...";
 
+	LZMatchFinder::Parameters lz_params;
+	lz_params.chain_limit = 32;
+
 	// Find LZ matches
-	_lz.init(_params.data, _params.num_syms, _prices.get(), _params.xsize, _params.ysize);
+	_lz.init(_params.data, _params.num_syms, _prices.get(), _params.xsize, _params.ysize, lz_params);
 }
 
 void MonoWriter::designRowFilters() {

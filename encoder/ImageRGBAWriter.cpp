@@ -95,9 +95,16 @@ void ImageRGBAWriter::priceResiduals() {
 void ImageRGBAWriter::designLZ() {
 	CAT_INANE("RGBA") << "Finding LZ77 matches...";
 
+	LZMatchFinder::Parameters lz_params;
+	lz_params.sym0 = 256;
+	lz_params.xsize = _xsize;
+	lz_params.ysize = _ysize;
+	lz_params.costs = _costs.get();
+	lz_params.chain_limit = 32;
+
 	// Find LZ matches
 	const u32 *rgba = reinterpret_cast<const u32 *>( _rgba );
-	_lz.init(rgba, _residuals.get() + 3, _xsize, _ysize, _mask);
+	_lz.init(rgba, lz_params);
 
 	_lz_enabled = true;
 }
