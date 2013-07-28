@@ -189,6 +189,9 @@ void LZMatchFinder::init(Parameters &params) {
 void LZMatchFinder::rejectMatches() {
 	const u8 *costs = _params.costs;
 
+	// TODO: Set up pointers
+	// TODO: Set mask
+
 	// Collect LZ distance symbol statistics
 	FreqHistogram len_hist, sdist_hist, ldist_hist, escape_hist;
 	escape_hist.init(_params.num_syms + MonoReader::LZ_ESCAPE_SYMS);
@@ -360,10 +363,7 @@ int LZMatchFinder::scoreMatch(int distance, const u32 *recent, const u8 *costs, 
 	return bits_saved - bits_cost;
 }
 
-void LZMatchFinder::train(EntropyEncoder &ee) {
-	// Get LZ match information
-	LZMatch *match = pop();
-
+void LZMatchFinder::train(LZMatch *match, EntropyEncoder &ee) {
 	ee.add(match->escape_code);
 }
 
@@ -377,10 +377,7 @@ int LZMatchFinder::writeTables(ImageWriter &writer) {
 	return bits;
 }
 
-int LZMatchFinder::write(int num_syms, EntropyEncoder &ee, ImageWriter &writer) {
-	// Get LZ match information
-	LZMatch *match = pop();
-
+int LZMatchFinder::write(LZMatch *match, EntropyEncoder &ee, ImageWriter &writer) {
 	int ee_bits = ee.write(match->escape_code, writer);
 
 	int len_bits = 0, dist_bits = 0;

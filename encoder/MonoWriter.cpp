@@ -134,10 +134,14 @@ void MonoWriter::designLZ() {
 	CAT_INANE("Mono") << "Finding LZ77 matches for " << _params.xsize << "x" << _params.ysize << "...";
 
 	LZMatchFinder::Parameters lz_params;
+	lz_params.costs = _prices.get();
+	lz_params.xsize = _params.xsize;
+	lz_params.ysize = _params.ysize;
+	lz_params.num_syms = _params.num_syms;
 	lz_params.chain_limit = 32;
 
 	// Find LZ matches
-	_lz.init(_params.data, _params.num_syms, _prices.get(), _params.xsize, _params.ysize, lz_params);
+	_lz.init(_params.data, lz_params);
 }
 
 void MonoWriter::designRowFilters() {
@@ -263,11 +267,10 @@ void MonoWriter::designRowFilters() {
 		const u16 *order = _params.write_order;
 		const u8 *data = _params.data;
 
-		_row_filter_encoder.init(_params.num_syms + (_params.lz_enable ? MonoReader::LZ_LEN_SYMS : 0), ZRLE_SYMS);
+		_row_filter_encoder.init(_params.num_syms + (_params.lz_enable ? LZ_ESCAPE_SYMS : 0), ZRLE_SYMS);
 
-		if (_params.lz_enable) {
-			_lz.reset();
-		}
+		// Setup LZ
+		LZMatchFinder::LZMatch *lzm = _lz.getHead();
 		int offset = 0;
 
 		// For each tile,
@@ -301,8 +304,8 @@ void MonoWriter::designRowFilters() {
 					// If using LZ,
 					if (_params.lz_enable) {
 						// If LZ match is here,
-						if (offset == _lz.peekOffset()) {
-							_lz.train(_row_filter_encoder);
+						if (offset == lzm->offset) {
+							_lz.train(lzm, _row_filter_encoder);
 						}
 
 						// If pixel is LZ masked,

@@ -110,7 +110,7 @@ static const int DIV2_TAPPED_COUNT = 80;
 static const int SF_COUNT = SF_BASIC_COUNT + DIV2_TAPPED_COUNT;
 
 /*
- * RGBA filter (Assumes data pointer is 4 bytes wide)
+ * RGBA filter
  *
  * p: Pointer to current RGBA pixel
  * temp: Temp workspace if we need it (3 bytes)
@@ -132,7 +132,7 @@ struct RGBAFilterFuncs {
 extern const RGBAFilterFuncs RGBA_FILTERS[SF_COUNT];
 
 /*
- * Monochrome filter (Assumes data pointer is bytewise)
+ * Monochrome filter
  *
  * p: Pointer to current monochrome pixel
  * num_syms: Number of symbols

@@ -32,6 +32,7 @@
 #include "Platform.hpp"
 #include "ImageReader.hpp"
 #include "Filters.hpp"
+#include "ChaosMetric.hpp"
 #include "EntropyDecoder.hpp"
 #include "GCIFReader.h"
 #include "Delegates.hpp"

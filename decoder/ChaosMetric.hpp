@@ -204,6 +204,5 @@ public:
 
 } // namespace cat
 
-#endif // FILTERS_HPP
-
+#endif // CHAOS_METRIC_HPP
 

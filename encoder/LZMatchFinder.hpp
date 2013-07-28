@@ -258,10 +258,10 @@ public:
 		return _head_match;
 	}
 
-	void train(EntropyEncoder &ee);
+	void train(LZMatch *match, EntropyEncoder &ee);
 
 	int writeTables(ImageWriter &writer);
-	int write(EntropyEncoder &ee, ImageWriter &writer);
+	int write(LZMatch *match, EntropyEncoder &ee, ImageWriter &writer);
 };
 
 
