@@ -82,10 +82,13 @@ protected:
 	// Twiddly knobs from the write API
 	const GCIFKnobs *_knobs;
 
-	// Subsystems
+	// Dominat color mask
 	ImageMaskWriter *_mask;
-	bool _lz_enabled; // LZ subsystem has initialized?
-	RGBAMatchFinder _lz;
+
+	// LZ
+	bool _lz_enabled; 					// LZ subsystem has initialized?
+	RGBAMatchFinder _lz;				// Match finder
+	SmartArray<u8> _costs;				// Cost per pixel
 
 	// RGBA image
 	const u8 *_rgba;

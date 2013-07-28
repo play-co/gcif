@@ -304,8 +304,9 @@ void MonoWriter::designRowFilters() {
 					// If using LZ,
 					if (_params.lz_enable) {
 						// If LZ match is here,
-						if (offset == lzm->offset) {
+						if (lzm && offset == lzm->offset) {
 							_lz.train(lzm, _row_filter_encoder);
+							lzm = lzm->next;
 						}
 
 						// If pixel is LZ masked,
@@ -1161,9 +1162,7 @@ void MonoWriter::designChaos() {
 			encoders->encoder[ii].init(_params.num_syms + (_params.lz_enable ? LZ_ESCAPE_SYMS : 0), ZRLE_SYMS);
 		}
 
-		if (_params.lz_enable) {
-			_lz.reset();
-		}
+		LZMatchFinder::LZMatch *lzm = _lz.getHead();
 		int offset = 0;
 
 		// For each row,
@@ -1215,9 +1214,10 @@ void MonoWriter::designChaos() {
 					// If using LZ,
 					if (_params.lz_enable) {
 						// If LZ match is here,
-						if (offset == _lz.peekOffset()) {
+						if (lzm && offset == lzm->offset) {
 							int chaos = encoders->chaos.get(x);
-							_lz.train(encoders->encoder[chaos]);
+							_lz.train(lzm, encoders->encoder[chaos]);
+							lzm = lzm->next;
 						}
 
 						// If pixel is LZ masked,
@@ -1540,7 +1540,7 @@ int MonoWriter::writeTables(ImageWriter &writer) {
 
 	if (_params.lz_enable) {
 		Stats.lz_table_bits = _lz.writeTables(writer);
-		_lz.reset();
+		_lz_next = _lz.getHead();
 	} else {
 		Stats.lz_table_bits = 0;
 	}
@@ -1630,17 +1630,19 @@ int MonoWriter::write(u16 x, u16 y, ImageWriter &writer) {
 		int lz_bits = 0;
 
 		// If next match is here,
-		if (_lz.peekOffset() == x + _params.xsize * y) {
+		const int offset = x + _params.xsize * y;
+		if (_lz_next && _lz_next->offset == offset) {
 			// If using row filters,
 			if (_use_row_filters) {
-				lz_bits = _lz.write(_params.num_syms, _row_filter_encoder, writer);
+				lz_bits = _lz.write(_lz_next, _row_filter_encoder, writer);
 			} else {
 				int chaos = _profile->encoders->chaos.get(x);
 				_profile->encoders->chaos.zero(x);
-				lz_bits = _lz.write(_params.num_syms, _profile->encoders->encoder[chaos], writer);
+				lz_bits = _lz.write(_lz_next, _profile->encoders->encoder[chaos], writer);
 			}
 
 			Stats.lz_bits += lz_bits;
+			_lz_next = _lz_next->next;
 
 			CAT_DEBUG_ENFORCE(_lz.masked(x, y));
 		}

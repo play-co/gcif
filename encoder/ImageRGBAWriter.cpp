@@ -66,13 +66,17 @@ void ImageRGBAWriter::priceResiduals() {
 		_encoders->v[ii].reset();
 	}
 
+	// Initialize costs
+	_costs.resize(_xsize * _ysize);
+
 	// For each pixel of residuals,
 	u8 *residuals = _residuals.get();
+	u8 *costs = _costs.get();
 	for (u16 y = 0; y < _ysize; ++y) {
-		for (u16 x = 0; x < _xsize; ++x, residuals += 4) {
+		for (u16 x = 0; x < _xsize; ++x, residuals += 4, ++costs) {
 			if (_mask->masked(x, y)) {
 				_encoders->chaos.zero(x);
-				residuals[3] = 0;
+				costs[0] = 0;
 			} else {
 				// Get chaos bin
 				u8 cy, cu, cv;
@@ -86,7 +90,7 @@ void ImageRGBAWriter::priceResiduals() {
 				bits += _encoders->v[cv].price(residuals[2]);
 
 				CAT_DEBUG_ENFORCE(bits < 256);
-				residuals[3] = static_cast<u8>( bits );
+				costs[0] = static_cast<u8>( bits );
 			}
 		}
 	}
@@ -96,7 +100,7 @@ void ImageRGBAWriter::designLZ() {
 	CAT_INANE("RGBA") << "Finding LZ77 matches...";
 
 	LZMatchFinder::Parameters lz_params;
-	lz_params.sym0 = 256;
+	lz_params.num_syms = 256;
 	lz_params.xsize = _xsize;
 	lz_params.ysize = _ysize;
 	lz_params.costs = _costs.get();
@@ -677,9 +681,7 @@ void ImageRGBAWriter::designChaos() {
 
 		// Reset LZ
 		u32 offset = 0;
-		if (_lz_enabled) {
-			_lz.reset();
-		}
+		LZMatchFinder::LZMatch *lzm = _lz_enabled ? _lz.getHead() : 0;
 
 		// For each row,
 		const u8 *residuals = _residuals.get();
@@ -687,12 +689,13 @@ void ImageRGBAWriter::designChaos() {
 			// For each column,
 			for (int x = 0; x < _xsize; ++x, ++offset) {
 				// If we just hit the start of the next LZ copy region,
-				if (_lz_enabled && offset == _lz.peekOffset()) {
+				if (lzm && offset == lzm->offset) {
 					// Get chaos bin
 					u8 cy, cu, cv;
 					encoders->chaos.get(x, cy, cu, cv);
 
-					_lz.train(encoders->y[cy]);
+					_lz.train(lzm, encoders->y[cy]);
+					lzm = lzm->next;
 				}
 
 				if (IsMasked(x, y)) {
@@ -989,7 +992,7 @@ bool ImageRGBAWriter::writePixels(ImageWriter &writer) {
 
 	// Reset LZ
 	u32 offset = 0;
-	_lz.reset();
+	LZMatchFinder::LZMatch *lzm = _lz_enabled ? _lz.getHead() : 0;
 
 	// For each scanline,
 	for (u16 y = 0; y < _ysize; ++y) {
@@ -1021,12 +1024,13 @@ bool ImageRGBAWriter::writePixels(ImageWriter &writer) {
 			DESYNC(x, y);
 
 			// If we just hit the start of the next LZ copy region,
-			if (offset == _lz.peekOffset()) {
+			if (lzm && offset == lzm->offset) {
 				// Get chaos bin
 				u8 cy, cu, cv;
 				_encoders->chaos.get(x, cy, cu, cv);
 
-				lz_bits += _lz.write(_encoders->y[cy], writer);
+				lz_bits += _lz.write(lzm, _encoders->y[cy], writer);
+				lzm = lzm->next;
 			}
 
 			// If masked,
@@ -1034,7 +1038,7 @@ bool ImageRGBAWriter::writePixels(ImageWriter &writer) {
 				_encoders->chaos.zero(x);
 				_a_encoder.zero(x);
 
-				if (_lz.masked(x, y)) {
+				if (_lz_enabled && _lz.masked(x, y)) {
 					++lz_count;
 				}
 			} else {

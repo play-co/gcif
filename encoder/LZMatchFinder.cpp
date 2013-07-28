@@ -180,6 +180,7 @@ void LZMatchFinder::init(Parameters &params) {
 	// Store parameters
 	_params = params;
 	_pixels = _params.xsize * _params.ysize;
+	_match_head = 0;
 
 	// Initialize bitmask
 	const int MASK_SIZE = (_pixels + 31) / 32;
@@ -194,10 +195,10 @@ void LZMatchFinder::rejectMatches() {
 
 	// Collect LZ distance symbol statistics
 	FreqHistogram len_hist, sdist_hist, ldist_hist, escape_hist;
-	escape_hist.init(_params.num_syms + MonoReader::LZ_ESCAPE_SYMS);
-	len_hist.init(MonoReader::LZ_LEN_SYMS);
-	sdist_hist.init(MonoReader::LZ_SDIST_SYMS);
-	ldist_hist.init(MonoReader::LZ_LDIST_SYMS);
+	escape_hist.init(_params.num_syms + LZ_ESCAPE_SYMS);
+	len_hist.init(LZ_LEN_SYMS);
+	sdist_hist.init(LZ_SDIST_SYMS);
+	ldist_hist.init(LZ_LDIST_SYMS);
 
 	int active_pixels = 0;
 	for (int ii = 0; ii < _pixels; ++ii) {
