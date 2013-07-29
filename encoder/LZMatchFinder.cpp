@@ -298,6 +298,12 @@ void LZMatchFinder::rejectMatches() {
 		} else {
 			++accepts;
 
+			// Update recent distances
+			recent[recent_ii++] = match->distance;
+			if (recent_ii >= LAST_COUNT) {
+				recent_ii = 0;
+			}
+
 			// Continue linked list
 			if (prev) {
 				prev->next = match;
