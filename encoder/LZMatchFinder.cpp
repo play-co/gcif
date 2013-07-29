@@ -597,6 +597,18 @@ bool RGBAMatchFinder::init(const u32 * CAT_RESTRICT rgba, Parameters &params) {
 		return false;
 	}
 
+#ifdef CAT_DEBUG
+	for (int ii = 0; ii < _matches.size(); ++ii) {
+		int off = _matches[ii].offset;
+		int len = _matches[ii].length;
+		int dist = _matches[ii].distance;
+
+		for (int jj = 0; jj < len; ++jj) {
+			CAT_DEBUG_ENFORCE(rgba[off + jj] == rgba[off - dist + jj]);
+		}
+	}
+#endif
+
 	rejectMatches();
 
 	return true;
@@ -766,6 +778,19 @@ bool MonoMatchFinder::init(const u8 * CAT_RESTRICT mono, Parameters &params) {
 	if (!findMatches(&sa3state, mono)) {
 		return false;
 	}
+
+#ifdef CAT_DEBUG
+	for (int ii = 0; ii < _matches.size(); ++ii) {
+		int off = _matches[ii].offset;
+		int len = _matches[ii].length;
+		int dist = _matches[ii].distance;
+
+		for (int jj = 0; jj < len; ++jj) {
+			CAT_DEBUG_ENFORCE(off >= dist);
+			CAT_DEBUG_ENFORCE(mono[off + jj] == mono[off - dist + jj]);
+		}
+	}
+#endif
 
 	rejectMatches();
 
