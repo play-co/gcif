@@ -310,6 +310,7 @@ void LZMatchFinder::rejectMatches() {
 			} else {
 				_match_head = match;
 			}
+			prev = match;
 
 			// Set up mask
 			for (int jj = 0; jj < match->length; ++jj) {
