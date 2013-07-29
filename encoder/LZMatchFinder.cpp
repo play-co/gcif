@@ -471,8 +471,6 @@ bool RGBAMatchFinder::findMatches(SuffixArray3_State * CAT_RESTRICT sa3state, co
 				longest_off_n = (longest_off_n + 3) & 0xFFFFFFFC;
 				longest_off_p = (longest_off_p + 3) & 0xFFFFFFFC;
 
-				CAT_DEBUG_ENFORCE(longest_off_n < ii && longest_off_p < ii);
-
 				// If longest match exists,
 				if (longest_ml_n >= MIN_MATCH ||
 					longest_ml_p >= MIN_MATCH) {
@@ -490,8 +488,14 @@ bool RGBAMatchFinder::findMatches(SuffixArray3_State * CAT_RESTRICT sa3state, co
 
 					// Score match based on residuals
 					int longest_saved_n, longest_saved_p;
-					int longest_score_n = scoreMatch(longest_dist_n, recent, costs, longest_ml_n, longest_saved_n);
-					int longest_score_p = scoreMatch(longest_dist_p, recent, costs, longest_ml_p, longest_saved_p);
+					int longest_score_n, longest_score_p;
+
+					if (longest_off_n < ii) {
+						longest_score_n = scoreMatch(longest_dist_n, recent, costs, longest_ml_n, longest_saved_n);
+					}
+					if (longest_off_p < ii) {
+						longest_score_p = scoreMatch(longest_dist_p, recent, costs, longest_ml_p, longest_saved_p);
+					}
 
 					// For each hash chain suggested start point,
 					int limit = CHAIN_LIMIT; // up to a limited depth
@@ -737,6 +741,7 @@ bool MonoMatchFinder::findMatches(SuffixArray3_State * CAT_RESTRICT sa3state, co
 					}
 
 					_matches.push_back(LZMatch(ii, best_distance, best_length, best_saved));
+					//CAT_WARN("LZ") << ii << " : " << best_distance << ", " << best_length;
 				} else {
 					CAT_WARN("LZextended") << ii << " : " << best_distance << ", " << best_length;
 				}
