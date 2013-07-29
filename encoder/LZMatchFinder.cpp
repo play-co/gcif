@@ -474,29 +474,6 @@ bool RGBAMatchFinder::findMatches(SuffixArray3_State * CAT_RESTRICT sa3state, co
 				// If longest match exists,
 				if (longest_ml_n >= MIN_MATCH ||
 					longest_ml_p >= MIN_MATCH) {
-					// Calculate distance to it
-					u32 longest_dist_n = ii - longest_off_n;
-					u32 longest_dist_p = ii - longest_off_p;
-
-					// If match length is too long,
-					if (longest_ml_n > MAX_MATCH) {
-						longest_ml_n = MAX_MATCH;
-					}
-					if (longest_ml_p > MAX_MATCH) {
-						longest_ml_p = MAX_MATCH;
-					}
-
-					// Score match based on residuals
-					int longest_saved_n, longest_saved_p;
-					int longest_score_n, longest_score_p;
-
-					if (longest_off_n < ii) {
-						longest_score_n = scoreMatch(longest_dist_n, recent, costs, longest_ml_n, longest_saved_n);
-					}
-					if (longest_off_p < ii) {
-						longest_score_p = scoreMatch(longest_dist_p, recent, costs, longest_ml_p, longest_saved_p);
-					}
-
 					// For each hash chain suggested start point,
 					int limit = CHAIN_LIMIT; // up to a limited depth
 					do {
@@ -536,18 +513,39 @@ bool RGBAMatchFinder::findMatches(SuffixArray3_State * CAT_RESTRICT sa3state, co
 						node = chain[node - 1];
 					} while (node != 0 && --limit);
 
-					// If longest match is better,
-					if (longest_score_n > best_score) {
-						best_distance = longest_dist_n;
-						best_length = longest_ml_n;
-						best_score = longest_score_n;
-						best_saved = longest_saved_n;
+					// Calculate distance to it
+					u32 longest_dist_n = ii - longest_off_n;
+					u32 longest_dist_p = ii - longest_off_p;
+
+					// If match length is too long,
+					if (longest_ml_n > MAX_MATCH) {
+						longest_ml_n = MAX_MATCH;
 					}
-					if (longest_score_p > best_score) {
-						best_distance = longest_dist_p;
-						best_length = longest_ml_p;
-						best_score = longest_score_p;
-						best_saved = longest_saved_p;
+					if (longest_ml_p > MAX_MATCH) {
+						longest_ml_p = MAX_MATCH;
+					}
+
+					// Score match based on residuals
+					int longest_saved_n, longest_saved_p;
+					int longest_score_n, longest_score_p;
+
+					if (longest_off_n < ii) {
+						longest_score_n = scoreMatch(longest_dist_n, recent, costs, longest_ml_n, longest_saved_n);
+						if (longest_score_n > best_score) {
+							best_distance = longest_dist_n;
+							best_length = longest_ml_n;
+							best_score = longest_score_n;
+							best_saved = longest_saved_n;
+						}
+					}
+					if (longest_off_p < ii) {
+						longest_score_p = scoreMatch(longest_dist_p, recent, costs, longest_ml_p, longest_saved_p);
+						if (longest_score_p > best_score) {
+							best_distance = longest_dist_p;
+							best_length = longest_ml_p;
+							best_score = longest_score_p;
+							best_saved = longest_saved_p;
+						}
 					}
 
 					if (best_score < 2) {
@@ -565,7 +563,7 @@ bool RGBAMatchFinder::findMatches(SuffixArray3_State * CAT_RESTRICT sa3state, co
 		if (best_distance > 0) {
 			// Check if this match covers more pixels than the overlapping match
 			if (best_length > covered_pixels) {
-				if (covered_pixels > 0) {
+				if (covered_pixels <= 0) {
 					// Update recent distances
 					recent[recent_ii++] = best_distance;
 					if (recent_ii >= LAST_COUNT) {
@@ -574,7 +572,7 @@ bool RGBAMatchFinder::findMatches(SuffixArray3_State * CAT_RESTRICT sa3state, co
 
 					_matches.push_back(LZMatch(ii, best_distance, best_length, best_saved));
 				} else {
-					CAT_WARN("LZextended") << ii << " : " << best_distance << ", " << best_length;
+					//CAT_WARN("LZextended") << ii << " : " << best_distance << ", " << best_length;
 				}
 			}
 		}
@@ -592,7 +590,7 @@ bool RGBAMatchFinder::init(const u32 * CAT_RESTRICT rgba, Parameters &params) {
 	LZMatchFinder::init(params);
 
 	SuffixArray3_State sa3state;
-	SuffixArray3_Init(&sa3state, (u8*)rgba, _pixels, WIN_SIZE * 4);
+	SuffixArray3_Init(&sa3state, (u8*)rgba, _pixels * 4, (WIN_SIZE > _pixels ? _pixels : WIN_SIZE) * 4);
 
 	if (!findMatches(&sa3state, rgba)) {
 		return false;
@@ -648,23 +646,6 @@ bool MonoMatchFinder::findMatches(SuffixArray3_State * CAT_RESTRICT sa3state, co
 				// If longest match exists,
 				if (longest_ml_n >= MIN_MATCH ||
 					longest_ml_p >= MIN_MATCH) {
-					// Calculate distance to it
-					u32 longest_dist_n = ii - longest_off_n;
-					u32 longest_dist_p = ii - longest_off_p;
-
-					// If match length is too long,
-					if (longest_ml_n > MAX_MATCH) {
-						longest_ml_n = MAX_MATCH;
-					}
-					if (longest_ml_p > MAX_MATCH) {
-						longest_ml_p = MAX_MATCH;
-					}
-
-					// Score match based on residuals
-					int longest_saved_n, longest_saved_p;
-					int longest_score_n = scoreMatch(longest_dist_n, recent, costs, longest_ml_n, longest_saved_n);
-					int longest_score_p = scoreMatch(longest_dist_p, recent, costs, longest_ml_p, longest_saved_p);
-
 					// For each hash chain suggested start point,
 					int limit = CHAIN_LIMIT; // up to a limited depth
 					do {
@@ -704,6 +685,23 @@ bool MonoMatchFinder::findMatches(SuffixArray3_State * CAT_RESTRICT sa3state, co
 						node = chain[node - 1];
 					} while (node != 0 && --limit);
 
+					// Calculate distance to it
+					u32 longest_dist_n = ii - longest_off_n;
+					u32 longest_dist_p = ii - longest_off_p;
+
+					// If match length is too long,
+					if (longest_ml_n > MAX_MATCH) {
+						longest_ml_n = MAX_MATCH;
+					}
+					if (longest_ml_p > MAX_MATCH) {
+						longest_ml_p = MAX_MATCH;
+					}
+
+					// Score match based on residuals
+					int longest_saved_n, longest_saved_p;
+					int longest_score_n = scoreMatch(longest_dist_n, recent, costs, longest_ml_n, longest_saved_n);
+					int longest_score_p = scoreMatch(longest_dist_p, recent, costs, longest_ml_p, longest_saved_p);
+
 					// If longest match is better,
 					if (longest_score_n > best_score) {
 						best_distance = longest_dist_n;
@@ -733,7 +731,7 @@ bool MonoMatchFinder::findMatches(SuffixArray3_State * CAT_RESTRICT sa3state, co
 		if (best_distance > 0) {
 			// Check if this match covers more pixels than the overlapping match
 			if (best_length > covered_pixels) {
-				if (covered_pixels > 0) {
+				if (covered_pixels <= 0) {
 					// Update recent distances
 					recent[recent_ii++] = best_distance;
 					if (recent_ii >= LAST_COUNT) {
@@ -743,7 +741,7 @@ bool MonoMatchFinder::findMatches(SuffixArray3_State * CAT_RESTRICT sa3state, co
 					_matches.push_back(LZMatch(ii, best_distance, best_length, best_saved));
 					//CAT_WARN("LZ") << ii << " : " << best_distance << ", " << best_length;
 				} else {
-					CAT_WARN("LZextended") << ii << " : " << best_distance << ", " << best_length;
+					//CAT_WARN("LZextended") << ii << " : " << best_distance << ", " << best_length;
 				}
 			}
 		}
@@ -761,7 +759,7 @@ bool MonoMatchFinder::init(const u8 * CAT_RESTRICT mono, Parameters &params) {
 	LZMatchFinder::init(params);
 
 	SuffixArray3_State sa3state;
-	SuffixArray3_Init(&sa3state, (u8*)mono, _pixels, WIN_SIZE);
+	SuffixArray3_Init(&sa3state, (u8*)mono, _pixels, (WIN_SIZE > _pixels ? _pixels : WIN_SIZE));
 
 	if (!findMatches(&sa3state, mono)) {
 		return false;

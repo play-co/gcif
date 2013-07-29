@@ -253,7 +253,7 @@ void MakeFirstIntervals( vector<IntervalData> * pTo, const SuffixArraySearcher &
 
 void MakeNextIntervals( vector<IntervalData> * pTo, const vector<IntervalData> & from )
 {
-	int fmsize = from.size();
+	int fmsize = (int)from.size();
 	int tosize = ( fmsize + 1 )/2;
 	pTo->resize(tosize);
 	
@@ -281,7 +281,7 @@ int LowestBitOn(u32 val)
 {
 	if ( val == 0 ) return 32;
     
-    const u32 mask = val & -val;
+    const u32 mask = val & -(s32)val;
 
     return BSR32(mask);
 }
@@ -505,7 +505,7 @@ static void SuffixArray3_BestML(const SuffixArraySearcher * SAS,int pos,
 	const int * pSortLookup = SAS->sortIndexInverse.data();
 	int sortPos = pSortLookup[pos];
 	CAT_DEBUG_ENFORCE( SAS->sortIndex[sortPos] == pos );
-    
+
 	const int * pSortIndex = SAS->sortIndex.data();
 	const int * pSortSameLen = SAS->pSortSameLen;
 	const u8 * ubuf = SAS->ubuf;

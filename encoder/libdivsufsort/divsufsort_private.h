@@ -38,8 +38,6 @@ extern "C" {
 # include <stdlib.h>
 # include <memory.h>
 # include <stddef.h>
-# include <strings.h>
-# include <inttypes.h>
 #  include <stdint.h>
 # include "divsufsort.h"
 

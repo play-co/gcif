@@ -40,9 +40,7 @@ static const saint_t lg_table[256]= {
   7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7
 };
 
-static INLINE
-saint_t
-tr_ilg(saidx_t n) {
+static INLINE saint_t tr_ilg(saidx_t n) {
 #if defined(BUILD_DIVSUFSORT64)
   return (n >> 32) ?
           ((n >> 48) ?

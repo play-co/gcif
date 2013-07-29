@@ -31,36 +31,27 @@
 extern "C" {
 #endif /* __cplusplus */
 
-#include <inttypes.h>
 
-#ifndef DIVSUFSORT_API
-# ifdef DIVSUFSORT_BUILD_DLL
-#  define DIVSUFSORT_API 
-# else
-#  define DIVSUFSORT_API 
-# endif
-#endif
+#define DIVSUFSORT_API
 
 /*- Datatypes -*/
-#ifndef SAUCHAR_T
-#define SAUCHAR_T
-typedef uint8_t sauchar_t;
-#endif /* SAUCHAR_T */
-#ifndef SAINT_T
-#define SAINT_T
-typedef int32_t saint_t;
-#endif /* SAINT_T */
-#ifndef SAIDX_T
-#define SAIDX_T
-typedef int32_t saidx_t;
-#endif /* SAIDX_T */
+#ifdef _MSC_VER
+	typedef unsigned char sauchar_t;
+	typedef __int32 saint_t;
+	typedef __int32 saidx_t;
+#else
+#include <stdint.h>
+	typedef uint8_t sauchar_t;
+	typedef int32_t saint_t;
+	typedef int32_t saidx_t;
+#endif
+
 #ifndef PRIdSAINT_T
-#define PRIdSAINT_T PRId32
+#define PRIdSAINT_T "d32"
 #endif /* PRIdSAINT_T */
 #ifndef PRIdSAIDX_T
-#define PRIdSAIDX_T PRId32
+#define PRIdSAIDX_T "d32"
 #endif /* PRIdSAIDX_T */
-
 
 /*- Prototypes -*/
 

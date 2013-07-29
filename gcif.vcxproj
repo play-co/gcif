@@ -20,6 +20,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="decoder\BitMath.hpp" />
+    <ClInclude Include="decoder\ChaosMetric.hpp" />
     <ClInclude Include="decoder\Config.hpp" />
     <ClInclude Include="decoder\Delegates.hpp" />
     <ClInclude Include="decoder\EndianNeutral.hpp" />
@@ -33,6 +34,7 @@
     <ClInclude Include="decoder\ImageReader.hpp" />
     <ClInclude Include="decoder\ImageRGBAReader.hpp" />
     <ClInclude Include="decoder\lz4.h" />
+    <ClInclude Include="decoder\LZReader.hpp" />
     <ClInclude Include="decoder\MappedFile.hpp" />
     <ClInclude Include="decoder\MonoReader.hpp" />
     <ClInclude Include="decoder\Platform.hpp" />
@@ -49,6 +51,10 @@
     <ClInclude Include="encoder\ImagePaletteWriter.hpp" />
     <ClInclude Include="encoder\ImageRGBAWriter.hpp" />
     <ClInclude Include="encoder\ImageWriter.hpp" />
+    <ClInclude Include="encoder\libdivsufsort\config.h" />
+    <ClInclude Include="encoder\libdivsufsort\divsufsort.h" />
+    <ClInclude Include="encoder\libdivsufsort\divsufsort_private.h" />
+    <ClInclude Include="encoder\libdivsufsort\lfs.h" />
     <ClInclude Include="encoder\lodepng.h" />
     <ClInclude Include="encoder\Log.hpp" />
     <ClInclude Include="encoder\lz4hc.h" />
@@ -58,6 +64,7 @@
     <ClInclude Include="encoder\PaletteOptimizer.hpp" />
     <ClInclude Include="encoder\Singleton.hpp" />
     <ClInclude Include="encoder\SmallPaletteWriter.hpp" />
+    <ClInclude Include="encoder\SuffixArray3.hpp" />
     <ClInclude Include="encoder\SystemInfo.hpp" />
     <ClInclude Include="encoder\Thread.hpp" />
     <ClInclude Include="encoder\WaitableFlag.hpp" />
@@ -66,6 +73,7 @@
     <ClInclude Include="optionparser.h" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="decoder\ChaosMetric.cpp" />
     <ClCompile Include="decoder\EndianNeutral.cpp" />
     <ClCompile Include="decoder\Enforcer.cpp" />
     <ClCompile Include="decoder\EntropyDecoder.cpp" />
@@ -94,6 +102,7 @@
     <ClCompile Include="decoder\MonoReader.cpp" />
     <ClCompile Include="decoder\SmallPaletteReader.cpp" />
     <ClCompile Include="encoder\Clock.cpp" />
+    <ClCompile Include="encoder\EntropyEncoder.cpp" />
     <ClCompile Include="encoder\EntropyEstimator.cpp" />
     <ClCompile Include="encoder\FilterScorer.cpp" />
     <ClCompile Include="encoder\GCIFWriter.cpp" />
@@ -102,6 +111,62 @@
     <ClCompile Include="encoder\ImagePaletteWriter.cpp" />
     <ClCompile Include="encoder\ImageRGBAWriter.cpp" />
     <ClCompile Include="encoder\ImageWriter.cpp" />
+    <ClCompile Include="encoder\libdivsufsort\divsufsort.c">
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">NotUsing</PrecompiledHeader>
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">NotUsing</PrecompiledHeader>
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">NotUsing</PrecompiledHeader>
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">NotUsing</PrecompiledHeader>
+      <ForcedIncludeFiles Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+      </ForcedIncludeFiles>
+      <ForcedIncludeFiles Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+      </ForcedIncludeFiles>
+      <ForcedIncludeFiles Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+      </ForcedIncludeFiles>
+      <ForcedIncludeFiles Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+      </ForcedIncludeFiles>
+    </ClCompile>
+    <ClCompile Include="encoder\libdivsufsort\sssort.c">
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">NotUsing</PrecompiledHeader>
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">NotUsing</PrecompiledHeader>
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">NotUsing</PrecompiledHeader>
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">NotUsing</PrecompiledHeader>
+      <ForcedIncludeFiles Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+      </ForcedIncludeFiles>
+      <ForcedIncludeFiles Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+      </ForcedIncludeFiles>
+      <ForcedIncludeFiles Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+      </ForcedIncludeFiles>
+      <ForcedIncludeFiles Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+      </ForcedIncludeFiles>
+    </ClCompile>
+    <ClCompile Include="encoder\libdivsufsort\trsort.c">
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">NotUsing</PrecompiledHeader>
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">NotUsing</PrecompiledHeader>
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">NotUsing</PrecompiledHeader>
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">NotUsing</PrecompiledHeader>
+      <ForcedIncludeFiles Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+      </ForcedIncludeFiles>
+      <ForcedIncludeFiles Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+      </ForcedIncludeFiles>
+      <ForcedIncludeFiles Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+      </ForcedIncludeFiles>
+      <ForcedIncludeFiles Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+      </ForcedIncludeFiles>
+    </ClCompile>
+    <ClCompile Include="encoder\libdivsufsort\utils.c">
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">NotUsing</PrecompiledHeader>
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">NotUsing</PrecompiledHeader>
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">NotUsing</PrecompiledHeader>
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">NotUsing</PrecompiledHeader>
+      <ForcedIncludeFiles Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+      </ForcedIncludeFiles>
+      <ForcedIncludeFiles Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+      </ForcedIncludeFiles>
+      <ForcedIncludeFiles Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+      </ForcedIncludeFiles>
+      <ForcedIncludeFiles Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+      </ForcedIncludeFiles>
+    </ClCompile>
     <ClCompile Include="encoder\lodepng.cpp" />
     <ClCompile Include="encoder\Log.cpp" />
     <ClCompile Include="encoder\lz4hc.c">
@@ -123,6 +188,7 @@
     <ClCompile Include="encoder\Mutex.cpp" />
     <ClCompile Include="encoder\PaletteOptimizer.cpp" />
     <ClCompile Include="encoder\SmallPaletteWriter.cpp" />
+    <ClCompile Include="encoder\SuffixArray3.cpp" />
     <ClCompile Include="encoder\SystemInfo.cpp" />
     <ClCompile Include="encoder\Thread.cpp" />
     <ClCompile Include="encoder\WaitableFlag.cpp" />

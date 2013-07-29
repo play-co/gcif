@@ -35,12 +35,10 @@ extern "C" {
 #define PROJECT_VERSION_FULL "svn-r24"
 
 /** Define to 1 if you have the header files. **/
-#define HAVE_INTTYPES_H 1
 #define HAVE_STDDEF_H 1
 #define HAVE_STDINT_H 1
 #define HAVE_STDLIB_H 1
 #define HAVE_STRING_H 1
-#define HAVE_STRINGS_H 1
 #define HAVE_MEMORY_H 1
 #define HAVE_SYS_TYPES_H 1
 
@@ -65,7 +63,7 @@ extern "C" {
 
 /** for inline **/
 #ifndef INLINE
-# define INLINE inline
+# define INLINE
 #endif
 
 /** for VC++ warning **/
