@@ -548,7 +548,7 @@ bool RGBAMatchFinder::findMatches(SuffixArray3_State * CAT_RESTRICT sa3state, co
 						}
 					}
 
-					if (best_score < 2) {
+					if (best_score < 0) {
 						best_distance = 0;
 					}
 				}
@@ -571,6 +571,7 @@ bool RGBAMatchFinder::findMatches(SuffixArray3_State * CAT_RESTRICT sa3state, co
 					}
 
 					_matches.push_back(LZMatch(ii, best_distance, best_length, best_saved));
+					covered_pixels = best_length;
 				} else {
 					//CAT_WARN("LZextended") << ii << " : " << best_distance << ", " << best_length;
 				}
@@ -739,6 +740,7 @@ bool MonoMatchFinder::findMatches(SuffixArray3_State * CAT_RESTRICT sa3state, co
 					}
 
 					_matches.push_back(LZMatch(ii, best_distance, best_length, best_saved));
+					covered_pixels = best_length;
 					//CAT_WARN("LZ") << ii << " : " << best_distance << ", " << best_length;
 				} else {
 					//CAT_WARN("LZextended") << ii << " : " << best_distance << ", " << best_length;
