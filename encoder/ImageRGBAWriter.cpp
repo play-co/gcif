@@ -585,11 +585,7 @@ bool ImageRGBAWriter::compressAlpha() {
 	params.AWARDS[3] = 1;
 	params.award_count = 4;
 	params.write_order = 0;
-	params.lz_enable = false;
-
-	// Right now the match finder for LZ is terrible for this sort of data (way too slow)
-	// and besides we have already run LZ77 on the full RGBA dataset.
-	//params.lz_mask_color = _mask->enabled() ? static_cast<u8>( ~(getLE(_mask->getColor()) >> 24) ) : 65535;
+	params.lz_enable = true;
 
 	_a_encoder.init(params);
 
