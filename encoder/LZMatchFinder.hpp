@@ -63,7 +63,8 @@ public:
 	struct Parameters {
 		int num_syms;		// First escape symbol / number of symbols
 		int xsize, ysize;	// Image dimensions
-		int chain_limit;	// Maximum number of walks down a hash chain to try for local matches
+		int prematch_chain_limit;	// Maximum number of walks down a hash chain to try for local matches
+		int inmatch_chain_limit;	// Limit while inside a found match
 		const u8 * CAT_RESTRICT costs;	// Cost per pixel in bits
 	};
 

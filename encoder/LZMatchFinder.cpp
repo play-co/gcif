@@ -446,7 +446,6 @@ bool RGBAMatchFinder::findMatches(SuffixArray3_State * CAT_RESTRICT sa3state, co
 
 	// Track number of pixels covered by previous matches as we walk
 	int covered_pixels = 0;
-	const int CHAIN_LIMIT = _params.chain_limit;
 
 	// For each pixel, stopping just before the last pixel:
 	const u32 * CAT_RESTRICT rgba_now = rgba;
@@ -488,7 +487,7 @@ bool RGBAMatchFinder::findMatches(SuffixArray3_State * CAT_RESTRICT sa3state, co
 				if (longest_ml_n >= MIN_MATCH ||
 					longest_ml_p >= MIN_MATCH) {
 					// For each hash chain suggested start point,
-					int limit = CHAIN_LIMIT; // up to a limited depth
+					int limit = covered_pixels > 0 ? _params.inmatch_chain_limit : _params.prematch_chain_limit;
 					do {
 						--node;
 
@@ -645,7 +644,6 @@ bool MonoMatchFinder::findMatches(SuffixArray3_State * CAT_RESTRICT sa3state, co
 
 	// Track number of pixels covered by previous matches as we walk
 	int covered_pixels = 0;
-	const int CHAIN_LIMIT = _params.chain_limit;
 
 	// For each pixel, stopping just before the last pixel:
 	const u8 * CAT_RESTRICT mono_now = mono;
@@ -675,7 +673,7 @@ bool MonoMatchFinder::findMatches(SuffixArray3_State * CAT_RESTRICT sa3state, co
 				if (longest_ml_n >= MIN_MATCH ||
 					longest_ml_p >= MIN_MATCH) {
 					// For each hash chain suggested start point,
-					int limit = CHAIN_LIMIT; // up to a limited depth
+					int limit = covered_pixels > 0 ? _params.inmatch_chain_limit : _params.prematch_chain_limit;
 					do {
 						--node;
 

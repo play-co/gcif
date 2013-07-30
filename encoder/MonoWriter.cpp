@@ -138,7 +138,8 @@ void MonoWriter::designLZ() {
 	lz_params.xsize = _params.xsize;
 	lz_params.ysize = _params.ysize;
 	lz_params.num_syms = _params.num_syms;
-	lz_params.chain_limit = 32;
+	lz_params.prematch_chain_limit = 2048;
+	lz_params.inmatch_chain_limit = 512;
 
 	// Find LZ matches
 	_lz.init(_params.data, lz_params);
