@@ -334,7 +334,7 @@ void LZMatchFinder::rejectMatches() {
 	_lz_sdist_encoder.init(sdist_hist);
 	_lz_ldist_encoder.init(ldist_hist);
 
-	CAT_INANE("Mono") << "Accepted " << accepts << " LZ matches. Rejected " << rejects;
+	CAT_INANE("LZ") << "Accepted " << accepts << " matches. Rejected " << rejects;
 }
 
 int LZMatchFinder::scoreMatch(int distance, const u32 * CAT_RESTRICT recent, const u8 * CAT_RESTRICT costs, int &match_len, int &bits_saved) {

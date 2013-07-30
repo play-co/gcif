@@ -232,11 +232,7 @@ int EntropyEncoder::price(u16 symbol) {
 			int bits = simulateZeroRun(runLength);
 
 			// Calculate average cost of encoding zeroes in this run
-			int zeroCost = bits / runLength;
-			if (zeroCost <= 0) {
-				zeroCost = 1; // min = 1 bit
-			}
-			_zeroCost = zeroCost;
+			_zeroCost = bits / runLength;
 		}
 
 		++_zeroRun;
