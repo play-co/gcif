@@ -539,25 +539,27 @@ bool RGBAMatchFinder::findMatches(SuffixArray3_State * CAT_RESTRICT sa3state, co
 					}
 
 					// Score match based on residuals
-					int longest_saved_n, longest_saved_p;
-					int longest_score_n, longest_score_p;
 
 					if (longest_off_n < ii && longest_ml_n >= MIN_MATCH) {
-						longest_score_n = scoreMatch(longest_dist_n, recent, costs, longest_ml_n, longest_saved_n);
-						if (longest_score_n > best_score) {
+						int longest_saved, longest_score;
+						longest_score = scoreMatch(longest_dist_n, recent, costs, longest_ml_n, longest_saved);
+
+						if (longest_score > best_score) {
 							best_distance = longest_dist_n;
 							best_length = longest_ml_n;
-							best_score = longest_score_n;
-							best_saved = longest_saved_n;
+							best_score = longest_score;
+							best_saved = longest_saved;
 						}
 					}
 					if (longest_off_p < ii && longest_ml_p >= MIN_MATCH) {
-						longest_score_p = scoreMatch(longest_dist_p, recent, costs, longest_ml_p, longest_saved_p);
-						if (longest_score_p > best_score) {
+						int longest_saved, longest_score;
+						longest_score = scoreMatch(longest_dist_p, recent, costs, longest_ml_p, longest_saved);
+
+						if (longest_score > best_score) {
 							best_distance = longest_dist_p;
 							best_length = longest_ml_p;
-							best_score = longest_score_p;
-							best_saved = longest_saved_p;
+							best_score = longest_score;
+							best_saved = longest_saved;
 						}
 					}
 
@@ -723,30 +725,29 @@ bool MonoMatchFinder::findMatches(SuffixArray3_State * CAT_RESTRICT sa3state, co
 						longest_ml_p = MAX_MATCH;
 					}
 
-
 					// Score match based on residuals
-					int longest_saved_n, longest_saved_p;
-					int longest_score_n, longest_score_p;
-
 					if (longest_off_n < ii && longest_ml_n >= MIN_MATCH) {
-						longest_score_n = scoreMatch(longest_dist_n, recent, costs, longest_ml_n, longest_saved_n);
-						if (longest_score_n > best_score) {
+						int longest_saved, longest_score;
+						longest_score = scoreMatch(longest_dist_n, recent, costs, longest_ml_n, longest_saved);
+
+						if (longest_score > best_score) {
 							best_distance = longest_dist_n;
 							best_length = longest_ml_n;
-							best_score = longest_score_n;
-							best_saved = longest_saved_n;
+							best_score = longest_score;
+							best_saved = longest_saved;
 						}
 					}
 					if (longest_off_p < ii && longest_ml_p >= MIN_MATCH) {
-						longest_score_p = scoreMatch(longest_dist_p, recent, costs, longest_ml_p, longest_saved_p);
-						if (longest_score_p > best_score) {
+						int longest_saved, longest_score;
+						longest_score = scoreMatch(longest_dist_p, recent, costs, longest_ml_p, longest_saved);
+
+						if (longest_score > best_score) {
 							best_distance = longest_dist_p;
 							best_length = longest_ml_p;
-							best_score = longest_score_p;
-							best_saved = longest_saved_p;
+							best_score = longest_score;
+							best_saved = longest_saved;
 						}
 					}
-
 
 					if (best_score < 2) {
 						best_distance = 0;
