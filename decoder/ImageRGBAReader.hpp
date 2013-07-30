@@ -125,7 +125,17 @@ protected:
 		return filter;
 	}
 
-	u8 _FPT[3];
+	u32 _last_dist[LZReader::LAST_COUNT]; // Recent distances
+
+	CAT_INLINE void readLZ(u16 escape_code) {
+		// TODO
+		if (escape_code >= LZReader::ESC_DIST_LONG_2) {
+		} else if (escape_code >= LZReader::ESC_DIST_SHORT_2) {
+		} else if (escape_code >= LZReader::ESC_DIST_UP_N2) {
+		} else if (escape_code >= LZReader::ESC_DIST_1) {
+		} else {
+		}
+	}
 
 	CAT_INLINE void readSafe(u16 x, u16 y, u8 * CAT_RESTRICT p, ImageReader & CAT_RESTRICT reader) {
 		FilterSelection *filter = readFilter(x, y, reader);
@@ -138,8 +148,7 @@ protected:
 		u16 pixel_code = _y_decoder[cy].next(reader); 
 
 		if (pixel_code >= 256) {
-			// Read LZ code
-			// TODO
+			readLZ(pixel_code - 256);
 		} else {
 			// Read literal RGBA pixel
 			u8 YUV[3];
@@ -151,7 +160,8 @@ protected:
 			filter->cf(YUV, p);
 
 			// Reverse spatial filter
-			const u8 * CAT_RESTRICT pred = filter->sf.safe(p, _FPT, x, y, _xsize);
+			u8 FPT[3];
+			const u8 * CAT_RESTRICT pred = filter->sf.safe(p, FPT, x, y, _xsize);
 			p[0] += pred[0];
 			p[1] += pred[1];
 			p[2] += pred[2];
@@ -175,8 +185,7 @@ protected:
 		u16 pixel_code = _y_decoder[cy].next(reader); 
 
 		if (pixel_code >= 256) {
-			// Read LZ code
-			// TODO
+			readLZ(pixel_code - 256);
 		} else {
 			// Read literal RGBA pixel
 			u8 YUV[3];
@@ -188,7 +197,8 @@ protected:
 			filter->cf(YUV, p);
 
 			// Reverse spatial filter
-			const u8 * CAT_RESTRICT pred = filter->sf.unsafe(p, _FPT, x, y, _xsize);
+			u8 FPT[3];
+			const u8 * CAT_RESTRICT pred = filter->sf.unsafe(p, FPT, x, y, _xsize);
 			p[0] += pred[0];
 			p[1] += pred[1];
 			p[2] += pred[2];

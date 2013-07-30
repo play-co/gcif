@@ -471,18 +471,24 @@ bool RGBAMatchFinder::findMatches(SuffixArray3_State * CAT_RESTRICT sa3state, co
 				SuffixArray3_BestML(sa3state, ii << 2, longest_off_n, longest_off_p, longest_ml_n, longest_ml_p);
 
 				// Round lengths down to next RGBA pixel
-				longest_ml_n = (longest_ml_n - (longest_off_n & 3)) >> 2;
-				longest_ml_p = (longest_ml_p - (longest_off_p & 3)) >> 2;
+				if (longest_off_n & 3) {
+					longest_ml_n -= 4 - (longest_off_n & 3);
+				}
+				longest_ml_n >>= 2;
+				if (longest_off_p & 3) {
+					longest_ml_p -= 4 - (longest_off_p & 3);
+				}
+				longest_ml_p >>= 2;
 
 				// Round offsets up to next RGBA pixel
-				longest_off_n = (longest_off_n + 3) & 0xFFFFFFFC;
-				longest_off_p = (longest_off_p + 3) & 0xFFFFFFFC;
+				longest_off_n = (longest_off_n + 3) >> 2;
+				longest_off_p = (longest_off_p + 3) >> 2;
 
 				// If longest match exists,
 				if (longest_ml_n >= MIN_MATCH ||
 					longest_ml_p >= MIN_MATCH) {
 					// For each hash chain suggested start point,
-					int limit = -1; // up to a limited depth
+					int limit = CHAIN_LIMIT; // up to a limited depth
 					do {
 						--node;
 
@@ -517,7 +523,7 @@ bool RGBAMatchFinder::findMatches(SuffixArray3_State * CAT_RESTRICT sa3state, co
 						}
 
 						// Next node
-						node = chain[node - 1];
+						node = chain[node];
 					} while (node != 0 && --limit);
 
 					// Calculate distance to it
@@ -535,8 +541,8 @@ bool RGBAMatchFinder::findMatches(SuffixArray3_State * CAT_RESTRICT sa3state, co
 					// Score match based on residuals
 					int longest_saved_n, longest_saved_p;
 					int longest_score_n, longest_score_p;
-/*
-					if (longest_off_n < ii) {
+
+					if (longest_off_n < ii && longest_ml_n >= MIN_MATCH) {
 						longest_score_n = scoreMatch(longest_dist_n, recent, costs, longest_ml_n, longest_saved_n);
 						if (longest_score_n > best_score) {
 							best_distance = longest_dist_n;
@@ -545,7 +551,7 @@ bool RGBAMatchFinder::findMatches(SuffixArray3_State * CAT_RESTRICT sa3state, co
 							best_saved = longest_saved_n;
 						}
 					}
-					if (longest_off_p < ii) {
+					if (longest_off_p < ii && longest_ml_p >= MIN_MATCH) {
 						longest_score_p = scoreMatch(longest_dist_p, recent, costs, longest_ml_p, longest_saved_p);
 						if (longest_score_p > best_score) {
 							best_distance = longest_dist_p;
@@ -554,7 +560,7 @@ bool RGBAMatchFinder::findMatches(SuffixArray3_State * CAT_RESTRICT sa3state, co
 							best_saved = longest_saved_p;
 						}
 					}
-*/
+
 					if (best_score < 0) {
 						best_distance = 0;
 					}
@@ -702,7 +708,7 @@ bool MonoMatchFinder::findMatches(SuffixArray3_State * CAT_RESTRICT sa3state, co
 						}
 
 						// Next node
-						node = chain[node - 1];
+						node = chain[node];
 					} while (node != 0 && --limit);
 
 					// Calculate distance to it

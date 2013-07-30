@@ -70,40 +70,40 @@
  *
  * The extra (32) escape codes are:
  *
- * 256 = "Distance Same as 1st Last"
- * 257 = "Distance Same as 2nd Last"
- * 258 = "Distance Same as 3rd Last"
- * 259 = "Distance Same as 4th Last"
- * 260 = "Distance = 1"
- * 261 = "Distance = 3"
- * 262 = "Distance = 4"
- * 263 = "Distance = 5"
- * 264 = "Distance = 6"
- * 265 = "Distance = (-2, -1)"
- * 266 = "Distance = (-1, -1)"
- * 267 = "Distance = (0, -1)"
- * 268 = "Distance = (1, -1)"
- * 269 = "Distance = (2, -1)"
- * 270 = "Length = 2" + ShortDistance code follows
- * 271 = "Length = 3" + ShortDistance code follows
- * 272 = "Length = 4" + ShortDistance code follows
- * 273 = "Length = 5" + ShortDistance code follows
- * 274 = "Length = 6" + ShortDistance code follows
- * 275 = "Length = 7" + ShortDistance code follows
- * 276 = "Length = 8" + ShortDistance code follows
- * 277 = "Length = 9" + ShortDistance code follows
- * 278 = Length code + ShortDistance code follows
- * 279 = "Length = 2" + LongDistance code follows
- * 280 = "Length = 3" + LongDistance code follows
- * 281 = "Length = 4" + LongDistance code follows
- * 282 = "Length = 5" + LongDistance code follows
- * 283 = "Length = 6" + LongDistance code follows
- * 284 = "Length = 7" + LongDistance code follows
- * 285 = "Length = 8" + LongDistance code follows
- * 286 = "Length = 9" + LongDistance code follows
- * 287 = Length code + LongDistance code follows
+ * 0 = "Distance Same as 1st Last"
+ * 1 = "Distance Same as 2nd Last"
+ * 2 = "Distance Same as 3rd Last"
+ * 3 = "Distance Same as 4th Last"
+ * 4 = "Distance = 1"
+ * 5 = "Distance = 3"
+ * 6 = "Distance = 4"
+ * 7 = "Distance = 5"
+ * 8 = "Distance = 6"
+ * 9 = "Distance = (-2, -1)"
+ * 10 = "Distance = (-1, -1)"
+ * 11 = "Distance = (0, -1)"
+ * 12 = "Distance = (1, -1)"
+ * 13 = "Distance = (2, -1)"
+ * 14 = "Length = 2" + ShortDistance code follows
+ * 15 = "Length = 3" + ShortDistance code follows
+ * 16 = "Length = 4" + ShortDistance code follows
+ * 17 = "Length = 5" + ShortDistance code follows
+ * 18 = "Length = 6" + ShortDistance code follows
+ * 19 = "Length = 7" + ShortDistance code follows
+ * 20 = "Length = 8" + ShortDistance code follows
+ * 21 = "Length = 9" + ShortDistance code follows
+ * 22 = Length code + ShortDistance code follows
+ * 23 = "Length = 2" + LongDistance code follows
+ * 24 = "Length = 3" + LongDistance code follows
+ * 25 = "Length = 4" + LongDistance code follows
+ * 26 = "Length = 5" + LongDistance code follows
+ * 27 = "Length = 6" + LongDistance code follows
+ * 28 = "Length = 7" + LongDistance code follows
+ * 29 = "Length = 8" + LongDistance code follows
+ * 30 = "Length = 9" + LongDistance code follows
+ * 31 = Length code + LongDistance code follows
  *
- * For codes 256-269, the following bits are a Length code.
+ * For codes 0-13, the following bits are a Length code.
  *
  *
  * Length Huffman code:
@@ -170,7 +170,6 @@ namespace cat {
 
 class LZReader {
 public:
-	static const int ESCAPE_SYMS = 32;			// Escape code symbols
 	static const int LEN_SYMS = 255;			// Length code symbols
 	static const int LDIST_SYMS = 256;			// Long-distance code symbols
 	static const int SDIST_SYMS = 158;			// Short-distance code symbols
@@ -178,6 +177,47 @@ public:
 	static const int MAX_MATCH = 256;			// pixels
 	static const int WIN_SIZE = 1024 * 1024;	// pixels
 	static const int LAST_COUNT = 4;			// Keep track of recently emitted distances
+
+	enum EscapeCodes {
+		ESC_SAME_1,
+		ESC_SAME_2,
+		ESC_SAME_3,
+		ESC_SAME_4,
+
+		ESC_DIST_1,
+		ESC_DIST_3,
+		ESC_DIST_4,
+		ESC_DIST_5,
+		ESC_DIST_6,
+
+		ESC_DIST_UP_N2,
+		ESC_DIST_UP_N1,
+		ESC_DIST_UP_0,
+		ESC_DIST_UP_P1,
+		ESC_DIST_UP_P2,
+
+		ESC_DIST_SHORT_2,
+		ESC_DIST_SHORT_3,
+		ESC_DIST_SHORT_4,
+		ESC_DIST_SHORT_5,
+		ESC_DIST_SHORT_6,
+		ESC_DIST_SHORT_7,
+		ESC_DIST_SHORT_8,
+		ESC_DIST_SHORT_9,
+		ESC_DIST_SHORT_X,
+
+		ESC_DIST_LONG_2,
+		ESC_DIST_LONG_3,
+		ESC_DIST_LONG_4,
+		ESC_DIST_LONG_5,
+		ESC_DIST_LONG_6,
+		ESC_DIST_LONG_7,
+		ESC_DIST_LONG_8,
+		ESC_DIST_LONG_9,
+		ESC_DIST_LONG_X,
+
+		ESCAPE_SYMS			// 32
+	};
 };
 
 
