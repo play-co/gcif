@@ -469,23 +469,55 @@ bool RGBAMatchFinder::findMatches(SuffixArray3_State * CAT_RESTRICT sa3state, co
 				int longest_ml_n, longest_ml_p;
 				SuffixArray3_BestML(sa3state, ii << 2, longest_off_n, longest_off_p, longest_ml_n, longest_ml_p);
 
-				// Round lengths down to next RGBA pixel
-				if (longest_off_n & 3) {
-					longest_ml_n -= 4 - (longest_off_n & 3);
-				}
-				longest_ml_n >>= 2;
-				if (longest_off_p & 3) {
-					longest_ml_p -= 4 - (longest_off_p & 3);
-				}
-				longest_ml_p >>= 2;
+				bool sa3_n = false, sa3_p = false;
 
-				// Round offsets up to next RGBA pixel
-				longest_off_n = (longest_off_n + 3) >> 2;
-				longest_off_p = (longest_off_p + 3) >> 2;
+				// Fix n match
+				if (longest_ml_n >= MIN_MATCH*4) {
+					const u8 *mono = (const u8 *)rgba;
+					for (int jj = 0; jj < longest_ml_n; ++jj) {
+						if (mono[longest_off_n + jj] != mono[(ii << 2) + jj]) {
+							CAT_WARN("TEST") << jj;
+							CAT_EXCEPTION();
+						}
+					}
+
+					int old_off = longest_off_n;
+					longest_off_n = (longest_off_n + 3) >> 2;
+					longest_ml_n = (longest_ml_n - (longest_off_n << 2) + old_off) >> 2;
+					if (longest_off_n < ii && longest_ml_n >= MIN_MATCH) {
+						sa3_n = true;
+						if (longest_ml_n > MAX_MATCH) {
+							longest_ml_n = MAX_MATCH;
+						}
+
+						for (int jj = 0; jj < longest_ml_n; ++jj) {
+							if (rgba[longest_off_n + jj] != rgba[ii + jj]) {
+								CAT_WARN("TEST") << jj;
+								CAT_EXCEPTION();
+							}
+						}
+					}
+				}
+
+				// Fix p match
+				if (longest_ml_p >= MIN_MATCH*4) {
+					int old_off = longest_off_p;
+					longest_off_p = (longest_off_p + 3) >> 2;
+					longest_ml_p = (longest_ml_p - (longest_off_p << 2) + old_off) >> 2;
+					if (longest_off_p < ii && longest_ml_p >= MIN_MATCH) {
+						sa3_p = true;
+						if (longest_ml_p > MAX_MATCH) {
+							longest_ml_p = MAX_MATCH;
+						}
+
+						for (int jj = 0; jj < longest_ml_p; ++jj) {
+							CAT_DEBUG_ENFORCE(rgba[longest_off_p + jj] == rgba[ii + jj]);
+						}
+					}
+				}
 
 				// If longest match exists,
-				if (longest_ml_n >= MIN_MATCH ||
-					longest_ml_p >= MIN_MATCH) {
+				if (sa3_n || sa3_p) {
 					// For each hash chain suggested start point,
 					int limit = covered_pixels > 0 ? _params.inmatch_chain_limit : _params.prematch_chain_limit;
 					do {
@@ -525,37 +557,25 @@ bool RGBAMatchFinder::findMatches(SuffixArray3_State * CAT_RESTRICT sa3state, co
 						node = chain[node];
 					} while (node != 0 && --limit);
 
-					// Calculate distance to it
-					u32 longest_dist_n = ii - longest_off_n;
-					u32 longest_dist_p = ii - longest_off_p;
-
-					// If match length is too long,
-					if (longest_ml_n > MAX_MATCH) {
-						longest_ml_n = MAX_MATCH;
-					}
-					if (longest_ml_p > MAX_MATCH) {
-						longest_ml_p = MAX_MATCH;
-					}
-
-					// Score match based on residuals
-
-					if (longest_off_n < ii && longest_ml_n >= MIN_MATCH) {
+					if (sa3_n) {
+						u32 longest_dist = ii - longest_off_n;
 						int longest_saved, longest_score;
-						longest_score = scoreMatch(longest_dist_n, recent, costs, longest_ml_n, longest_saved);
+						longest_score = scoreMatch(longest_dist, recent, costs, longest_ml_n, longest_saved);
 
 						if (longest_score > best_score) {
-							best_distance = longest_dist_n;
+							best_distance = longest_dist;
 							best_length = longest_ml_n;
 							best_score = longest_score;
 							best_saved = longest_saved;
 						}
 					}
-					if (longest_off_p < ii && longest_ml_p >= MIN_MATCH) {
+					if (sa3_p) {
+						u32 longest_dist = ii - longest_off_p;
 						int longest_saved, longest_score;
-						longest_score = scoreMatch(longest_dist_p, recent, costs, longest_ml_p, longest_saved);
+						longest_score = scoreMatch(longest_dist, recent, costs, longest_ml_p, longest_saved);
 
 						if (longest_score > best_score) {
-							best_distance = longest_dist_p;
+							best_distance = longest_dist;
 							best_length = longest_ml_p;
 							best_score = longest_score;
 							best_saved = longest_saved;
@@ -709,36 +729,34 @@ bool MonoMatchFinder::findMatches(SuffixArray3_State * CAT_RESTRICT sa3state, co
 						node = chain[node];
 					} while (node != 0 && --limit);
 
-					// Calculate distance to it
-					u32 longest_dist_n = ii - longest_off_n;
-					u32 longest_dist_p = ii - longest_off_p;
-
-					// If match length is too long,
-					if (longest_ml_n > MAX_MATCH) {
-						longest_ml_n = MAX_MATCH;
-					}
-					if (longest_ml_p > MAX_MATCH) {
-						longest_ml_p = MAX_MATCH;
-					}
-
 					// Score match based on residuals
-					if (longest_off_n < ii && longest_ml_n >= MIN_MATCH) {
+					if (longest_ml_n >= MIN_MATCH && longest_off_n < ii) {
+						if (longest_ml_n > MAX_MATCH) {
+							longest_ml_n = MAX_MATCH;
+						}
+
+						u32 longest_dist = ii - longest_off_n;
 						int longest_saved, longest_score;
-						longest_score = scoreMatch(longest_dist_n, recent, costs, longest_ml_n, longest_saved);
+						longest_score = scoreMatch(longest_dist, recent, costs, longest_ml_n, longest_saved);
 
 						if (longest_score > best_score) {
-							best_distance = longest_dist_n;
+							best_distance = longest_dist;
 							best_length = longest_ml_n;
 							best_score = longest_score;
 							best_saved = longest_saved;
 						}
 					}
-					if (longest_off_p < ii && longest_ml_p >= MIN_MATCH) {
+					if (longest_ml_p >= MIN_MATCH && longest_off_p < ii) {
+						if (longest_ml_p > MAX_MATCH) {
+							longest_ml_p = MAX_MATCH;
+						}
+
+						u32 longest_dist = ii - longest_off_p;
 						int longest_saved, longest_score;
-						longest_score = scoreMatch(longest_dist_p, recent, costs, longest_ml_p, longest_saved);
+						longest_score = scoreMatch(longest_dist, recent, costs, longest_ml_p, longest_saved);
 
 						if (longest_score > best_score) {
-							best_distance = longest_dist_p;
+							best_distance = longest_dist;
 							best_length = longest_ml_p;
 							best_score = longest_score;
 							best_saved = longest_saved;

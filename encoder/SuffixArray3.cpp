@@ -513,7 +513,7 @@ static void SuffixArray3_BestML(const SuffixArraySearcher * SAS,int pos,
 
     bestml_n = t_dir_SuffixArray3_BestML<-1>(pos,sortPos,pSortIndex,pSortLookup,pSortSameLen,ubuf,size,pIntervalLevels,numLevels,window_size, bestoff_n);
     bestml_p = t_dir_SuffixArray3_BestML< 1>(pos,sortPos,pSortIndex,pSortLookup,pSortSameLen,ubuf,size,pIntervalLevels,numLevels,window_size, bestoff_p);
- 
+
     #ifdef CAT_DEBUG
 	int bestml;
 	if (bestml_p < bestml_n) {

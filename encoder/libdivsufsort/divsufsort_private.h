@@ -31,7 +31,16 @@
 extern "C" {
 #endif /* __cplusplus */
 
-# include "config.h"
+/** for inline **/
+#ifndef INLINE
+# define INLINE
+#endif
+
+/** for VC++ warning **/
+#ifdef _MSC_VER
+#pragma warning(disable: 4127)
+#endif
+	
 #include <assert.h>
 #include <stdio.h>
 # include <string.h>
