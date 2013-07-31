@@ -667,8 +667,6 @@ bool MonoMatchFinder::findMatches(SuffixArray3_State * CAT_RESTRICT sa3state, co
 				int longest_ml_n, longest_ml_p;
 				SuffixArray3_BestML(sa3state, ii, longest_off_n, longest_off_p, longest_ml_n, longest_ml_p);
 
-				CAT_DEBUG_ENFORCE(longest_off_n < ii && longest_off_p < ii);
-
 				// If longest match exists,
 				if (longest_ml_n >= MIN_MATCH ||
 					longest_ml_p >= MIN_MATCH) {
