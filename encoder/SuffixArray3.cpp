@@ -4,6 +4,7 @@
 #include "../decoder/BitMath.hpp"
 using namespace std;
 using namespace cat;
+using namespace sa3_byte;
 
 #define MINMATCH 2
 
@@ -192,7 +193,7 @@ static int t_dir_SuffixArraySearcher_BestML(int pos,int sortPos,
 #define MIN_INTERVAL		(1<<MIN_INTERVAL_SHIFT)
 #define MIN_INTERVAL_MASK	(MIN_INTERVAL-1)
 
-void MakeFirstIntervals( vector<IntervalData> * pTo, const SuffixArraySearcher & SAS, int size )
+static void MakeFirstIntervals( vector<IntervalData> * pTo, const SuffixArraySearcher & SAS, int size )
 {
 	int numIntervals = (size + MIN_INTERVAL-1) / MIN_INTERVAL;
 	pTo->resize(numIntervals);
@@ -251,7 +252,7 @@ void MakeFirstIntervals( vector<IntervalData> * pTo, const SuffixArraySearcher &
 	}
 }
 
-void MakeNextIntervals( vector<IntervalData> * pTo, const vector<IntervalData> & from )
+static void MakeNextIntervals( vector<IntervalData> * pTo, const vector<IntervalData> & from )
 {
 	int fmsize = (int)from.size();
 	int tosize = ( fmsize + 1 )/2;
@@ -277,7 +278,7 @@ void MakeNextIntervals( vector<IntervalData> * pTo, const vector<IntervalData> &
 	}
 }
 
-int LowestBitOn(u32 val)
+static int LowestBitOn(u32 val)
 {
 	if ( val == 0 ) return 32;
     
@@ -537,7 +538,7 @@ static void SuffixArray3_BestML(const SuffixArraySearcher * SAS,int pos,
     #endif
 }
 
-void cat::SuffixArray3_Init(SuffixArray3_State *state, u8 *ubuf, int size, int window_size) {
+void cat::sa3_byte::SuffixArray3_Init(SuffixArray3_State *state, u8 *ubuf, int size, int window_size) {
 	SuffixArraySearcher_Build(&state->SAS, ubuf, size);
 
 	int numLevels = 1;
@@ -556,7 +557,7 @@ void cat::SuffixArray3_Init(SuffixArray3_State *state, u8 *ubuf, int size, int w
 	state->window_size = window_size;
 }
 
-void cat::SuffixArray3_BestML(SuffixArray3_State *state, int pos, int &bestoff_n, int &bestoff_p, int &bestml_n, int &bestml_p) {
+void cat::sa3_byte::SuffixArray3_BestML(SuffixArray3_State *state, int pos, int &bestoff_n, int &bestoff_p, int &bestml_n, int &bestml_p) {
 	::SuffixArray3_BestML(&state->SAS, pos, state->intervalLevels.data(), state->numLevels, state->window_size, bestoff_n, bestoff_p, bestml_n, bestml_p);
 }
 

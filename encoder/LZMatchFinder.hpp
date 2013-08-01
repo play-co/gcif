@@ -148,7 +148,7 @@ class RGBAMatchFinder : public LZMatchFinder {
 		return (u32)( ( ((u64)rgba[0] << 32) | rgba[1] ) * HASH_MULT >> (64 - HASH_BITS) );
 	}
 
-	bool findMatches(SuffixArray3_State * CAT_RESTRICT sa3state, const u32 * CAT_RESTRICT rgba);
+	bool findMatches(sa3_word::SuffixArray3_State * CAT_RESTRICT sa3state, const u32 * CAT_RESTRICT rgba);
 
 public:
 	bool init(const u32 * CAT_RESTRICT rgba, Parameters &params);
@@ -169,7 +169,7 @@ protected:
 		return word0;
 	}
 
-	bool findMatches(SuffixArray3_State * CAT_RESTRICT sa3state, const u8 * CAT_RESTRICT mono);
+	bool findMatches(sa3_byte::SuffixArray3_State * CAT_RESTRICT sa3state, const u8 * CAT_RESTRICT mono);
 
 public:
 	bool init(const u8 * CAT_RESTRICT mono, Parameters &params);

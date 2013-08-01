@@ -24,8 +24,8 @@
  * OTHER DEALINGS IN THE SOFTWARE.
  */
 
-#ifndef _DIVSUFSORT_H
-#define _DIVSUFSORT_H 1
+#ifndef _DIVSUFSORT32_H
+#define _DIVSUFSORT32_H 1
 
 #ifdef __cplusplus
 extern "C" {
@@ -34,12 +34,12 @@ extern "C" {
 
 /*- Datatypes -*/
 #ifdef _MSC_VER
-	typedef unsigned char sauchar_t;
+	typedef unsigned __int32 sauchar_t;
 	typedef __int32 saint_t;
 	typedef __int32 saidx_t;
 #else
 #include <stdint.h>
-	typedef uint8_t sauchar_t;
+	typedef uint32_t sauchar_t;
 	typedef int32_t saint_t;
 	typedef int32_t saidx_t;
 #endif
@@ -54,11 +54,11 @@ extern "C" {
  * @return 0 if no error occurred, -1 or -2 otherwise.
  */
 saint_t
-divsufsort(const sauchar_t *T, saidx_t *SA, saidx_t n);
+divsufsort32(const sauchar_t *T, saidx_t *SA, saidx_t n);
 
 
 #ifdef __cplusplus
 } /* extern "C" */
 #endif /* __cplusplus */
 
-#endif /* _DIVSUFSORT_H */
+#endif /* _DIVSUFSORT32_H */
