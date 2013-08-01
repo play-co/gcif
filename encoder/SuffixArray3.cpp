@@ -4,7 +4,6 @@
 #include "../decoder/BitMath.hpp"
 using namespace std;
 using namespace cat;
-using namespace sa3_byte;
 
 #define MINMATCH 2
 
@@ -538,7 +537,7 @@ static void SuffixArray3_BestML(const SuffixArraySearcher * SAS,int pos,
     #endif
 }
 
-void cat::sa3_byte::SuffixArray3_Init(SuffixArray3_State *state, u8 *ubuf, int size, int window_size) {
+void cat::SuffixArray3_Init(SuffixArray3_State *state, u8 *ubuf, int size, int window_size) {
 	SuffixArraySearcher_Build(&state->SAS, ubuf, size);
 
 	int numLevels = 1;
@@ -557,7 +556,7 @@ void cat::sa3_byte::SuffixArray3_Init(SuffixArray3_State *state, u8 *ubuf, int s
 	state->window_size = window_size;
 }
 
-void cat::sa3_byte::SuffixArray3_BestML(SuffixArray3_State *state, int pos, int &bestoff_n, int &bestoff_p, int &bestml_n, int &bestml_p) {
+void cat::SuffixArray3_BestML(SuffixArray3_State *state, int pos, int &bestoff_n, int &bestoff_p, int &bestml_n, int &bestml_p) {
 	::SuffixArray3_BestML(&state->SAS, pos, state->intervalLevels.data(), state->numLevels, state->window_size, bestoff_n, bestoff_p, bestml_n, bestml_p);
 }
 

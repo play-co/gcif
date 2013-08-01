@@ -25,8 +25,7 @@ gcif_objects += ImageMaskWriter.o MonoWriter.o EntropyEncoder.o
 gcif_objects += ImageRGBAWriter.o FilterScorer.o SuffixArray3.o
 gcif_objects += LZMatchFinder.o ImagePaletteWriter.o
 gcif_objects += GCIFWriter.o EntropyEstimator.o WaitableFlag.o
-gcif_objects += divsufsort.o sssort.o trsort.o SuffixArray3_word.o
-gcif_objects += divsufsort32.o sssort32.o trsort32.o
+gcif_objects += divsufsort.o sssort.o trsort.o
 gcif_objects += $(decode_objects)
 #gcif_objects += ImageLPReader.o ImageLPWriter.o
 #gcif_objects += ImageLZReader.o ImageLZWriter.o
@@ -58,13 +57,10 @@ SRCS += encoder/LZMatchFinder.cpp encoder/SuffixArray3.cpp
 SRCS += encoder/GCIFWriter.cpp encoder/PaletteOptimizer.cpp
 SRCS += encoder/ImagePaletteWriter.cpp
 SRCS += encoder/EntropyEstimator.cpp encoder/WaitableFlag.cpp
-SRCS += encoder/MonoWriter.cpp encoder/SuffixArray3_word.cpp
+SRCS += encoder/MonoWriter.cpp
 SRCS += encoder/libdivsufsort/divsufsort.c
 SRCS += encoder/libdivsufsort/sssort.c
 SRCS += encoder/libdivsufsort/trsort.c
-SRCS += encoder/libdivsufsort32/divsufsort.c
-SRCS += encoder/libdivsufsort32/sssort.c
-SRCS += encoder/libdivsufsort32/trsort.c
 SRCS += $(DECODE_SRCS)
 #SRCS += ImageLPReader.cpp ImageLPWriter.cpp
 #SRCS += ImageLZReader.cpp ImageLZWriter.cpp
@@ -236,18 +232,6 @@ sssort.o : encoder/libdivsufsort/sssort.c
 
 trsort.o : encoder/libdivsufsort/trsort.c
 	$(CC) $(CFLAGS) -c encoder/libdivsufsort/trsort.c
-
-SuffixArray3_word.o : encoder/SuffixArray3_word.cpp
-	$(CCPP) $(CPFLAGS) -c encoder/SuffixArray3_word.cpp
-
-divsufsort32.o : encoder/libdivsufsort32/divsufsort.c
-	$(CC) $(CFLAGS) -c encoder/libdivsufsort32/divsufsort.c -o divsufsort32.o
-
-sssort32.o : encoder/libdivsufsort32/sssort.c
-	$(CC) $(CFLAGS) -c encoder/libdivsufsort32/sssort.c -o sssort32.o
-
-trsort32.o : encoder/libdivsufsort32/trsort.c
-	$(CC) $(CFLAGS) -c encoder/libdivsufsort32/trsort.c -o trsort32.o
 
 decomp.o : decomp.cpp
 	$(CCPP) $(CPFLAGS) -c decomp.cpp

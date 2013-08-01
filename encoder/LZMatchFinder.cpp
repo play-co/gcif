@@ -429,7 +429,39 @@ int LZMatchFinder::write(LZMatch * CAT_RESTRICT match, EntropyEncoder &ee, Image
 
 //// RGBAMatchFinder
 
-bool RGBAMatchFinder::findMatches(sa3_word::SuffixArray3_State * CAT_RESTRICT sa3state, const u32 * CAT_RESTRICT rgba) {
+bool RGBAMatchFinder::fixSA3RGBA(const u32 *rgba, int cur, int &off, int &ml) {
+	// If match is too short,
+	if (ml < MIN_MATCH*4) {
+		return false;
+	}
+
+	// If offset of match is invalid,
+	if (off & 3) {
+		return false;
+	}
+
+	// Fix offset to pixel index
+	off >>= 2;
+
+	CAT_DEBUG_ENFORCE(off < cur);
+
+	// Trim end of match length
+	ml >>= 2;
+
+	if (ml > MAX_MATCH) {
+		ml = MAX_MATCH;
+	}
+
+#ifdef CAT_DEBUG
+	for (int jj = 0; jj < ml; ++jj) {
+		CAT_DEBUG_ENFORCE(rgba[off + jj] == rgba[cur + jj]);
+	}
+#endif
+
+	return true;
+}
+
+bool RGBAMatchFinder::findMatches(SuffixArray3_State * CAT_RESTRICT sa3state, const u32 * CAT_RESTRICT rgba) {
 	// Allocate and zero the table and chain
 	SmartArray<u32> table, chain;
 	table.resizeZero(HASH_SIZE);
@@ -467,87 +499,80 @@ bool RGBAMatchFinder::findMatches(sa3_word::SuffixArray3_State * CAT_RESTRICT sa
 				// Find longest match
 				int longest_off_n, longest_off_p;
 				int longest_ml_n, longest_ml_p;
-				sa3_word::SuffixArray3_BestML(sa3state, ii << 2, longest_off_n, longest_off_p, longest_ml_n, longest_ml_p);
+				SuffixArray3_BestML(sa3state, ii << 2, longest_off_n, longest_off_p, longest_ml_n, longest_ml_p);
 
-				// If longest match exists,
-				if (longest_ml_n >= MIN_MATCH ||
-					longest_ml_p >= MIN_MATCH) {
-					// For each hash chain suggested start point,
-					int limit = covered_pixels > 0 ? _params.inmatch_chain_limit : _params.prematch_chain_limit;
-					do {
-						--node;
+				bool sa3_n = fixSA3RGBA(rgba, ii, longest_off_n, longest_ml_n);
+				bool sa3_p = fixSA3RGBA(rgba, ii, longest_off_p, longest_ml_p);
 
-						// If distance is beyond the window size,
-						u32 distance = ii - node;
-						if (distance > WIN_SIZE) {
-							// Stop searching here
-							break;
-						}
+				// NOTE: Since SA3 is not reliable we cannot use it to save time here
 
-						// Unroll first two
-						const u32 *rgba_node = rgba + node;
-						if (rgba_node[0] == rgba_now[0] &&
-							rgba_node[1] == rgba_now[1]) {
-							// Find match length
-							int match_len = 2;
-							for (; match_len < MAX_MATCH && rgba_node[match_len] == rgba_now[match_len]; ++match_len);
+				// For each hash chain suggested start point,
+				int limit = covered_pixels > 0 ? _params.inmatch_chain_limit : _params.prematch_chain_limit;
+				do {
+					--node;
 
-							// Score match
-							int bits_saved;
-							int score = scoreMatch(distance, recent, costs, match_len, bits_saved);
+					// If distance is beyond the window size,
+					u32 distance = ii - node;
+					if (distance > WIN_SIZE) {
+						// Stop searching here
+						break;
+					}
 
-							// If score is an improvement,
-							if (match_len >= MIN_MATCH) {
-								if (score > best_score || best_distance == 0) {
-									best_distance = distance;
-									best_length = match_len;
-									best_score = score;
-									best_saved = bits_saved;
-								}
+					// Unroll first two
+					const u32 *rgba_node = rgba + node;
+					if (rgba_node[0] == rgba_now[0] &&
+						rgba_node[1] == rgba_now[1]) {
+						// Find match length
+						int match_len = 2;
+						for (; match_len < MAX_MATCH && rgba_node[match_len] == rgba_now[match_len]; ++match_len);
+
+						// Score match
+						int bits_saved;
+						int score = scoreMatch(distance, recent, costs, match_len, bits_saved);
+
+						// If score is an improvement,
+						if (match_len >= MIN_MATCH) {
+							if (score > best_score || best_distance == 0) {
+								best_distance = distance;
+								best_length = match_len;
+								best_score = score;
+								best_saved = bits_saved;
 							}
 						}
-
-						// Next node
-						node = chain[node];
-					} while (node != 0 && --limit);
-
-					// Score match based on residuals
-					if (longest_ml_n >= MIN_MATCH && longest_off_n < ii) {
-						if (longest_ml_n > MAX_MATCH) {
-							longest_ml_n = MAX_MATCH;
-						}
-
-						u32 longest_dist = ii - longest_off_n;
-						int longest_saved, longest_score;
-						longest_score = scoreMatch(longest_dist, recent, costs, longest_ml_n, longest_saved);
-
-						if (longest_score > best_score) {
-							best_distance = longest_dist;
-							best_length = longest_ml_n;
-							best_score = longest_score;
-							best_saved = longest_saved;
-						}
-					}
-					if (longest_ml_p >= MIN_MATCH && longest_off_p < ii) {
-						if (longest_ml_p > MAX_MATCH) {
-							longest_ml_p = MAX_MATCH;
-						}
-
-						u32 longest_dist = ii - longest_off_p;
-						int longest_saved, longest_score;
-						longest_score = scoreMatch(longest_dist, recent, costs, longest_ml_p, longest_saved);
-
-						if (longest_score > best_score) {
-							best_distance = longest_dist;
-							best_length = longest_ml_p;
-							best_score = longest_score;
-							best_saved = longest_saved;
-						}
 					}
 
-					if (best_score < 0) {
-						best_distance = 0;
+					// Next node
+					node = chain[node];
+				} while (node != 0 && --limit);
+
+				// Score match based on residuals
+				if (sa3_n) {
+					u32 longest_dist = ii - longest_off_n;
+					int longest_saved, longest_score;
+					longest_score = scoreMatch(longest_dist, recent, costs, longest_ml_n, longest_saved);
+
+					if (longest_score > best_score) {
+						best_distance = longest_dist;
+						best_length = longest_ml_n;
+						best_score = longest_score;
+						best_saved = longest_saved;
 					}
+				}
+				if (sa3_p) {
+					u32 longest_dist = ii - longest_off_p;
+					int longest_saved, longest_score;
+					longest_score = scoreMatch(longest_dist, recent, costs, longest_ml_p, longest_saved);
+
+					if (longest_score > best_score) {
+						best_distance = longest_dist;
+						best_length = longest_ml_p;
+						best_score = longest_score;
+						best_saved = longest_saved;
+					}
+				}
+
+				if (best_score < 0) {
+					best_distance = 0;
 				}
 			}
 		}
@@ -587,8 +612,8 @@ bool RGBAMatchFinder::findMatches(sa3_word::SuffixArray3_State * CAT_RESTRICT sa
 bool RGBAMatchFinder::init(const u32 * CAT_RESTRICT rgba, Parameters &params) {
 	LZMatchFinder::init(params);
 
-	sa3_word::SuffixArray3_State sa3state;
-	SuffixArray3_Init(&sa3state, (u32*)rgba, _pixels, (WIN_SIZE > _pixels ? _pixels : WIN_SIZE));
+	SuffixArray3_State sa3state;
+	SuffixArray3_Init(&sa3state, (u8*)rgba, _pixels*4, (WIN_SIZE > _pixels ? _pixels : WIN_SIZE)*4);
 
 	if (!findMatches(&sa3state, rgba)) {
 		return false;
@@ -614,7 +639,7 @@ bool RGBAMatchFinder::init(const u32 * CAT_RESTRICT rgba, Parameters &params) {
 
 //// MonoMatchFinder
 
-bool MonoMatchFinder::findMatches(sa3_byte::SuffixArray3_State * CAT_RESTRICT sa3state, const u8 * CAT_RESTRICT mono) {
+bool MonoMatchFinder::findMatches(SuffixArray3_State * CAT_RESTRICT sa3state, const u8 * CAT_RESTRICT mono) {
 	// Allocate and zero the table and chain
 	SmartArray<u32> table, chain;
 	table.resizeZero(HASH_SIZE);
@@ -648,7 +673,7 @@ bool MonoMatchFinder::findMatches(sa3_byte::SuffixArray3_State * CAT_RESTRICT sa
 				// Find longest match
 				int longest_off_n, longest_off_p;
 				int longest_ml_n, longest_ml_p;
-				sa3_byte::SuffixArray3_BestML(sa3state, ii, longest_off_n, longest_off_p, longest_ml_n, longest_ml_p);
+				SuffixArray3_BestML(sa3state, ii, longest_off_n, longest_off_p, longest_ml_n, longest_ml_p);
 
 				// If longest match exists,
 				if (longest_ml_n >= MIN_MATCH ||
@@ -769,7 +794,7 @@ bool MonoMatchFinder::findMatches(sa3_byte::SuffixArray3_State * CAT_RESTRICT sa
 bool MonoMatchFinder::init(const u8 * CAT_RESTRICT mono, Parameters &params) {
 	LZMatchFinder::init(params);
 
-	sa3_byte::SuffixArray3_State sa3state;
+	SuffixArray3_State sa3state;
 	SuffixArray3_Init(&sa3state, (u8*)mono, _pixels, (WIN_SIZE > _pixels ? _pixels : WIN_SIZE));
 
 	if (!findMatches(&sa3state, mono)) {

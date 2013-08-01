@@ -15,79 +15,40 @@
 
 namespace cat {
 
-	namespace sa3_byte {
-		struct SuffixArraySearcher
-		{
-			// sortIndex[i] gives you the file position that is in sort order i
-			// sortLookup[i] gives you the sort order of file position i
-			// sortIndex[sortLookup[i]] == i
-			// sortSameLen[i] gives you the pairwise match len of {i} and {i+1} in the sort order
+	struct SuffixArraySearcher
+	{
+		// sortIndex[i] gives you the file position that is in sort order i
+		// sortLookup[i] gives you the sort order of file position i
+		// sortIndex[sortLookup[i]] == i
+		// sortSameLen[i] gives you the pairwise match len of {i} and {i+1} in the sort order
 
-			std::vector<int> sortIndex;
-			std::vector<int> sortSameLen;
-			std::vector<int> sortIndexInverse;
-			int * pSortSameLen;
+		std::vector<int> sortIndex;
+		std::vector<int> sortSameLen;
+		std::vector<int> sortIndexInverse;
+		int * pSortSameLen;
 
-			int size;
-			const u8 * ubuf;
-			int start;
-		};
+		int size;
+		const u8 * ubuf;
+		int start;
+	};
 
-		struct IntervalData
-		{
-			int lo,hi; // lowest and highest sortIndex[] seen in range
-			int	ml; // walking matchlen from start to end of interval
-		};
+	struct IntervalData
+	{
+		int lo,hi; // lowest and highest sortIndex[] seen in range
+		int	ml; // walking matchlen from start to end of interval
+	};
 
-		struct SuffixArray3_State {
-			SuffixArraySearcher SAS;
-			int numLevels;
-			std::vector< std::vector<IntervalData> > intervalLevels;
-			int window_size;
-		};
+	struct SuffixArray3_State {
+		SuffixArraySearcher SAS;
+		int numLevels;
+		std::vector< std::vector<IntervalData> > intervalLevels;
+		int window_size;
+	};
 
-		void SuffixArray3_Init(SuffixArray3_State *state, u8 *ubuf, int size, int window_size);
+	void SuffixArray3_Init(SuffixArray3_State *state, u8 *ubuf, int size, int window_size);
 
-		// Return top two matches
-		void SuffixArray3_BestML(SuffixArray3_State *state, int pos, int &bestoff_n, int &bestoff_p, int &bestml_n, int &bestml_p);
-	}
-
-	namespace sa3_word {
-		struct SuffixArraySearcher
-		{
-			// sortIndex[i] gives you the file position that is in sort order i
-			// sortLookup[i] gives you the sort order of file position i
-			// sortIndex[sortLookup[i]] == i
-			// sortSameLen[i] gives you the pairwise match len of {i} and {i+1} in the sort order
-
-			std::vector<int> sortIndex;
-			std::vector<int> sortSameLen;
-			std::vector<int> sortIndexInverse;
-			int * pSortSameLen;
-
-			int size;
-			const u32 * ubuf;
-			int start;
-		};
-
-		struct IntervalData
-		{
-			int lo,hi; // lowest and highest sortIndex[] seen in range
-			int	ml; // walking matchlen from start to end of interval
-		};
-
-		struct SuffixArray3_State {
-			SuffixArraySearcher SAS;
-			int numLevels;
-			std::vector< std::vector<IntervalData> > intervalLevels;
-			int window_size;
-		};
-
-		void SuffixArray3_Init(SuffixArray3_State *state, u32 *ubuf, int size, int window_size);
-
-		// Return top two matches
-		void SuffixArray3_BestML(SuffixArray3_State *state, int pos, int &bestoff_n, int &bestoff_p, int &bestml_n, int &bestml_p);
-	}
+	// Return top two matches
+	void SuffixArray3_BestML(SuffixArray3_State *state, int pos, int &bestoff_n, int &bestoff_p, int &bestml_n, int &bestml_p);
 
 } // namespace cat
 
