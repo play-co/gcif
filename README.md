@@ -12,8 +12,8 @@ other usage cases (such as webpages) where you want to compress tightly once,
 and then read it back many times.  For these images the expected size should be
 about 1024x1024 pixels or smaller.
 
-It typically produces files that are 66% the size of PNGCRUSH output and about
-94% the size of WebP output, while decoding faster than both.
+It typically produces files that are 60% the size of PNGCRUSH output and about
+85% the size of WebP output, while decoding faster than both.
 
 The format is released under the BSD license as forever patent-free, monetarily
 free, and open-source software.  Contributions, discussions, and a healthy dose
@@ -46,8 +46,8 @@ From one of our more challenging game sprite-sheets chosen at random:
 -rw-r--r--@ 1 cat  staff   441K Apr 28 18:46 noalpha.gif (lossy)
 ~~~
 
-In this case the result is 70% the size of the equivalent PNGCRUSH file output,
-and is 90% the size of the WebP file output.
+In this case the result is 69% the size of the equivalent PNGCRUSH file output,
+and is 86% the size of the WebP file output.
 
 The compression ratio for this speed reaches for the Pareto frontier for
 lossless image compression without using any multithreading, though it is a
@@ -60,31 +60,31 @@ mmp
 PNG: 30047457
 PNGCRUSH: 29651792
 WebP: 21737180
-GCIF: 18695920
+GCIF: 17551320
 
 critter
 PNG: 9998692
 PNGCRUSH: 8770312
 WebP: 6241754
-GCIF: 5865820
+GCIF: 5007720
 
 pop
 PNG: 10755955
 PNGCRUSH: 7861910
 WebP: 5418332
-GCIF: 5059436
+GCIF: 4731772
 
 monster
 PNG: 4005287
 PNGCRUSH: 3227017
 WebP: 2211330
-GCIF: 2123884
+GCIF: 2004464
 
 chicken
 PNG: 455147
 PNGCRUSH: 452368
 WebP: 314722
-GCIF: 354052
+GCIF: 304044
 
 gummies
 PNG: 2168408
@@ -96,48 +96,48 @@ hippo
 PNG: 3291540
 PNGCRUSH: 3192566
 WebP: 2255838
-GCIF: 2170476
+GCIF: 1759004
 
 pudding
 PNG: 1401473
 PNGCRUSH: 1401247
 WebP: 986948
-GCIF: 1113880
+GCIF: 892680
 
 wyvern
 PNG: 7724058
 PNGCRUSH: 6463701
 WebP: 4305978
-GCIF: 4568944
+GCIF: 3895524
 
 xxx
 PNG: 2131310
 PNGCRUSH: 1762601
 WebP: 1226082
-GCIF: 1241352
+GCIF: 987128
 
 blob
 PNG: 2131310
 PNGCRUSH: 1762601
 WebP: 1226082
-GCIF: 1263548
+GCIF: 864308
 
 voyager
 PNG: 50979862
 PNGCRUSH: 40413850
 WebP: 28309198
-GCIF: 26950356
+GCIF: 25201072
 
 Overall
 PNG: 124974932
 PNGCRUSH: 106870998
 WebP: 75383224
-GCIF: 70919460
+GCIF: 64250900
 
 On average,
-GCIF is 56.7% the size of PNG.
-GCIF is 66.3% the size of PNGCRUSH.
-GCIF is 94.1% the size of WebP.
+GCIF is 51.4% the size of PNG.
+GCIF is 60.1% the size of PNGCRUSH.
+GCIF is 85.2% the size of WebP.
 ~~~
 
 
