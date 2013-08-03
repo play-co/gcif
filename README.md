@@ -3,9 +3,9 @@ GCIF
 
 Game Closure Image Format : 1.2 PRE-RELEASE
 
-NOTE: Right now only RGBA images are compressing properly and the decoder
-is not written yet for the new LZ77 bitstream format.  Check out the 1.1 tag
-for the latest stable version.
+NOTE: Right now the decoder is not working yet for the new LZ77 bitstream
+format.  Check out the 1.1 tag for the latest stable version.  Compression
+benchmarks below are close to what the working 1.2 version will be.
 
 This is a lossless RGBA image format suited for mobile game sprite-sheets and
 other usage cases (such as webpages) where you want to compress tightly once,
