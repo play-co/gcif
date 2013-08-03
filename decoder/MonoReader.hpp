@@ -36,6 +36,7 @@
 #include "EntropyDecoder.hpp"
 #include "GCIFReader.h"
 #include "Delegates.hpp"
+#include "LZReader.hpp"
 
 #include <vector>
 
@@ -116,6 +117,9 @@ protected:
 	u8 *_current_row;
 	u16 _current_y;
 	u8 *_current_tile;
+
+	// LZ state
+	LZReader _lz;
 
 	void cleanup();
 

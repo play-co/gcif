@@ -36,6 +36,22 @@ using namespace cat;
 using namespace std;
 
 
+static void UpdateRecent(u32 dist, u32 *recent, int &recent_ii) {
+	CAT_DEBUG_ENFORCE(LZReader::LAST_COUNT == 4);
+
+	// Do not change anything if we have this distance stored already
+	for (int jj = 0; jj < LZReader::LAST_COUNT; ++jj) {
+		if (recent[jj] == dist) {
+			return;
+		}
+	}
+
+	int ii = recent_ii;
+	recent[ii] = dist;
+	recent_ii = (ii + 1) & 3;
+}
+
+
 static void MatchEncode(u32 * CAT_RESTRICT recent, int recent_ii, LZMatchFinder::LZMatch * CAT_RESTRICT match, int xsize) {
 	static const int LAST_COUNT = MonoMatchFinder::LAST_COUNT;
 
@@ -238,11 +254,7 @@ void LZMatchFinder::rejectMatches() {
 			}
 		}
 
-		// Update recent distances
-		recent[recent_ii++] = match->distance;
-		if (recent_ii >= LAST_COUNT) {
-			recent_ii = 0;
-		}
+		UpdateRecent(match->distance, recent, recent_ii);
 	}
 
 	// Estimate encoding costs for escape symbols
@@ -298,11 +310,7 @@ void LZMatchFinder::rejectMatches() {
 		} else {
 			++accepts;
 
-			// Update recent distances
-			recent[recent_ii++] = match->distance;
-			if (recent_ii >= LAST_COUNT) {
-				recent_ii = 0;
-			}
+			UpdateRecent(match->distance, recent, recent_ii);
 
 			// Continue linked list
 			if (prev) {
@@ -586,11 +594,7 @@ bool RGBAMatchFinder::findMatches(SuffixArray3_State * CAT_RESTRICT sa3state, co
 			// Check if this match covers more pixels than the overlapping match
 			if (best_length > covered_pixels) {
 				if (covered_pixels <= 0) {
-					// Update recent distances
-					recent[recent_ii++] = best_distance;
-					if (recent_ii >= LAST_COUNT) {
-						recent_ii = 0;
-					}
+					UpdateRecent(best_distance, recent, recent_ii);
 
 					_matches.push_back(LZMatch(ii, best_distance, best_length, best_saved));
 					covered_pixels = best_length;
@@ -767,11 +771,7 @@ bool MonoMatchFinder::findMatches(SuffixArray3_State * CAT_RESTRICT sa3state, co
 			// Check if this match covers more pixels than the overlapping match
 			if (best_length > covered_pixels) {
 				if (covered_pixels <= 0) {
-					// Update recent distances
-					recent[recent_ii++] = best_distance;
-					if (recent_ii >= LAST_COUNT) {
-						recent_ii = 0;
-					}
+					UpdateRecent(best_distance, recent, recent_ii);
 
 					_matches.push_back(LZMatch(ii, best_distance, best_length, best_saved));
 					covered_pixels = best_length;

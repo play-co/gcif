@@ -113,6 +113,9 @@ protected:
 	EntropyDecoder _u_decoder[MAX_CHAOS_LEVELS];
 	EntropyDecoder _v_decoder[MAX_CHAOS_LEVELS];
 
+	// LZ decoder
+	LZReader _lz;
+
 	CAT_INLINE FilterSelection *readFilter(u16 x, u16 y, ImageReader & CAT_RESTRICT reader) {
 		const u16 tx = x >> _tile_bits_x;
 		FilterSelection * CAT_RESTRICT filter = &_filters[tx];
@@ -125,36 +128,25 @@ protected:
 		return filter;
 	}
 
-	u32 _last_dist[LZReader::LAST_COUNT]; // Recent distances
-
-	CAT_INLINE void readLZ(u16 escape_code) {
-		// TODO
-		if (escape_code >= LZReader::ESC_DIST_LONG_2) {
-		} else if (escape_code >= LZReader::ESC_DIST_SHORT_2) {
-		} else if (escape_code >= LZReader::ESC_DIST_UP_N2) {
-		} else if (escape_code >= LZReader::ESC_DIST_1) {
-		} else {
-		}
-	}
-
 	CAT_INLINE void readSafe(u16 x, u16 y, u8 * CAT_RESTRICT p, ImageReader & CAT_RESTRICT reader) {
-		FilterSelection *filter = readFilter(x, y, reader);
-
 		// Calculate YUV chaos
 		u8 cy, cu, cv;
 		_chaos.get(x, cy, cu, cv);
 
-		// Read YUV filtered pixel
 		u16 pixel_code = _y_decoder[cy].next(reader); 
 
+		// If it is an LZ escape code,
 		if (pixel_code >= 256) {
-			readLZ(pixel_code - 256);
+			u32 dist, len = _lz.read(pixel_code - 256, reader, dist);
+			// TODO
 		} else {
-			// Read literal RGBA pixel
+			// Read YUV
 			u8 YUV[3];
 			YUV[0] = (u8)pixel_code;
 			YUV[1] = (u8)_u_decoder[cu].next(reader);
 			YUV[2] = (u8)_v_decoder[cv].next(reader);
+
+			FilterSelection *filter = readFilter(x, y, reader);
 
 			// Reverse color filter
 			filter->cf(YUV, p);
@@ -175,23 +167,24 @@ protected:
 
 	// WARNING: Should be exactly the same as above, except call unsafe()
 	CAT_INLINE void readUnsafe(u16 x, u16 y, u8 * CAT_RESTRICT p, ImageReader & CAT_RESTRICT reader) {
-		FilterSelection *filter = readFilter(x, y, reader);
-
 		// Calculate YUV chaos
 		u8 cy, cu, cv;
 		_chaos.get(x, cy, cu, cv);
 
-		// Read YUV filtered pixel
 		u16 pixel_code = _y_decoder[cy].next(reader); 
 
+		// If it is an LZ escape code,
 		if (pixel_code >= 256) {
-			readLZ(pixel_code - 256);
+			u32 dist, len = _lz.read(pixel_code - 256, reader, dist);
+			// TODO
 		} else {
-			// Read literal RGBA pixel
+			// Read YUV
 			u8 YUV[3];
 			YUV[0] = (u8)pixel_code;
 			YUV[1] = (u8)_u_decoder[cu].next(reader);
 			YUV[2] = (u8)_v_decoder[cv].next(reader);
+
+			FilterSelection *filter = readFilter(x, y, reader);
 
 			// Reverse color filter
 			filter->cf(YUV, p);

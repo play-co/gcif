@@ -29,9 +29,8 @@
 #ifndef LZ_READER_HPP
 #define LZ_READER_HPP
 
-#include "Platform.hpp"
-
-// TODO: Encode length with fewer bits
+#include "ImageReader.hpp"
+#include "HuffmanDecoder.hpp"
 
 /*
  * Game Closure LZ77 Image Compression
@@ -218,6 +217,58 @@ public:
 
 		ESCAPE_SYMS			// 32
 	};
+
+protected:
+	static const int LEN_HUFF_BITS = 8;
+	static const int SDIST_HUFF_BITS = 8;
+	static const int LDIST_HUFF_BITS = 8;
+
+	static const u32 DIST_MASK = 0xFFFFF; // Mask for valid distances to avoid extra checks
+
+	int _xsize, _ysize;
+
+	u32 _recent[LAST_COUNT];
+	int _recent_ii;
+	HuffmanDecoder _len_decoder, _sdist_decoder, _ldist_decoder;
+
+	CAT_INLINE int readLen(ImageReader & CAT_RESTRICT reader) {
+		return _len_decoder.next(reader) + 2;
+	}
+
+	CAT_INLINE int readShortDist(ImageReader & CAT_RESTRICT reader) {
+		u32 Code = _sdist_decoder.next(reader);
+
+		if (Code <= 24) {
+			if (Code <= 10) {
+				return (Code == 0) ? 2 : (Code + 6);
+			}
+
+			return (_xsize + Code - 11 - 16) & DIST_MASK;
+		}
+
+		if (Code <= 38) {
+			return (_xsize + Code - 25 + 3) & DIST_MASK;
+		}
+
+		Code -= 39;
+		int row = Code / 17, col = Code % 17;
+		return (_xsize * row + col - 8) & DIST_MASK;
+	}
+
+	CAT_INLINE int readLongDist(ImageReader & CAT_RESTRICT reader) {
+		u32 Code = _ldist_decoder.next(reader);
+
+		u32 EB = (Code >> 4) + 1;
+		u32 C0 = ((1 << (EB - 1)) - 1) << 5;
+		u32 D0 = ((Code - ((EB - 1) << 4)) << EB) + C0;
+
+		return D0 + reader.readBits(EB) + 17;
+	}
+
+public:
+	bool init(int xsize, int ysize, ImageReader & CAT_RESTRICT reader);
+
+	int read(u16 escape_code, ImageReader & CAT_RESTRICT reader, u32 &dist);
 };
 
 

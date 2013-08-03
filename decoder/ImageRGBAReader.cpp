@@ -168,24 +168,31 @@ int ImageRGBAReader::readRGBATables(ImageReader & CAT_RESTRICT reader) {
 	// For each chaos level,
 	for (int jj = 0; jj < chaos_levels; ++jj) {
 		// Read the decoder tables
-		if (!_y_decoder[jj].init(NUM_Y_SYMS, NUM_ZRLE_SYMS, HUFF_LUT_BITS, reader)) {
+		if CAT_UNLIKELY(!_y_decoder[jj].init(NUM_Y_SYMS, NUM_ZRLE_SYMS, HUFF_LUT_BITS, reader)) {
 			CAT_DEBUG_EXCEPTION();
 			return GCIF_RE_BAD_RGBA;
 		}
 		DESYNC_TABLE();
 
-		if (!_u_decoder[jj].init(NUM_U_SYMS, NUM_ZRLE_SYMS, HUFF_LUT_BITS, reader)) {
+		if CAT_UNLIKELY(!_u_decoder[jj].init(NUM_U_SYMS, NUM_ZRLE_SYMS, HUFF_LUT_BITS, reader)) {
 			CAT_DEBUG_EXCEPTION();
 			return GCIF_RE_BAD_RGBA;
 		}
 		DESYNC_TABLE();
 
-		if (!_v_decoder[jj].init(NUM_V_SYMS, NUM_ZRLE_SYMS, HUFF_LUT_BITS, reader)) {
+		if CAT_UNLIKELY(!_v_decoder[jj].init(NUM_V_SYMS, NUM_ZRLE_SYMS, HUFF_LUT_BITS, reader)) {
 			CAT_DEBUG_EXCEPTION();
 			return GCIF_RE_BAD_RGBA;
 		}
 		DESYNC_TABLE();
 	}
+
+	if CAT_UNLIKELY(!_lz.init(_xsize, _ysize, reader)) {
+		CAT_DEBUG_EXCEPTION();
+		return GCIF_RE_BAD_RGBA;
+	}
+
+	DESYNC_TABLE();
 
 	return GCIF_RE_OK;
 }
@@ -195,13 +202,13 @@ int ImageRGBAReader::readPixels(ImageReader & CAT_RESTRICT reader) {
 	const u32 MASK_COLOR = _mask->getColor();
 	const u8 MASK_ALPHA = (u8)~(getLE(MASK_COLOR) >> 24);
 
-	// Start from upper-left of image
-	u8 * CAT_RESTRICT p = _rgba;
-
 	_chaos.start();
 
 	_cf_decoder.setupUnordered();
 	_sf_decoder.setupUnordered();
+
+	// Start from upper-left of image
+	u8 * CAT_RESTRICT p = _rgba;
 
 #ifdef CAT_UNROLL_READER
 

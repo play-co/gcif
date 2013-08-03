@@ -203,6 +203,13 @@ int MonoReader::readTables(const Parameters & CAT_RESTRICT params, ImageReader &
 
 	DESYNC_TABLE();
 
+	if CAT_UNLIKELY(!_lz.init(_params.xsize, _params.ysize, reader)) {
+		CAT_DEBUG_EXCEPTION();
+		return GCIF_RE_BAD_MONO;
+	}
+
+	DESYNC_TABLE();
+
 	if CAT_UNLIKELY(reader.eof()) {
 		CAT_DEBUG_EXCEPTION();
 		return GCIF_RE_BAD_MONO;
