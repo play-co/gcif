@@ -368,13 +368,13 @@ int LZMatchFinder::scoreMatch(int distance, const u32 * CAT_RESTRICT recent, con
 	// Add cost based on distance encoding
 	int bits_cost;
 	if (distance == recent[0]) {
-		bits_cost = 6;
+		bits_cost = 7;
 	} else if (distance == recent[1]) {
 		bits_cost = 7;
 	} else if (distance == recent[2]) {
 		bits_cost = 7;
 	} else if (distance == recent[3]) {
-		bits_cost = 8;
+		bits_cost = 7;
 	} else if (distance <= 6) {
 		bits_cost = 8;
 	} else if (distance >= _params.xsize*8 + 9) {
