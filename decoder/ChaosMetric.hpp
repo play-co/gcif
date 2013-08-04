@@ -121,6 +121,25 @@ public:
 		_pixels[x] = 0;
 	}
 
+	CAT_INLINE void zeroRegion(u16 x, u16 len) {
+		u8 * CAT_RESTRICT pixels = _pixels + x;
+
+		while (len >= 4) {
+			pixels[0] = 0;
+			pixels[1] = 0;
+			pixels[2] = 0;
+			pixels[3] = 0;
+			pixels += 4;
+			len -= 4;
+		}
+
+		while (len > 0) {
+			pixels[0] = 0;
+			++pixels;
+			--len;
+		}
+	}
+
 	CAT_INLINE u8 get(u16 x) {
 		return _table[_pixels[x-1] + (u16)_pixels[x]];
 	}
@@ -183,6 +202,25 @@ public:
 
 	CAT_INLINE void zero(u16 x) {
 		*(u32*)&_pixels[x << 2] = 0;
+	}
+
+	CAT_INLINE void zeroRegion(u16 x, u16 len) {
+		u32 * CAT_RESTRICT pixels = reinterpret_cast<u32 * CAT_RESTRICT>( &_pixels[x << 2] );
+
+		while (len >= 4) {
+			pixels[0] = 0;
+			pixels[1] = 0;
+			pixels[2] = 0;
+			pixels[3] = 0;
+			pixels += 4;
+			len -= 4;
+		}
+
+		while (len > 0) {
+			pixels[0] = 0;
+			++pixels;
+			--len;
+		}
 	}
 
 	CAT_INLINE void get(u16 x, u8 & CAT_RESTRICT y, u8 & CAT_RESTRICT u, u8 & CAT_RESTRICT v) {

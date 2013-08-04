@@ -189,7 +189,7 @@ int ImageRGBAReader::readRGBATables(ImageReader & CAT_RESTRICT reader) {
 
 	if CAT_UNLIKELY(!_lz.init(_xsize, _ysize, reader)) {
 		CAT_DEBUG_EXCEPTION();
-		return GCIF_RE_BAD_RGBA;
+		return GCIF_RE_LZ_CODES;
 	}
 
 	DESYNC_TABLE();
@@ -209,6 +209,8 @@ int ImageRGBAReader::readPixels(ImageReader & CAT_RESTRICT reader) {
 
 	// Start from upper-left of image
 	u8 * CAT_RESTRICT p = _rgba;
+
+	const u32 * CAT_RESTRICT LZ_COPY_LIMIT = (const u32*)_rgba + xsize * (u32)_ysize;
 
 #ifdef CAT_UNROLL_READER
 
@@ -245,7 +247,7 @@ int ImageRGBAReader::readPixels(ImageReader & CAT_RESTRICT reader) {
 				u8 *Ap = _a_decoder.currentRow() + x;
 				*Ap = MASK_ALPHA;
 				_chaos.zero(x);
-				_a_decoder.masked(x);
+				_a_decoder.zero(x);
 			} else {
 				readSafe(x, y, p, reader);
 			}
@@ -264,8 +266,8 @@ int ImageRGBAReader::readPixels(ImageReader & CAT_RESTRICT reader) {
 			// Zero filter holes
 			for (u16 tx = 0; tx < _tiles_x; ++tx) {
 				if (!_filters[tx].ready()) {
-					_sf_decoder.masked(tx);
-					_cf_decoder.masked(tx);
+					_sf_decoder.zero(tx);
+					_cf_decoder.zero(tx);
 				}
 			}
 
@@ -300,7 +302,7 @@ int ImageRGBAReader::readPixels(ImageReader & CAT_RESTRICT reader) {
 				u8 *Ap = _a_decoder.currentRow() + x;
 				*Ap = MASK_ALPHA;
 				_chaos.zero(x);
-				_a_decoder.masked(x);
+				_a_decoder.zero(x);
 			} else {
 				readSafe(x, y, p, reader);
 			}
@@ -329,7 +331,7 @@ int ImageRGBAReader::readPixels(ImageReader & CAT_RESTRICT reader) {
 				u8 *Ap = _a_decoder.currentRow() + x;
 				*Ap = MASK_ALPHA;
 				_chaos.zero(x);
-				_a_decoder.masked(x);
+				_a_decoder.zero(x);
 			} else {
 				// Note: Reading with unsafe spatial filter
 				readUnsafe(x, y, p, reader);
@@ -359,7 +361,7 @@ int ImageRGBAReader::readPixels(ImageReader & CAT_RESTRICT reader) {
 				u8 *Ap = _a_decoder.currentRow() + x;
 				*Ap = MASK_ALPHA;
 				_chaos.zero(x);
-				_a_decoder.masked(x);
+				_a_decoder.zero(x);
 			} else {
 				readSafe(x, y, p, reader);
 			}
@@ -379,8 +381,8 @@ int ImageRGBAReader::readPixels(ImageReader & CAT_RESTRICT reader) {
 				// Zero filter holes
 				for (u16 tx = 0; tx < _tiles_x; ++tx) {
 					if (!_filters[tx].ready()) {
-						_sf_decoder.masked(tx);
-						_cf_decoder.masked(tx);
+						_sf_decoder.zero(tx);
+						_cf_decoder.zero(tx);
 					}
 				}
 			}
@@ -414,12 +416,124 @@ int ImageRGBAReader::readPixels(ImageReader & CAT_RESTRICT reader) {
 
 			if ((s32)mask < 0) {
 				*reinterpret_cast<u32 *>( p ) = MASK_COLOR;
-				u8 *Ap = _a_decoder.currentRow() + x;
+				u8 * CAT_RESTRICT Ap = _a_decoder.currentRow() + x;
 				*Ap = MASK_ALPHA;
 				_chaos.zero(x);
-				_a_decoder.masked(x);
+				_a_decoder.zero(x);
 			} else {
-				readSafe(x, y, p, reader);
+				// Calculate YUV chaos
+				u8 cy, cu, cv;
+				_chaos.get(x, cy, cu, cv);
+
+				u16 pixel_code = _y_decoder[cy].next(reader); 
+
+				// If it is an LZ escape code,
+				if (pixel_code >= 256) {
+					// Decode LZ bitstream
+					u32 dist, len = _lz.read(pixel_code - 256, reader, dist);
+
+					CAT_DEBUG_ENFORCE(len >= 2 && len <= 256);
+					CAT_DEBUG_ENFORCE(dist != 0);
+
+					// Calculate source address of copy
+					const u32 * CAT_RESTRICT src = reinterpret_cast<const u32 * CAT_RESTRICT>( p );
+
+					CAT_DEBUG_ENFORCE(src < p);
+
+					// If LZ copy source is invalid,
+					if CAT_UNLIKELY(src >= reinterpret_cast<const u32 * CAT_RESTRICT>( _rgba ) + dist) {
+						// Unfortunately need to add dist twice to avoid pointer wrap around near 0
+						CAT_DEBUG_EXCEPTION();
+						return GCIF_RE_LZ_BAD;
+					}
+
+					src += dist;
+
+					// Calculate destination address of copy
+					u32 * CAT_RESTRICT dst = reinterpret_cast<u32 * CAT_RESTRICT>( p );
+
+					// If LZ destination is invalid,
+					if CAT_UNLIKELY(dst + len >= LZ_COPY_LIMIT) {
+						CAT_DEBUG_EXCEPTION();
+						return GCIF_RE_LZ_BAD;
+					}
+
+					// Calculate destination address for alpha
+					u8 * CAT_RESTRICT Ap_dst = _a_decoder.currentRow() + x;
+					const u8 * CAT_RESTRICT Ap_src = Ap_dst - dist;
+
+					// Zero chaos
+					const int xsize = _xsize;
+					int zx = x, zlen = len;
+					if (zx + zlen > xsize) {
+						// If zeroing the whole chaos buffer,
+						if (zlen >= xsize) {
+							zx = 0;
+							zlen = xsize;
+						} else {
+							// Zero overflow into next row
+							_chaos.zeroRegion(0, xsize - zlen);
+							_a_decoder.zeroRegion(0, xsize - zlen);
+						}
+					}
+
+					// Execute remaining chaos zeroing
+					_chaos.zeroRegion(zx, zlen);
+					_a_decoder.zeroRegion(zx, zlen);
+
+					// Copy blocks at a time
+					while (len >= 4) {
+						dst[0] = src[0];
+						dst[1] = src[1];
+						dst[2] = src[2];
+						dst[3] = src[3];
+						dst += 4;
+						src += 4;
+						Ap_dst[0] = Ap_src[0];
+						Ap_dst[1] = Ap_src[1];
+						Ap_dst[2] = Ap_src[2];
+						Ap_dst[3] = Ap_src[3];
+						Ap_dst += 4;
+						Ap_src += 4;
+						len -= 4;
+					}
+
+					// Copy words at a time
+					while (len > 0) {
+						dst[0] = src[0];
+						++dst;
+						++src;
+						Ap_dst[0] = Ap_src[0];
+						++Ap_dst;
+						++Ap_src;
+						--len;
+					}
+
+					// TODO: Skip ahead
+				} else {
+					// Read YUV
+					u8 YUV[3];
+					YUV[0] = (u8)pixel_code;
+					YUV[1] = (u8)_u_decoder[cu].next(reader);
+					YUV[2] = (u8)_v_decoder[cv].next(reader);
+
+					FilterSelection *filter = readFilter(x, y, reader);
+
+					// Reverse color filter
+					filter->cf(YUV, p);
+
+					// Reverse spatial filter
+					u8 FPT[3];
+					const u8 * CAT_RESTRICT pred = filter->sf.safe(p, FPT, x, y, _xsize);
+					p[0] += pred[0];
+					p[1] += pred[1];
+					p[2] += pred[2];
+
+					// Read alpha pixel
+					p[3] = (u8)~_a_decoder.read(x, reader);
+
+					_chaos.store(x, YUV);
+				}
 			}
 
 			// Next pixel

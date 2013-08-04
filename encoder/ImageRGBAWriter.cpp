@@ -585,7 +585,7 @@ bool ImageRGBAWriter::compressAlpha() {
 	params.AWARDS[3] = 1;
 	params.award_count = 4;
 	params.write_order = 0;
-	params.lz_enable = true;
+	params.lz_enable = false; // TODO: Re-enable when it works
 
 	_a_encoder.init(params);
 

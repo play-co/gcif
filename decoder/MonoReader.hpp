@@ -140,8 +140,12 @@ public:
 		CAT_CLR(_params.data, _params.xsize * _params.ysize);
 	}
 
-	CAT_INLINE void masked(u16 x) {
+	CAT_INLINE void zero(u16 x) {
 		_chaos.zero(x);
+	}
+
+	CAT_INLINE void zeroRegion(u16 x, u16 len) {
+		_chaos.zeroRegion(x, len);
 	}
 
 	CAT_INLINE u8 *currentRow() {
