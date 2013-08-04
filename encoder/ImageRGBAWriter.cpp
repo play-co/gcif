@@ -1022,6 +1022,10 @@ bool ImageRGBAWriter::writePixels(ImageWriter &writer) {
 
 			// If we just hit the start of the next LZ copy region,
 			if (lzm && offset == lzm->offset) {
+				// Decoder respects mask first, so we cannot start LZ matches on a masked pixel,
+				// though we can skip over masked pixels after an LZ match starts.
+				CAT_DEBUG_ENFORCE(!_mask->masked(x, y));
+
 				// Get chaos bin
 				u8 cy, cu, cv;
 				_encoders->chaos.get(x, cy, cu, cv);
@@ -1039,17 +1043,6 @@ bool ImageRGBAWriter::writePixels(ImageWriter &writer) {
 					++lz_count;
 				}
 			} else {
-				// If filter needs to be written,
-				u16 tx = x >> _tile_bits_x;
-				if (_seen_filter[tx] == 0) {
-					_seen_filter[tx] = 1;
-
-					CAT_DEBUG_ENFORCE(!IsSFMasked(tx, ty));
-
-					cf_bits += _cf_encoder.write(tx, ty, writer);
-					sf_bits += _sf_encoder.write(tx, ty, writer);
-				}
-
 				// Get chaos bin
 				u8 cy, cu, cv;
 				_encoders->chaos.get(x, cy, cu, cv);
@@ -1062,6 +1055,17 @@ bool ImageRGBAWriter::writePixels(ImageWriter &writer) {
 				u_bits += _encoders->u[cu].write(residuals[1], writer);
 				v_bits += _encoders->v[cv].write(residuals[2], writer);
 				a_bits += _a_encoder.write(x, y, writer);
+
+				// If filter needs to be written,
+				u16 tx = x >> _tile_bits_x;
+				if (_seen_filter[tx] == 0) {
+					_seen_filter[tx] = 1;
+
+					CAT_DEBUG_ENFORCE(!IsSFMasked(tx, ty));
+
+					cf_bits += _cf_encoder.write(tx, ty, writer);
+					sf_bits += _sf_encoder.write(tx, ty, writer);
+				}
 
 #ifdef CAT_COLLECT_STATS
 				// Increment RGBA pixel count
