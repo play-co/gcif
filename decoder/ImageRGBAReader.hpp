@@ -137,7 +137,6 @@ protected:
 
 		// If it is an LZ escape code,
 		if (pixel_code >= 256) {
-			u32 dist, len = _lz.read(pixel_code - 256, reader, dist);
 			// TODO
 		} else {
 			// Read YUV
@@ -175,7 +174,6 @@ protected:
 
 		// If it is an LZ escape code,
 		if (pixel_code >= 256) {
-			u32 dist, len = _lz.read(pixel_code - 256, reader, dist);
 			// TODO
 		} else {
 			// Read YUV

@@ -488,18 +488,30 @@ bool RGBAMatchFinder::findMatches(SuffixArray3_State * CAT_RESTRICT sa3state, co
 	int covered_pixels = 0;
 
 	// For each pixel, stopping just before the last pixel:
+	const int xsize = _params.xsize;
 	const u32 * CAT_RESTRICT rgba_now = rgba;
 	const u8 * CAT_RESTRICT costs = _params.costs;
-	for (int ii = 0, iiend = _pixels - MIN_MATCH; ii <= iiend; ++ii, ++rgba_now, ++costs) {
+	for (int x = 0, ii = 0, iiend = _pixels - MIN_MATCH; ii <= iiend; ++ii, ++rgba_now, ++costs, ++x) {
 		u16 best_length = MIN_MATCH - 1;
 		u32 best_distance = 0;
 		int best_score = 0, best_saved = 0;
+
+		// Wrap x
+		if (x >= xsize) {
+			x = 0;
+		}
+
+		// Calculate length limit	
+		int len_limit = xsize - x;
+		if (len_limit > MAX_MATCH) {
+			len_limit = MAX_MATCH;
+		}
 
 		// Get min match hash
 		const u32 hash = HashPixels(rgba_now);
 
 		// If not masked,
-		if (costs[0] > 0) {
+		if (costs[0] > 0 && len_limit >= MIN_MATCH) {
 			u32 node = table[hash];
 
 			// If any matches exist,
@@ -532,7 +544,7 @@ bool RGBAMatchFinder::findMatches(SuffixArray3_State * CAT_RESTRICT sa3state, co
 						rgba_node[1] == rgba_now[1]) {
 						// Find match length
 						int match_len = 2;
-						for (; match_len < MAX_MATCH && rgba_node[match_len] == rgba_now[match_len]; ++match_len);
+						for (; match_len < len_limit && rgba_node[match_len] == rgba_now[match_len]; ++match_len);
 
 						// Score match
 						int bits_saved;
@@ -555,6 +567,9 @@ bool RGBAMatchFinder::findMatches(SuffixArray3_State * CAT_RESTRICT sa3state, co
 
 				// Score match based on residuals
 				if (sa3_n) {
+					if (longest_ml_n > len_limit) {
+						longest_ml_n = len_limit;
+					}
 					u32 longest_dist = ii - longest_off_n;
 					int longest_saved, longest_score;
 					longest_score = scoreMatch(longest_dist, recent, costs, longest_ml_n, longest_saved);
@@ -567,6 +582,9 @@ bool RGBAMatchFinder::findMatches(SuffixArray3_State * CAT_RESTRICT sa3state, co
 					}
 				}
 				if (sa3_p) {
+					if (longest_ml_p > len_limit) {
+						longest_ml_p = len_limit;
+					}
 					u32 longest_dist = ii - longest_off_p;
 					int longest_saved, longest_score;
 					longest_score = scoreMatch(longest_dist, recent, costs, longest_ml_p, longest_saved);
