@@ -203,6 +203,7 @@ protected:
 		}
 	}
 
+	int readLZMatch(u16 pixel_code, ImageReader & CAT_RESTRICT reader, int x, u8 * CAT_RESTRICT p);
 	int readFilterTables(ImageReader & CAT_RESTRICT reader);
 	int readRGBATables(ImageReader & CAT_RESTRICT reader);
 	int readPixels(ImageReader & CAT_RESTRICT reader);

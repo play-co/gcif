@@ -429,83 +429,7 @@ int ImageRGBAReader::readPixels(ImageReader & CAT_RESTRICT reader) {
 
 				// If it is an LZ escape code,
 				if (pixel_code >= 256) {
-					// Decode LZ bitstream
-					u32 dist, len = _lz.read(pixel_code - 256, reader, dist);
-
-					CAT_DEBUG_ENFORCE(len >= 2 && len <= 256);
-					CAT_DEBUG_ENFORCE(dist != 0);
-
-					// Calculate source address of copy
-					const u32 * CAT_RESTRICT src = reinterpret_cast<const u32 * CAT_RESTRICT>( p );
-
-					// If LZ copy source is invalid,
-					if CAT_UNLIKELY(src >= reinterpret_cast<const u32 * CAT_RESTRICT>( _rgba ) + dist) {
-						// Unfortunately need to add dist twice to avoid pointer wrap around near 0
-						CAT_DEBUG_EXCEPTION();
-						return GCIF_RE_LZ_BAD;
-					}
-
-					src += dist;
-
-					u32 * CAT_RESTRICT dst = reinterpret_cast<u32 * CAT_RESTRICT>( p );
-					CAT_DEBUG_ENFORCE(src < dst);
-
-					// If LZ destination is invalid,
-					if CAT_UNLIKELY(dst + len >= LZ_COPY_LIMIT) {
-						CAT_DEBUG_EXCEPTION();
-						return GCIF_RE_LZ_BAD;
-					}
-
-					// Calculate destination address for alpha
-					u8 * CAT_RESTRICT Ap_dst = _a_decoder.currentRow() + x;
-					const u8 * CAT_RESTRICT Ap_src = Ap_dst - dist;
-
-					// Copy blocks at a time
-					int copy = len;
-					while (copy >= 4) {
-						dst[0] = src[0];
-						dst[1] = src[1];
-						dst[2] = src[2];
-						dst[3] = src[3];
-						dst += 4;
-						src += 4;
-						Ap_dst[0] = Ap_src[0];
-						Ap_dst[1] = Ap_src[1];
-						Ap_dst[2] = Ap_src[2];
-						Ap_dst[3] = Ap_src[3];
-						Ap_dst += 4;
-						Ap_src += 4;
-						copy -= 4;
-					}
-
-					// Copy words at a time
-					while (copy > 0) {
-						dst[0] = src[0];
-						++dst;
-						++src;
-						Ap_dst[0] = Ap_src[0];
-						++Ap_dst;
-						++Ap_src;
-						--copy;
-					}
-
-					const int xsize = _xsize;
-					int zx = x;
-					if (zx + len > xsize) {
-						// If zeroing the whole chaos buffer,
-						if (len >= xsize) {
-							zx = 0;
-							len = xsize;
-						} else {
-							// Zero overflow into next row
-							_chaos.zeroRegion(0, xsize - len);
-							_a_decoder.zeroRegion(0, xsize - len);
-						}
-					}
-
-					// Execute remaining chaos zeroing
-					_chaos.zeroRegion(zx, len);
-					_a_decoder.zeroRegion(zx, len);
+					int len = readLZMatch(pixel_code, reader, x, p);
 
 					// TODO: Move mask ahead
 					// TODO: Move read pointers ahead
@@ -544,6 +468,75 @@ int ImageRGBAReader::readPixels(ImageReader & CAT_RESTRICT reader) {
 #endif
 
 	return GCIF_RE_OK;
+}
+
+int ImageRGBAReader::readLZMatch(u16 pixel_code, ImageReader & CAT_RESTRICT reader, int x, u8 * CAT_RESTRICT p) {
+	// Decode LZ bitstream
+	u32 dist, len = _lz.read(pixel_code - 256, reader, dist);
+
+	CAT_DEBUG_ENFORCE(len >= 2 && len <= 256);
+	CAT_DEBUG_ENFORCE(dist != 0);
+
+	// Calculate source address of copy
+	const u32 * CAT_RESTRICT src = reinterpret_cast<const u32 * CAT_RESTRICT>( p );
+
+	// If LZ copy source is invalid,
+	if CAT_UNLIKELY(src >= reinterpret_cast<const u32 * CAT_RESTRICT>( _rgba ) + dist) {
+		// Unfortunately need to add dist twice to avoid pointer wrap around near 0
+		CAT_DEBUG_EXCEPTION();
+		return GCIF_RE_LZ_BAD;
+	}
+
+	src += dist;
+
+	u32 * CAT_RESTRICT dst = reinterpret_cast<u32 * CAT_RESTRICT>( p );
+	CAT_DEBUG_ENFORCE(src < dst);
+
+	// If LZ destination is invalid,
+	if CAT_UNLIKELY(x + len > _xsize) {
+		CAT_DEBUG_EXCEPTION();
+		return GCIF_RE_LZ_BAD;
+	}
+
+	// Calculate destination address for alpha
+	u8 * CAT_RESTRICT Ap_dst = _a_decoder.currentRow() + x;
+	const u8 * CAT_RESTRICT Ap_src = Ap_dst - dist;
+
+	// Copy blocks at a time
+	int copy = len;
+	while (copy >= 4) {
+		dst[0] = src[0];
+		dst[1] = src[1];
+		dst[2] = src[2];
+		dst[3] = src[3];
+		dst += 4;
+		src += 4;
+		Ap_dst[0] = Ap_src[0];
+		Ap_dst[1] = Ap_src[1];
+		Ap_dst[2] = Ap_src[2];
+		Ap_dst[3] = Ap_src[3];
+		Ap_dst += 4;
+		Ap_src += 4;
+		copy -= 4;
+	}
+
+	// Copy words at a time
+	while (copy > 0) {
+		dst[0] = src[0];
+		++dst;
+		++src;
+		Ap_dst[0] = Ap_src[0];
+		++Ap_dst;
+		++Ap_src;
+		--copy;
+	}
+
+	// Execute remaining chaos zeroing
+	_chaos.zeroRegion(x, len);
+	_a_decoder.zeroRegion(x, len);
+
+	// Return match length
+	return len;
 }
 
 int ImageRGBAReader::read(ImageReader & CAT_RESTRICT reader, ImageMaskReader & CAT_RESTRICT maskReader, GCIFImage * CAT_RESTRICT image) {
