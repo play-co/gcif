@@ -438,8 +438,6 @@ int ImageRGBAReader::readPixels(ImageReader & CAT_RESTRICT reader) {
 					// Calculate source address of copy
 					const u32 * CAT_RESTRICT src = reinterpret_cast<const u32 * CAT_RESTRICT>( p );
 
-					CAT_DEBUG_ENFORCE(src < p);
-
 					// If LZ copy source is invalid,
 					if CAT_UNLIKELY(src >= reinterpret_cast<const u32 * CAT_RESTRICT>( _rgba ) + dist) {
 						// Unfortunately need to add dist twice to avoid pointer wrap around near 0
@@ -449,8 +447,8 @@ int ImageRGBAReader::readPixels(ImageReader & CAT_RESTRICT reader) {
 
 					src += dist;
 
-					// Calculate destination address of copy
 					u32 * CAT_RESTRICT dst = reinterpret_cast<u32 * CAT_RESTRICT>( p );
+					CAT_DEBUG_ENFORCE(src < dst);
 
 					// If LZ destination is invalid,
 					if CAT_UNLIKELY(dst + len >= LZ_COPY_LIMIT) {

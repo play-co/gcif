@@ -139,7 +139,7 @@ int SmallPaletteReader::readPixels(ImageReader & CAT_RESTRICT reader) {
 
 			if ((s32)mask < 0) {
 				u8 *p = _mono_decoder.currentRow() + x;
-				_mono_decoder.masked(x);
+				_mono_decoder.zero(x);
 				*p = MASK_PAL;
 			} else {
 #ifdef CAT_DEBUG
@@ -172,7 +172,7 @@ int SmallPaletteReader::readPixels(ImageReader & CAT_RESTRICT reader) {
 
 			if ((s32)mask < 0) {
 				u8 *p = _mono_decoder.currentRow() + x;
-				_mono_decoder.masked(x);
+				_mono_decoder.zero(x);
 				*p = MASK_PAL;
 			} else {
 #ifdef CAT_DEBUG
@@ -197,7 +197,7 @@ int SmallPaletteReader::readPixels(ImageReader & CAT_RESTRICT reader) {
 
 			if ((s32)mask < 0) {
 				u8 *p = _mono_decoder.currentRow() + x;
-				_mono_decoder.masked(x);
+				_mono_decoder.zero(x);
 				*p = MASK_PAL;
 			} else {
 #ifdef CAT_DEBUG
@@ -225,7 +225,7 @@ int SmallPaletteReader::readPixels(ImageReader & CAT_RESTRICT reader) {
 
 			if ((s32)mask < 0) {
 				u8 *p = _mono_decoder.currentRow() + x;
-				_mono_decoder.masked(x);
+				_mono_decoder.zero(x);
 				*p = MASK_PAL;
 			} else {
 #ifdef CAT_DEBUG
@@ -256,7 +256,7 @@ int SmallPaletteReader::readPixels(ImageReader & CAT_RESTRICT reader) {
 
 			if ((s32)mask < 0) {
 				u8 *p = _mono_decoder.currentRow() + x;
-				_mono_decoder.masked(x);
+				_mono_decoder.zero(x);
 				*p = MASK_PAL;
 			} else {
 #ifdef CAT_DEBUG

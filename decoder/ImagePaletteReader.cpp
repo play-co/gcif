@@ -176,7 +176,7 @@ int ImagePaletteReader::readPixels(ImageReader & CAT_RESTRICT reader) {
 				*rgba = MASK_COLOR;
 				u8 *p = _mono_decoder.currentRow() + x;
 				*p = MASK_PAL;
-				_mono_decoder.masked(x);
+				_mono_decoder.zero(x);
 			} else {
 				u8 index = _mono_decoder.read(x, reader);
 
@@ -212,7 +212,7 @@ int ImagePaletteReader::readPixels(ImageReader & CAT_RESTRICT reader) {
 				*rgba = MASK_COLOR;
 				u8 *p = _mono_decoder.currentRow() + x;
 				*p = MASK_PAL;
-				_mono_decoder.masked(x);
+				_mono_decoder.zero(x);
 			} else {
 				u8 index = _mono_decoder.read(x, reader);
 
@@ -240,7 +240,7 @@ int ImagePaletteReader::readPixels(ImageReader & CAT_RESTRICT reader) {
 				*rgba = MASK_COLOR;
 				u8 *p = _mono_decoder.currentRow() + x;
 				*p = MASK_PAL;
-				_mono_decoder.masked(x);
+				_mono_decoder.zero(x);
 			} else {
 				u8 index = _mono_decoder.read_unsafe(x, reader);
 
@@ -271,7 +271,7 @@ int ImagePaletteReader::readPixels(ImageReader & CAT_RESTRICT reader) {
 				*rgba = MASK_COLOR;
 				u8 *p = _mono_decoder.currentRow() + x;
 				*p = MASK_PAL;
-				_mono_decoder.masked(x);
+				_mono_decoder.zero(x);
 			} else {
 				u8 index = _mono_decoder.read(x, reader);
 
@@ -306,7 +306,7 @@ int ImagePaletteReader::readPixels(ImageReader & CAT_RESTRICT reader) {
 				*rgba = MASK_COLOR;
 				u8 *p = _mono_decoder.currentRow() + x;
 				*p = MASK_PAL;
-				_mono_decoder.masked(x);
+				_mono_decoder.zero(x);
 			} else {
 				u8 index = _mono_decoder.read(x, reader);
 

@@ -240,7 +240,7 @@ int MonoReader::readRowHeader(u16 y, ImageReader & CAT_RESTRICT reader) {
 				// For each pixel in seen row,
 				for (u16 tx = 0; tx < _tiles_x; ++tx) {
 					if (!_filter_row[tx].safe) {
-						_filter_decoder->masked(tx);
+						_filter_decoder->zero(tx);
 					}
 				}
 
