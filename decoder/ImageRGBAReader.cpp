@@ -462,27 +462,9 @@ int ImageRGBAReader::readPixels(ImageReader & CAT_RESTRICT reader) {
 					u8 * CAT_RESTRICT Ap_dst = _a_decoder.currentRow() + x;
 					const u8 * CAT_RESTRICT Ap_src = Ap_dst - dist;
 
-					// Zero chaos
-					const int xsize = _xsize;
-					int zx = x, zlen = len;
-					if (zx + zlen > xsize) {
-						// If zeroing the whole chaos buffer,
-						if (zlen >= xsize) {
-							zx = 0;
-							zlen = xsize;
-						} else {
-							// Zero overflow into next row
-							_chaos.zeroRegion(0, xsize - zlen);
-							_a_decoder.zeroRegion(0, xsize - zlen);
-						}
-					}
-
-					// Execute remaining chaos zeroing
-					_chaos.zeroRegion(zx, zlen);
-					_a_decoder.zeroRegion(zx, zlen);
-
 					// Copy blocks at a time
-					while (len >= 4) {
+					int copy = len;
+					while (copy >= 4) {
 						dst[0] = src[0];
 						dst[1] = src[1];
 						dst[2] = src[2];
@@ -495,21 +477,40 @@ int ImageRGBAReader::readPixels(ImageReader & CAT_RESTRICT reader) {
 						Ap_dst[3] = Ap_src[3];
 						Ap_dst += 4;
 						Ap_src += 4;
-						len -= 4;
+						copy -= 4;
 					}
 
 					// Copy words at a time
-					while (len > 0) {
+					while (copy > 0) {
 						dst[0] = src[0];
 						++dst;
 						++src;
 						Ap_dst[0] = Ap_src[0];
 						++Ap_dst;
 						++Ap_src;
-						--len;
+						--copy;
 					}
 
-					// TODO: Skip ahead
+					const int xsize = _xsize;
+					int zx = x;
+					if (zx + len > xsize) {
+						// If zeroing the whole chaos buffer,
+						if (len >= xsize) {
+							zx = 0;
+							len = xsize;
+						} else {
+							// Zero overflow into next row
+							_chaos.zeroRegion(0, xsize - len);
+							_a_decoder.zeroRegion(0, xsize - len);
+						}
+					}
+
+					// Execute remaining chaos zeroing
+					_chaos.zeroRegion(zx, len);
+					_a_decoder.zeroRegion(zx, len);
+
+					// TODO: Move mask ahead
+					// TODO: Move read pointers ahead
 				} else {
 					// Read YUV
 					u8 YUV[3];
