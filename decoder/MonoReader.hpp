@@ -119,6 +119,7 @@ protected:
 	u8 *_current_tile;
 
 	// LZ state
+	bool _lz_enabled;
 	LZReader _lz;
 
 	void cleanup();

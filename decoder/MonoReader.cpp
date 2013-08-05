@@ -203,9 +203,14 @@ int MonoReader::readTables(const Parameters & CAT_RESTRICT params, ImageReader &
 
 	DESYNC_TABLE();
 
-	if CAT_UNLIKELY(!_lz.init(_params.xsize, _params.ysize, reader)) {
-		CAT_DEBUG_EXCEPTION();
-		return GCIF_RE_BAD_MONO;
+	// Check if LZ is enabled for this monochrome image
+	_lz_enabled = (reader.readBit() == 1);
+
+	if (_lz_enabled) {
+		if CAT_UNLIKELY(!_lz.init(_params.xsize, _params.ysize, reader)) {
+			CAT_DEBUG_EXCEPTION();
+			return GCIF_RE_BAD_MONO;
+		}
 	}
 
 	DESYNC_TABLE();

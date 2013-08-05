@@ -29,6 +29,12 @@
 #include "LZReader.hpp"
 using namespace cat;
 
+#ifdef CAT_DESYNCH_CHECKS
+#define DESYNC_TABLE() \
+	CAT_ENFORCE(reader.readWord() == 1337234);
+#else
+#define DESYNC_TABLE()
+#endif
 
 bool LZReader::init(int xsize, int ysize, ImageReader & CAT_RESTRICT reader) {
 	// Initialize parameters
@@ -38,6 +44,8 @@ bool LZReader::init(int xsize, int ysize, ImageReader & CAT_RESTRICT reader) {
 	// Zero recent distances
 	CAT_OBJCLR(_recent);
 	_recent_ii = 0;
+
+	DESYNC_TABLE();
 
 	// Initialize decoders
 	if CAT_UNLIKELY(!_len_decoder.init(LEN_SYMS, reader, LEN_HUFF_BITS)) {
@@ -52,6 +60,8 @@ bool LZReader::init(int xsize, int ysize, ImageReader & CAT_RESTRICT reader) {
 		CAT_DEBUG_EXCEPTION();
 		return false;
 	}
+
+	DESYNC_TABLE();
 
 	return true;
 }

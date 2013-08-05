@@ -1540,9 +1540,13 @@ int MonoWriter::writeTables(ImageWriter &writer) {
 	DESYNC_TABLE();
 
 	if (_params.lz_enable) {
+		writer.writeBit(1);
+
 		Stats.lz_table_bits = _lz.writeTables(writer);
 		_lz_next = _lz.getHead();
 	} else {
+		writer.writeBit(0);
+
 		Stats.lz_table_bits = 0;
 	}
 

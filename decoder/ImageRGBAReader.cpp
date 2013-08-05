@@ -405,7 +405,7 @@ int ImageRGBAReader::readPixels(ImageReader & CAT_RESTRICT reader) {
 		u32 mask;
 
 		// For each pixel,
-		for (int x = 0; x < xsize; ++x) {
+		for (int x = 0; x < xsize;) {
 			DESYNC(x, y);
 
 			// Next mask word
@@ -431,8 +431,21 @@ int ImageRGBAReader::readPixels(ImageReader & CAT_RESTRICT reader) {
 				if (pixel_code >= 256) {
 					int len = readLZMatch(pixel_code, reader, x, p);
 
-					// TODO: Move mask ahead
-					// TODO: Move read pointers ahead
+					// Move mask ahead
+					mask <<= 1;
+					int mlen = len - 1;
+					while (mlen-- > 0) {
+						if (mask_left-- <= 0) {
+							mask = *mask_next++;
+							mask_left = 31;
+						}
+						mask <<= 1;
+					}
+
+					// Move pointers ahead
+					p += len << 2;
+					x += len;
+					continue;
 				} else {
 					// Read YUV
 					u8 YUV[3];
@@ -462,6 +475,7 @@ int ImageRGBAReader::readPixels(ImageReader & CAT_RESTRICT reader) {
 			// Next pixel
 			p += 4;
 			mask <<= 1;
+			++x;
 		}
 	}
 

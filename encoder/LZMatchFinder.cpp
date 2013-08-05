@@ -35,6 +35,11 @@ using namespace cat;
 #include <iomanip>
 using namespace std;
 
+#ifdef CAT_DESYNCH_CHECKS
+#define DESYNC_TABLE() writer.writeWord(1337234);
+#else
+#define DESYNC_TABLE()
+#endif
 
 static void UpdateRecent(u32 dist, u32 *recent, int &recent_ii) {
 	CAT_DEBUG_ENFORCE(LZReader::LAST_COUNT == 4);
@@ -50,7 +55,6 @@ static void UpdateRecent(u32 dist, u32 *recent, int &recent_ii) {
 	recent[ii] = dist;
 	recent_ii = (ii + 1) & 3;
 }
-
 
 static void MatchEncode(u32 * CAT_RESTRICT recent, int recent_ii, LZMatchFinder::LZMatch * CAT_RESTRICT match, int xsize) {
 	static const int LAST_COUNT = MonoMatchFinder::LAST_COUNT;
@@ -395,9 +399,13 @@ void LZMatchFinder::train(LZMatch * CAT_RESTRICT match, EntropyEncoder &ee) {
 int LZMatchFinder::writeTables(ImageWriter &writer) {
 	int bits = 0;
 
+	DESYNC_TABLE();
+
 	bits += _lz_len_encoder.writeTable(writer);
 	bits += _lz_sdist_encoder.writeTable(writer);
 	bits += _lz_ldist_encoder.writeTable(writer);
+
+	DESYNC_TABLE();
 
 	return bits;
 }
