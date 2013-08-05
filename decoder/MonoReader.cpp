@@ -61,6 +61,11 @@ int MonoReader::readTables(const Parameters & CAT_RESTRICT params, ImageReader &
 	// Store parameters
 	_params = params;
 
+	// Check if LZ is enabled for this monochrome image
+	_lz_enabled = (reader.readBit() == 1);
+
+	const int num_syms = _params.num_syms + (_lz_enabled ? LZReader::ESCAPE_SYMS : 0);
+
 	// If decoder is disabled,
 	if (reader.readBit() == 0) {
 		_use_row_filters = true;
@@ -73,9 +78,13 @@ int MonoReader::readTables(const Parameters & CAT_RESTRICT params, ImageReader &
 			_one_row_filter = false;
 		}
 
-		if CAT_UNLIKELY(!_row_filter_decoder.init(MAX_SYMS, ZRLE_SYMS, HUFF_LUT_BITS, reader)) {
+		DESYNC_TABLE();
+
+		if CAT_UNLIKELY(!_row_filter_decoder.init(num_syms, ZRLE_SYMS, HUFF_LUT_BITS, reader)) {
 			return GCIF_RE_BAD_MONO;
 		}
+
+		DESYNC_TABLE();
 
 		// NOTE: Chaos is not actually used, but it avoids an if-statement in zero()
 		_chaos.init(0, _params.xsize);
@@ -170,7 +179,7 @@ int MonoReader::readTables(const Parameters & CAT_RESTRICT params, ImageReader &
 
 		// For each chaos level,
 		for (int ii = 0; ii < chaos_levels; ++ii) {
-			if CAT_UNLIKELY(!_decoder[ii].init(MAX_SYMS, ZRLE_SYMS, HUFF_LUT_BITS, reader)) {
+			if CAT_UNLIKELY(!_decoder[ii].init(num_syms, ZRLE_SYMS, HUFF_LUT_BITS, reader)) {
 				CAT_DEBUG_EXCEPTION();
 				return GCIF_RE_BAD_MONO;
 			}
@@ -202,9 +211,6 @@ int MonoReader::readTables(const Parameters & CAT_RESTRICT params, ImageReader &
 	}
 
 	DESYNC_TABLE();
-
-	// Check if LZ is enabled for this monochrome image
-	_lz_enabled = (reader.readBit() == 1);
 
 	if (_lz_enabled) {
 		if CAT_UNLIKELY(!_lz.init(_params.xsize, _params.ysize, reader)) {
@@ -340,6 +346,7 @@ u8 MonoReader::read(u16 x, ImageReader & CAT_RESTRICT reader) {
 			const u16 residual = _decoder[chaos].next(reader);
 
 			// TODO: LZ
+			CAT_DEBUG_ENFORCE(residual < _params.num_syms);
 
 			// Store for next chaos lookup
 			const u16 num_syms = _params.num_syms;
@@ -435,6 +442,7 @@ u8 MonoReader::read_unsafe(u16 x, ImageReader & CAT_RESTRICT reader) {
 			const u16 residual = _decoder[chaos].next(reader);
 
 			// TODO: LZ
+			CAT_DEBUG_ENFORCE(residual < _params.num_syms);
 
 			// Store for next chaos lookup
 			const u16 num_syms = _params.num_syms;

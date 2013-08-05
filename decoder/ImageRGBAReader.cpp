@@ -210,8 +210,6 @@ int ImageRGBAReader::readPixels(ImageReader & CAT_RESTRICT reader) {
 	// Start from upper-left of image
 	u8 * CAT_RESTRICT p = _rgba;
 
-	const u32 * CAT_RESTRICT LZ_COPY_LIMIT = (const u32*)_rgba + xsize * (u32)_ysize;
-
 #ifdef CAT_UNROLL_READER
 
 	// Unroll y = 0 scanline

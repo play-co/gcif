@@ -1451,6 +1451,9 @@ int MonoWriter::writeTables(ImageWriter &writer) {
 	_next_write_pixel_order = _params.write_order;
 #endif
 
+	// Write LZ enable bit
+	writer.writeBit(_params.lz_enable ? 1 : 0);
+
 	// If not using write profile,
 	if (_use_row_filters) {
 		writer.writeBit(0);
@@ -1463,8 +1466,12 @@ int MonoWriter::writeTables(ImageWriter &writer) {
 			writer.writeBit(0);
 		}
 
+		DESYNC_TABLE();
+
 		// Write row filter encoder overhead
 		Stats.filter_overhead_bits += _row_filter_encoder.writeTables(writer);
+
+		DESYNC_TABLE();
 	} else {
 		// Enable encoders
 		writer.writeBit(1);
@@ -1540,13 +1547,9 @@ int MonoWriter::writeTables(ImageWriter &writer) {
 	DESYNC_TABLE();
 
 	if (_params.lz_enable) {
-		writer.writeBit(1);
-
 		Stats.lz_table_bits = _lz.writeTables(writer);
 		_lz_next = _lz.getHead();
 	} else {
-		writer.writeBit(0);
-
 		Stats.lz_table_bits = 0;
 	}
 
