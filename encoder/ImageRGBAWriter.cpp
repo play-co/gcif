@@ -1056,6 +1056,8 @@ bool ImageRGBAWriter::writePixels(ImageWriter &writer) {
 				v_bits += _encoders->v[cv].write(residuals[2], writer);
 				a_bits += _a_encoder.write(x, y, writer);
 
+				DESYNC(x, y);
+
 				// If filter needs to be written,
 				u16 tx = x >> _tile_bits_x;
 				if (_seen_filter[tx] == 0) {

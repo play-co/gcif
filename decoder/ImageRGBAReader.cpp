@@ -451,6 +451,11 @@ int ImageRGBAReader::readPixels(ImageReader & CAT_RESTRICT reader) {
 					YUV[1] = (u8)_u_decoder[cu].next(reader);
 					YUV[2] = (u8)_v_decoder[cv].next(reader);
 
+					// Read alpha pixel
+					p[3] = (u8)~_a_decoder.read(x, reader);
+
+					DESYNC(x, y);
+
 					FilterSelection *filter = readFilter(x, y, reader);
 
 					// Reverse color filter
@@ -462,9 +467,6 @@ int ImageRGBAReader::readPixels(ImageReader & CAT_RESTRICT reader) {
 					p[0] += pred[0];
 					p[1] += pred[1];
 					p[2] += pred[2];
-
-					// Read alpha pixel
-					p[3] = (u8)~_a_decoder.read(x, reader);
 
 					_chaos.store(x, YUV);
 				}
