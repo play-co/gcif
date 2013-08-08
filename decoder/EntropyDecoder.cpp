@@ -83,8 +83,8 @@ u16 EntropyDecoder::next(ImageReader &reader) {
 	u32 zeroRun = sym - num_syms;
 
 	// If extra bits were used,
-	if (sym >= _zrle_offset) {
-		CAT_DEBUG_ENFORCE(sym == _zrle_offset);
+	if (zeroRun >= _zrle_offset) {
+		CAT_DEBUG_ENFORCE(zeroRun == _zrle_offset);
 
 		zeroRun += reader.read255255();
 	}
