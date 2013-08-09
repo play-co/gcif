@@ -429,6 +429,8 @@ int ImageRGBAReader::readPixels(ImageReader & CAT_RESTRICT reader) {
 				if (pixel_code >= 256) {
 					int len = readLZMatch(pixel_code, reader, x, p);
 
+					CAT_WARN("LZ") << x << ", " << y << " len = " << len;
+
 					// Move mask ahead
 					mask <<= 1;
 					int mlen = len - 1;
@@ -495,13 +497,13 @@ int ImageRGBAReader::readLZMatch(u16 pixel_code, ImageReader & CAT_RESTRICT read
 	const u32 * CAT_RESTRICT src = reinterpret_cast<const u32 * CAT_RESTRICT>( p );
 
 	// If LZ copy source is invalid,
-	if CAT_UNLIKELY(src >= reinterpret_cast<const u32 * CAT_RESTRICT>( _rgba ) + dist) {
+	if CAT_UNLIKELY(src < reinterpret_cast<const u32 * CAT_RESTRICT>( _rgba ) + dist) {
 		// Unfortunately need to add dist twice to avoid pointer wrap around near 0
 		CAT_DEBUG_EXCEPTION();
 		return GCIF_RE_LZ_BAD;
 	}
 
-	src += dist;
+	src -= dist;
 
 	u32 * CAT_RESTRICT dst = reinterpret_cast<u32 * CAT_RESTRICT>( p );
 	CAT_DEBUG_ENFORCE(src < dst);

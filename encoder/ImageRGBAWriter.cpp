@@ -1054,6 +1054,7 @@ bool ImageRGBAWriter::writePixels(ImageWriter &writer) {
 				y_bits += _encoders->y[cy].write(residuals[0], writer);
 				u_bits += _encoders->u[cu].write(residuals[1], writer);
 				v_bits += _encoders->v[cv].write(residuals[2], writer);
+
 				a_bits += _a_encoder.write(x, y, writer);
 
 				DESYNC(x, y);

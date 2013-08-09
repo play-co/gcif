@@ -293,6 +293,10 @@ void LZMatchFinder::rejectMatches() {
 		// Re-encode the match since the recent distances have changed
 		MatchEncode(recent, recent_ii, match, _params.xsize);
 
+		// Fix escape code to start right after num_syms
+		CAT_DEBUG_ENFORCE(match->escape_code < ESCAPE_SYMS);
+		match->escape_code += _params.num_syms;
+
 		// Estimate bit cost of LZ match representation:
 
 		int bits = escape_codelens[match->escape_code] + match->extra_bits;
@@ -327,6 +331,7 @@ void LZMatchFinder::rejectMatches() {
 			// Set up mask
 			for (int jj = 0; jj < match->length; ++jj) {
 				setMask(jj + match->offset);
+				int z = jj + match->offset;
 			}
 
 			if (match->emit_len) {
@@ -434,9 +439,7 @@ int LZMatchFinder::write(LZMatch * CAT_RESTRICT match, EntropyEncoder &ee, Image
 	int bits = ee_bits + len_bits + dist_bits + match->extra_bits;
 
 #ifdef CAT_DUMP_LZ
-	if (match->length < 5) {
-		CAT_WARN("Mono") << "ee=" << ee_bits << " len=" << len_bits << " dist=" << dist_bits << " extra=" << match->extra_bits << " : sum=" << bits << " LDIST=" << match->emit_ldist;
-	}
+	CAT_WARN("LZ") << "ee=" << ee_bits << " len=" << len_bits << " dist=" << dist_bits << " extra=" << match->extra_bits << " : sum=" << bits << " LDIST=" << match->emit_ldist << " (" << (match->offset % _params.xsize) << ", " << (match->offset / _params.xsize) << ") offset=" << match->offset << " dist=" << match->distance << " len=" << match->length;
 #endif
 
 	return bits;
@@ -482,10 +485,6 @@ bool RGBAMatchFinder::findMatches(SuffixArray3_State * CAT_RESTRICT sa3state, co
 	SmartArray<u32> table, chain;
 	table.resizeZero(HASH_SIZE);
 	chain.resizeZero(_pixels);
-
-	// Clear mask
-	const int mask_size = (_pixels + 31) / 32;
-	_mask.resizeZero(mask_size);
 
 	// Track recent distances
 	u32 recent[LAST_COUNT];

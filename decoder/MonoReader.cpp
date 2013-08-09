@@ -39,12 +39,12 @@ using namespace cat;
 #ifdef CAT_DESYNCH_CHECKS
 #define DESYNC_TABLE() \
 	CAT_ENFORCE(reader.readWord() == 1234567);
-#define DESYNC(x, y) \
+#define DESYNC() \
 	CAT_ENFORCE(reader.readBits(16) == (x ^ 12345)); \
 	CAT_ENFORCE(reader.readBits(16) == (y ^ 54321));
 #else
 #define DESYNC_TABLE()
-#define DESYNC(x, y)
+#define DESYNC()
 #endif
 
 
@@ -273,7 +273,7 @@ int MonoReader::readRowHeader(u16 y, ImageReader & CAT_RESTRICT reader) {
 		_current_row += _params.xsize;
 	}
 
-	DESYNC(0, y);
+	DESYNC();
 
 	CAT_DEBUG_ENFORCE(!reader.eof());
 
@@ -289,7 +289,7 @@ u8 MonoReader::read(u16 x, ImageReader & CAT_RESTRICT reader) {
 
 	CAT_DEBUG_ENFORCE(x < _params.xsize && y < _params.ysize);
 
-	DESYNC(x, y);
+	DESYNC();
 
 	u16 value;
 
@@ -323,7 +323,7 @@ u8 MonoReader::read(u16 x, ImageReader & CAT_RESTRICT reader) {
 			_filter_row[tx] = *funcs;
 			filter = funcs->safe; // Choose here
 
-			DESYNC(x, y);
+			DESYNC();
 		}
 
 		// If the filter is a palette symbol,
@@ -365,7 +365,7 @@ u8 MonoReader::read(u16 x, ImageReader & CAT_RESTRICT reader) {
 		}
 	}
 
-	DESYNC(x, y);
+	DESYNC();
 
 	CAT_DEBUG_ENFORCE(!reader.eof());
 
@@ -385,7 +385,7 @@ u8 MonoReader::read_unsafe(u16 x, ImageReader & CAT_RESTRICT reader) {
 
 	CAT_DEBUG_ENFORCE(x < _params.xsize && y < _params.ysize);
 
-	DESYNC(x, y);
+	DESYNC();
 
 	u16 value;
 
@@ -419,7 +419,7 @@ u8 MonoReader::read_unsafe(u16 x, ImageReader & CAT_RESTRICT reader) {
 			_filter_row[tx] = *funcs;
 			filter = funcs->unsafe; // Choose here
 
-			DESYNC(x, y);
+			DESYNC();
 		}
 
 		// If the filter is a palette symbol,
@@ -461,7 +461,7 @@ u8 MonoReader::read_unsafe(u16 x, ImageReader & CAT_RESTRICT reader) {
 		}
 	}
 
-	DESYNC(x, y);
+	DESYNC();
 
 	CAT_DEBUG_ENFORCE(!reader.eof());
 
