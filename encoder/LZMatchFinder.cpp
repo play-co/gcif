@@ -78,7 +78,7 @@ static void MatchEncode(u32 * CAT_RESTRICT recent, int recent_ii, LZMatchFinder:
 	match->len_code = length - 2;
 
 	for (int ii = 0; ii < LAST_COUNT; ++ii) {
-		if (distance == recent[(recent_ii + LAST_COUNT - 1 - ii) % LAST_COUNT]) {
+		if (distance == recent[(recent_ii + LAST_COUNT - 1 - ii) & 3]) {
 			match->escape_code = ii;
 			return;
 		}

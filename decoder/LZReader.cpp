@@ -73,7 +73,7 @@ int LZReader::read(u16 escape_code, ImageReader & CAT_RESTRICT reader, u32 &dist
 
 	if (escape_code < ESC_DIST_1) {
 		// Recent distance
-		dist = _recent[(_recent_ii + escape_code) & 3];
+		dist = _recent[(_recent_ii + LZReader::LAST_COUNT - 1 - escape_code) & 3];
 		len = readLen(reader);
 
 		// Does not update recent array to avoid adding duplicates
@@ -98,10 +98,7 @@ int LZReader::read(u16 escape_code, ImageReader & CAT_RESTRICT reader, u32 &dist
 			len = readLen(reader);
 		} else {
 			// Local neighbors left
-			dist = escape_code - ESC_DIST_1 + 2;
-			if (dist == 2) {
-				dist = 1;
-			}
+			dist = (escape_code == ESC_DIST_1) ? 1 : (escape_code - ESC_DIST_1 + 2);
 			len = readLen(reader);
 		}
 
