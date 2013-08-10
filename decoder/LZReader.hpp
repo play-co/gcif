@@ -235,35 +235,8 @@ protected:
 		return _len_decoder.next(reader) + 2;
 	}
 
-	CAT_INLINE int readShortDist(ImageReader & CAT_RESTRICT reader) {
-		u32 Code = _sdist_decoder.next(reader);
-
-		if (Code <= 24) {
-			if (Code <= 10) {
-				return (Code == 0) ? 2 : (Code + 6);
-			}
-
-			return (_xsize + Code - 11 - 16) & DIST_MASK;
-		}
-
-		if (Code <= 38) {
-			return (_xsize + Code - 25 + 3) & DIST_MASK;
-		}
-
-		Code -= 39;
-		int row = Code / 17, col = Code % 17;
-		return (_xsize * row + col - 8) & DIST_MASK;
-	}
-
-	CAT_INLINE int readLongDist(ImageReader & CAT_RESTRICT reader) {
-		u32 Code = _ldist_decoder.next(reader);
-
-		u32 EB = (Code >> 4) + 1;
-		u32 C0 = ((1 << (EB - 1)) - 1) << 5;
-		u32 D0 = ((Code - ((EB - 1) << 4)) << EB) + C0;
-
-		return D0 + reader.readBits(EB) + 17;
-	}
+	CAT_INLINE int readShortDist(ImageReader & CAT_RESTRICT reader);
+	CAT_INLINE int readLongDist(ImageReader & CAT_RESTRICT reader);
 
 public:
 	bool init(int xsize, int ysize, ImageReader & CAT_RESTRICT reader);

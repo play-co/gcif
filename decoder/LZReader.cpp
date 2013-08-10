@@ -32,6 +32,7 @@ using namespace cat;
 #ifdef CAT_DESYNCH_CHECKS
 #define DESYNC_TABLE() \
 	CAT_ENFORCE(reader.readWord() == 1337234);
+#include "../encoder/Log.hpp"
 #else
 #define DESYNC_TABLE()
 #endif
@@ -64,6 +65,38 @@ bool LZReader::init(int xsize, int ysize, ImageReader & CAT_RESTRICT reader) {
 	DESYNC_TABLE();
 
 	return true;
+}
+
+CAT_INLINE int LZReader::readShortDist(ImageReader & CAT_RESTRICT reader) {
+	u32 Code = _sdist_decoder.next(reader);
+
+	CAT_WARN("LZ_DIST") << Code;
+
+	if (Code <= 24) {
+		if (Code <= 10) {
+			return (Code == 0) ? 2 : (Code + 6);
+		}
+
+		return (_xsize + Code - 11 - 16) & DIST_MASK;
+	}
+
+	if (Code <= 38) {
+		return (_xsize + Code - 25 + 3) & DIST_MASK;
+	}
+
+	Code -= 39;
+	int row = 2 + Code / 17, col = Code % 17;
+	return (_xsize * row + col - 8) & DIST_MASK;
+}
+
+CAT_INLINE int LZReader::readLongDist(ImageReader & CAT_RESTRICT reader) {
+	u32 Code = _ldist_decoder.next(reader);
+
+	u32 EB = (Code >> 4) + 1;
+	u32 C0 = ((1 << (EB - 1)) - 1) << 5;
+	u32 D0 = ((Code - ((EB - 1) << 4)) << EB) + C0;
+
+	return D0 + reader.readBits(EB) + 17;
 }
 
 int LZReader::read(u16 escape_code, ImageReader & CAT_RESTRICT reader, u32 &dist) {
@@ -107,6 +140,8 @@ int LZReader::read(u16 escape_code, ImageReader & CAT_RESTRICT reader, u32 &dist
 		_recent[ii] = dist;
 		_recent_ii = (ii + 1) & 3;
 	}
+
+	CAT_WARN("LZ") << "Decoded distance = " << dist << " and length = " << len;
 
 	return len;
 }
