@@ -128,39 +128,79 @@ protected:
 		return filter;
 	}
 
-	CAT_INLINE void readSafe(u16 x, u16 y, u8 * CAT_RESTRICT p, ImageReader & CAT_RESTRICT reader) {
-		// Calculate YUV chaos
-		u8 cy, cu, cv;
-		_chaos.get(x, cy, cu, cv);
+	CAT_INLINE bool readSafe(u16 x, u16 y, u8 * CAT_RESTRICT p, ImageReader & CAT_RESTRICT reader, u32 &mask, u32 * CAT_RESTRICT &mask_next, int &mask_left) {
+		DESYNC(x, y);
 
-		u16 pixel_code = _y_decoder[cy].next(reader); 
+		// Next mask word
+		if (mask_left <= 0) {
+			mask = *mask_next++;
+			mask_left = 32;
+		}
 
-		// If it is an LZ escape code,
-		if (pixel_code >= 256) {
-			// TODO
+		if ((s32)mask < 0) {
+			*reinterpret_cast<u32 *>( p ) = MASK_COLOR;
+			u8 * CAT_RESTRICT Ap = _a_decoder.currentRow() + x;
+			*Ap = MASK_ALPHA;
+			_chaos.zero(x);
+			_a_decoder.zero(x);
 		} else {
-			// Read YUV
-			u8 YUV[3];
-			YUV[0] = (u8)pixel_code;
-			YUV[1] = (u8)_u_decoder[cu].next(reader);
-			YUV[2] = (u8)_v_decoder[cv].next(reader);
+			// Calculate YUV chaos
+			u8 cy, cu, cv;
+			_chaos.get(x, cy, cu, cv);
 
-			FilterSelection *filter = readFilter(x, y, reader);
+			u16 pixel_code = _y_decoder[cy].next(reader); 
 
-			// Reverse color filter
-			filter->cf(YUV, p);
+			// If it is an LZ escape code,
+			if (pixel_code >= 256) {
+				int len = readLZMatch(pixel_code, reader, x, p);
+				CAT_DEBUG_ENFORCE(len >= 2);
+				DESYNC(x, y);
 
-			// Reverse spatial filter
-			u8 FPT[3];
-			const u8 * CAT_RESTRICT pred = filter->sf.safe(p, FPT, x, y, _xsize);
-			p[0] += pred[0];
-			p[1] += pred[1];
-			p[2] += pred[2];
+				// Move pointers ahead
+				p += len << 2;
+				x += len;
 
-			// Read alpha pixel
-			p[3] = (u8)~_a_decoder.read(x, reader);
+				// Move mask ahead
+				if (len >= mask_left) {
+					len -= mask_left;
 
-			_chaos.store(x, YUV);
+					// Remove mask multiples
+					mask_next += len >> 5;
+					len &= 31;
+
+					mask = *mask_next++;
+					mask_left = 32;
+				}
+				mask <<= len;
+				mask_left -= len;
+
+				continue;
+			} else {
+				// Read YUV
+				u8 YUV[3];
+				YUV[0] = (u8)pixel_code;
+				YUV[1] = (u8)_u_decoder[cu].next(reader);
+				YUV[2] = (u8)_v_decoder[cv].next(reader);
+
+				// Read alpha pixel
+				p[3] = (u8)~_a_decoder.read(x, reader);
+
+				DESYNC(x, y);
+
+				FilterSelection *filter = readFilter(x, y, reader);
+
+				// Reverse color filter
+				filter->cf(YUV, p);
+
+				// Reverse spatial filter
+				u8 FPT[3];
+				const u8 * CAT_RESTRICT pred = filter->sf.safe(p, FPT, x, y, _xsize);
+				p[0] += pred[0];
+				p[1] += pred[1];
+				p[2] += pred[2];
+
+				_chaos.store(x, YUV);
+			}
 		}
 	}
 

@@ -399,17 +399,17 @@ int ImageRGBAReader::readPixels(ImageReader & CAT_RESTRICT reader) {
 
 		// Read mask scanline
 		const u32 * CAT_RESTRICT mask_next = _mask->nextScanline();
-		int mask_left = 0;
-		u32 mask;
+		int mask_left = 32;
+		u32 mask = *mask_next++;
 
 		// For each pixel,
 		for (int x = 0; x < xsize;) {
 			DESYNC(x, y);
 
 			// Next mask word
-			if (mask_left-- <= 0) {
+			if (mask_left <= 0) {
 				mask = *mask_next++;
-				mask_left = 31;
+				mask_left = 32;
 			}
 
 			if ((s32)mask < 0) {
@@ -431,24 +431,24 @@ int ImageRGBAReader::readPixels(ImageReader & CAT_RESTRICT reader) {
 					CAT_DEBUG_ENFORCE(len >= 2);
 					DESYNC(x, y);
 
-					// Move mask ahead
-					mask <<= 1;
-					/*
-					 * mask_left = 0 : load mask, will read first, so immediately set mask_left = 31, <<= 1
-					 * mask_left = 1 : --mask_left, <<= 1
-					 */
-					int mlen = len - 1; // pixels to skip >= 1
-					while (mlen-- > 0) {
-						if (mask_left-- <= 0) {
-							mask = *mask_next++;
-							mask_left = 31;
-						}
-						mask <<= 1;
-					}
-
 					// Move pointers ahead
 					p += len << 2;
 					x += len;
+
+					// Move mask ahead
+					if (len >= mask_left) {
+						len -= mask_left;
+
+						// Remove mask multiples
+						mask_next += len >> 5;
+						len &= 31;
+
+						mask = *mask_next++;
+						mask_left = 32;
+					}
+
+					mask <<= len;
+					mask_left -= len;
 					continue;
 				} else {
 					// Read YUV
@@ -481,6 +481,7 @@ int ImageRGBAReader::readPixels(ImageReader & CAT_RESTRICT reader) {
 			// Next pixel
 			p += 4;
 			mask <<= 1;
+			--mask_left;
 			++x;
 		}
 	}
