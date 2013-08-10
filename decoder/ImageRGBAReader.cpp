@@ -428,12 +428,18 @@ int ImageRGBAReader::readPixels(ImageReader & CAT_RESTRICT reader) {
 				// If it is an LZ escape code,
 				if (pixel_code >= 256) {
 					int len = readLZMatch(pixel_code, reader, x, p);
+					CAT_DEBUG_ENFORCE(len >= 2);
+					DESYNC(x, y);
 
 					CAT_WARN("LZ") << x << ", " << y << " len = " << len;
 
 					// Move mask ahead
 					mask <<= 1;
-					int mlen = len - 1;
+					/*
+					 * mask_left = 0 : load mask, will read first, so immediately set mask_left = 31, <<= 1
+					 * mask_left = 1 : --mask_left, <<= 1
+					 */
+					int mlen = len - 1; // pixels to skip >= 1
 					while (mlen-- > 0) {
 						if (mask_left-- <= 0) {
 							mask = *mask_next++;

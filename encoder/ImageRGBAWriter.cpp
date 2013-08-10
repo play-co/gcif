@@ -1018,8 +1018,6 @@ bool ImageRGBAWriter::writePixels(ImageWriter &writer) {
 
 		// For each pixel,
 		for (u16 x = 0, xsize = _xsize; x < xsize; ++x, ++offset) {
-			DESYNC(x, y);
-
 			// If we just hit the start of the next LZ copy region,
 			if (lzm && offset == lzm->offset) {
 				// Decoder respects mask first, so we cannot start LZ matches on a masked pixel,
@@ -1030,7 +1028,9 @@ bool ImageRGBAWriter::writePixels(ImageWriter &writer) {
 				u8 cy, cu, cv;
 				_encoders->chaos.get(x, cy, cu, cv);
 
+				DESYNC(x, y);
 				lz_bits += _lz.write(lzm, _encoders->y[cy], writer);
+				DESYNC(x, y);
 				lzm = lzm->next;
 			}
 
@@ -1041,6 +1041,8 @@ bool ImageRGBAWriter::writePixels(ImageWriter &writer) {
 
 				if (_lz_enabled && _lz.masked(x, y)) {
 					++lz_count;
+				} else {
+					DESYNC(x, y);
 				}
 			} else {
 				// Get chaos bin
@@ -1051,6 +1053,7 @@ bool ImageRGBAWriter::writePixels(ImageWriter &writer) {
 				_encoders->chaos.store(x, residuals);
 
 				// Write pixel
+				DESYNC(x, y);
 				y_bits += _encoders->y[cy].write(residuals[0], writer);
 				u_bits += _encoders->u[cu].write(residuals[1], writer);
 				v_bits += _encoders->v[cv].write(residuals[2], writer);
