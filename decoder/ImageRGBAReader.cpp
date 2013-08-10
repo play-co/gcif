@@ -431,8 +431,6 @@ int ImageRGBAReader::readPixels(ImageReader & CAT_RESTRICT reader) {
 					CAT_DEBUG_ENFORCE(len >= 2);
 					DESYNC(x, y);
 
-					CAT_WARN("LZ") << x << ", " << y << " len = " << len;
-
 					// Move mask ahead
 					mask <<= 1;
 					/*
@@ -495,7 +493,6 @@ int ImageRGBAReader::readPixels(ImageReader & CAT_RESTRICT reader) {
 int ImageRGBAReader::readLZMatch(u16 pixel_code, ImageReader & CAT_RESTRICT reader, int x, u8 * CAT_RESTRICT p) {
 	// Decode LZ bitstream
 	u32 dist, len;
-	CAT_WARN("TESTa") << pixel_code;
 	len = _lz.read(pixel_code - 256, reader, dist);
 
 	CAT_DEBUG_ENFORCE(len >= 2 && len <= 256);
