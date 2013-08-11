@@ -197,6 +197,168 @@ int ImageRGBAReader::readRGBATables(ImageReader & CAT_RESTRICT reader) {
 	return GCIF_RE_OK;
 }
 
+CAT_INLINE void ImageRGBAReader::readSafe(u16 &x, const u16 y, u8 * CAT_RESTRICT &p, ImageReader & CAT_RESTRICT reader, u32 &mask, const u32 * CAT_RESTRICT &mask_next, int &mask_left, const u32 MASK_COLOR, const u8 MASK_ALPHA) {
+	DESYNC(x, y);
+
+	// Next mask word
+	if (mask_left <= 0) {
+		mask = *mask_next++;
+		mask_left = 32;
+	}
+
+	if ((s32)mask < 0) {
+		*reinterpret_cast<u32 *>( p ) = MASK_COLOR;
+		u8 * CAT_RESTRICT Ap = _a_decoder.currentRow() + x;
+		*Ap = MASK_ALPHA;
+		_chaos.zero(x);
+		_a_decoder.zero(x);
+	} else {
+		// Calculate YUV chaos
+		u8 cy, cu, cv;
+		_chaos.get(x, cy, cu, cv);
+
+		u16 pixel_code = _y_decoder[cy].next(reader); 
+
+		// If it is an LZ escape code,
+		if (pixel_code >= 256) {
+			int len = readLZMatch(pixel_code, reader, x, p);
+			CAT_DEBUG_ENFORCE(len >= 2);
+			DESYNC(x, y);
+
+			// Move pointers ahead
+			p += len << 2;
+			x += len;
+
+			// Move mask ahead
+			if (len >= mask_left) {
+				len -= mask_left;
+
+				// Remove mask multiples
+				mask_next += len >> 5;
+				len &= 31;
+
+				mask = *mask_next++;
+				mask_left = 32;
+			}
+			mask <<= len;
+			mask_left -= len;
+
+			return;
+		} else {
+			// Read YUV
+			u8 YUV[3];
+			YUV[0] = (u8)pixel_code;
+			YUV[1] = (u8)_u_decoder[cu].next(reader);
+			YUV[2] = (u8)_v_decoder[cv].next(reader);
+
+			// Read alpha pixel
+			p[3] = (u8)~_a_decoder.read(x, reader);
+
+			DESYNC(x, y);
+
+			FilterSelection *filter = readFilter(x, y, reader);
+
+			// Reverse color filter
+			filter->cf(YUV, p);
+
+			// Reverse spatial filter
+			u8 FPT[3];
+			const u8 * CAT_RESTRICT pred = filter->sf.safe(p, FPT, x, y, _xsize);
+			p[0] += pred[0];
+			p[1] += pred[1];
+			p[2] += pred[2];
+
+			_chaos.store(x, YUV);
+		}
+	}
+
+	p += 4;
+	mask <<= 1;
+	--mask_left;
+	++x;
+}
+
+CAT_INLINE void ImageRGBAReader::readUnsafe(u16 &x, const u16 y, u8 * CAT_RESTRICT &p, ImageReader & CAT_RESTRICT reader, u32 &mask, const u32 * CAT_RESTRICT &mask_next, int &mask_left, const u32 MASK_COLOR, const u8 MASK_ALPHA) {
+	DESYNC(x, y);
+
+	// Next mask word
+	if (mask_left <= 0) {
+		mask = *mask_next++;
+		mask_left = 32;
+	}
+
+	if ((s32)mask < 0) {
+		*reinterpret_cast<u32 *>( p ) = MASK_COLOR;
+		u8 * CAT_RESTRICT Ap = _a_decoder.currentRow() + x;
+		*Ap = MASK_ALPHA;
+		_chaos.zero(x);
+		_a_decoder.zero(x);
+	} else {
+		// Calculate YUV chaos
+		u8 cy, cu, cv;
+		_chaos.get(x, cy, cu, cv);
+
+		u16 pixel_code = _y_decoder[cy].next(reader); 
+
+		// If it is an LZ escape code,
+		if (pixel_code >= 256) {
+			int len = readLZMatch(pixel_code, reader, x, p);
+			CAT_DEBUG_ENFORCE(len >= 2);
+			DESYNC(x, y);
+
+			// Move pointers ahead
+			p += len << 2;
+			x += len;
+
+			// Move mask ahead
+			if (len >= mask_left) {
+				len -= mask_left;
+
+				// Remove mask multiples
+				mask_next += len >> 5;
+				len &= 31;
+
+				mask = *mask_next++;
+				mask_left = 32;
+			}
+			mask <<= len;
+			mask_left -= len;
+
+			return;
+		} else {
+			// Read YUV
+			u8 YUV[3];
+			YUV[0] = (u8)pixel_code;
+			YUV[1] = (u8)_u_decoder[cu].next(reader);
+			YUV[2] = (u8)_v_decoder[cv].next(reader);
+
+			// Read alpha pixel
+			p[3] = (u8)~_a_decoder.read(x, reader);
+
+			DESYNC(x, y);
+
+			FilterSelection *filter = readFilter(x, y, reader);
+
+			// Reverse color filter
+			filter->cf(YUV, p);
+
+			// Reverse spatial filter
+			u8 FPT[3];
+			const u8 * CAT_RESTRICT pred = filter->sf.unsafe(p, FPT, x, y, _xsize);
+			p[0] += pred[0];
+			p[1] += pred[1];
+			p[2] += pred[2];
+
+			_chaos.store(x, YUV);
+		}
+	}
+
+	p += 4;
+	mask <<= 1;
+	--mask_left;
+	++x;
+}
+
 int ImageRGBAReader::readPixels(ImageReader & CAT_RESTRICT reader) {
 	const int xsize = _xsize;
 	const u32 MASK_COLOR = _mask->getColor();
@@ -214,7 +376,7 @@ int ImageRGBAReader::readPixels(ImageReader & CAT_RESTRICT reader) {
 
 	// Unroll y = 0 scanline
 	{
-		const int y = 0;
+		const u16 y = 0;
 
 		// Clear filters data
 		_filters.fill_00();
@@ -227,38 +389,18 @@ int ImageRGBAReader::readPixels(ImageReader & CAT_RESTRICT reader) {
 
 		// Read mask scanline
 		const u32 * CAT_RESTRICT mask_next = _mask->nextScanline();
-		int mask_left = 0;
-		u32 mask;
+		int mask_left = 32;
+		u32 mask = *mask_next++;
 
 		// For each pixel,
-		for (int x = 0; x < xsize; ++x) {
-			DESYNC(x, y);
-
-			// Next mask word
-			if (mask_left-- <= 0) {
-				mask = *mask_next++;
-				mask_left = 31;
-			}
-
-			if ((s32)mask < 0) {
-				*reinterpret_cast<u32 *>( p ) = MASK_COLOR;
-				u8 *Ap = _a_decoder.currentRow() + x;
-				*Ap = MASK_ALPHA;
-				_chaos.zero(x);
-				_a_decoder.zero(x);
-			} else {
-				readSafe(x, y, p, reader);
-			}
-
-			// Next pixel
-			p += 4;
-			mask <<= 1;
+		for (u16 x = 0; x < xsize;) {
+			readSafe(x, y, p, reader, mask, mask_next, mask_left, MASK_COLOR, MASK_ALPHA);
 		}
 	}
 
 
 	// For each scanline,
-	for (int y = 1; y < _ysize; ++y) {
+	for (u16 y = 1; y < _ysize; ++y) {
 		// If it is time to clear the filters data,
 		if ((y & _tile_mask_y) == 0) {
 			// Zero filter holes
@@ -283,61 +425,20 @@ int ImageRGBAReader::readPixels(ImageReader & CAT_RESTRICT reader) {
 
 		// Read mask scanline
 		const u32 * CAT_RESTRICT mask_next = _mask->nextScanline();
-		int mask_left = 0;
-		u32 mask;
+		int mask_left = 32;
+		u32 mask = *mask_next++;
 
 		// Unroll x = 0 pixel
-		{
-			const int x = 0;
-			DESYNC(x, y);
-
-			// Next mask word
-			mask = *mask_next++;
-			mask_left = 31;
-
-			if ((s32)mask < 0) {
-				*reinterpret_cast<u32 *>( p ) = MASK_COLOR;
-				u8 *Ap = _a_decoder.currentRow() + x;
-				*Ap = MASK_ALPHA;
-				_chaos.zero(x);
-				_a_decoder.zero(x);
-			} else {
-				readSafe(x, y, p, reader);
-			}
-
-			// Next pixel
-			p += 4;
-			mask <<= 1;
-		}
+		u16 x = 0;
+		readSafe(x, y, p, reader, mask, mask_next, mask_left, MASK_COLOR, MASK_ALPHA);
 
 
 		//// BIG INNER LOOP START ////
 
 
 		// For each pixel,
-		for (int x = 1, xend = xsize - 1; x < xend; ++x) {
-			DESYNC(x, y);
-
-			// Next mask word
-			if (mask_left-- <= 0) {
-				mask = *mask_next++;
-				mask_left = 31;
-			}
-
-			if ((s32)mask < 0) {
-				*reinterpret_cast<u32 *>( p ) = MASK_COLOR;
-				u8 *Ap = _a_decoder.currentRow() + x;
-				*Ap = MASK_ALPHA;
-				_chaos.zero(x);
-				_a_decoder.zero(x);
-			} else {
-				// Note: Reading with unsafe spatial filter
-				readUnsafe(x, y, p, reader);
-			}
-
-			// Next pixel
-			p += 4;
-			mask <<= 1;
+		for (u16 xend = xsize - 1; x < xend;) {
+			readUnsafe(x, y, p, reader, mask, mask_next, mask_left, MASK_COLOR, MASK_ALPHA);
 		}
 
 		
@@ -345,34 +446,13 @@ int ImageRGBAReader::readPixels(ImageReader & CAT_RESTRICT reader) {
 
 
 		// For right image edge,
-		{
-			const int x = xsize - 1;
-			DESYNC(x, y);
-
-			// Next mask word
-			if (mask_left <= 0) {
-				mask = *mask_next;
-			}
-
-			if ((s32)mask < 0) {
-				*reinterpret_cast<u32 *>( p ) = MASK_COLOR;
-				u8 *Ap = _a_decoder.currentRow() + x;
-				*Ap = MASK_ALPHA;
-				_chaos.zero(x);
-				_a_decoder.zero(x);
-			} else {
-				readSafe(x, y, p, reader);
-			}
-
-			// Next pixel
-			p += 4;
-		}
+		readSafe(x, y, p, reader, mask, mask_next, mask_left, MASK_COLOR, MASK_ALPHA);
 	}
 
 #else
 
 	// For each row,
-	for (int y = 0; y < _ysize; ++y) {
+	for (u16 y = 0; y < _ysize; ++y) {
 		// If it is time to clear the filters data,
 		if ((y & _tile_mask_y) == 0) {
 			if (y > 0) {
@@ -403,86 +483,8 @@ int ImageRGBAReader::readPixels(ImageReader & CAT_RESTRICT reader) {
 		u32 mask = *mask_next++;
 
 		// For each pixel,
-		for (int x = 0; x < xsize;) {
-			DESYNC(x, y);
-
-			// Next mask word
-			if (mask_left <= 0) {
-				mask = *mask_next++;
-				mask_left = 32;
-			}
-
-			if ((s32)mask < 0) {
-				*reinterpret_cast<u32 *>( p ) = MASK_COLOR;
-				u8 * CAT_RESTRICT Ap = _a_decoder.currentRow() + x;
-				*Ap = MASK_ALPHA;
-				_chaos.zero(x);
-				_a_decoder.zero(x);
-			} else {
-				// Calculate YUV chaos
-				u8 cy, cu, cv;
-				_chaos.get(x, cy, cu, cv);
-
-				u16 pixel_code = _y_decoder[cy].next(reader); 
-
-				// If it is an LZ escape code,
-				if (pixel_code >= 256) {
-					int len = readLZMatch(pixel_code, reader, x, p);
-					CAT_DEBUG_ENFORCE(len >= 2);
-					DESYNC(x, y);
-
-					// Move pointers ahead
-					p += len << 2;
-					x += len;
-
-					// Move mask ahead
-					if (len >= mask_left) {
-						len -= mask_left;
-
-						// Remove mask multiples
-						mask_next += len >> 5;
-						len &= 31;
-
-						mask = *mask_next++;
-						mask_left = 32;
-					}
-
-					mask <<= len;
-					mask_left -= len;
-					continue;
-				} else {
-					// Read YUV
-					u8 YUV[3];
-					YUV[0] = (u8)pixel_code;
-					YUV[1] = (u8)_u_decoder[cu].next(reader);
-					YUV[2] = (u8)_v_decoder[cv].next(reader);
-
-					// Read alpha pixel
-					p[3] = (u8)~_a_decoder.read(x, reader);
-
-					DESYNC(x, y);
-
-					FilterSelection *filter = readFilter(x, y, reader);
-
-					// Reverse color filter
-					filter->cf(YUV, p);
-
-					// Reverse spatial filter
-					u8 FPT[3];
-					const u8 * CAT_RESTRICT pred = filter->sf.safe(p, FPT, x, y, _xsize);
-					p[0] += pred[0];
-					p[1] += pred[1];
-					p[2] += pred[2];
-
-					_chaos.store(x, YUV);
-				}
-			}
-
-			// Next pixel
-			p += 4;
-			mask <<= 1;
-			--mask_left;
-			++x;
+		for (u16 x = 0; x < xsize;) {
+			readSafe(x, y, p, reader, mask, mask_next, mask_left, MASK_COLOR, MASK_ALPHA);
 		}
 	}
 

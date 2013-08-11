@@ -128,7 +128,7 @@ static int benchfile(string filename) {
 	}
 
 	double t2 = Clock::ref()->usec();
-/*
+
 #ifdef CAT_BENCH_ONE
 	CAT_WARN("main") << "Decompressing: " << filename;
 #endif
@@ -137,9 +137,9 @@ static int benchfile(string filename) {
 		CAT_WARN("main") << "Error while decompressing the image: " << gcif_read_errstr(err) << " for " << filename;
 		return err;
 	}
-*/
+
 	double t3 = Clock::ref()->usec();
-/*
+
 	for (u32 ii = 0; ii < xsize * ysize * 4; ii += 4) {
 		if (image[ii + 3] == 0) {
 			if (*(u32*)&outimage.rgba[ii] != 0) {
@@ -153,7 +153,7 @@ static int benchfile(string filename) {
 			}
 		}
 	}
-*/
+
 	struct stat png, gci;
 	stat(filename.c_str(), &png);
 	stat(cbenchfile, &gci);

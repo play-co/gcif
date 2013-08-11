@@ -33,7 +33,7 @@ namespace cat {
 
 
 // Unroll reader
-//#define CAT_UNROLL_READER
+#define CAT_UNROLL_READER
 
 // Dump filter choices
 //#define CAT_DUMP_FILTERS
