@@ -32,6 +32,9 @@
 namespace cat {
 
 
+// Disable dominant color mask in encoder
+//#define CAT_DISABLE_MASK
+	
 // Unroll reader
 #define CAT_UNROLL_READER
 
@@ -48,7 +51,7 @@ namespace cat {
 //#define CAT_COMPILE_MMAP
 
 // Enable statistics collection (disable when building decoder only)
-#define CAT_COLLECT_STATS
+//#define CAT_COLLECT_STATS
 
 // Disable inane-level (verbose) logging in Release mode
 //#define CAT_RELEASE_DISABLE_INANE

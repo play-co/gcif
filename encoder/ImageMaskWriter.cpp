@@ -92,6 +92,11 @@ int Masker::init(const u8 *rgba, int planes, u32 color, int xsize, int ysize, co
 	_size = ysize * _stride;
 	_planes = planes;
 
+#ifdef CAT_DISABLE_MASK
+	_enabled = false;
+	return GCIF_WE_OK;
+#endif
+
 	// If image is too small,
 	if (xsize < MIN_SIZE && ysize < MIN_SIZE) {
 		// Do not use mask

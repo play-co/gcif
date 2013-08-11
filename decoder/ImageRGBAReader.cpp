@@ -200,6 +200,7 @@ int ImageRGBAReader::readRGBATables(ImageReader & CAT_RESTRICT reader) {
 CAT_INLINE void ImageRGBAReader::readSafe(u16 &x, const u16 y, u8 * CAT_RESTRICT &p, ImageReader & CAT_RESTRICT reader, u32 &mask, const u32 * CAT_RESTRICT &mask_next, int &mask_left, const u32 MASK_COLOR, const u8 MASK_ALPHA) {
 	DESYNC(x, y);
 
+#ifndef CAT_DISABLE_MASK
 	// Next mask word
 	if (mask_left <= 0) {
 		mask = *mask_next++;
@@ -213,6 +214,7 @@ CAT_INLINE void ImageRGBAReader::readSafe(u16 &x, const u16 y, u8 * CAT_RESTRICT
 		_chaos.zero(x);
 		_a_decoder.zero(x);
 	} else {
+#endif
 		// Calculate YUV chaos
 		u8 cy, cu, cv;
 		_chaos.get(x, cy, cu, cv);
@@ -229,6 +231,7 @@ CAT_INLINE void ImageRGBAReader::readSafe(u16 &x, const u16 y, u8 * CAT_RESTRICT
 			p += len << 2;
 			x += len;
 
+#ifndef CAT_DISABLE_MASK
 			// Move mask ahead
 			if (len >= mask_left) {
 				len -= mask_left;
@@ -242,6 +245,7 @@ CAT_INLINE void ImageRGBAReader::readSafe(u16 &x, const u16 y, u8 * CAT_RESTRICT
 			}
 			mask <<= len;
 			mask_left -= len;
+#endif
 
 			return;
 		} else {
@@ -270,17 +274,20 @@ CAT_INLINE void ImageRGBAReader::readSafe(u16 &x, const u16 y, u8 * CAT_RESTRICT
 
 			_chaos.store(x, YUV);
 		}
+#ifndef CAT_DISABLE_MASK
 	}
 
-	p += 4;
-	mask <<= 1;
 	--mask_left;
+	mask <<= 1;
+#endif
+	p += 4;
 	++x;
 }
 
 CAT_INLINE void ImageRGBAReader::readUnsafe(u16 &x, const u16 y, u8 * CAT_RESTRICT &p, ImageReader & CAT_RESTRICT reader, u32 &mask, const u32 * CAT_RESTRICT &mask_next, int &mask_left, const u32 MASK_COLOR, const u8 MASK_ALPHA) {
 	DESYNC(x, y);
 
+#ifndef CAT_DISABLE_MASK
 	// Next mask word
 	if (mask_left <= 0) {
 		mask = *mask_next++;
@@ -294,6 +301,7 @@ CAT_INLINE void ImageRGBAReader::readUnsafe(u16 &x, const u16 y, u8 * CAT_RESTRI
 		_chaos.zero(x);
 		_a_decoder.zero(x);
 	} else {
+#endif
 		// Calculate YUV chaos
 		u8 cy, cu, cv;
 		_chaos.get(x, cy, cu, cv);
@@ -351,11 +359,13 @@ CAT_INLINE void ImageRGBAReader::readUnsafe(u16 &x, const u16 y, u8 * CAT_RESTRI
 
 			_chaos.store(x, YUV);
 		}
+#ifndef CAT_DISABLE_MASK
 	}
 
-	p += 4;
-	mask <<= 1;
 	--mask_left;
+	mask <<= 1;
+#endif
+	p += 4;
 	++x;
 }
 
@@ -432,21 +442,15 @@ int ImageRGBAReader::readPixels(ImageReader & CAT_RESTRICT reader) {
 		u16 x = 0;
 		readSafe(x, y, p, reader, mask, mask_next, mask_left, MASK_COLOR, MASK_ALPHA);
 
-
-		//// BIG INNER LOOP START ////
-
-
 		// For each pixel,
 		for (u16 xend = xsize - 1; x < xend;) {
 			readUnsafe(x, y, p, reader, mask, mask_next, mask_left, MASK_COLOR, MASK_ALPHA);
 		}
 
-		
-		//// BIG INNER LOOP END ////
-
-
 		// For right image edge,
-		readSafe(x, y, p, reader, mask, mask_next, mask_left, MASK_COLOR, MASK_ALPHA);
+		if (x < xsize) {
+			readSafe(x, y, p, reader, mask, mask_next, mask_left, MASK_COLOR, MASK_ALPHA);
+		}
 	}
 
 #else
