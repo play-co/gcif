@@ -1009,8 +1009,14 @@ bool ImageRGBAWriter::writePixels(ImageWriter &writer) {
 
 			_seen_filter.fill_00();
 
-			sf_bits += _sf_encoder.writeRowHeader(ty, writer);
-			cf_bits += _cf_encoder.writeRowHeader(ty, writer);
+#ifdef CAT_COLLECT_STATS
+			sf_bits +=
+#endif
+			_sf_encoder.writeRowHeader(ty, writer);
+#ifdef CAT_COLLECT_STATS
+			cf_bits +=
+#endif
+			_cf_encoder.writeRowHeader(ty, writer);
 		}
 
 		_a_encoder.writeRowHeader(y, writer);
@@ -1028,7 +1034,10 @@ bool ImageRGBAWriter::writePixels(ImageWriter &writer) {
 				_encoders->chaos.get(x, cy, cu, cv);
 
 				DESYNC(x, y);
-				lz_bits += _lz.write(lzm, _encoders->y[cy], writer);
+#ifdef CAT_COLLECT_STATS
+				lz_bits +=
+#endif
+				_lz.write(lzm, _encoders->y[cy], writer);
 				DESYNC(x, y);
 				lzm = lzm->next;
 			}
@@ -1039,7 +1048,9 @@ bool ImageRGBAWriter::writePixels(ImageWriter &writer) {
 				_a_encoder.zero(x);
 
 				if (_lz_enabled && _lz.masked(x, y)) {
+#ifdef CAT_COLLECT_STATS
 					++lz_count;
+#endif
 				} else {
 					DESYNC(x, y);
 				}
@@ -1053,11 +1064,23 @@ bool ImageRGBAWriter::writePixels(ImageWriter &writer) {
 
 				// Write pixel
 				DESYNC(x, y);
-				y_bits += _encoders->y[cy].write(residuals[0], writer);
-				u_bits += _encoders->u[cu].write(residuals[1], writer);
-				v_bits += _encoders->v[cv].write(residuals[2], writer);
+#ifdef CAT_COLLECT_STATS
+				y_bits +=
+#endif
+				_encoders->y[cy].write(residuals[0], writer);
+#ifdef CAT_COLLECT_STATS
+				u_bits +=
+#endif
+				_encoders->u[cu].write(residuals[1], writer);
+#ifdef CAT_COLLECT_STATS
+				v_bits +=
+#endif
+				_encoders->v[cv].write(residuals[2], writer);
 
-				a_bits += _a_encoder.write(x, y, writer);
+#ifdef CAT_COLLECT_STATS
+				a_bits +=
+#endif
+				_a_encoder.write(x, y, writer);
 
 				DESYNC(x, y);
 
@@ -1068,8 +1091,14 @@ bool ImageRGBAWriter::writePixels(ImageWriter &writer) {
 
 					CAT_DEBUG_ENFORCE(!IsSFMasked(tx, ty));
 
-					cf_bits += _cf_encoder.write(tx, ty, writer);
-					sf_bits += _sf_encoder.write(tx, ty, writer);
+#ifdef CAT_COLLECT_STATS
+					cf_bits +=
+#endif
+					_cf_encoder.write(tx, ty, writer);
+#ifdef CAT_COLLECT_STATS
+					sf_bits +=
+#endif
+					_sf_encoder.write(tx, ty, writer);
 				}
 
 #ifdef CAT_COLLECT_STATS

@@ -331,7 +331,6 @@ void LZMatchFinder::rejectMatches() {
 			// Set up mask
 			for (int jj = 0; jj < match->length; ++jj) {
 				setMask(jj + match->offset);
-				int z = jj + match->offset;
 			}
 
 			if (match->emit_len) {
