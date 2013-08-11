@@ -37,7 +37,6 @@
 #include "lz4hc.h"
 #include "Log.hpp"
 #include "HuffmanEncoder.hpp"
-#include "lodepng.h"
 
 using namespace cat;
 using namespace std;

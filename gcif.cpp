@@ -36,12 +36,141 @@ using namespace std;
 
 #include "decoder/GCIFReader.h"
 #include "encoder/GCIFWriter.h"
+#include "decoder/MappedFile.hpp"
 using namespace cat;
 
-#include "encoder/lodepng.h"
 #include "optionparser.h"
+#include "encoder/lodepng.h"
+#include <png.h>
 
 //#define CAT_BENCH_ONE /* Benchmark on one thread one file at a time to determine where in a benchmark there is a problem */
+
+
+
+//helper function for load_png_from_memory
+struct png_input_data {
+	unsigned char *bits;
+};
+
+void png_image_bytes_read(png_structp png_ptr, png_bytep data, png_size_t length) {
+	png_input_data *a = (png_input_data*)png_get_io_ptr(png_ptr);
+
+	memcpy(data, a->bits, length);
+	a->bits += length;
+}
+
+static void readpng2_error_handler(png_structp png_ptr, 
+                                   png_const_charp msg)
+{
+	jmp_buf *jbuf;
+  
+    CAT_WARN("libpng") << "PNG image is corrupted.  Error=" << msg;
+  
+    jbuf = (jmp_buf*)png_get_error_ptr(png_ptr);
+  
+    longjmp(*jbuf, 1);
+}
+
+unsigned char *load_png_from_memory(unsigned char *bits, int *width, int *height, int *channels) {
+	jmp_buf jbuf;
+
+	//create png struct
+	png_structp png_ptr = png_create_read_struct(PNG_LIBPNG_VER_STRING, &jbuf, readpng2_error_handler, NULL);
+
+	if (!png_ptr) {
+		return NULL;
+	}
+
+	//create png info struct
+	png_infop info_ptr = png_create_info_struct(png_ptr);
+
+	if (!info_ptr) {
+		png_destroy_read_struct(&png_ptr, (png_infopp) NULL, (png_infopp) NULL);
+		return NULL;
+	}
+
+	//create png info struct
+	png_infop end_info = png_create_info_struct(png_ptr);
+
+	if (!end_info) {
+		png_destroy_read_struct(&png_ptr, &info_ptr, (png_infopp) NULL);
+		return NULL;
+	}
+
+	if (setjmp(jbuf)) {
+		png_destroy_read_struct(&png_ptr, &info_ptr, &end_info);
+		return NULL;
+	}
+
+	png_input_data inputData = {bits + 8};
+	png_set_read_fn(png_ptr, &inputData, png_image_bytes_read);
+	//let libpng know you already read the first 8 bytes
+	png_set_sig_bytes(png_ptr, 8);
+	// read all the info up to the image data
+	png_read_info(png_ptr, info_ptr);
+	int bit_depth, color_type;
+	png_uint_32 twidth, theight;
+	// get info about png
+	png_get_IHDR(png_ptr, info_ptr, &twidth, &theight, &bit_depth, &color_type,
+	             NULL, NULL, NULL);
+
+	// If color type would be paletted,
+	if (color_type & PNG_COLOR_TYPE_PALETTE) {
+		// Convert to RGB to be OpenGL compatible
+		png_set_palette_to_rgb(png_ptr);
+	}
+
+	// If color type would be grayscale and bit depth is low,
+	if (color_type == PNG_COLOR_TYPE_GRAY && bit_depth < 8) {
+		// Bump it up to be OpenGL compatible
+		png_set_expand_gray_1_2_4_to_8(png_ptr);
+	}
+
+	//update width and height based on png info
+	*width = twidth;
+	*height = theight;
+	// Update the png info struct.
+	png_read_update_info(png_ptr, info_ptr);
+	*channels = (int)png_get_channels(png_ptr, info_ptr);
+	int rowbytes = png_get_rowbytes(png_ptr, info_ptr);
+	// Allocate the image_data as a big block, to be given to opengl
+	unsigned char  *image_data = (unsigned char *) malloc(rowbytes * (*height));
+
+	if (!image_data) {
+		//clean up memory and close stuff
+		png_destroy_read_struct(&png_ptr, &info_ptr, &end_info);
+		return NULL;
+	}
+
+	//row_pointers is for pointing to image_data for reading the png with libpng
+	png_bytep *row_pointers = (png_bytep *)malloc((*height) * sizeof(png_bytep));
+
+	if (!row_pointers) {
+		//clean up memory and close stuff
+		png_destroy_read_struct(&png_ptr, &info_ptr, &end_info);
+		free(image_data);
+		return NULL;
+	}
+
+	// set the individual row_pointers to point at the correct offsets of image_data
+	int i;
+
+	for (i = 0; i < *height; ++i) {
+		row_pointers[i] = image_data + i * rowbytes;
+	}
+
+	//read the png into image_data through row_pointers
+	png_read_image(png_ptr, row_pointers);
+	png_destroy_read_struct(&png_ptr, &info_ptr, &end_info);
+	free(row_pointers);
+	return image_data;
+}
+
+
+
+
+
+
 
 
 //// Commands
@@ -584,20 +713,101 @@ static int testfile(string filename) {
 
 
 
-
 static int profileit(const char *filename) {
 	CAT_WARN("main") << "Decoding input GCIF image file hard: " << filename;
 
 	int err;
 
-	for (int ii = 0; ii < 100; ++ii) {
-		GCIFImage image;
-		if ((err = gcif_read_file(filename, &image))) {
-			CAT_WARN("main") << "Error while decompressing the image: " << gcif_read_errstr(err);
-			return err;
+	Clock *clock = Clock::ref();
+
+
+	const int ITERATIONS = 200;
+
+	{
+		MappedFile _file;
+		MappedView _fileView;
+
+		if CAT_UNLIKELY(!_file.OpenRead(filename)) {
+			return GCIF_RE_FILE;
 		}
 
-		free(image.rgba);
+		if CAT_UNLIKELY(!_fileView.Open(&_file)) {
+			return GCIF_RE_FILE;
+		}
+
+		u8 * CAT_RESTRICT fileData = _fileView.MapView();
+		if CAT_UNLIKELY(!fileData) {
+			return GCIF_RE_FILE;
+		}
+
+		int fileLen = _fileView.GetLength();
+
+		CAT_WARN("main") << "Read " << filename << " : " << fileLen << " bytes";
+
+
+
+		double t0 = clock->usec();
+
+		for (int ii = 0; ii < ITERATIONS; ++ii) {
+			GCIFImage image;
+			if ((err = gcif_read_memory(fileData, fileLen, &image))) {
+				CAT_WARN("main") << "Error while decompressing the image: " << gcif_read_errstr(err);
+				return err;
+			}
+
+			free(image.rgba);
+		}
+
+		double t1 = clock->usec();
+
+		CAT_WARN("main") << "GCIF takes average of " << (t1 - t0) / ITERATIONS << " usec / read";
+	}
+
+
+	{
+		MappedFile _file;
+		MappedView _fileView;
+
+		const char *pngfile = "original.png";
+
+		if CAT_UNLIKELY(!_file.OpenRead(pngfile)) {
+			return GCIF_RE_FILE;
+		}
+
+		if CAT_UNLIKELY(!_fileView.Open(&_file)) {
+			return GCIF_RE_FILE;
+		}
+
+		u8 * CAT_RESTRICT fileData = _fileView.MapView();
+		if CAT_UNLIKELY(!fileData) {
+			return GCIF_RE_FILE;
+		}
+
+		int fileLen = _fileView.GetLength();
+
+		CAT_WARN("main") << "Read " << pngfile << " : " << fileLen << " bytes";
+
+
+
+
+		double t0 = clock->usec();
+
+		for (int ii = 0; ii < ITERATIONS; ++ii) {
+			int xsize, ysize, channels;
+
+			void *a = load_png_from_memory(fileData, &xsize, &ysize, &channels);
+
+			if (!a) {
+				CAT_WARN("main") << "Error while loading with libpng";
+				return 1;
+			}
+
+			free(a);
+		}
+
+		double t1 = clock->usec();
+
+		CAT_WARN("main") << "PNG takes average of " << (t1 - t0) / ITERATIONS << " usec / read";
 	}
 
 	return GCIF_RE_OK;
