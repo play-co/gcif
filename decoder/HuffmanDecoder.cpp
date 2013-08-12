@@ -348,8 +348,7 @@ u32 HuffmanDecoder::next(ImageReader & CAT_RESTRICT reader) {
 		// Seriously that fast.
 		sym = static_cast<u16>( t );
 		len = static_cast<u16>( t >> 16 );
-	}
-	else {
+	} else {
 		// Handle longer codelens outside of table
 		len = _decode_start_code_size;
 		CAT_DEBUG_ENFORCE(len <= 16);
