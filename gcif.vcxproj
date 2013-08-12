@@ -51,10 +51,8 @@
     <ClInclude Include="encoder\ImagePaletteWriter.hpp" />
     <ClInclude Include="encoder\ImageRGBAWriter.hpp" />
     <ClInclude Include="encoder\ImageWriter.hpp" />
-    <ClInclude Include="encoder\libdivsufsort\config.h" />
     <ClInclude Include="encoder\libdivsufsort\divsufsort.h" />
     <ClInclude Include="encoder\libdivsufsort\divsufsort_private.h" />
-    <ClInclude Include="encoder\libdivsufsort\lfs.h" />
     <ClInclude Include="encoder\lodepng.h" />
     <ClInclude Include="encoder\Log.hpp" />
     <ClInclude Include="encoder\lz4hc.h" />
@@ -98,6 +96,7 @@
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">NotUsing</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">NotUsing</PrecompiledHeader>
     </ClCompile>
+    <ClCompile Include="decoder\LZReader.cpp" />
     <ClCompile Include="decoder\MappedFile.cpp" />
     <ClCompile Include="decoder\MonoReader.cpp" />
     <ClCompile Include="decoder\SmallPaletteReader.cpp" />
@@ -140,20 +139,6 @@
       </ForcedIncludeFiles>
     </ClCompile>
     <ClCompile Include="encoder\libdivsufsort\trsort.c">
-      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">NotUsing</PrecompiledHeader>
-      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">NotUsing</PrecompiledHeader>
-      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">NotUsing</PrecompiledHeader>
-      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">NotUsing</PrecompiledHeader>
-      <ForcedIncludeFiles Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
-      </ForcedIncludeFiles>
-      <ForcedIncludeFiles Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
-      </ForcedIncludeFiles>
-      <ForcedIncludeFiles Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
-      </ForcedIncludeFiles>
-      <ForcedIncludeFiles Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
-      </ForcedIncludeFiles>
-    </ClCompile>
-    <ClCompile Include="encoder\libdivsufsort\utils.c">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">NotUsing</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">NotUsing</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">NotUsing</PrecompiledHeader>

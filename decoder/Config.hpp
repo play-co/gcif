@@ -32,6 +32,9 @@
 namespace cat {
 
 
+// Disable libpng
+//#define CAT_ENABLE_LIBPNG
+
 // Disable dominant color mask in encoder
 //#define CAT_DISABLE_MASK
 	

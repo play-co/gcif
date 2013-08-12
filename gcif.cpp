@@ -41,11 +41,15 @@ using namespace cat;
 
 #include "optionparser.h"
 #include "encoder/lodepng.h"
+
+#ifdef CAT_ENABLE_LIBPNG
 #include <png.h>
+#endif
 
 //#define CAT_BENCH_ONE /* Benchmark on one thread one file at a time to determine where in a benchmark there is a problem */
 
 
+#ifdef CAT_ENABLE_LIBPNG
 
 //helper function for load_png_from_memory
 struct png_input_data {
@@ -166,7 +170,7 @@ unsigned char *load_png_from_memory(unsigned char *bits, int *width, int *height
 	return image_data;
 }
 
-
+#endif
 
 
 
@@ -721,7 +725,7 @@ static int profileit(const char *filename) {
 	Clock *clock = Clock::ref();
 
 
-	const int ITERATIONS = 200;
+	const int ITERATIONS = 100;
 
 	{
 		MappedFile _file;
@@ -763,6 +767,7 @@ static int profileit(const char *filename) {
 		CAT_WARN("main") << "GCIF takes average of " << (t1 - t0) / ITERATIONS << " usec / read";
 	}
 
+#ifdef CAT_ENABLE_LIBPNG
 
 	{
 		MappedFile _file;
@@ -809,6 +814,8 @@ static int profileit(const char *filename) {
 
 		CAT_WARN("main") << "PNG takes average of " << (t1 - t0) / ITERATIONS << " usec / read";
 	}
+
+#endif
 
 	return GCIF_RE_OK;
 }
