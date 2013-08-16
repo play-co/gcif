@@ -292,6 +292,7 @@ u8 MonoReader::read(u16 x, ImageReader & CAT_RESTRICT reader) {
 	DESYNC(x, y);
 
 	u16 value;
+	const u16 num_syms = _params.num_syms;
 
 	// If using row filters,
 	if (_use_row_filters) {
@@ -300,7 +301,6 @@ u8 MonoReader::read(u16 x, ImageReader & CAT_RESTRICT reader) {
 
 		// Defilter the filter value
 		if (_row_filter == RF_PREV) {
-			const u16 num_syms = _params.num_syms;
 			value += _prev_filter;
 			if (value >= num_syms) {
 				value -= num_syms;
@@ -346,10 +346,9 @@ u8 MonoReader::read(u16 x, ImageReader & CAT_RESTRICT reader) {
 			const u16 residual = _decoder[chaos].next(reader);
 
 			// TODO: LZ
-			CAT_DEBUG_ENFORCE(residual < _params.num_syms);
+			CAT_DEBUG_ENFORCE(residual < num_syms);
 
 			// Store for next chaos lookup
-			const u16 num_syms = _params.num_syms;
 			_chaos.store(x, static_cast<u8>( residual ), num_syms);
 
 			// Calculate predicted value
