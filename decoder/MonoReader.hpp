@@ -119,8 +119,9 @@ protected:
 	u8 *_current_tile;
 
 	// LZ state
-	bool _lz_enabled;
-	LZReader _lz;
+	bool _lz_enabled;	// LZ enabled in header?
+	LZReader _lz;		// LZ reader subsystem
+	int _lz_xend;		// Next non-LZ pixel x coordinate (to skip over matches, with mask in mind)
 
 	void cleanup();
 

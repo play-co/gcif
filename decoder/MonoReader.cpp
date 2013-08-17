@@ -212,11 +212,16 @@ int MonoReader::readTables(const Parameters & CAT_RESTRICT params, ImageReader &
 
 	DESYNC_TABLE();
 
+	// If LZ was enabled in header,
 	if (_lz_enabled) {
+		// Initialize LZ subsystem
 		if CAT_UNLIKELY(!_lz.init(_params.xsize, _params.ysize, reader)) {
 			CAT_DEBUG_EXCEPTION();
 			return GCIF_RE_BAD_MONO;
 		}
+
+		// Reset next non-LZ pixel
+		_lz_xend = 0;
 	}
 
 	DESYNC_TABLE();
@@ -291,6 +296,11 @@ u8 MonoReader::read(u16 x, ImageReader & CAT_RESTRICT reader) {
 
 	DESYNC(x, y);
 
+	// If LZ already copied this data byte,
+	if (x < _lz_xend) {
+		return *data;
+	}
+
 	u16 value;
 	const u16 num_syms = _params.num_syms;
 
@@ -298,6 +308,22 @@ u8 MonoReader::read(u16 x, ImageReader & CAT_RESTRICT reader) {
 	if (_use_row_filters) {
 		// Read filter residual directly
 		value = _row_filter_decoder.next(reader);
+
+		// If value is an LZ escape code,
+		if (value >= num_syms) {
+			// Decode LZ match
+			u32 dist;
+			int len = _lz.read(value - num_syms, reader, dist);
+
+			// Simple memory move to get it where it needs to be
+			memmove(data, data - dist, len);
+
+			// Set LZ skip region
+			_lz_xend = x + len;
+
+			// Stop here
+			return *data;
+		}
 
 		// Defilter the filter value
 		if (_row_filter == RF_PREV) {
@@ -345,7 +371,22 @@ u8 MonoReader::read(u16 x, ImageReader & CAT_RESTRICT reader) {
 			// Read residual from bitstream
 			const u16 residual = _decoder[chaos].next(reader);
 
-			// TODO: LZ
+			// If residual is an LZ escape code,
+			if (residual >= num_syms) {
+				// Decode LZ match
+				u32 dist;
+				int len = _lz.read(residual - num_syms, reader, dist);
+
+				// Simple memory move to get it where it needs to be
+				memmove(data, data - dist, len);
+
+				// Set LZ skip region
+				_lz_xend = x + len;
+
+				// Stop here
+				return *data;
+			}
+
 			CAT_DEBUG_ENFORCE(residual < num_syms);
 
 			// Store for next chaos lookup
@@ -385,6 +426,12 @@ u8 MonoReader::read_unsafe(u16 x, ImageReader & CAT_RESTRICT reader) {
 	CAT_DEBUG_ENFORCE(x < _params.xsize && y < _params.ysize);
 
 	DESYNC(x, y);
+
+	// If LZ already copied this data byte,
+	if (_lz_size > 0) {
+		--_lz_size;
+		return *data;
+	}
 
 	u16 value;
 
@@ -440,7 +487,6 @@ u8 MonoReader::read_unsafe(u16 x, ImageReader & CAT_RESTRICT reader) {
 			// Read residual from bitstream
 			const u16 residual = _decoder[chaos].next(reader);
 
-			// TODO: LZ
 			CAT_DEBUG_ENFORCE(residual < _params.num_syms);
 
 			// Store for next chaos lookup
