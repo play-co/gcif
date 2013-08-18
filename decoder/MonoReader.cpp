@@ -219,9 +219,6 @@ int MonoReader::readTables(const Parameters & CAT_RESTRICT params, ImageReader &
 			CAT_DEBUG_EXCEPTION();
 			return GCIF_RE_BAD_MONO;
 		}
-
-		// Reset next non-LZ pixel
-		_lz_xend = 0;
 	}
 
 	DESYNC_TABLE();
@@ -273,6 +270,9 @@ int MonoReader::readRowHeader(u16 y, ImageReader & CAT_RESTRICT reader) {
 	}
 
 	_current_y = y;
+
+	// Reset next non-LZ pixel
+	_lz_xend = 0;
 
 	if (y > 0) {
 		_current_row += _params.xsize;
