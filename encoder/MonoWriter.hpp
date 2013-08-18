@@ -231,6 +231,9 @@ protected:
 	// Free dynamic objects
 	void cleanup();
 
+	// Get filter and write it if needed
+	u8 writeFilter(u16 x, u16 y, ImageWriter &writer, int &overhead_bits); // Returns filter for pixel
+
 public:
 	CAT_INLINE MonoWriter() {
 		_profile = 0;

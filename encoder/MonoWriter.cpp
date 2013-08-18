@@ -1624,6 +1624,28 @@ void MonoWriter::zero(u16 x) {
 	}
 }
 
+u8 MonoWriter::writeFilter(u16 x, u16 y, ImageWriter &writer, int &overhead_bits) {
+	// Get tile
+	const u16 tx = x >> _profile->tile_bits_x;
+	const u16 ty = y >> _profile->tile_bits_y;
+
+	CAT_DEBUG_ENFORCE(!IsMasked(tx, ty));
+
+	// If tile not seen yet,
+	if (_tile_seen[tx] == 0) {
+		_tile_seen[tx] = 1;
+
+		CAT_DEBUG_ENFORCE(*_next_write_tile_order++ == tx);
+
+		// Pass filter write down the tree
+		overhead_bits += _profile->filter_encoder->write(tx, ty, writer);
+
+		DESYNC(x, y);
+	}
+
+	return _profile->getTile(tx, ty);
+}
+
 int MonoWriter::write(u16 x, u16 y, ImageWriter &writer) {
 	int overhead_bits = 0, data_bits = 0;
 
@@ -1633,10 +1655,11 @@ int MonoWriter::write(u16 x, u16 y, ImageWriter &writer) {
 
 	DESYNC(x, y);
 
+	const int offset = x + _params.xsize * y;
+	const u8 *data = _params.data + offset;
+
 	// If using LZ,
 	if (_params.lz_enable) {
-		const int offset = x + _params.xsize * y;
-
 		// If next match is here,
 		if (_lz_next && _lz_next->offset == offset) {
 			CAT_DEBUG_ENFORCE(x + _lz_next->length <= _params.xsize);
@@ -1648,8 +1671,11 @@ int MonoWriter::write(u16 x, u16 y, ImageWriter &writer) {
 				lz_bits = _lz.write(_lz_next, _row_filter_encoder, writer);
 
 				// Set filter to the last one in the match region
-				_prev_filter = _params.data[offset + _lz_next->length - 1];
+				_prev_filter = data[_lz_next->length - 1];
 			} else {
+				// Write filter before writing LZ to sync with decoder
+				writeFilter(x, y, writer, overhead_bits);
+
 				int chaos = _profile->encoders->chaos.get(x);
 				lz_bits = _lz.write(_lz_next, _profile->encoders->encoder[chaos], writer);
 
@@ -1669,12 +1695,14 @@ int MonoWriter::write(u16 x, u16 y, ImageWriter &writer) {
 		if (_lz.masked(x, y)) {
 			return 0;
 		}
+
+		// TODO: Update bit stats
 	}
 
 	// If using row filters,
 	if (_use_row_filters) {
 		// Calculate row filter residual for filter data (filter of filters at tree leaf)
-		u8 p = _params.data[x + _params.xsize * y];
+		u8 p = *data;
 		u16 rf = p;
 
 		// If this row is filtered,
@@ -1690,31 +1718,14 @@ int MonoWriter::write(u16 x, u16 y, ImageWriter &writer) {
 		// Write encoded pixel
 		data_bits += _row_filter_encoder.write(rf, writer);
 	} else {
-		// Get tile
-		const u16 tx = x >> _profile->tile_bits_x;
-		const u16 ty = y >> _profile->tile_bits_y;
-		const u8 f = _profile->getTile(tx, ty);
-
-		CAT_DEBUG_ENFORCE(!IsMasked(tx, ty));
-
-		// If tile not seen yet,
-		if (_tile_seen[tx] == 0) {
-			_tile_seen[tx] = 1;
-
-			CAT_DEBUG_ENFORCE(*_next_write_tile_order++ == tx);
-
-			// Pass filter write down the tree
-			overhead_bits += _profile->filter_encoder->write(tx, ty, writer);
-
-			DESYNC(x, y);
-		}
+		u8 f = writeFilter(x, y, writer, overhead_bits);
 
 		// If using sympal,
 		if (_profile->filter_indices[f] >= SF_COUNT) {
 			_profile->encoders->chaos.zero(x);
 		} else {
 			// Look up residual sym
-			u8 residual = _profile->residuals[x + y * _params.xsize];
+			u8 residual = _profile->residuals[offset];
 
 			// Calculate local chaos
 			int chaos = _profile->encoders->chaos.get(x);
