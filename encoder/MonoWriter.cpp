@@ -1686,17 +1686,17 @@ int MonoWriter::write(u16 x, u16 y, ImageWriter &writer) {
 			CAT_DEBUG_ENFORCE(_lz.masked(x, y));
 
 			Stats.lz_bits += lz_bits;
+			Stats.filter_overhead_bits += overhead_bits;
 			_lz_next = _lz_next->next;
 
-			return lz_bits;
+			return lz_bits + overhead_bits;
 		}
 
 		// If this is a masked byte,
 		if (_lz.masked(x, y)) {
-			return 0;
+			Stats.filter_overhead_bits += overhead_bits;
+			return overhead_bits;
 		}
-
-		// TODO: Update bit stats
 	}
 
 	// If using row filters,
