@@ -349,7 +349,7 @@ void SmallPaletteWriter::generateMonoWriter() {
 	params.AWARDS[3] = 1;
 	params.award_count = 4;
 	params.write_order = 0;
-	params.lz_enable = false;
+	params.lz_enable = true;
 
 	_mono_writer.init(params);
 }

@@ -315,11 +315,26 @@ u8 MonoReader::read(u16 x, ImageReader & CAT_RESTRICT reader) {
 			u32 dist;
 			int len = _lz.read(value - num_syms, reader, dist);
 
+			// If LZ match starts before start of image,
+			if CAT_UNLIKELY(data < _params.data + dist) {
+				CAT_DEBUG_EXCEPTION();
+				return 0;
+			}
+
+			// If LZ match exceeds raster width,
+			if CAT_UNLIKELY(x + len > _params.xsize) {
+				CAT_DEBUG_EXCEPTION();
+				return 0;
+			}
+
 			// Simple memory move to get it where it needs to be
 			memmove(data, data - dist, len);
 
 			// Set LZ skip region
 			_lz_xend = x + len;
+
+			// After this LZ skip region, the last value will be the prev filter
+			_prev_filter = data[len - 1];
 
 			// Stop here
 			return *data;
@@ -377,11 +392,26 @@ u8 MonoReader::read(u16 x, ImageReader & CAT_RESTRICT reader) {
 				u32 dist;
 				int len = _lz.read(residual - num_syms, reader, dist);
 
+				// If LZ match starts before start of image,
+				if CAT_UNLIKELY(data < _params.data + dist) {
+					CAT_DEBUG_EXCEPTION();
+					return 0;
+				}
+
+				// If LZ match exceeds raster width,
+				if CAT_UNLIKELY(x + len > _params.xsize) {
+					CAT_DEBUG_EXCEPTION();
+					return 0;
+				}
+
 				// Simple memory move to get it where it needs to be
 				memmove(data, data - dist, len);
 
 				// Set LZ skip region
 				_lz_xend = x + len;
+
+				// Zero chaos for this region
+				_chaos.zeroRegion(x, len);
 
 				// Stop here
 				return *data;
@@ -428,21 +458,51 @@ u8 MonoReader::read_unsafe(u16 x, ImageReader & CAT_RESTRICT reader) {
 	DESYNC(x, y);
 
 	// If LZ already copied this data byte,
-	if (_lz_size > 0) {
-		--_lz_size;
+	if (x < _lz_xend) {
 		return *data;
 	}
 
 	u16 value;
+	const u16 num_syms = _params.num_syms;
 
 	// If using row filters,
 	if (_use_row_filters) {
 		// Read filter residual directly
 		value = _row_filter_decoder.next(reader);
 
+		// If value is an LZ escape code,
+		if (value >= num_syms) {
+			// Decode LZ match
+			u32 dist;
+			int len = _lz.read(value - num_syms, reader, dist);
+
+			// If LZ match starts before start of image,
+			if CAT_UNLIKELY(data < _params.data + dist) {
+				CAT_DEBUG_EXCEPTION();
+				return 0;
+			}
+
+			// If LZ match exceeds raster width,
+			if CAT_UNLIKELY(x + len > _params.xsize) {
+				CAT_DEBUG_EXCEPTION();
+				return 0;
+			}
+
+			// Simple memory move to get it where it needs to be
+			memmove(data, data - dist, len);
+
+			// Set LZ skip region
+			_lz_xend = x + len;
+
+			// After this LZ skip region, the last value will be the prev filter
+			_prev_filter = data[len - 1];
+
+			// Stop here
+			return *data;
+		}
+
 		// Defilter the filter value
 		if (_row_filter == RF_PREV) {
-			const u16 num_syms = _params.num_syms;
 			value += _prev_filter;
 			if (value >= num_syms) {
 				value -= num_syms;
@@ -487,10 +547,40 @@ u8 MonoReader::read_unsafe(u16 x, ImageReader & CAT_RESTRICT reader) {
 			// Read residual from bitstream
 			const u16 residual = _decoder[chaos].next(reader);
 
-			CAT_DEBUG_ENFORCE(residual < _params.num_syms);
+			// If residual is an LZ escape code,
+			if (residual >= num_syms) {
+				// Decode LZ match
+				u32 dist;
+				int len = _lz.read(residual - num_syms, reader, dist);
+
+				// If LZ match starts before start of image,
+				if CAT_UNLIKELY(data < _params.data + dist) {
+					CAT_DEBUG_EXCEPTION();
+					return 0;
+				}
+
+				// If LZ match exceeds raster width,
+				if CAT_UNLIKELY(x + len > _params.xsize) {
+					CAT_DEBUG_EXCEPTION();
+					return 0;
+				}
+
+				// Simple memory move to get it where it needs to be
+				memmove(data, data - dist, len);
+
+				// Set LZ skip region
+				_lz_xend = x + len;
+
+				// Zero chaos for this region
+				_chaos.zeroRegion(x, len);
+
+				// Stop here
+				return *data;
+			}
+
+			CAT_DEBUG_ENFORCE(residual < num_syms);
 
 			// Store for next chaos lookup
-			const u16 num_syms = _params.num_syms;
 			_chaos.store(x, static_cast<u8>( residual ), num_syms);
 
 			// Calculate predicted value
@@ -512,3 +602,4 @@ u8 MonoReader::read_unsafe(u16 x, ImageReader & CAT_RESTRICT reader) {
 
 	return ( *data = static_cast<u8>( value ) );
 }
+
