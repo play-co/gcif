@@ -1635,38 +1635,39 @@ int MonoWriter::write(u16 x, u16 y, ImageWriter &writer) {
 
 	// If using LZ,
 	if (_params.lz_enable) {
-		int lz_bits = 0;
+		const int offset = x + _params.xsize * y;
 
 		// If next match is here,
-		const int offset = x + _params.xsize * y;
 		if (_lz_next && _lz_next->offset == offset) {
+			CAT_DEBUG_ENFORCE(x + _lz_next->length <= _params.xsize);
+			CAT_DEBUG_ENFORCE(offset >= _lz_next->distance);
+
 			// If using row filters,
+			int lz_bits;
 			if (_use_row_filters) {
 				lz_bits = _lz.write(_lz_next, _row_filter_encoder, writer);
+
+				// Set filter to the last one in the match region
+				_prev_filter = _params.data[offset + _lz_next->length - 1];
 			} else {
 				int chaos = _profile->encoders->chaos.get(x);
-				_profile->encoders->chaos.zero(x);
 				lz_bits = _lz.write(_lz_next, _profile->encoders->encoder[chaos], writer);
+
+				// Zero chaos for match region
+				_profile->encoders->chaos.zeroRegion(x, _lz_next->length);
 			}
+
+			CAT_DEBUG_ENFORCE(_lz.masked(x, y));
 
 			Stats.lz_bits += lz_bits;
 			_lz_next = _lz_next->next;
 
-			CAT_DEBUG_ENFORCE(_lz.masked(x, y));
+			return lz_bits;
 		}
 
 		// If this is a masked byte,
 		if (_lz.masked(x, y)) {
-			DESYNC(x, y);
-
-			if (!_use_row_filters) {
-				_profile->encoders->chaos.zero(x);
-			} else {
-				u8 p = _params.data[x + _params.xsize * y];
-				_prev_filter = p;
-			}
-
-			return lz_bits;
+			return 0;
 		}
 	}
 

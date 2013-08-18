@@ -682,18 +682,30 @@ bool MonoMatchFinder::findMatches(SuffixArray3_State * CAT_RESTRICT sa3state, co
 	int covered_pixels = 0;
 
 	// For each pixel, stopping just before the last pixel:
+	const int xsize = _params.xsize;
 	const u8 * CAT_RESTRICT mono_now = mono;
 	const u8 * CAT_RESTRICT costs = _params.costs;
-	for (int ii = 0, iiend = _pixels - MIN_MATCH; ii <= iiend; ++ii, ++mono_now, ++costs) {
+	for (int x = 0, ii = 0, iiend = _pixels - MIN_MATCH; ii <= iiend; ++ii, ++mono_now, ++costs, ++x) {
 		u16 best_length = MIN_MATCH - 1;
 		u32 best_distance = 0;
 		int best_score = 0, best_saved = 0;
+
+		// Wrap x
+		if (x >= xsize) {
+			x = 0;
+		}
+
+		// Calculate length limit	
+		int len_limit = xsize - x;
+		if (len_limit > MAX_MATCH) {
+			len_limit = MAX_MATCH;
+		}
 
 		// Get min match hash
 		const u32 hash = HashPixels(mono_now);
 
 		// If not masked,
-		if (costs[0] > 0) {
+		if (costs[0] > 0 && len_limit >= MIN_MATCH) {
 			u32 node = table[hash];
 
 			// If any matches exist,
@@ -724,7 +736,7 @@ bool MonoMatchFinder::findMatches(SuffixArray3_State * CAT_RESTRICT sa3state, co
 							mono_node[1] == mono_now[1]) {
 							// Find match length
 							int match_len = 2;
-							for (; match_len < MAX_MATCH && mono_node[match_len] == mono_now[match_len]; ++match_len);
+							for (; match_len < len_limit && mono_node[match_len] == mono_now[match_len]; ++match_len);
 
 							// Score match
 							int bits_saved;
@@ -747,8 +759,8 @@ bool MonoMatchFinder::findMatches(SuffixArray3_State * CAT_RESTRICT sa3state, co
 
 					// Score match based on residuals
 					if (longest_ml_n >= MIN_MATCH && longest_off_n < ii) {
-						if (longest_ml_n > MAX_MATCH) {
-							longest_ml_n = MAX_MATCH;
+						if (longest_ml_n > len_limit) {
+							longest_ml_n = len_limit;
 						}
 
 						u32 longest_dist = ii - longest_off_n;
@@ -763,8 +775,8 @@ bool MonoMatchFinder::findMatches(SuffixArray3_State * CAT_RESTRICT sa3state, co
 						}
 					}
 					if (longest_ml_p >= MIN_MATCH && longest_off_p < ii) {
-						if (longest_ml_p > MAX_MATCH) {
-							longest_ml_p = MAX_MATCH;
+						if (longest_ml_p > len_limit) {
+							longest_ml_p = len_limit;
 						}
 
 						u32 longest_dist = ii - longest_off_p;
