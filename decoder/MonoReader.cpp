@@ -290,7 +290,7 @@ u8 MonoReader::read(u16 x, ImageReader & CAT_RESTRICT reader) {
 	const u16 y = _current_y;
 #endif
 
-	u8 *data = _current_row + x;
+	u8 * CAT_RESTRICT data = _current_row + x;
 
 	CAT_DEBUG_ENFORCE(x < _params.xsize && y < _params.ysize);
 
@@ -328,7 +328,10 @@ u8 MonoReader::read(u16 x, ImageReader & CAT_RESTRICT reader) {
 			}
 
 			// Simple memory move to get it where it needs to be
-			memmove(data, data - dist, len);
+			const volatile u8 *src = data - dist;
+			for (int ii = 0; ii < len; ++ii) {
+				data[ii] = src[ii];
+			}
 
 			// Set LZ skip region
 			_lz_xend = x + len;
@@ -405,7 +408,10 @@ u8 MonoReader::read(u16 x, ImageReader & CAT_RESTRICT reader) {
 				}
 
 				// Simple memory move to get it where it needs to be
-				memmove(data, data - dist, len);
+				const volatile u8 *src = data - dist;
+				for (int ii = 0; ii < len; ++ii) {
+					data[ii] = src[ii];
+				}
 
 				// Set LZ skip region
 				_lz_xend = x + len;
@@ -451,7 +457,7 @@ u8 MonoReader::read_unsafe(u16 x, ImageReader & CAT_RESTRICT reader) {
 	const u16 y = _current_y;
 #endif
 
-	u8 *data = _current_row + x;
+	u8 * CAT_RESTRICT data = _current_row + x;
 
 	CAT_DEBUG_ENFORCE(x < _params.xsize && y < _params.ysize);
 
@@ -489,7 +495,10 @@ u8 MonoReader::read_unsafe(u16 x, ImageReader & CAT_RESTRICT reader) {
 			}
 
 			// Simple memory move to get it where it needs to be
-			memmove(data, data - dist, len);
+			const volatile u8 *src = data - dist;
+			for (int ii = 0; ii < len; ++ii) {
+				data[ii] = src[ii];
+			}
 
 			// Set LZ skip region
 			_lz_xend = x + len;
@@ -566,7 +575,10 @@ u8 MonoReader::read_unsafe(u16 x, ImageReader & CAT_RESTRICT reader) {
 				}
 
 				// Simple memory move to get it where it needs to be
-				memmove(data, data - dist, len);
+				const volatile u8 *src = data - dist;
+				for (int ii = 0; ii < len; ++ii) {
+					data[ii] = src[ii];
+				}
 
 				// Set LZ skip region
 				_lz_xend = x + len;
@@ -602,4 +614,3 @@ u8 MonoReader::read_unsafe(u16 x, ImageReader & CAT_RESTRICT reader) {
 
 	return ( *data = static_cast<u8>( value ) );
 }
-
