@@ -360,11 +360,9 @@ void MonoWriter::maskTiles() {
 				while (cx-- > 0 && px < xsize) {
 					// If it is not masked,
 					if (!_params.mask(px, py)) {
-						if (!_params.lz_enable || !_lz.masked(px, py)) {
-							// We need to do this tile
-							*m = 0;
-							goto next_tile;
-						}
+						// We need to do this tile
+						*m = 0;
+						goto next_tile;
 					}
 					++px;
 				}
@@ -542,6 +540,12 @@ void MonoWriter::designFilters() {
 			// If data is uniform,
 			int offset = 0;
 			if (uniform) {
+				// If masked out from LZ,
+				if (!seen) {
+					*p = LZ_MASKED_FILTER_CODE; // TODO
+					continue;
+				}
+
 				// Find the matching filter
 				for (int f = 0, f_end = _profile->sympal_filter_count; f < f_end; ++f) {
 					if (_profile->sympal[f] == uniform_value) {
@@ -683,10 +687,10 @@ void MonoWriter::designPaletteTiles() {
 				continue;
 			}
 
-			const u8 value = *p;
-
 			// If this tile was initially paletted,
-			if (value >= SF_COUNT) {
+			const u8 value = *p;
+			if (value >= SF_COUNT &&
+				value != LZ_MASK_SYMBOL) { // TODO
 				// Look up the new filter value
 				u8 filter = _sympal_filter_map[value - SF_COUNT];
 
@@ -739,9 +743,8 @@ void MonoWriter::designTiles() {
 					continue;
 				}
 
-				const u8 old_filter = *p;
-
 				// If tile is sympal,
+				const u8 old_filter = *p;
 				if (old_filter >= _profile->normal_filter_count) {
 					continue;
 				}
@@ -998,6 +1001,9 @@ void MonoWriter::computeResiduals() {
 
 void MonoWriter::optimizeTiles() {
 	//CAT_INANE("Mono") << "Optimizing tiles for " << _profile->tiles_x << "x" << _profile->tiles_y << "...";
+
+	// TODO: Convert LZ tiles to most common symbol
+	// TODO: Update profile mask to include LZ masked pixels
 
 	_optimizer.process(_profile->tiles.get(), _profile->tiles_x, _profile->tiles_y, _profile->filter_count,
 			PaletteOptimizer::MaskDelegate::FromMember<MonoWriter, &MonoWriter::IsMasked>(this));
@@ -1629,7 +1635,10 @@ u8 MonoWriter::writeFilter(u16 x, u16 y, ImageWriter &writer, int &overhead_bits
 	const u16 tx = x >> _profile->tile_bits_x;
 	const u16 ty = y >> _profile->tile_bits_y;
 
-	CAT_DEBUG_ENFORCE(!IsMasked(tx, ty));
+	// TODO: Only check for mask here not LZ modified one (will still write for LZ masked)
+	if (IsMasked(tx, ty)) {
+		return 0;
+	}
 
 	// If tile not seen yet,
 	if (_tile_seen[tx] == 0) {
@@ -1718,6 +1727,8 @@ int MonoWriter::write(u16 x, u16 y, ImageWriter &writer) {
 		// Write encoded pixel
 		data_bits += _row_filter_encoder.write(rf, writer);
 	} else {
+		CAT_DEBUG_ENFORCE(!IsMasked(x >> _profile->tile_bits_x, y >> _profile->tile_bits_y));
+
 		u8 f = writeFilter(x, y, writer, overhead_bits);
 
 		// If using sympal,
