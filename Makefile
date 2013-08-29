@@ -93,7 +93,7 @@ decomp : $(decode_objects) decomp.o
 # gcif executable
 
 gcif : $(gcif_objects)
-	$(CCPP) -lpng -o gcif $(gcif_objects)
+	$(CCPP) -o gcif $(gcif_objects)
 
 
 # Application files
