@@ -293,6 +293,8 @@ u8 MonoReader::read_lz(u16 code, ImageReader & CAT_RESTRICT reader, u16 x, u8 * 
 	u32 dist;
 	int len = _lz.read(code, reader, dist);
 
+	DESYNC(x, 0);
+
 	// If LZ match starts before start of image,
 	if CAT_UNLIKELY(data < _params.data + dist) {
 		CAT_DEBUG_EXCEPTION();
@@ -331,8 +333,6 @@ u8 MonoReader::read_row_filter(u16 x, ImageReader & CAT_RESTRICT reader) {
 
 	CAT_DEBUG_ENFORCE(x < _params.xsize && y < _params.ysize);
 
-	DESYNC(x, y);
-
 	// If LZ already copied this data byte,
 	if (x < _lz_xend) {
 		return *data;
@@ -342,6 +342,8 @@ u8 MonoReader::read_row_filter(u16 x, ImageReader & CAT_RESTRICT reader) {
 
 	// Read filter residual directly
 	u16 value = _row_filter_decoder.next(reader);
+
+	DESYNC(x, y);
 
 	// If value is an LZ escape code,
 	if (value >= num_syms) {
@@ -358,8 +360,6 @@ u8 MonoReader::read_row_filter(u16 x, ImageReader & CAT_RESTRICT reader) {
 		_prev_filter = static_cast<u8>( value );
 	}
 
-	DESYNC(x, y);
-
 	CAT_DEBUG_ENFORCE(!reader.eof());
 
 	return ( *data = static_cast<u8>( value ) );
@@ -375,8 +375,6 @@ u8 MonoReader::read_tile_safe(u16 x, ImageReader & CAT_RESTRICT reader) {
 
 	CAT_DEBUG_ENFORCE(x < _params.xsize && y < _params.ysize);
 
-	DESYNC(x, y);
-
 	u16 value;
 	const u16 num_syms = _params.num_syms;
 
@@ -388,17 +386,14 @@ u8 MonoReader::read_tile_safe(u16 x, ImageReader & CAT_RESTRICT reader) {
 
 	// If filter is not read yet,
 	if (!filter) {
-		// Get chaos bin
-		const int chaos = _chaos.get(x);
-
 		const u8 f = _filter_decoder_read(tx, reader);
+
+		DESYNC(x, y);
 
 		// Read filter
 		MonoFilterFuncs * CAT_RESTRICT funcs = &_sf[f];
 		_filter_row[tx] = *funcs;
 		filter = funcs->safe; // Choose here
-
-		DESYNC(x, y);
 	}
 
 	// If the filter is a palette symbol,
@@ -419,6 +414,8 @@ u8 MonoReader::read_tile_safe(u16 x, ImageReader & CAT_RESTRICT reader) {
 
 		CAT_DEBUG_ENFORCE(residual < num_syms);
 
+		DESYNC(x, y);
+
 		// Store for next chaos lookup
 		_chaos.store(x, static_cast<u8>( residual ), num_syms);
 
@@ -433,8 +430,6 @@ u8 MonoReader::read_tile_safe(u16 x, ImageReader & CAT_RESTRICT reader) {
 			value -= num_syms;
 		}
 	}
-
-	DESYNC(x, y);
 
 	CAT_DEBUG_ENFORCE(!reader.eof());
 
@@ -451,8 +446,6 @@ u8 MonoReader::read_tile_unsafe(u16 x, ImageReader & CAT_RESTRICT reader) {
 
 	CAT_DEBUG_ENFORCE(x < _params.xsize && y < _params.ysize);
 
-	DESYNC(x, y);
-
 	u16 value;
 	const u16 num_syms = _params.num_syms;
 
@@ -464,17 +457,14 @@ u8 MonoReader::read_tile_unsafe(u16 x, ImageReader & CAT_RESTRICT reader) {
 
 	// If filter is not read yet,
 	if (!filter) {
-		// Get chaos bin
-		const int chaos = _chaos.get(x);
-
 		const u8 f = _filter_decoder_read(tx, reader);
+
+		DESYNC(x, y);
 
 		// Read filter
 		MonoFilterFuncs * CAT_RESTRICT funcs = &_sf[f];
 		_filter_row[tx] = *funcs;
 		filter = funcs->unsafe; // Choose here
-
-		DESYNC(x, y);
 	}
 
 	// If the filter is a palette symbol,
@@ -493,6 +483,8 @@ u8 MonoReader::read_tile_unsafe(u16 x, ImageReader & CAT_RESTRICT reader) {
 		// Read residual from bitstream
 		const u16 residual = _decoder[chaos].next(reader);
 
+		DESYNC(x, y);
+
 		CAT_DEBUG_ENFORCE(residual < num_syms);
 
 		// Store for next chaos lookup
@@ -509,8 +501,6 @@ u8 MonoReader::read_tile_unsafe(u16 x, ImageReader & CAT_RESTRICT reader) {
 			value -= num_syms;
 		}
 	}
-
-	DESYNC(x, y);
 
 	CAT_DEBUG_ENFORCE(!reader.eof());
 
@@ -528,8 +518,6 @@ u8 MonoReader::read_tile_safe_lz(u16 x, ImageReader & CAT_RESTRICT reader) {
 
 	CAT_DEBUG_ENFORCE(x < _params.xsize && y < _params.ysize);
 
-	DESYNC(x, y);
-
 	// If LZ already copied this data byte,
 	if (x < _lz_xend) {
 		return *data;
@@ -556,6 +544,8 @@ u8 MonoReader::read_tile_safe_lz(u16 x, ImageReader & CAT_RESTRICT reader) {
 		residual = _decoder[chaos].next(reader);
 		readResidual = true;
 
+		DESYNC(x, y);
+
 		// If residual is LZ escape code,
 		if (residual >= num_syms) {
 			// Read LZ match
@@ -564,12 +554,12 @@ u8 MonoReader::read_tile_safe_lz(u16 x, ImageReader & CAT_RESTRICT reader) {
 
 		const u8 f = _filter_decoder_read(tx, reader);
 
+		DESYNC(x, y);
+
 		// Read filter
 		MonoFilterFuncs * CAT_RESTRICT funcs = &_sf[f];
 		_filter_row[tx] = *funcs;
 		filter = funcs->safe; // Choose here
-
-		DESYNC(x, y);
 	}
 
 	// If the filter is a palette symbol,
@@ -589,6 +579,8 @@ u8 MonoReader::read_tile_safe_lz(u16 x, ImageReader & CAT_RESTRICT reader) {
 
 			// Read residual from bitstream
 			residual = _decoder[chaos].next(reader);
+
+			DESYNC(x, y);
 		}
 
 		// If residual is LZ escape code,
@@ -612,8 +604,6 @@ u8 MonoReader::read_tile_safe_lz(u16 x, ImageReader & CAT_RESTRICT reader) {
 		}
 	}
 
-	DESYNC(x, y);
-
 	CAT_DEBUG_ENFORCE(!reader.eof());
 
 	return ( *data = static_cast<u8>( value ) );
@@ -628,8 +618,6 @@ u8 MonoReader::read_tile_unsafe_lz(u16 x, ImageReader & CAT_RESTRICT reader) {
 	u8 * CAT_RESTRICT data = _current_row + x;
 
 	CAT_DEBUG_ENFORCE(x < _params.xsize && y < _params.ysize);
-
-	DESYNC(x, y);
 
 	// If LZ already copied this data byte,
 	if (x < _lz_xend) {
@@ -657,6 +645,8 @@ u8 MonoReader::read_tile_unsafe_lz(u16 x, ImageReader & CAT_RESTRICT reader) {
 		residual = _decoder[chaos].next(reader);
 		readResidual = true;
 
+		DESYNC(x, y);
+
 		// If residual is LZ escape code,
 		if (residual >= num_syms) {
 			// Read LZ match
@@ -664,6 +654,8 @@ u8 MonoReader::read_tile_unsafe_lz(u16 x, ImageReader & CAT_RESTRICT reader) {
 		}
 
 		const u8 f = _filter_decoder_read(tx, reader);
+
+		DESYNC(x, y);
 
 		// Read filter
 		MonoFilterFuncs * CAT_RESTRICT funcs = &_sf[f];
@@ -690,6 +682,8 @@ u8 MonoReader::read_tile_unsafe_lz(u16 x, ImageReader & CAT_RESTRICT reader) {
 
 			// Read residual from bitstream
 			residual = _decoder[chaos].next(reader);
+
+			DESYNC(x, y);
 		}
 
 		// If residual is LZ escape code,
@@ -712,8 +706,6 @@ u8 MonoReader::read_tile_unsafe_lz(u16 x, ImageReader & CAT_RESTRICT reader) {
 			value -= num_syms;
 		}
 	}
-
-	DESYNC(x, y);
 
 	CAT_DEBUG_ENFORCE(!reader.eof());
 

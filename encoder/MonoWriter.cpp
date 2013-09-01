@@ -1144,12 +1144,17 @@ void MonoWriter::recurseCompress() {
 }
 
 void MonoWriter::designChaos() {
+	// Initialize tile seen array
+	_tile_seen.resize(_profile->tiles_x);
+
 	//CAT_INANE("Mono") << "Designing chaos...";
 
 	u32 best_entropy = 0x7fffffff;
 
 	MonoWriterProfile::Encoders *best = 0;
 	MonoWriterProfile::Encoders *encoders = new MonoWriterProfile::Encoders;
+
+	const u16 tile_mask_y = _profile->tile_ysize - 1;
 
 	// For each chaos level,
 	for (int chaos_levels = 1; chaos_levels < MAX_CHAOS_LEVELS; ++chaos_levels) {
@@ -1170,6 +1175,11 @@ void MonoWriter::designChaos() {
 		// For each row,
 		for (u16 y = 0; y < _params.ysize; ++y) {
 			const u16 ty = y >> _profile->tile_bits_y;
+
+			// Reset tile seen
+			if ((y & tile_mask_y) == 0) {
+				_tile_seen.fill_00();
+			}
 
 			// If random write order,
 			if (order) {
@@ -1244,12 +1254,15 @@ void MonoWriter::designChaos() {
 						if (_profile->filter_indices[f] >= SF_COUNT) {
 							encoders->chaos.zero(x);
 
-							// If PF was not seen,
-							if (_tile_seen[tx] == 0) {
-								_tile_seen[tx] = 1;
+							// If in LZ mode,
+							if (_params.lz_enable) {
+								// If PF was not seen,
+								if (_tile_seen[tx] == 0) {
+									_tile_seen[tx] = 1;
 
-								// Will be writing a zero here
-								encoders->encoder[chaos].add(0);
+									// Will be writing a zero here
+									encoders->encoder[chaos].add(0);
+								}
 							}
 						} else {
 							// Get residual symbol
@@ -1486,6 +1499,9 @@ int MonoWriter::writeTables(ImageWriter &writer) {
 		// Enable encoders
 		writer.writeBit(1);
 
+		// Initialize tile seen array
+		_tile_seen.resize(_profile->tiles_x);
+
 		// Write tile size
 		CAT_DEBUG_ENFORCE(_profile->tile_bits_x == _profile->tile_bits_y);	// Square regions only for now
 
@@ -1538,9 +1554,6 @@ int MonoWriter::writeTables(ImageWriter &writer) {
 
 		// Recurse write tables
 		Stats.filter_overhead_bits += _profile->filter_encoder->writeTables(writer);
-
-		// Initialize tile seen array
-		_tile_seen.resize(_profile->tiles_x);
 
 #ifdef CAT_DEBUG
 		generateWriteOrder();
@@ -1709,6 +1722,8 @@ int MonoWriter::write(u16 x, u16 y, ImageWriter &writer) {
 				_profile->encoders->chaos.zeroRegion(x, _lz_next->length);
 			}
 
+			DESYNC(x, 0);
+
 			CAT_DEBUG_ENFORCE(_lz.masked(x, y));
 
 			Stats.lz_bits += lz_bits;
@@ -1746,30 +1761,51 @@ int MonoWriter::write(u16 x, u16 y, ImageWriter &writer) {
 	} else {
 		CAT_DEBUG_ENFORCE(!IsMasked(x >> _profile->tile_bits_x, y >> _profile->tile_bits_y));
 
-		// If did not write a sympal,
-		if (!sympalCovered(x, y)) {
-			// Look up residual sym
-			u8 residual = _profile->residuals[offset];
+		// If in LZ mode,
+		if (_params.lz_enable) {
+			// If did not write a sympal,
+			if (!sympalCovered(x, y)) {
+				// Look up residual sym
+				u8 residual = _profile->residuals[offset];
 
-			// Calculate local chaos
-			int chaos = _profile->encoders->chaos.get(x);
-			_profile->encoders->chaos.store(x, residual, _params.num_syms);
+				// Calculate local chaos
+				int chaos = _profile->encoders->chaos.get(x);
+				_profile->encoders->chaos.store(x, residual, _params.num_syms);
 
-			// Write the residual value
-			data_bits += _profile->encoders->encoder[chaos].write(residual, writer);
+				// Write the residual value
+				data_bits += _profile->encoders->encoder[chaos].write(residual, writer);
 
-			// Write filter if needed
+				DESYNC(x, y);
+
+				// Write filter if needed
 #ifdef CAT_DEBUG
-			u8 f =
+				u8 f =
 #endif
-				writeFilter(x, y, writer, overhead_bits);
+					writeFilter(x, y, writer, overhead_bits);
 
-			// If f is PF, then the residual *must* be a zero
-			CAT_DEBUG_ENFORCE(_profile->filter_indices[f] < SF_COUNT || residual == 0);
+				// If f is PF, then the residual *must* be a zero
+				CAT_DEBUG_ENFORCE(_profile->filter_indices[f] < SF_COUNT || residual == 0);
+			}
+		} else {
+			// Write filter first for non-LZ case
+			u8 f = writeFilter(x, y, writer, overhead_bits);
+
+			// If not PF,
+			if (_profile->filter_indices[f] < SF_COUNT) {
+				// Look up residual sym
+				u8 residual = _profile->residuals[offset];
+
+				// Calculate local chaos
+				int chaos = _profile->encoders->chaos.get(x);
+				_profile->encoders->chaos.store(x, residual, _params.num_syms);
+
+				// Write the residual value
+				data_bits += _profile->encoders->encoder[chaos].write(residual, writer);
+
+				DESYNC(x, y);
+			}
 		}
 	}
-
-	DESYNC(x, y);
 
 	// Update stats
 	Stats.filter_overhead_bits += overhead_bits;
