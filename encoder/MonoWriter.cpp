@@ -91,6 +91,9 @@ void MonoWriter::cleanup() {
 void MonoWriter::priceResiduals() {
 	CAT_INANE("Mono") << "Assigning approximate bit costs to residuals...";
 
+	const u16 tile_mask_y = _profile->tile_ysize - 1;
+	_tile_seen.resize(_profile->tiles_x);
+
 	_prices.resize(_params.xsize * _params.ysize);
 
 	_profile->encoders->chaos.start();
@@ -103,6 +106,11 @@ void MonoWriter::priceResiduals() {
 	const u8 *residuals = _profile->residuals.get();
 	u8 *prices = _prices.get();
 	for (u16 y = 0; y < _params.ysize; ++y) {
+		// If starting a tile row,
+		if ((y & tile_mask_y) == 0) {
+			_tile_seen.fill_00();
+		}
+
 		for (u16 x = 0; x < _params.xsize; ++x, ++residuals, ++prices) {
 			// Get tile
 			const u16 tx = x >> _profile->tile_bits_x;
@@ -113,6 +121,20 @@ void MonoWriter::priceResiduals() {
 			if (_profile->filter_indices[f] >= SF_COUNT || _params.mask(x, y)) {
 				_profile->encoders->chaos.zero(x);
 				prices[0] = 0;
+
+				// If in LZ mode,
+				if (_lz_enable && !_params.mask(x, y)) {
+					// If PF was not seen,
+					if (_tile_seen[tx] == 0) {
+						_tile_seen[tx] = 1;
+
+						CAT_WARN("ResidualPF") << "Adding extra zero at " << x << ", " << y;
+
+						// Store zero price placeholder
+						int chaos = _profile->encoders->chaos.get(x);
+						_profile->encoders->encoder[chaos].price(0);
+					}
+				}
 			} else {
 				// Look up residual sym
 				const u8 residual = residuals[0];
@@ -199,7 +221,7 @@ void MonoWriter::designRowFilters() {
 			} else {
 				for (u16 x = 0; x < xsize; ++x, ++data) {
 					// If pixel is LZ-masked,
-					if (_params.lz_enable && _lz.masked(x, y)) {
+					if (_lz_enable && _lz.masked(x, y)) {
 						u8 p = data[0];
 						prev = p;
 						continue;
@@ -268,7 +290,7 @@ void MonoWriter::designRowFilters() {
 		const u16 *order = _params.write_order;
 		const u8 *data = _params.data;
 
-		_row_filter_encoder.init(_params.num_syms + (_params.lz_enable ? LZReader::ESCAPE_SYMS : 0), ZRLE_SYMS);
+		_row_filter_encoder.init(_params.num_syms + (_lz_enable ? LZReader::ESCAPE_SYMS : 0), ZRLE_SYMS);
 
 		// Setup LZ
 		LZMatchFinder::LZMatch *lzm = _lz.getHead();
@@ -303,7 +325,7 @@ void MonoWriter::designRowFilters() {
 			} else {
 				for (u16 x = 0; x < xsize; ++x, ++data, ++offset) {
 					// If using LZ,
-					if (_params.lz_enable) {
+					if (_lz_enable) {
 						// If LZ match is here,
 						if (lzm && offset == lzm->offset) {
 							_lz.train(lzm, _row_filter_encoder);
@@ -360,7 +382,7 @@ void MonoWriter::maskTiles() {
 				while (cx-- > 0 && px < xsize) {
 					// If it is not masked,
 					if (!_params.mask(px, py)) {
-						if (!_params.lz_enable || !_lz.masked(px, py)) {
+						if (!_lz_enable || !_lz.masked(px, py)) {
 							// We need to do this tile
 							*m = 0;
 							goto next_tile;
@@ -409,7 +431,7 @@ void MonoWriter::designPaletteFilters() {
 				while (cx-- > 0 && px < xsize) {
 					// If element is not masked,
 					if (!_params.mask(px, py)) {
-						if (!_params.lz_enable || !_lz.masked(px, py)) {
+						if (!_lz_enable || !_lz.masked(px, py)) {
 							const u8 value = *data;
 
 							if (!seen) {
@@ -510,7 +532,7 @@ void MonoWriter::designFilters() {
 				while (cx-- > 0 && px < xsize) {
 					// If element is not masked,
 					if (!_params.mask(px, py)) {
-						if (!_params.lz_enable || !_lz.masked(px, py)) {
+						if (!_lz_enable || !_lz.masked(px, py)) {
 							const u8 value = *data;
 
 							if (!seen) {
@@ -765,7 +787,7 @@ void MonoWriter::designTiles() {
 							while (cx-- > 0 && px < xsize) {
 								// If element is not masked,
 								if (!_params.mask(px, py)) {
-									if (!_params.lz_enable || !_lz.masked(px, py)) {
+									if (!_lz_enable || !_lz.masked(px, py)) {
 										const u8 value = *data;
 
 										u8 prediction = _profile->filters[old_filter].safe(data, num_syms, px, py, xsize);
@@ -799,7 +821,7 @@ void MonoWriter::designTiles() {
 					while (cx-- > 0 && px < xsize) {
 						// If element is not masked,
 						if (!_params.mask(px, py)) {
-							if (!_params.lz_enable || !_lz.masked(px, py)) {
+							if (!_lz_enable || !_lz.masked(px, py)) {
 								const u8 value = *data;
 
 								u8 *dest = codes + code_count;
@@ -963,7 +985,7 @@ void MonoWriter::computeResiduals() {
 		} else {
 			for (u16 x = 0; x < xsize; ++x, ++residuals, ++data) {
 				// If pixel is LZ masked,
-				if (_params.lz_enable && _lz.masked(x, y)) {
+				if (_lz_enable && _lz.masked(x, y)) {
 					continue;
 				}
 
@@ -1099,7 +1121,7 @@ void MonoWriter::generateWriteOrder() {
 			// For each pixel,
 			for (u16 x = 0, xsize = _params.xsize; x < xsize; ++x) {
 				// If pixel is LZ matched,
-				if (_params.lz_enable && _lz.masked(x, y)) {
+				if (_lz_enable && _lz.masked(x, y)) {
 					continue;
 				}
 
@@ -1166,7 +1188,7 @@ void MonoWriter::designChaos() {
 
 		// For each chaos level,
 		for (int ii = 0; ii < chaos_levels; ++ii) {
-			encoders->encoder[ii].init(_params.num_syms + (_params.lz_enable ? LZReader::ESCAPE_SYMS : 0), ZRLE_SYMS);
+			encoders->encoder[ii].init(_params.num_syms + (_lz_enable ? LZReader::ESCAPE_SYMS : 0), ZRLE_SYMS);
 		}
 
 		LZMatchFinder::LZMatch *lzm = _lz.getHead();
@@ -1224,7 +1246,7 @@ void MonoWriter::designChaos() {
 				// For each column,
 				for (u16 x = 0; x < _params.xsize; ++x, ++residuals, ++offset) {
 					// If using LZ,
-					if (_params.lz_enable) {
+					if (_lz_enable) {
 						// If LZ match is here,
 						if (lzm && offset == lzm->offset) {
 							int chaos = encoders->chaos.get(x);
@@ -1248,19 +1270,20 @@ void MonoWriter::designChaos() {
 						const u8 f = _profile->getTile(tx, ty);
 						CAT_DEBUG_ENFORCE(f < _profile->filter_count);
 
-						int chaos = encoders->chaos.get(x);
-
-						// If masked or sympal,
+						// If sympal,
 						if (_profile->filter_indices[f] >= SF_COUNT) {
 							encoders->chaos.zero(x);
 
 							// If in LZ mode,
-							if (_params.lz_enable) {
+							if (_lz_enable) {
 								// If PF was not seen,
 								if (_tile_seen[tx] == 0) {
 									_tile_seen[tx] = 1;
 
+									CAT_WARN("PF") << "Adding extra zero at " << x << ", " << y;
+
 									// Will be writing a zero here
+									int chaos = encoders->chaos.get(x);
 									encoders->encoder[chaos].add(0);
 								}
 							}
@@ -1272,6 +1295,7 @@ void MonoWriter::designChaos() {
 							encoders->chaos.store(x, residual, _params.num_syms);
 
 							// Add to histogram for this chaos bin
+							int chaos = encoders->chaos.get(x);
 							encoders->encoder[chaos].add(residual);
 						}
 					}
@@ -1349,6 +1373,7 @@ void MonoWriter::init(const Parameters &params) {
 
 	// Initialize
 	_params = params;
+	_lz_enable = false;
 
 	// Only allow LZ to be enabled when write order is not specified
 	CAT_DEBUG_ENFORCE(!params.lz_enable || !params.write_order);
@@ -1376,8 +1401,6 @@ void MonoWriter::init(const Parameters &params) {
 
 	// If LZ77 is enabled,
 	if (params.lz_enable && pixel_count >= LZ_THRESH) {
-		_params.lz_enable = false;
-
 		// Do a fast trial of filtering without LZ masking to measure the cost per bit
 		profile->init(params.xsize, params.ysize, params.min_bits);
 		_profile = profile;
@@ -1396,9 +1419,7 @@ void MonoWriter::init(const Parameters &params) {
 		// Design LZ matches
 		designLZ();
 
-		_params.lz_enable = true;
-	} else {
-		_params.lz_enable = false;
+		_lz_enable = true;
 	}
 
 	// Try simple row filter first
@@ -1475,7 +1496,7 @@ int MonoWriter::writeTables(ImageWriter &writer) {
 #endif
 
 	// Write LZ enable bit
-	writer.writeBit(_params.lz_enable ? 1 : 0);
+	writer.writeBit(_lz_enable ? 1 : 0);
 
 	// If not using write profile,
 	if (_use_row_filters) {
@@ -1569,7 +1590,7 @@ int MonoWriter::writeTables(ImageWriter &writer) {
 
 	DESYNC_TABLE();
 
-	if (_params.lz_enable) {
+	if (_lz_enable) {
 		Stats.lz_table_bits = _lz.writeTables(writer);
 		_lz_next = _lz.getHead();
 	} else {
@@ -1701,7 +1722,7 @@ int MonoWriter::write(u16 x, u16 y, ImageWriter &writer) {
 	const u8 *data = _params.data + offset;
 
 	// If using LZ,
-	if (_params.lz_enable) {
+	if (_lz_enable) {
 		// If next match is here,
 		if (_lz_next && _lz_next->offset == offset) {
 			CAT_DEBUG_ENFORCE(x + _lz_next->length <= _params.xsize);
@@ -1762,7 +1783,7 @@ int MonoWriter::write(u16 x, u16 y, ImageWriter &writer) {
 		CAT_DEBUG_ENFORCE(!IsMasked(x >> _profile->tile_bits_x, y >> _profile->tile_bits_y));
 
 		// If in LZ mode,
-		if (_params.lz_enable) {
+		if (_lz_enable) {
 			// If did not write a sympal,
 			if (!sympalCovered(x, y)) {
 				// Look up residual sym
@@ -1826,7 +1847,7 @@ void MonoWriter::dumpStats() {
 	CAT_INANE("Mono") << " -  Filter Overhead : " << Stats.filter_overhead_bits << " bits (" << Stats.filter_overhead_bits/8 << " bytes)";
 	CAT_INANE("Mono") << " -  Monochrome Data : " << Stats.data_bits << " bits (" << Stats.data_bits/8 << " bytes)";
 
-	if (_params.lz_enable) {
+	if (_lz_enable) {
 		CAT_INANE("Mono") << " -         LZ Table : " << Stats.lz_table_bits << " bits (" << Stats.lz_table_bits/8 << " bytes)";
 		CAT_INANE("Mono") << " -          LZ Data : " << Stats.lz_bits << " bits (" << Stats.lz_bits/8 << " bytes)";
 	}

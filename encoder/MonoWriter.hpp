@@ -162,6 +162,7 @@ protected:
 	MonoWriterProfile *_profile;			// Selected write profile
 
 	// Workspace
+	bool _lz_enable;						// Enable LZ during processing
 	int _tile_bits_field_bc;				// Bits for tile bits field
 	u8 _sympal_filter_map[MAX_PALETTE];		// Filter index for this palette entry
 	u8 _prev_filter;						// Previous filter for row encoding
