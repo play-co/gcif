@@ -1753,10 +1753,6 @@ int MonoWriter::write(u16 x, u16 y, ImageWriter &writer) {
 		}
 	}
 
-			if (x == 102 && y == 14) {
-				CAT_WARN("WRITING");
-			}
-
 	// If using row filters,
 	if (_use_row_filters) {
 		// Calculate row filter residual for filter data (filter of filters at tree leaf)
@@ -1803,6 +1799,10 @@ int MonoWriter::write(u16 x, u16 y, ImageWriter &writer) {
 
 				// If f is PF, then the residual *must* be a zero
 				CAT_DEBUG_ENFORCE(_profile->filter_indices[f] < SF_COUNT || residual == 0);
+
+			if (x == 102 && y == 14) {
+				CAT_WARN("WRITING");
+			}
 			}
 		} else {
 			// Write filter first for non-LZ case

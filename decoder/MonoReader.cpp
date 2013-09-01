@@ -288,7 +288,7 @@ int MonoReader::readRowHeader(u16 y, ImageReader & CAT_RESTRICT reader) {
 	return GCIF_RE_OK;
 }
 
-u8 MonoReader::read_lz(u16 code, ImageReader & CAT_RESTRICT reader, u16 x, u8 * CAT_RESTRICT data) {
+u8 MonoReader::read_lz_row_filter(u16 code, ImageReader & CAT_RESTRICT reader, u16 x, u8 * CAT_RESTRICT data) {
 	// Decode LZ match
 	u32 dist;
 	int len = _lz.read(code, reader, dist);
@@ -348,7 +348,7 @@ u8 MonoReader::read_row_filter(u16 x, ImageReader & CAT_RESTRICT reader) {
 	// If value is an LZ escape code,
 	if (value >= num_syms) {
 		// Read LZ code
-		return read_lz(value - num_syms, reader, x, data);
+		return read_lz_row_filter(value - num_syms, reader, x, data);
 	}
 
 	// Defilter the filter value
@@ -507,6 +507,37 @@ u8 MonoReader::read_tile_unsafe(u16 x, ImageReader & CAT_RESTRICT reader) {
 	return ( *data = static_cast<u8>( value ) );
 }
 
+u8 MonoReader::read_lz_tile(u16 code, ImageReader & CAT_RESTRICT reader, u16 x, u8 * CAT_RESTRICT data) {
+	// Decode LZ match
+	u32 dist;
+	int len = _lz.read(code, reader, dist);
+
+	DESYNC(x, 0);
+
+	// If LZ match starts before start of image,
+	if CAT_UNLIKELY(data < _params.data + dist) {
+		CAT_DEBUG_EXCEPTION();
+		return 0;
+	}
+
+	// If LZ match exceeds raster width,
+	if CAT_UNLIKELY(x + len > _params.xsize) {
+		CAT_DEBUG_EXCEPTION();
+		return 0;
+	}
+
+	// Simple memory move to get it where it needs to be
+	const volatile u8 *src = data - dist;
+	for (int ii = 0; ii < len; ++ii) {
+		data[ii] = src[ii];
+	}
+
+	// Clear zero region
+	_chaos.zeroRegion(x, len);
+
+	// Stop here
+	return *data;
+}
 
 // Safe tiled version, for edges of image
 u8 MonoReader::read_tile_safe_lz(u16 x, ImageReader & CAT_RESTRICT reader) {
@@ -547,7 +578,7 @@ u8 MonoReader::read_tile_safe_lz(u16 x, ImageReader & CAT_RESTRICT reader) {
 		// If residual is LZ escape code,
 		if (residual >= num_syms) {
 			// Read LZ match
-			return read_lz(residual - num_syms, reader, x, data);
+			return read_lz_tile(residual - num_syms, reader, x, data);
 		}
 
 		DESYNC(x, y);
@@ -584,7 +615,7 @@ u8 MonoReader::read_tile_safe_lz(u16 x, ImageReader & CAT_RESTRICT reader) {
 		// If residual is LZ escape code,
 		if (residual >= num_syms) {
 			// Read LZ match
-			return read_lz(residual - num_syms, reader, x, data);
+			return read_lz_tile(residual - num_syms, reader, x, data);
 		}
 
 #ifdef CAT_DESYNCH_CHECKS
@@ -654,7 +685,7 @@ u8 MonoReader::read_tile_unsafe_lz(u16 x, ImageReader & CAT_RESTRICT reader) {
 		// If residual is LZ escape code,
 		if (residual >= num_syms) {
 			// Read LZ match
-			return read_lz(residual - num_syms, reader, x, data);
+			return read_lz_tile(residual - num_syms, reader, x, data);
 		}
 
 		const u8 f = _filter_decoder_read(tx, reader);
@@ -693,7 +724,7 @@ u8 MonoReader::read_tile_unsafe_lz(u16 x, ImageReader & CAT_RESTRICT reader) {
 		// If residual is LZ escape code,
 		if (residual >= num_syms) {
 			// Read LZ match
-			return read_lz(residual - num_syms, reader, x, data);
+			return read_lz_tile(residual - num_syms, reader, x, data);
 		}
 
 		// Store for next chaos lookup

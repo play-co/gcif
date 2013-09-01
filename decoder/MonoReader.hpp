@@ -130,10 +130,12 @@ protected:
 
 	void cleanup();
 
-	u8 read_lz(u16 code, ImageReader & CAT_RESTRICT reader, u16 x, u8 * CAT_RESTRICT data);
+	u8 read_lz_row_filter(u16 code, ImageReader & CAT_RESTRICT reader, u16 x, u8 * CAT_RESTRICT data);
 
 	// Edge-safe row filter version
 	u8 read_row_filter(u16 x, ImageReader & CAT_RESTRICT reader);
+
+	u8 read_lz_tile(u16 code, ImageReader & CAT_RESTRICT reader, u16 x, u8 * CAT_RESTRICT data);
 
 	// Safe tiled version, for edges of image
 	u8 read_tile_safe(u16 x, ImageReader & CAT_RESTRICT reader);
