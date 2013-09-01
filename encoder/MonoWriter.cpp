@@ -1167,7 +1167,7 @@ void MonoWriter::designChaos() {
 	// Initialize tile seen array
 	_tile_seen.resize(_profile->tiles_x);
 
-	CAT_INANE("Mono") << "Designing chaos for profile " << _profile;
+	//CAT_INANE("Mono") << "Designing chaos...";
 
 	u32 best_entropy = 0x7fffffff;
 
@@ -1253,9 +1253,6 @@ void MonoWriter::designChaos() {
 
 						// If pixel is LZ masked,
 						if (_lz.masked(x, y)) {
-							if (y == 28) {
-								CAT_WARN("LZ") << "at " << x << ", " << y;
-							}
 							encoders->chaos.zero(x);
 							continue;
 						}
@@ -1266,9 +1263,6 @@ void MonoWriter::designChaos() {
 
 					if (_params.mask(x, y)) {
 						encoders->chaos.zero(x);
-						if (y == 28) {
-							CAT_WARN("MASK") << "at " << x << ", " << y;
-						}
 					} else {
 						const u8 f = _profile->getTile(tx, ty);
 						CAT_DEBUG_ENFORCE(f < _profile->filter_count);
@@ -1280,10 +1274,6 @@ void MonoWriter::designChaos() {
 								// If PF was not seen,
 								if (_tile_seen[tx] == 0) {
 									_tile_seen[tx] = 1;
-
-									if (y == 28) {
-										CAT_WARN("PF") << "Adding extra zero at " << x << ", " << y;
-									}
 
 									// Will be writing a zero here
 									int chaos = encoders->chaos.get(x);
@@ -1300,10 +1290,6 @@ void MonoWriter::designChaos() {
 							int chaos = encoders->chaos.next(x, residual, _params.num_syms);
 
 							encoders->encoder[chaos].add(residual);
-
-							if (y == 28) {
-								CAT_WARN("ResidualIn") << "Added " << x << ", " << y << " = " << (int)residual << " chaos " << chaos;
-							}
 						}
 					}
 				}
@@ -1709,10 +1695,6 @@ bool MonoWriter::sympalCovered(u16 x, u16 y) {
 		// If tile is PF,
 		u8 f = _profile->getTile(tx, ty);
 		if (_profile->filter_indices[f] >= SF_COUNT) {
-			if (y == 28) {
-				CAT_WARN("SYMPAL COVERED") << x << ", " << y;
-			}
-
 			_profile->encoders->chaos.zero(x);
 			return true;
 		}
@@ -1768,10 +1750,6 @@ int MonoWriter::write(u16 x, u16 y, ImageWriter &writer) {
 
 		// If this is a masked byte,
 		if (_lz.masked(x, y)) {
-			if (y == 28) {
-				CAT_WARN("LZ") << "at " << x << ", " << y;
-			}
-
 			Stats.filter_overhead_bits += overhead_bits;
 			return overhead_bits;
 		}
@@ -1807,10 +1785,6 @@ int MonoWriter::write(u16 x, u16 y, ImageWriter &writer) {
 
 				// Calculate and update local chaos
 				int chaos = _profile->encoders->chaos.next(x, residual, _params.num_syms);
-
-				if (y == 28) {
-					CAT_WARN("ResidualOut") << "Writing " << x << ", " << y << " = " << (int)residual << " chaos " << chaos << " profile " << _profile;
-				}
 
 				// Write the residual value
 				data_bits += _profile->encoders->encoder[chaos].write(residual, writer);

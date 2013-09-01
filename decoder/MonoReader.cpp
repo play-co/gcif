@@ -192,9 +192,6 @@ int MonoReader::readTables(const Parameters & CAT_RESTRICT params, ImageReader &
 			_filter_decoder = new MonoReader;
 		}
 
-		// Get safe read delegate
-		_filter_decoder_read = _filter_decoder->getReadDelegate(true);
-
 		Parameters sub_params;
 		sub_params.data = _tiles.get();
 		sub_params.xsize = _tiles_x;
@@ -207,6 +204,9 @@ int MonoReader::readTables(const Parameters & CAT_RESTRICT params, ImageReader &
 		if CAT_UNLIKELY((err = _filter_decoder->readTables(sub_params, reader))) {
 			return err;
 		}
+
+		// Get safe read delegate
+		_filter_decoder_read = _filter_decoder->getReadDelegate(true);
 
 		_filter_decoder->setupUnordered();
 
