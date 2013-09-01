@@ -377,6 +377,159 @@ u8 MonoReader::read_tile_safe(u16 x, ImageReader & CAT_RESTRICT reader) {
 
 	DESYNC(x, y);
 
+	u16 value;
+	const u16 num_syms = _params.num_syms;
+
+	// Check cached filter
+	const u16 tx = x >> _tile_bits_x;
+
+	// Choose safe/unsafe filter
+	MonoFilterFunc filter = _filter_row[tx].safe;
+
+	// If filter is not read yet,
+	if (!filter) {
+		// Get chaos bin
+		const int chaos = _chaos.get(x);
+
+		const u8 f = _filter_decoder_read(tx, reader);
+
+		// Read filter
+		MonoFilterFuncs * CAT_RESTRICT funcs = &_sf[f];
+		_filter_row[tx] = *funcs;
+		filter = funcs->safe; // Choose here
+
+		DESYNC(x, y);
+	}
+
+	// If the filter is a palette symbol,
+#ifdef CAT_WORD_64
+	const u64 pf = (u64)filter;
+#else
+	const u32 pf = (u32)filter;
+#endif
+	if (pf <= MAX_PALETTE+1) {
+		value = _palette[pf - 1];
+		_chaos.zero(x);
+	} else {
+		// Get chaos bin
+		const int chaos = _chaos.get(x);
+
+		// Read residual from bitstream
+		const u16 residual = _decoder[chaos].next(reader);
+
+		CAT_DEBUG_ENFORCE(residual < num_syms);
+
+		// Store for next chaos lookup
+		_chaos.store(x, static_cast<u8>( residual ), num_syms);
+
+		// Calculate predicted value
+		const u16 pred = filter(data, num_syms, x, _current_y, _params.xsize);
+
+		CAT_DEBUG_ENFORCE(pred < num_syms);
+
+		// Defilter using prediction
+		value = residual + pred;
+		if (value >= num_syms) {
+			value -= num_syms;
+		}
+	}
+
+	DESYNC(x, y);
+
+	CAT_DEBUG_ENFORCE(!reader.eof());
+
+	return ( *data = static_cast<u8>( value ) );
+}
+
+// Faster tiled version, when spatial filters can be unsafe
+u8 MonoReader::read_tile_unsafe(u16 x, ImageReader & CAT_RESTRICT reader) {
+#ifdef CAT_DEBUG
+	const u16 y = _current_y;
+#endif
+
+	u8 * CAT_RESTRICT data = _current_row + x;
+
+	CAT_DEBUG_ENFORCE(x < _params.xsize && y < _params.ysize);
+
+	DESYNC(x, y);
+
+	u16 value;
+	const u16 num_syms = _params.num_syms;
+
+	// Check cached filter
+	const u16 tx = x >> _tile_bits_x;
+
+	// Choose safe/unsafe filter
+	MonoFilterFunc filter = _filter_row[tx].unsafe;
+
+	// If filter is not read yet,
+	if (!filter) {
+		// Get chaos bin
+		const int chaos = _chaos.get(x);
+
+		const u8 f = _filter_decoder_read(tx, reader);
+
+		// Read filter
+		MonoFilterFuncs * CAT_RESTRICT funcs = &_sf[f];
+		_filter_row[tx] = *funcs;
+		filter = funcs->unsafe; // Choose here
+
+		DESYNC(x, y);
+	}
+
+	// If the filter is a palette symbol,
+#ifdef CAT_WORD_64
+	const u64 pf = (u64)filter;
+#else
+	const u32 pf = (u32)filter;
+#endif
+	if (pf <= MAX_PALETTE+1) {
+		value = _palette[pf - 1];
+		_chaos.zero(x);
+	} else {
+		// Get chaos bin
+		const int chaos = _chaos.get(x);
+
+		// Read residual from bitstream
+		const u16 residual = _decoder[chaos].next(reader);
+
+		CAT_DEBUG_ENFORCE(residual < num_syms);
+
+		// Store for next chaos lookup
+		_chaos.store(x, static_cast<u8>( residual ), num_syms);
+
+		// Calculate predicted value
+		const u16 pred = filter(data, num_syms, x, _current_y, _params.xsize);
+
+		CAT_DEBUG_ENFORCE(pred < num_syms);
+
+		// Defilter using prediction
+		value = residual + pred;
+		if (value >= num_syms) {
+			value -= num_syms;
+		}
+	}
+
+	DESYNC(x, y);
+
+	CAT_DEBUG_ENFORCE(!reader.eof());
+
+	return ( *data = static_cast<u8>( value ) );
+}
+
+
+// Safe tiled version, for edges of image
+u8 MonoReader::read_tile_safe_lz(u16 x, ImageReader & CAT_RESTRICT reader) {
+#ifdef CAT_DEBUG
+	const u16 y = _current_y;
+#endif
+
+	u8 * CAT_RESTRICT data = _current_row + x;
+
+	CAT_DEBUG_ENFORCE(x < _params.xsize && y < _params.ysize);
+
+	DESYNC(x, y);
+
 	// If LZ already copied this data byte,
 	if (x < _lz_xend) {
 		return *data;
@@ -467,7 +620,7 @@ u8 MonoReader::read_tile_safe(u16 x, ImageReader & CAT_RESTRICT reader) {
 }
 
 // Faster tiled version, when spatial filters can be unsafe
-u8 MonoReader::read_tile_unsafe(u16 x, ImageReader & CAT_RESTRICT reader) {
+u8 MonoReader::read_tile_unsafe_lz(u16 x, ImageReader & CAT_RESTRICT reader) {
 #ifdef CAT_DEBUG
 	const u16 y = _current_y;
 #endif

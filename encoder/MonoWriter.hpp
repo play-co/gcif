@@ -234,6 +234,11 @@ protected:
 	// Get filter and write it if needed
 	u8 writeFilter(u16 x, u16 y, ImageWriter &writer, int &overhead_bits); // Returns filter for pixel
 
+	// So this bit is pretty complicated.  Sorry.
+	// The idea is that PF tiles emit zero symbols on the first unmasked pixel
+	// as a trade-off for more efficient LZ match encoding.
+	bool sympalCovered(u16 x, u16 y);
+
 public:
 	CAT_INLINE MonoWriter() {
 		_profile = 0;

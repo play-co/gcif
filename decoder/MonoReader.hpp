@@ -141,6 +141,12 @@ protected:
 	// Faster tiled version, when spatial filters can be unsafe
 	u8 read_tile_unsafe(u16 x, ImageReader & CAT_RESTRICT reader);
 
+	// Safe tiled version, for edges of image
+	u8 read_tile_safe_lz(u16 x, ImageReader & CAT_RESTRICT reader);
+
+	// Faster tiled version, when spatial filters can be unsafe
+	u8 read_tile_unsafe_lz(u16 x, ImageReader & CAT_RESTRICT reader);
+
 public:
 	CAT_INLINE MonoReader() {
 		_filter_decoder = 0;
@@ -173,10 +179,18 @@ public:
 	CAT_INLINE ReadDelegate getReadDelegate(bool safe) {
 		if (_use_row_filters) {
 			return ReadDelegate::FromMember<MonoReader, &MonoReader::read_row_filter>(this);
-		} else if (safe) {
-			return ReadDelegate::FromMember<MonoReader, &MonoReader::read_tile_safe>(this);
+		} else if (_lz_enabled) {
+			if (safe) {
+				return ReadDelegate::FromMember<MonoReader, &MonoReader::read_tile_safe_lz>(this);
+			} else {
+				return ReadDelegate::FromMember<MonoReader, &MonoReader::read_tile_unsafe_lz>(this);
+			}
 		} else {
-			return ReadDelegate::FromMember<MonoReader, &MonoReader::read_tile_unsafe>(this);
+			if (safe) {
+				return ReadDelegate::FromMember<MonoReader, &MonoReader::read_tile_safe>(this);
+			} else {
+				return ReadDelegate::FromMember<MonoReader, &MonoReader::read_tile_unsafe>(this);
+			}
 		}
 	}
 };

@@ -360,9 +360,11 @@ void MonoWriter::maskTiles() {
 				while (cx-- > 0 && px < xsize) {
 					// If it is not masked,
 					if (!_params.mask(px, py)) {
-						// We need to do this tile
-						*m = 0;
-						goto next_tile;
+						if (!_params.lz_enable || !_lz.masked(px, py)) {
+							// We need to do this tile
+							*m = 0;
+							goto next_tile;
+						}
 					}
 					++px;
 				}
@@ -540,12 +542,6 @@ void MonoWriter::designFilters() {
 			// If data is uniform,
 			int offset = 0;
 			if (uniform) {
-				// If masked out from LZ,
-				if (!seen) {
-					*p = LZ_MASKED_FILTER_CODE; // TODO
-					continue;
-				}
-
 				// Find the matching filter
 				for (int f = 0, f_end = _profile->sympal_filter_count; f < f_end; ++f) {
 					if (_profile->sympal[f] == uniform_value) {
@@ -689,8 +685,7 @@ void MonoWriter::designPaletteTiles() {
 
 			// If this tile was initially paletted,
 			const u8 value = *p;
-			if (value >= SF_COUNT &&
-				value != LZ_MASK_SYMBOL) { // TODO
+			if (value >= SF_COUNT) {
 				// Look up the new filter value
 				u8 filter = _sympal_filter_map[value - SF_COUNT];
 
@@ -937,26 +932,28 @@ void MonoWriter::computeResiduals() {
 		if (order) {
 			u16 x;
 			while ((x = *order++) != ORDER_SENTINEL) {
-				u16 tx = x >> tile_bits_x;
+				u16 residual, tx = x >> tile_bits_x;
 				u8 f = _profile->getTile(tx, ty);
 
 				// If type is sympal,
 				if (f >= _profile->normal_filter_count) {
-					continue;
-				}
+					// Output a residual of zero on first pixel of a PF tile
+					residual = 0;
+				} else {
+					// Read input data
+					u8 value = data[x];
 
-				// Read input data
-				u8 value = data[x];
+					// Run spatial filter to arrive at a prediction
+					u8 prediction = _profile->filters[f].safe(&replay[x], num_syms, x, y, xsize);
+					residual = value + num_syms - prediction;
+					if (residual >= num_syms) {
+						residual -= num_syms;
+					}
 
-				// Run spatial filter to arrive at a prediction
-				u8 prediction = _profile->filters[f].safe(&replay[x], num_syms, x, y, xsize);
-				u16 residual = value + num_syms - prediction;
-				if (residual >= num_syms) {
-					residual -= num_syms;
+					replay[x] = value;
 				}
 
 				// Store residual
-				replay[x] = value;
 				residuals[x] = static_cast<u8>( residual );
 			}
 
@@ -973,22 +970,23 @@ void MonoWriter::computeResiduals() {
 				// If element is not masked,
 				if (!_params.mask(x, y)) {
 					// Grab filter for this tile
-					u16 tx = x >> tile_bits_x;
+					u16 residual, tx = x >> tile_bits_x;
 					u8 f = _profile->getTile(tx, ty);
 
 					// If type is sympal,
 					if (f >= _profile->normal_filter_count) {
-						continue;
-					}
+						// Output a residual of zero on first pixel of a PF tile
+						residual = 0;
+					} else {
+						// Read input data
+						u8 value = data[0];
 
-					// Read input data
-					u8 value = data[0];
-
-					// Run spatial filter to arrive at a prediction
-					u8 prediction = _profile->filters[f].safe(data, num_syms, x, y, xsize);
-					u16 residual = value + num_syms - prediction;
-					if (residual >= num_syms) {
-						residual -= num_syms;
+						// Run spatial filter to arrive at a prediction
+						u8 prediction = _profile->filters[f].safe(data, num_syms, x, y, xsize);
+						residual = value + num_syms - prediction;
+						if (residual >= num_syms) {
+							residual -= num_syms;
+						}
 					}
 
 					// Store residual
@@ -1001,9 +999,6 @@ void MonoWriter::computeResiduals() {
 
 void MonoWriter::optimizeTiles() {
 	//CAT_INANE("Mono") << "Optimizing tiles for " << _profile->tiles_x << "x" << _profile->tiles_y << "...";
-
-	// TODO: Convert LZ tiles to most common symbol
-	// TODO: Update profile mask to include LZ masked pixels
 
 	_optimizer.process(_profile->tiles.get(), _profile->tiles_x, _profile->tiles_y, _profile->filter_count,
 			PaletteOptimizer::MaskDelegate::FromMember<MonoWriter, &MonoWriter::IsMasked>(this));
@@ -1243,15 +1238,24 @@ void MonoWriter::designChaos() {
 						const u8 f = _profile->getTile(tx, ty);
 						CAT_DEBUG_ENFORCE(f < _profile->filter_count);
 
+						int chaos = encoders->chaos.get(x);
+
 						// If masked or sympal,
 						if (_profile->filter_indices[f] >= SF_COUNT) {
 							encoders->chaos.zero(x);
+
+							// If PF was not seen,
+							if (_tile_seen[tx] == 0) {
+								_tile_seen[tx] = 1;
+
+								// Will be writing a zero here
+								encoders->encoder[chaos].add(0);
+							}
 						} else {
 							// Get residual symbol
 							u8 residual = residuals[0];
 
 							// Get chaos bin
-							int chaos = encoders->chaos.get(x);
 							encoders->chaos.store(x, residual, _params.num_syms);
 
 							// Add to histogram for this chaos bin
@@ -1635,10 +1639,7 @@ u8 MonoWriter::writeFilter(u16 x, u16 y, ImageWriter &writer, int &overhead_bits
 	const u16 tx = x >> _profile->tile_bits_x;
 	const u16 ty = y >> _profile->tile_bits_y;
 
-	// TODO: Only check for mask here not LZ modified one (will still write for LZ masked)
-	if (IsMasked(tx, ty)) {
-		return 0;
-	}
+	CAT_DEBUG_ENFORCE(!IsMasked(tx, ty));
 
 	// If tile not seen yet,
 	if (_tile_seen[tx] == 0) {
@@ -1653,6 +1654,25 @@ u8 MonoWriter::writeFilter(u16 x, u16 y, ImageWriter &writer, int &overhead_bits
 	}
 
 	return _profile->getTile(tx, ty);
+}
+
+bool MonoWriter::sympalCovered(u16 x, u16 y) {
+	// Get tile
+	const u16 tx = x >> _profile->tile_bits_x;
+	const u16 ty = y >> _profile->tile_bits_y;
+
+	CAT_DEBUG_ENFORCE(!IsMasked(tx, ty));
+
+	// If tile seen,
+	if (_tile_seen[tx] == 1) {
+		// If tile is PF,
+		u8 f = _profile->getTile(tx, ty);
+		if (_profile->filter_indices[f] >= SF_COUNT) {
+			return true;
+		}
+	}
+
+	return false;
 }
 
 int MonoWriter::write(u16 x, u16 y, ImageWriter &writer) {
@@ -1682,9 +1702,6 @@ int MonoWriter::write(u16 x, u16 y, ImageWriter &writer) {
 				// Set filter to the last one in the match region
 				_prev_filter = data[_lz_next->length - 1];
 			} else {
-				// Write filter before writing LZ to sync with decoder
-				writeFilter(x, y, writer, overhead_bits);
-
 				int chaos = _profile->encoders->chaos.get(x);
 				lz_bits = _lz.write(_lz_next, _profile->encoders->encoder[chaos], writer);
 
@@ -1729,12 +1746,8 @@ int MonoWriter::write(u16 x, u16 y, ImageWriter &writer) {
 	} else {
 		CAT_DEBUG_ENFORCE(!IsMasked(x >> _profile->tile_bits_x, y >> _profile->tile_bits_y));
 
-		u8 f = writeFilter(x, y, writer, overhead_bits);
-
-		// If using sympal,
-		if (_profile->filter_indices[f] >= SF_COUNT) {
-			_profile->encoders->chaos.zero(x);
-		} else {
+		// If did not write a sympal,
+		if (!sympalCovered(x, y)) {
 			// Look up residual sym
 			u8 residual = _profile->residuals[offset];
 
@@ -1744,6 +1757,15 @@ int MonoWriter::write(u16 x, u16 y, ImageWriter &writer) {
 
 			// Write the residual value
 			data_bits += _profile->encoders->encoder[chaos].write(residual, writer);
+
+			// Write filter if needed
+#ifdef CAT_DEBUG
+			u8 f =
+#endif
+				writeFilter(x, y, writer, overhead_bits);
+
+			// If f is PF, then the residual *must* be a zero
+			CAT_DEBUG_ENFORCE(_profile->filter_indices[f] < SF_COUNT || residual == 0);
 		}
 	}
 
