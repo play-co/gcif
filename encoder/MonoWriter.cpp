@@ -1712,6 +1712,8 @@ bool MonoWriter::sympalCovered(u16 x, u16 y) {
 			if (y == 28) {
 				CAT_WARN("SYMPAL COVERED") << x << ", " << y;
 			}
+
+			_profile->encoders->chaos.zero(x);
 			return true;
 		}
 	}
