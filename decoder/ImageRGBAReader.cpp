@@ -107,6 +107,8 @@ int ImageRGBAReader::readFilterTables(ImageReader & CAT_RESTRICT reader) {
 		if ((err = _sf_decoder.readTables(params, reader))) {
 			return err;
 		}
+
+		_sf_decoder_read = _sf_decoder.getReadDelegate(true);
 	}
 
 	DESYNC_TABLE();
@@ -127,6 +129,8 @@ int ImageRGBAReader::readFilterTables(ImageReader & CAT_RESTRICT reader) {
 		if ((err = _cf_decoder.readTables(params, reader))) {
 			return err;
 		}
+
+		_cf_decoder_read = _cf_decoder.getReadDelegate(true);
 	}
 
 	DESYNC_TABLE();
@@ -156,6 +160,9 @@ int ImageRGBAReader::readRGBATables(ImageReader & CAT_RESTRICT reader) {
 		if ((err = _a_decoder.readTables(params, reader))) {
 			return err;
 		}
+
+		_a_decoder_read_safe = _a_decoder.getReadDelegate(true);
+		_a_decoder_read_unsafe = _a_decoder.getReadDelegate(false);
 	}
 
 	DESYNC_TABLE();
@@ -256,7 +263,7 @@ CAT_INLINE void ImageRGBAReader::readSafe(u16 &x, const u16 y, u8 * CAT_RESTRICT
 			YUV[2] = (u8)_v_decoder[cv].next(reader);
 
 			// Read alpha pixel
-			p[3] = (u8)~_a_decoder.read(x, reader);
+			p[3] = (u8)~_a_decoder_read_safe(x, reader);
 
 			DESYNC(x, y);
 
@@ -341,7 +348,7 @@ CAT_INLINE void ImageRGBAReader::readUnsafe(u16 &x, const u16 y, u8 * CAT_RESTRI
 			YUV[2] = (u8)_v_decoder[cv].next(reader);
 
 			// Read alpha pixel
-			p[3] = (u8)~_a_decoder.read(x, reader);
+			p[3] = (u8)~_a_decoder_read_unsafe(x, reader);
 
 			DESYNC(x, y);
 

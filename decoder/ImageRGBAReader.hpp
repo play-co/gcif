@@ -107,6 +107,12 @@ protected:
 	SmartArray<u8> _sf_tiles, _cf_tiles, _a_tiles;
 	MonoReader _sf_decoder, _cf_decoder, _a_decoder;
 
+	// Readers
+	MonoReader::ReadDelegate _sf_decoder_read;
+	MonoReader::ReadDelegate _cf_decoder_read;
+	MonoReader::ReadDelegate _a_decoder_read_safe;
+	MonoReader::ReadDelegate _a_decoder_read_unsafe;
+
 	// RGB decoders
 	RGBChaos _chaos;
 	EntropyDecoder _y_decoder[MAX_CHAOS_LEVELS];
@@ -121,8 +127,8 @@ protected:
 		FilterSelection * CAT_RESTRICT filter = &_filters[tx];
 
 		if (!filter->ready()) {
-			filter->cf = YUV2RGB_FILTERS[_cf_decoder.read(tx, reader)];
-			filter->sf = _sf[_sf_decoder.read(tx, reader)];
+			filter->cf = YUV2RGB_FILTERS[_cf_decoder_read(tx, reader)];
+			filter->sf = _sf[_sf_decoder_read(tx, reader)];
 		}
 
 		return filter;

@@ -151,7 +151,11 @@ int ImagePaletteReader::readPixels(ImageReader & CAT_RESTRICT reader) {
 
 	u32 * CAT_RESTRICT rgba = reinterpret_cast<u32 *>( _rgba );
 
+	// Set up read delegates
+	MonoReader::ReadDelegate read_safe = _mono_decoder.getReadDelegate(true);
+
 #ifdef CAT_UNROLL_READER
+	MonoReader::ReadDelegate read_unsafe = _mono_decoder.getReadDelegate(false);
 
 	// Unroll y = 0 scanline
 	{
@@ -178,7 +182,7 @@ int ImagePaletteReader::readPixels(ImageReader & CAT_RESTRICT reader) {
 				*p = MASK_PAL;
 				_mono_decoder.zero(x);
 			} else {
-				u8 index = _mono_decoder.read(x, reader);
+				u8 index = read_safe(x, reader);
 
 				CAT_DEBUG_ENFORCE(index < _palette_size);
 
@@ -214,7 +218,7 @@ int ImagePaletteReader::readPixels(ImageReader & CAT_RESTRICT reader) {
 				*p = MASK_PAL;
 				_mono_decoder.zero(x);
 			} else {
-				u8 index = _mono_decoder.read(x, reader);
+				u8 index = read_safe(x, reader);
 
 				CAT_DEBUG_ENFORCE(index < _palette_size);
 
@@ -242,7 +246,7 @@ int ImagePaletteReader::readPixels(ImageReader & CAT_RESTRICT reader) {
 				*p = MASK_PAL;
 				_mono_decoder.zero(x);
 			} else {
-				u8 index = _mono_decoder.read_unsafe(x, reader);
+				u8 index = read_unsafe(x, reader);
 
 				CAT_DEBUG_ENFORCE(index < _palette_size);
 
@@ -273,7 +277,7 @@ int ImagePaletteReader::readPixels(ImageReader & CAT_RESTRICT reader) {
 				*p = MASK_PAL;
 				_mono_decoder.zero(x);
 			} else {
-				u8 index = _mono_decoder.read(x, reader);
+				u8 index = read_safe(x, reader);
 
 				CAT_DEBUG_ENFORCE(index < _palette_size);
 
@@ -308,7 +312,7 @@ int ImagePaletteReader::readPixels(ImageReader & CAT_RESTRICT reader) {
 				*p = MASK_PAL;
 				_mono_decoder.zero(x);
 			} else {
-				u8 index = _mono_decoder.read(x, reader);
+				u8 index = read_safe(x, reader);
 
 				CAT_DEBUG_ENFORCE(index < _palette_size);
 

@@ -83,6 +83,9 @@ public:
 	// bool IsMasked(u16 x, u16 y)
 	typedef Delegate2<bool, u16, u16> MaskDelegate;
 
+	// u8 read(u16 x, ImageReader & CAT_RESTRICT reader)
+	typedef Delegate2<u8, u16, ImageReader & CAT_RESTRICT> ReadDelegate;
+
 	struct Parameters {
 		u8 * CAT_RESTRICT data;			// Output data
 		u16 xsize, ysize;				// Data dimensions
@@ -103,8 +106,10 @@ protected:
 	MonoFilterFuncs _sf[MAX_FILTERS];
 	int _filter_count;
 
-	MonoReader * CAT_RESTRICT _filter_decoder;
-	SmartArray<MonoFilterFuncs> _filter_row;
+	// Tiled mode
+	MonoReader * CAT_RESTRICT _filter_decoder;		// Filter decoder to use
+	ReadDelegate _filter_decoder_read;				// Filter decoder reader delegate
+	SmartArray<MonoFilterFuncs> _filter_row;		// Tiles for current row
 
 	bool _use_row_filters, _one_row_filter;
 	u8 _row_filter, _prev_filter;
@@ -124,6 +129,17 @@ protected:
 	int _lz_xend;		// Next non-LZ pixel x coordinate (to skip over matches, with mask in mind)
 
 	void cleanup();
+
+	u8 read_lz(u16 code, ImageReader & CAT_RESTRICT reader, u16 x, u8 * CAT_RESTRICT data);
+
+	// Edge-safe row filter version
+	u8 read_row_filter(u16 x, ImageReader & CAT_RESTRICT reader);
+
+	// Safe tiled version, for edges of image
+	u8 read_tile_safe(u16 x, ImageReader & CAT_RESTRICT reader);
+
+	// Faster tiled version, when spatial filters can be unsafe
+	u8 read_tile_unsafe(u16 x, ImageReader & CAT_RESTRICT reader);
 
 public:
 	CAT_INLINE MonoReader() {
@@ -154,10 +170,15 @@ public:
 		return _current_row;
 	}
 
-	u8 read(u16 x, ImageReader & CAT_RESTRICT reader);
-
-	// Faster top-level version, when spatial filters can be unsafe
-	u8 read_unsafe(u16 x, ImageReader & CAT_RESTRICT reader);
+	CAT_INLINE ReadDelegate getReadDelegate(bool safe) {
+		if (_use_row_filters) {
+			return ReadDelegate::FromMember<MonoReader, &MonoReader::read_row_filter>(this);
+		} else if (safe) {
+			return ReadDelegate::FromMember<MonoReader, &MonoReader::read_tile_safe>(this);
+		} else {
+			return ReadDelegate::FromMember<MonoReader, &MonoReader::read_tile_unsafe>(this);
+		}
+	}
 };
 
 

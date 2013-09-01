@@ -192,6 +192,9 @@ int MonoReader::readTables(const Parameters & CAT_RESTRICT params, ImageReader &
 			_filter_decoder = new MonoReader;
 		}
 
+		// Get safe read delegate
+		_filter_decoder_read = _filter_decoder->getReadDelegate(true);
+
 		Parameters sub_params;
 		sub_params.data = _tiles.get();
 		sub_params.xsize = _tiles_x;
@@ -285,7 +288,85 @@ int MonoReader::readRowHeader(u16 y, ImageReader & CAT_RESTRICT reader) {
 	return GCIF_RE_OK;
 }
 
-u8 MonoReader::read(u16 x, ImageReader & CAT_RESTRICT reader) {
+u8 MonoReader::read_lz(u16 code, ImageReader & CAT_RESTRICT reader, u16 x, u8 * CAT_RESTRICT data) {
+	// Decode LZ match
+	u32 dist;
+	int len = _lz.read(code, reader, dist);
+
+	// If LZ match starts before start of image,
+	if CAT_UNLIKELY(data < _params.data + dist) {
+		CAT_DEBUG_EXCEPTION();
+		return 0;
+	}
+
+	// If LZ match exceeds raster width,
+	if CAT_UNLIKELY(x + len > _params.xsize) {
+		CAT_DEBUG_EXCEPTION();
+		return 0;
+	}
+
+	// Simple memory move to get it where it needs to be
+	const volatile u8 *src = data - dist;
+	for (int ii = 0; ii < len; ++ii) {
+		data[ii] = src[ii];
+	}
+
+	// Set LZ skip region
+	_lz_xend = x + len;
+
+	// After this LZ skip region, the last value will be the prev filter
+	_prev_filter = data[len - 1];
+
+	// Stop here
+	return *data;
+}
+
+// Edge-safe row filter version
+u8 MonoReader::read_row_filter(u16 x, ImageReader & CAT_RESTRICT reader) {
+#ifdef CAT_DEBUG
+	const u16 y = _current_y;
+#endif
+
+	u8 * CAT_RESTRICT data = _current_row + x;
+
+	CAT_DEBUG_ENFORCE(x < _params.xsize && y < _params.ysize);
+
+	DESYNC(x, y);
+
+	// If LZ already copied this data byte,
+	if (x < _lz_xend) {
+		return *data;
+	}
+
+	const u16 num_syms = _params.num_syms;
+
+	// Read filter residual directly
+	u16 value = _row_filter_decoder.next(reader);
+
+	// If value is an LZ escape code,
+	if (value >= num_syms) {
+		// Read LZ code
+		return read_lz(value - num_syms, reader, x, data);
+	}
+
+	// Defilter the filter value
+	if (_row_filter == RF_PREV) {
+		value += _prev_filter;
+		if (value >= num_syms) {
+			value -= num_syms;
+		}
+		_prev_filter = static_cast<u8>( value );
+	}
+
+	DESYNC(x, y);
+
+	CAT_DEBUG_ENFORCE(!reader.eof());
+
+	return ( *data = static_cast<u8>( value ) );
+}
+
+// Safe tiled version, for edges of image
+u8 MonoReader::read_tile_safe(u16 x, ImageReader & CAT_RESTRICT reader) {
 #ifdef CAT_DEBUG
 	const u16 y = _current_y;
 #endif
@@ -304,140 +385,77 @@ u8 MonoReader::read(u16 x, ImageReader & CAT_RESTRICT reader) {
 	u16 value;
 	const u16 num_syms = _params.num_syms;
 
-	// If using row filters,
-	if (_use_row_filters) {
-		// Read filter residual directly
-		value = _row_filter_decoder.next(reader);
+	// Check cached filter
+	const u16 tx = x >> _tile_bits_x;
 
-		// If value is an LZ escape code,
-		if (value >= num_syms) {
-			// Decode LZ match
-			u32 dist;
-			int len = _lz.read(value - num_syms, reader, dist);
+	// Choose safe/unsafe filter
+	MonoFilterFunc filter = _filter_row[tx].safe;
 
-			// If LZ match starts before start of image,
-			if CAT_UNLIKELY(data < _params.data + dist) {
-				CAT_DEBUG_EXCEPTION();
-				return 0;
-			}
+	u16 residual;
+	bool readResidual = false;
 
-			// If LZ match exceeds raster width,
-			if CAT_UNLIKELY(x + len > _params.xsize) {
-				CAT_DEBUG_EXCEPTION();
-				return 0;
-			}
+	// If filter is not read yet,
+	if (!filter) {
+		// Get chaos bin
+		const int chaos = _chaos.get(x);
 
-			// Simple memory move to get it where it needs to be
-			const volatile u8 *src = data - dist;
-			for (int ii = 0; ii < len; ++ii) {
-				data[ii] = src[ii];
-			}
+		// Always read residual first (may be LZ)
+		residual = _decoder[chaos].next(reader);
+		readResidual = true;
 
-			// Set LZ skip region
-			_lz_xend = x + len;
-
-			// After this LZ skip region, the last value will be the prev filter
-			_prev_filter = data[len - 1];
-
-			// Stop here
-			return *data;
+		// If residual is LZ escape code,
+		if (residual >= num_syms) {
+			// Read LZ match
+			return read_lz(residual - num_syms, reader, x, data);
 		}
 
-		// Defilter the filter value
-		if (_row_filter == RF_PREV) {
-			value += _prev_filter;
-			if (value >= num_syms) {
-				value -= num_syms;
-			}
-			_prev_filter = static_cast<u8>( value );
-		}
-	} else {
-		// Check cached filter
-		const u16 tx = x >> _tile_bits_x;
+		const u8 f = _filter_decoder_read(tx, reader);
 
-		// Choose safe/unsafe filter
-		MonoFilterFunc filter = _filter_row[tx].safe;
+		// Read filter
+		MonoFilterFuncs * CAT_RESTRICT funcs = &_sf[f];
+		_filter_row[tx] = *funcs;
+		filter = funcs->safe; // Choose here
 
-		// If filter must be read,
-		if (!filter) {
-			const u8 f = _filter_decoder->read(tx, reader);
+		DESYNC(x, y);
+	}
 
-			// Read filter
-			MonoFilterFuncs * CAT_RESTRICT funcs = &_sf[f];
-			_filter_row[tx] = *funcs;
-			filter = funcs->safe; // Choose here
-
-			DESYNC(x, y);
-		}
-
-		// If the filter is a palette symbol,
+	// If the filter is a palette symbol,
 #ifdef CAT_WORD_64
-		const u64 pf = (u64)filter;
+	const u64 pf = (u64)filter;
 #else
-		const u32 pf = (u32)filter;
+	const u32 pf = (u32)filter;
 #endif
-		if (pf <= MAX_PALETTE+1) {
-			value = _palette[pf - 1];
-			_chaos.zero(x);
-		} else {
+	if (pf <= MAX_PALETTE+1) {
+		value = _palette[pf - 1];
+		_chaos.zero(x);
+	} else {
+		// If did not read residual above,
+		if (!readResidual) {
 			// Get chaos bin
 			const int chaos = _chaos.get(x);
-#ifndef CAT_DEBUG
-			const u16 y = _current_y;
-#endif
 
 			// Read residual from bitstream
-			const u16 residual = _decoder[chaos].next(reader);
+			residual = _decoder[chaos].next(reader);
+		}
 
-			// If residual is an LZ escape code,
-			if (residual >= num_syms) {
-				// Decode LZ match
-				u32 dist;
-				int len = _lz.read(residual - num_syms, reader, dist);
+		// If residual is LZ escape code,
+		if (residual >= num_syms) {
+			// Read LZ match
+			return read_lz(residual - num_syms, reader, x, data);
+		}
 
-				// If LZ match starts before start of image,
-				if CAT_UNLIKELY(data < _params.data + dist) {
-					CAT_DEBUG_EXCEPTION();
-					return 0;
-				}
+		// Store for next chaos lookup
+		_chaos.store(x, static_cast<u8>( residual ), num_syms);
 
-				// If LZ match exceeds raster width,
-				if CAT_UNLIKELY(x + len > _params.xsize) {
-					CAT_DEBUG_EXCEPTION();
-					return 0;
-				}
+		// Calculate predicted value
+		const u16 pred = filter(data, num_syms, x, _current_y, _params.xsize);
 
-				// Simple memory move to get it where it needs to be
-				const volatile u8 *src = data - dist;
-				for (int ii = 0; ii < len; ++ii) {
-					data[ii] = src[ii];
-				}
+		CAT_DEBUG_ENFORCE(pred < num_syms);
 
-				// Set LZ skip region
-				_lz_xend = x + len;
-
-				// Zero chaos for this region
-				_chaos.zeroRegion(x, len);
-
-				// Stop here
-				return *data;
-			}
-
-			CAT_DEBUG_ENFORCE(residual < num_syms);
-
-			// Store for next chaos lookup
-			_chaos.store(x, static_cast<u8>( residual ), num_syms);
-
-			// Calculate predicted value
-			const u16 pred = filter(data, num_syms, x, y, _params.xsize);
-
-			CAT_DEBUG_ENFORCE(pred < num_syms);
-
-			// Defilter using prediction
-			value = residual + pred;
-			if (value >= num_syms) {
-				value -= num_syms;
-			}
+		// Defilter using prediction
+		value = residual + pred;
+		if (value >= num_syms) {
+			value -= num_syms;
 		}
 	}
 
@@ -448,11 +466,8 @@ u8 MonoReader::read(u16 x, ImageReader & CAT_RESTRICT reader) {
 	return ( *data = static_cast<u8>( value ) );
 }
 
-
-//// KEEP THIS IN SYNC WITH VERSION ABOVE! ////
-// The only change should be that unsafe() is used.
-
-u8 MonoReader::read_unsafe(u16 x, ImageReader & CAT_RESTRICT reader) {
+// Faster tiled version, when spatial filters can be unsafe
+u8 MonoReader::read_tile_unsafe(u16 x, ImageReader & CAT_RESTRICT reader) {
 #ifdef CAT_DEBUG
 	const u16 y = _current_y;
 #endif
@@ -471,140 +486,77 @@ u8 MonoReader::read_unsafe(u16 x, ImageReader & CAT_RESTRICT reader) {
 	u16 value;
 	const u16 num_syms = _params.num_syms;
 
-	// If using row filters,
-	if (_use_row_filters) {
-		// Read filter residual directly
-		value = _row_filter_decoder.next(reader);
+	// Check cached filter
+	const u16 tx = x >> _tile_bits_x;
 
-		// If value is an LZ escape code,
-		if (value >= num_syms) {
-			// Decode LZ match
-			u32 dist;
-			int len = _lz.read(value - num_syms, reader, dist);
+	// Choose safe/unsafe filter
+	MonoFilterFunc filter = _filter_row[tx].unsafe;
 
-			// If LZ match starts before start of image,
-			if CAT_UNLIKELY(data < _params.data + dist) {
-				CAT_DEBUG_EXCEPTION();
-				return 0;
-			}
+	u16 residual;
+	bool readResidual = false;
 
-			// If LZ match exceeds raster width,
-			if CAT_UNLIKELY(x + len > _params.xsize) {
-				CAT_DEBUG_EXCEPTION();
-				return 0;
-			}
+	// If filter is not read yet,
+	if (!filter) {
+		// Get chaos bin
+		const int chaos = _chaos.get(x);
 
-			// Simple memory move to get it where it needs to be
-			const volatile u8 *src = data - dist;
-			for (int ii = 0; ii < len; ++ii) {
-				data[ii] = src[ii];
-			}
+		// Always read residual first (may be LZ)
+		residual = _decoder[chaos].next(reader);
+		readResidual = true;
 
-			// Set LZ skip region
-			_lz_xend = x + len;
-
-			// After this LZ skip region, the last value will be the prev filter
-			_prev_filter = data[len - 1];
-
-			// Stop here
-			return *data;
+		// If residual is LZ escape code,
+		if (residual >= num_syms) {
+			// Read LZ match
+			return read_lz(residual - num_syms, reader, x, data);
 		}
 
-		// Defilter the filter value
-		if (_row_filter == RF_PREV) {
-			value += _prev_filter;
-			if (value >= num_syms) {
-				value -= num_syms;
-			}
-			_prev_filter = static_cast<u8>( value );
-		}
-	} else {
-		// Check cached filter
-		const u16 tx = x >> _tile_bits_x;
+		const u8 f = _filter_decoder_read(tx, reader);
 
-		// Choose safe/unsafe filter
-		MonoFilterFunc filter = _filter_row[tx].unsafe;
+		// Read filter
+		MonoFilterFuncs * CAT_RESTRICT funcs = &_sf[f];
+		_filter_row[tx] = *funcs;
+		filter = funcs->unsafe; // Choose here
 
-		// If filter must be read,
-		if (!filter) {
-			const u8 f = _filter_decoder->read(tx, reader);
+		DESYNC(x, y);
+	}
 
-			// Read filter
-			MonoFilterFuncs * CAT_RESTRICT funcs = &_sf[f];
-			_filter_row[tx] = *funcs;
-			filter = funcs->unsafe; // Choose here
-
-			DESYNC(x, y);
-		}
-
-		// If the filter is a palette symbol,
+	// If the filter is a palette symbol,
 #ifdef CAT_WORD_64
-		const u64 pf = (u64)filter;
+	const u64 pf = (u64)filter;
 #else
-		const u32 pf = (u32)filter;
+	const u32 pf = (u32)filter;
 #endif
-		if (pf <= MAX_PALETTE+1) {
-			value = _palette[pf - 1];
-			_chaos.zero(x);
-		} else {
+	if (pf <= MAX_PALETTE+1) {
+		value = _palette[pf - 1];
+		_chaos.zero(x);
+	} else {
+		// If did not read residual above,
+		if (!readResidual) {
 			// Get chaos bin
 			const int chaos = _chaos.get(x);
-#ifndef CAT_DEBUG
-			const u16 y = _current_y;
-#endif
 
 			// Read residual from bitstream
-			const u16 residual = _decoder[chaos].next(reader);
+			residual = _decoder[chaos].next(reader);
+		}
 
-			// If residual is an LZ escape code,
-			if (residual >= num_syms) {
-				// Decode LZ match
-				u32 dist;
-				int len = _lz.read(residual - num_syms, reader, dist);
+		// If residual is LZ escape code,
+		if (residual >= num_syms) {
+			// Read LZ match
+			return read_lz(residual - num_syms, reader, x, data);
+		}
 
-				// If LZ match starts before start of image,
-				if CAT_UNLIKELY(data < _params.data + dist) {
-					CAT_DEBUG_EXCEPTION();
-					return 0;
-				}
+		// Store for next chaos lookup
+		_chaos.store(x, static_cast<u8>( residual ), num_syms);
 
-				// If LZ match exceeds raster width,
-				if CAT_UNLIKELY(x + len > _params.xsize) {
-					CAT_DEBUG_EXCEPTION();
-					return 0;
-				}
+		// Calculate predicted value
+		const u16 pred = filter(data, num_syms, x, _current_y, _params.xsize);
 
-				// Simple memory move to get it where it needs to be
-				const volatile u8 *src = data - dist;
-				for (int ii = 0; ii < len; ++ii) {
-					data[ii] = src[ii];
-				}
+		CAT_DEBUG_ENFORCE(pred < num_syms);
 
-				// Set LZ skip region
-				_lz_xend = x + len;
-
-				// Zero chaos for this region
-				_chaos.zeroRegion(x, len);
-
-				// Stop here
-				return *data;
-			}
-
-			CAT_DEBUG_ENFORCE(residual < num_syms);
-
-			// Store for next chaos lookup
-			_chaos.store(x, static_cast<u8>( residual ), num_syms);
-
-			// Calculate predicted value
-			const u16 pred = filter(data, num_syms, x, y, _params.xsize);
-
-			CAT_DEBUG_ENFORCE(pred < num_syms);
-
-			// Defilter using prediction
-			value = residual + pred;
-			if (value >= num_syms) {
-				value -= num_syms;
-			}
+		// Defilter using prediction
+		value = residual + pred;
+		if (value >= num_syms) {
+			value -= num_syms;
 		}
 	}
 
@@ -614,3 +566,4 @@ u8 MonoReader::read_unsafe(u16 x, ImageReader & CAT_RESTRICT reader) {
 
 	return ( *data = static_cast<u8>( value ) );
 }
+
