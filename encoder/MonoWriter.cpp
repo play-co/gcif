@@ -119,7 +119,6 @@ void MonoWriter::priceResiduals() {
 
 			// If using sympal,
 			if (_profile->filter_indices[f] >= SF_COUNT || _params.mask(x, y)) {
-				_profile->encoders->chaos.zero(x);
 				prices[0] = 0;
 
 				// If in LZ mode,
@@ -128,20 +127,19 @@ void MonoWriter::priceResiduals() {
 					if (_tile_seen[tx] == 0) {
 						_tile_seen[tx] = 1;
 
-						CAT_WARN("ResidualPF") << "Adding extra zero at " << x << ", " << y;
-
 						// Store zero price placeholder
 						int chaos = _profile->encoders->chaos.get(x);
 						_profile->encoders->encoder[chaos].price(0);
 					}
 				}
+
+				_profile->encoders->chaos.zero(x);
 			} else {
 				// Look up residual sym
 				const u8 residual = residuals[0];
 
-				// Calculate local chaos
-				int chaos = _profile->encoders->chaos.get(x);
-				_profile->encoders->chaos.store(x, residual, _params.num_syms);
+				// Calculate and update local chaos
+				int chaos = _profile->encoders->chaos.next(x, residual, _params.num_syms);
 
 				// Record price in bits
 				int bits = _profile->encoders->encoder[chaos].price(residual);
@@ -1169,7 +1167,7 @@ void MonoWriter::designChaos() {
 	// Initialize tile seen array
 	_tile_seen.resize(_profile->tiles_x);
 
-	//CAT_INANE("Mono") << "Designing chaos...";
+	CAT_INANE("Mono") << "Designing chaos for profile " << _profile;
 
 	u32 best_entropy = 0x7fffffff;
 
@@ -1232,9 +1230,8 @@ void MonoWriter::designChaos() {
 						// Get residual symbol
 						u8 residual = residuals[x];
 
-						// Get chaos bin
-						int chaos = encoders->chaos.get(x);
-						encoders->chaos.store(x, residual, _params.num_syms);
+						// Calculate and update local chaos
+						int chaos = encoders->chaos.next(x, residual, _params.num_syms);
 
 						// Add to histogram for this chaos bin
 						encoders->encoder[chaos].add(residual);
@@ -1256,6 +1253,9 @@ void MonoWriter::designChaos() {
 
 						// If pixel is LZ masked,
 						if (_lz.masked(x, y)) {
+							if (y == 28) {
+								CAT_WARN("LZ") << "at " << x << ", " << y;
+							}
 							encoders->chaos.zero(x);
 							continue;
 						}
@@ -1266,37 +1266,44 @@ void MonoWriter::designChaos() {
 
 					if (_params.mask(x, y)) {
 						encoders->chaos.zero(x);
+						if (y == 28) {
+							CAT_WARN("MASK") << "at " << x << ", " << y;
+						}
 					} else {
 						const u8 f = _profile->getTile(tx, ty);
 						CAT_DEBUG_ENFORCE(f < _profile->filter_count);
 
 						// If sympal,
 						if (_profile->filter_indices[f] >= SF_COUNT) {
-							encoders->chaos.zero(x);
-
 							// If in LZ mode,
 							if (_lz_enable) {
 								// If PF was not seen,
 								if (_tile_seen[tx] == 0) {
 									_tile_seen[tx] = 1;
 
-									CAT_WARN("PF") << "Adding extra zero at " << x << ", " << y;
+									if (y == 28) {
+										CAT_WARN("PF") << "Adding extra zero at " << x << ", " << y;
+									}
 
 									// Will be writing a zero here
 									int chaos = encoders->chaos.get(x);
 									encoders->encoder[chaos].add(0);
 								}
 							}
+
+							encoders->chaos.zero(x);
 						} else {
 							// Get residual symbol
 							u8 residual = residuals[0];
 
-							// Get chaos bin
-							encoders->chaos.store(x, residual, _params.num_syms);
+							// Calculate and update local chaos
+							int chaos = encoders->chaos.next(x, residual, _params.num_syms);
 
-							// Add to histogram for this chaos bin
-							int chaos = encoders->chaos.get(x);
 							encoders->encoder[chaos].add(residual);
+
+							if (y == 28) {
+								CAT_WARN("ResidualIn") << "Added " << x << ", " << y << " = " << (int)residual << " chaos " << chaos;
+							}
 						}
 					}
 				}
@@ -1702,6 +1709,9 @@ bool MonoWriter::sympalCovered(u16 x, u16 y) {
 		// If tile is PF,
 		u8 f = _profile->getTile(tx, ty);
 		if (_profile->filter_indices[f] >= SF_COUNT) {
+			if (y == 28) {
+				CAT_WARN("SYMPAL COVERED") << x << ", " << y;
+			}
 			return true;
 		}
 	}
@@ -1756,6 +1766,10 @@ int MonoWriter::write(u16 x, u16 y, ImageWriter &writer) {
 
 		// If this is a masked byte,
 		if (_lz.masked(x, y)) {
+			if (y == 28) {
+				CAT_WARN("LZ") << "at " << x << ", " << y;
+			}
+
 			Stats.filter_overhead_bits += overhead_bits;
 			return overhead_bits;
 		}
@@ -1789,9 +1803,12 @@ int MonoWriter::write(u16 x, u16 y, ImageWriter &writer) {
 				// Look up residual sym
 				u8 residual = _profile->residuals[offset];
 
-				// Calculate local chaos
-				int chaos = _profile->encoders->chaos.get(x);
-				_profile->encoders->chaos.store(x, residual, _params.num_syms);
+				// Calculate and update local chaos
+				int chaos = _profile->encoders->chaos.next(x, residual, _params.num_syms);
+
+				if (y == 28) {
+					CAT_WARN("ResidualOut") << "Writing " << x << ", " << y << " = " << (int)residual << " chaos " << chaos << " profile " << _profile;
+				}
 
 				// Write the residual value
 				data_bits += _profile->encoders->encoder[chaos].write(residual, writer);
@@ -1816,9 +1833,8 @@ int MonoWriter::write(u16 x, u16 y, ImageWriter &writer) {
 				// Look up residual sym
 				u8 residual = _profile->residuals[offset];
 
-				// Calculate local chaos
-				int chaos = _profile->encoders->chaos.get(x);
-				_profile->encoders->chaos.store(x, residual, _params.num_syms);
+				// Calculate and update local chaos
+				int chaos = _profile->encoders->chaos.next(x, residual, _params.num_syms);
 
 				// Write the residual value
 				data_bits += _profile->encoders->encoder[chaos].write(residual, writer);

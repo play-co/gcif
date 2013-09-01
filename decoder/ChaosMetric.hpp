@@ -151,6 +151,19 @@ public:
 	CAT_INLINE void store(u16 x, u8 r, u16 num_syms) {
 		_pixels[x] = ResidualScore(r, num_syms);
 	}
+
+	// Convenience functions for writer to avoid messing up the order of get/store
+	CAT_INLINE u8 next(u16 x, u8 r, u16 num_syms) {
+		u8 chaos = get(x);
+		store(x, r, num_syms);
+		return chaos;
+	}
+
+	CAT_INLINE u8 next256(u16 x, u8 r, u16 num_syms) {
+		u8 chaos = get(x);
+		store256(x, r);
+		return chaos;
+	}
 };
 
 
