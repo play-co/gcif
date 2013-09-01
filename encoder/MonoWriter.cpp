@@ -1710,8 +1710,6 @@ int MonoWriter::write(u16 x, u16 y, ImageWriter &writer) {
 	CAT_DEBUG_ENFORCE(!_params.mask(x, y));
 	CAT_DEBUG_ENFORCE(!_next_write_pixel_order || *_next_write_pixel_order++ == x);
 
-	DESYNC(x, y);
-
 	const int offset = x + _params.xsize * y;
 	const u8 *data = _params.data + offset;
 
@@ -1755,6 +1753,10 @@ int MonoWriter::write(u16 x, u16 y, ImageWriter &writer) {
 		}
 	}
 
+			if (x == 102 && y == 14) {
+				CAT_WARN("WRITING");
+			}
+
 	// If using row filters,
 	if (_use_row_filters) {
 		// Calculate row filter residual for filter data (filter of filters at tree leaf)
@@ -1773,6 +1775,8 @@ int MonoWriter::write(u16 x, u16 y, ImageWriter &writer) {
 
 		// Write encoded pixel
 		data_bits += _row_filter_encoder.write(rf, writer);
+
+		DESYNC(x, y);
 	} else {
 		CAT_DEBUG_ENFORCE(!IsMasked(x >> _profile->tile_bits_x, y >> _profile->tile_bits_y));
 

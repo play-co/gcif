@@ -544,13 +544,13 @@ u8 MonoReader::read_tile_safe_lz(u16 x, ImageReader & CAT_RESTRICT reader) {
 		residual = _decoder[chaos].next(reader);
 		readResidual = true;
 
-		DESYNC(x, y);
-
 		// If residual is LZ escape code,
 		if (residual >= num_syms) {
 			// Read LZ match
 			return read_lz(residual - num_syms, reader, x, data);
 		}
+
+		DESYNC(x, y);
 
 		const u8 f = _filter_decoder_read(tx, reader);
 
@@ -579,8 +579,6 @@ u8 MonoReader::read_tile_safe_lz(u16 x, ImageReader & CAT_RESTRICT reader) {
 
 			// Read residual from bitstream
 			residual = _decoder[chaos].next(reader);
-
-			DESYNC(x, y);
 		}
 
 		// If residual is LZ escape code,
@@ -588,6 +586,12 @@ u8 MonoReader::read_tile_safe_lz(u16 x, ImageReader & CAT_RESTRICT reader) {
 			// Read LZ match
 			return read_lz(residual - num_syms, reader, x, data);
 		}
+
+#ifdef CAT_DESYNCH_CHECKS
+		if (!readResidual) {
+			DESYNC(x, y);
+		}
+#endif
 
 		// Store for next chaos lookup
 		_chaos.store(x, static_cast<u8>( residual ), num_syms);
