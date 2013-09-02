@@ -1744,6 +1744,9 @@ int MonoWriter::write(u16 x, u16 y, ImageWriter &writer) {
 
 			CAT_DEBUG_ENFORCE(_lz.masked(x, y));
 
+			// Current filter tile must not be a PF
+			CAT_DEBUG_ENFORCE(_use_row_filters || _profile->filter_indices[_profile->getTile(x >> _profile->tile_bits_x, y >> _profile->tile_bits_y)] < SF_COUNT);
+
 			Stats.lz_bits += lz_bits;
 			Stats.filter_overhead_bits += overhead_bits;
 			_lz_next = _lz_next->next;
