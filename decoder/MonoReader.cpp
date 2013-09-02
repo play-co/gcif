@@ -588,8 +588,6 @@ u8 MonoReader::read_tile_safe_lz(u16 x, ImageReader & CAT_RESTRICT reader) {
 
 		const u8 f = _filter_decoder_read(tx, reader);
 
-		CAT_WARN("READ FILTER") << x << ", " << y << " = " << (int)f;
-
 		DESYNC(x, y);
 
 		// Read filter

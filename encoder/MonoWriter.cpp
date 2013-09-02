@@ -1797,14 +1797,9 @@ int MonoWriter::write(u16 x, u16 y, ImageWriter &writer) {
 #endif
 					writeFilter(x, y, writer, overhead_bits);
 
-				CAT_WARN("WROTE FILTER") << x << ", " << y << " = " << (int)f;
-
 				// If f is PF, then the residual *must* be a zero
 				CAT_DEBUG_ENFORCE(_profile->filter_indices[f] < SF_COUNT || residual == 0);
 			}
-			else			if (x == 66 && y == 16) {
-					CAT_WARN("WRITING");
-				}
 		} else {
 			// Write filter first for non-LZ case
 			u8 f = writeFilter(x, y, writer, overhead_bits);
