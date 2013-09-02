@@ -42,7 +42,7 @@ namespace cat {
 //#define CAT_UNROLL_READER
 
 // Dump filter choices
-//#define CAT_DUMP_FILTERS
+#define CAT_DUMP_FILTERS
 
 // Dump LZ header contents
 //#define CAT_DUMP_LZ

@@ -343,13 +343,13 @@ u8 MonoReader::read_row_filter(u16 x, ImageReader & CAT_RESTRICT reader) {
 	// Read filter residual directly
 	u16 value = _row_filter_decoder.next(reader);
 
-	DESYNC(x, y);
-
 	// If value is an LZ escape code,
 	if (value >= num_syms) {
 		// Read LZ code
 		return read_lz_row_filter(value - num_syms, reader, x, data);
 	}
+
+	DESYNC(x, y);
 
 	// Defilter the filter value
 	if (_row_filter == RF_PREV) {
@@ -532,6 +532,9 @@ u8 MonoReader::read_lz_tile(u16 code, ImageReader & CAT_RESTRICT reader, u16 x, 
 		data[ii] = src[ii];
 	}
 
+	// Set LZ skip region
+	_lz_xend = x + len;
+
 	// Clear zero region
 	_chaos.zeroRegion(x, len);
 
@@ -584,6 +587,8 @@ u8 MonoReader::read_tile_safe_lz(u16 x, ImageReader & CAT_RESTRICT reader) {
 		DESYNC(x, y);
 
 		const u8 f = _filter_decoder_read(tx, reader);
+
+		CAT_WARN("READ FILTER") << x << ", " << y << " = " << (int)f;
 
 		DESYNC(x, y);
 
