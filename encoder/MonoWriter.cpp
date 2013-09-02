@@ -959,6 +959,11 @@ void MonoWriter::computeResiduals() {
 				if (f >= _profile->normal_filter_count) {
 					// Output a residual of zero on first pixel of a PF tile
 					residual = 0;
+
+					int sympal = f - _profile->normal_filter_count;
+					CAT_DEBUG_ENFORCE(sympal < _profile->sympal_filter_count);
+
+					replay[x] = _profile->sympal[sympal];
 				} else {
 					// Read input data
 					u8 value = data[x];

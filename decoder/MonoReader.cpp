@@ -136,6 +136,9 @@ int MonoReader::readTables(const Parameters & CAT_RESTRICT params, ImageReader &
 		const int sympal_filter_count = reader.readBits(4);
 		for (int ii = 0; ii < sympal_filter_count; ++ii) {
 			_palette[ii] = reader.readBits(8);
+#ifdef CAT_DUMP_FILTERS
+			CAT_WARN("Mono") << "Palette Filter " << ii << " = " << (int)_palette[ii];
+#endif
 		}
 
 		DESYNC_TABLE();
