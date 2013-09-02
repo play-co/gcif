@@ -429,6 +429,7 @@ void MonoWriter::designPaletteFilters() {
 				while (cx-- > 0 && px < xsize) {
 					// If element is not masked,
 					if (!_params.mask(px, py)) {
+						// If LZ not on this pixel,
 						if (!_lz_enable || !_lz.masked(px, py)) {
 							const u8 value = *data;
 
@@ -440,6 +441,10 @@ void MonoWriter::designPaletteFilters() {
 								cy = 0;
 								break;
 							}
+						} else if (_lz_enable) {
+							// LZ is enabled somewhere in this tile, so do not
+							// allow palette filters to be used here
+							uniform = false;
 						}
 					}
 					++px;
@@ -450,7 +455,7 @@ void MonoWriter::designPaletteFilters() {
 			}
 
 			// If uniform data,
-			if (uniform) {
+			if (uniform && seen) {
 				hist[uniform_value]++;
 			}
 		}
@@ -550,6 +555,9 @@ void MonoWriter::designFilters() {
 
 								scores.add(f, score);
 							}
+						} else if (_lz_enable) {
+							// Do not allow palette filters to be used here
+							uniform = false;
 						}
 					}
 					++px;
@@ -561,7 +569,7 @@ void MonoWriter::designFilters() {
 
 			// If data is uniform,
 			int offset = 0;
-			if (uniform) {
+			if (uniform && seen) {
 				// Find the matching filter
 				for (int f = 0, f_end = _profile->sympal_filter_count; f < f_end; ++f) {
 					if (_profile->sympal[f] == uniform_value) {
