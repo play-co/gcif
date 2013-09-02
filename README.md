@@ -1,11 +1,7 @@
 GCIF
 ====
 
-Game Closure Image Format : 1.2 PRE-RELEASE
-
-NOTE: Right now the decoder is not working yet for the new LZ77 bitstream
-format.  Check out the 1.1 tag for the latest stable version.  Compression
-benchmarks below are close to what the working 1.2 version will be.
+Game Closure Image Format : 1.2
 
 This is a lossless RGBA image format suited for mobile game sprite-sheets and
 other usage cases (such as webpages) where you want to compress tightly once,
@@ -41,7 +37,7 @@ From one of our more challenging game sprite-sheets chosen at random:
 -rw-r--r--  1 cat  staff   877K Apr  2 14:05 noalpha.bcif (lossless)
 -rw-r--r--  1 cat  staff   803K Apr 28 18:47 noalpha.gci (lossless) <- GCIF 1.0
 -rw-r--r--  1 cat  staff   799K Jun 24 20:14 noalpha.gci (lossless) <- GCIF 1.1
--rw-r--r--  1 cat  staff   758K Jul 14 10:51 noalpha.gci (lossless) <- GCIF 1.2
+-rw-r--r--  1 cat  staff   764K Sep  2 00:53 noalpha.gci (lossless) <- GCIF 1.2
 -rw-r--r--@ 1 cat  staff   682K Apr 28 18:46 noalpha.jpg (lossy)
 -rw-r--r--@ 1 cat  staff   441K Apr 28 18:46 noalpha.gif (lossy)
 ~~~
@@ -60,84 +56,90 @@ mmp
 PNG: 30047457
 PNGCRUSH: 29651792
 WebP: 21737180
-GCIF: 17551320
+GCIF: 17747148
 
 critter
 PNG: 9998692
 PNGCRUSH: 8770312
 WebP: 6241754
-GCIF: 5007720
+GCIF: 5078244
 
 pop
 PNG: 10755955
 PNGCRUSH: 7861910
 WebP: 5418332
-GCIF: 4731772
+GCIF: 4817848
 
 monster
 PNG: 4005287
 PNGCRUSH: 3227017
 WebP: 2211330
-GCIF: 2004464
+GCIF: 2039184
 
 chicken
 PNG: 455147
 PNGCRUSH: 452368
 WebP: 314722
-GCIF: 304044
+GCIF: 310300
 
 gummies
 PNG: 2168408
 PNGCRUSH: 1730054
 WebP: 1141760
-GCIF: 1051864
+GCIF: 1025276
 
 hippo
 PNG: 3291540
 PNGCRUSH: 3192566
 WebP: 2255838
-GCIF: 1759004
+GCIF: 1788320
 
 pudding
 PNG: 1401473
 PNGCRUSH: 1401247
 WebP: 986948
-GCIF: 892680
+GCIF: 909612
 
 wyvern
 PNG: 7724058
 PNGCRUSH: 6463701
 WebP: 4305978
-GCIF: 3895524
+GCIF: 3935556
+
+fluffarm
+PNG: 7456648
+PNGCRUSH: 5823438
+WebP: 3519468
+GCIF: 3468008
 
 xxx
 PNG: 2131310
 PNGCRUSH: 1762601
 WebP: 1226082
-GCIF: 987128
+GCIF: 1000712
 
 blob
 PNG: 2131310
 PNGCRUSH: 1762601
 WebP: 1226082
-GCIF: 864308
+GCIF: 880288
 
 voyager
 PNG: 50979862
 PNGCRUSH: 40413850
 WebP: 28309198
-GCIF: 25201072
+GCIF: 25362560
 
 Overall
-PNG: 124974932
-PNGCRUSH: 106870998
-WebP: 75383224
-GCIF: 64250900
+PNG: 132431580
+PNGCRUSH: 112694436
+WebP: 78902692
+GCIF: 68363056
 
 On average,
-GCIF is 51.4% the size of PNG.
-GCIF is 60.1% the size of PNGCRUSH.
-GCIF is 85.2% the size of WebP.
+GCIF is 51.6% the size of PNG.
+GCIF is 60.6% the size of PNGCRUSH.
+GCIF is 86.6% the size of WebP.
 ~~~
 
 
@@ -698,6 +700,10 @@ Options:
                                        directory, replacing the original if the
                                        GCIF version is smaller without changing
                                        file name
+  --[n]ostrip                          Do not strip RGB color data from
+                                       fully-transparent pixels.  The default is
+                                       to remove this color data.  Saving it can
+                                       be useful in some rare cases
 
 Examples:
   ./gcif -c ./original.png test.gci
@@ -812,27 +818,46 @@ Examples:
 Road Map
 ========
 
-For version 1.1 tagged release:
+For version 1.2 tagged release:
+
++ Fix bodies13, 14 and 26
+
++ Fix compression levels
+
++ Verify nostrip works
 
 + Optimization
 
 + Generate Static Library for Distribution
 
++ Compare to libpng decoding performance on iPad
+
 + Integrate with DevKit
 
-After 1.1 release:
-
-+ Benchmarking
+After 1.2 release:
 
 + Whitepaper
 
-Slated for inclusion in version 1.2 of the file format:
++ Java version of the encoder.
 
-+ Use strong file hash in new verification mode for command-line tool.
+Slated for inclusion in version 1.3 of the file format:
+
++ Faster decoding
+
++ Improve the chaos metric with a priori information in a subchannel
+
++ Optimal LZ parsing.  Just need to add the logic in..
+
++ Improve color filtering with calculated decomposition in addition to brute force
+
++ Look for better filters
+
++ Try out global subtract green
+
++ Try out hash palette
 
 + A new spritesheet generator that uses GCIF as an in/output file format.
 -- Even better image compression by eliminating a lot of image data.
 -- There is a lot of room for improvement in our current spriter.
 -- Incorporate it into the GCIF codebase to make it a one-stop shop for games.
 
-+ Java version of the encoder.
