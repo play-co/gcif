@@ -1222,6 +1222,9 @@ void MonoWriter::designChaos() {
 					for (u16 x = 0; x < _params.xsize; ++x) {
 						if (_params.mask(x, y - 1)) {
 							encoders->chaos.zero(x);
+							if (x == 56 && (y - 1) == 40) {
+								CAT_WARN("TESTA:MASK") << " levels " << chaos_levels;
+							}
 						}
 					}
 				}
@@ -1239,12 +1242,20 @@ void MonoWriter::designChaos() {
 					// If masked or sympal,
 					if (_profile->filter_indices[f] >= SF_COUNT) {
 						encoders->chaos.zero(x);
+
+						if (x == 56 && y == 40 && tx == 7) {
+							CAT_WARN("TESTA:ORDER") << (int)f << " PF filter " << tx << " tx " << chaos_levels << " levels";
+						}
 					} else {
 						// Get residual symbol
 						u8 residual = residuals[x];
 
 						// Calculate and update local chaos
 						int chaos = encoders->chaos.next(x, residual, _params.num_syms);
+
+						if (x == 56 && y == 40 && tx == 7) {
+							CAT_WARN("TESTA:ORDER") << (int)residual << " residual " << (int)f << " filter " << chaos << " chaos " << tx << " tx " << chaos_levels << " levels";
+						}
 
 						// Add to histogram for this chaos bin
 						encoders->encoder[chaos].add(residual);
@@ -1276,12 +1287,23 @@ void MonoWriter::designChaos() {
 
 					if (_params.mask(x, y)) {
 						encoders->chaos.zero(x);
+
+						if (x == 56 && y == 40 && tx == 7) {
+							CAT_WARN("TESTB:MASK") << tx << " tx " << chaos_levels << " levels";
+						}
 					} else {
 						const u8 f = _profile->getTile(tx, ty);
 						CAT_DEBUG_ENFORCE(f < _profile->filter_count);
 
+						if (x == 56 && y == 40 && tx == 7) {
+							CAT_WARN("TESTB:RES") << (int)f << " filter " << tx << " tx " << chaos_levels << " levels";
+						}
+
 						// If sympal,
 						if (_profile->filter_indices[f] >= SF_COUNT) {
+							if (x == 56 && y == 40 && tx == 7) {
+								CAT_WARN("TESTB:RES") << "PF " << (int)f << " filter " << tx << " tx " << chaos_levels << " levels";
+							}
 							// If in LZ mode,
 							if (_lz_enable) {
 								// If PF was not seen,
@@ -1302,6 +1324,9 @@ void MonoWriter::designChaos() {
 							// Calculate and update local chaos
 							int chaos = encoders->chaos.next(x, residual, _params.num_syms);
 
+							if (x == 56 && y == 40 && tx == 7) {
+								CAT_WARN("TESTB:RES") << "residual " << (int)residual << " and chaos " << chaos << " tx=" << tx << " levels " << chaos_levels;
+							}
 							encoders->encoder[chaos].add(residual);
 						}
 					}
@@ -1813,6 +1838,10 @@ int MonoWriter::write(u16 x, u16 y, ImageWriter &writer) {
 #endif
 					writeFilter(x, y, writer, overhead_bits);
 
+				if (x == 56 && y == 40 && (x >> _profile->tile_bits_x) == 7) {
+					CAT_WARN("WRITE") << "RES. " << (x >> _profile->tile_bits_x) << " tx " << chaos << " chaos " << (int)residual << " residual";
+				}
+
 				// If f is PF, then the residual *must* be a zero
 				CAT_DEBUG_ENFORCE(_profile->filter_indices[f] < SF_COUNT || residual == 0);
 			}
@@ -1827,6 +1856,10 @@ int MonoWriter::write(u16 x, u16 y, ImageWriter &writer) {
 
 				// Calculate and update local chaos
 				int chaos = _profile->encoders->chaos.next(x, residual, _params.num_syms);
+
+				if (x == 56 && y == 40 && (x >> _profile->tile_bits_x) == 7) {
+					CAT_WARN("WRITE") << "NOT PF. " << (x >> _profile->tile_bits_x) << " tx " << chaos << " chaos " << (int)residual << " residual " << _profile->encoders->chaos.getBinCount() << " levels";
+				}
 
 				// Write the residual value
 				data_bits += _profile->encoders->encoder[chaos].write(residual, writer);
