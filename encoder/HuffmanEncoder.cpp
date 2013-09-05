@@ -557,7 +557,14 @@ int cat::writeCompressedHuffmanTable(int num_syms, u8 codelens[], ImageWriter &w
 	static const int TABLE_THRESH = HuffmanDecoder::TABLE_THRESH;
 
 	CAT_DEBUG_ENFORCE(HUFF_SYMS == 17);
-	CAT_DEBUG_ENFORCE(num_syms >= 2);
+	CAT_DEBUG_ENFORCE(num_syms >= 1);
+
+	// If in one-symbol special case (rare),
+	if (num_syms == 1) {
+		// Do not need to write anything since decoder is synched to know symbol count = 1
+		return 0;
+	}
+
 /*
 	for (int ii = 0; ii < num_syms; ++ii) {
 		if (codelens[ii] > 0) {

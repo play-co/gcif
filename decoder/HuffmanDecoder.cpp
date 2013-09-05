@@ -208,8 +208,15 @@ bool HuffmanDecoder::init(int count, const u8 * CAT_RESTRICT codelens, u32 table
 	return true;
 }
 
+static const u8 ONE_CODELEN[1] = {1};
+
 bool HuffmanDecoder::init(int num_syms_orig, ImageReader & CAT_RESTRICT reader, u32 table_bits) {
 	static const int HUFF_SYMS = MAX_CODE_SIZE + 1;
+
+	// If number of symbols is degenerate,
+	if (num_syms_orig == 1) {
+		return init(1, ONE_CODELEN, 0);
+	}
 
 	// Allocate codelens array on stack if possible, else the heap
 	static const int STACK_SYMS = 512;
