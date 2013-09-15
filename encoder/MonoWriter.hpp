@@ -321,6 +321,7 @@ class MonoWriterProfile {
 public:
 	CAT_INLINE MonoWriterProfile() {
 		filter_encoder = 0;
+		encoders = 0;
 	}
 	CAT_INLINE virtual ~MonoWriterProfile() {
 		cleanup();

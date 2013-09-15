@@ -99,9 +99,10 @@ protected:
 	u8 _table[TABLE_SIZE];
 
 	SmartArray<u8> _row;	// Residual scores from last row
-	u8 *_pixels;			// = &_row[1]
 
 public:
+	// TODO: FIX
+	u8 *_pixels;			// = &_row[1]
 	CAT_INLINE MonoChaos() {
 		_chaos_levels = 0;
 	}

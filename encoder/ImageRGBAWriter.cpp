@@ -109,8 +109,6 @@ void ImageRGBAWriter::designLZ() {
 	// Find LZ matches
 	const u32 *rgba = reinterpret_cast<const u32 *>( _rgba );
 	_lz.init(rgba, lz_params);
-
-	_lz_enabled = true;
 }
 
 void ImageRGBAWriter::maskTiles() {
@@ -832,7 +830,6 @@ int ImageRGBAWriter::init(const u8 *rgba, int xsize, int ysize, ImageMaskWriter 
 	_knobs = knobs;
 	_rgba = rgba;
 	_mask = &mask;
-	_lz_enabled = false;
 
 	if (xsize < 0 || ysize < 0) {
 		return GCIF_WE_BAD_DIMS;
@@ -853,17 +850,23 @@ int ImageRGBAWriter::init(const u8 *rgba, int xsize, int ysize, ImageMaskWriter 
 	_tiles_x = (_xsize + _tile_xsize - 1) >> _tile_bits_x;
 	_tiles_y = (_ysize + _tile_ysize - 1) >> _tile_bits_y;
 
-	// Do a fast first pass at natural compression to better inform LZ decisions
-	maskTiles();
-	designFilters();
-	designTilesFast();
-	sortFilters();
-	computeResiduals();
-	designChaos();
-	priceResiduals();
+	_lz_enabled = false;
 
-	// Now do informed LZ77 compression
-	designLZ();
+	{
+		// Do a fast first pass at natural compression to better inform LZ decisions
+		maskTiles();
+		designFilters();
+		designTilesFast();
+		sortFilters();
+		computeResiduals();
+		designChaos();
+		priceResiduals();
+
+		// Now do informed LZ77 compression
+		designLZ();
+	}
+
+	_lz_enabled = true;
 
 	// Perform natural image compression post-LZ
 	maskTiles();
@@ -1001,6 +1004,9 @@ bool ImageRGBAWriter::writePixels(ImageWriter &writer) {
 				for (u16 tx = 0; tx < _tiles_x; ++tx) {
 					if (_seen_filter[tx] == 0) {
 						CAT_DEBUG_ENFORCE(IsSFMasked(tx, ty - 1));
+						if (ty == 40) {
+							CAT_WARN("RGBA") << "ZERO UNSEEN SFCF TILE " << tx << ", " << (ty - 1);
+						}
 						_sf_encoder.zero(tx);
 						_cf_encoder.zero(tx);
 					}
