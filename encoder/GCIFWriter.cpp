@@ -63,12 +63,16 @@ static const GCIFKnobs DEFAULT_KNOBS[COMPRESS_LEVELS] = {
 		40,			// mask_minColorRat
 		60,			// mask_huffThresh
 
-		60,			// lz_huffThresh
-		16,			// lz_minScore4
-		64,			// lz_minScore1
-		4,			// lz_nonzeroCoeff
-		18,			// lz_tableBits
+		40,			// pal_huffThresh
+		0.1f,		// pal_sympalThresh
+		0.6f,		// pal_filterCoverThresh
+		0.05f,		// pal_filterIncThresh
+		{5,3,1,1},	// pal_awards
+		true,		// pal_enableLZ
 
+		2070,		// rgba_lzPrematchLimit
+		512,		// rgba_lzInmatchLimit
+	
 		0,			// mono_revisitCount
 
 		true,		// cm_disableEntropy
@@ -84,12 +88,16 @@ static const GCIFKnobs DEFAULT_KNOBS[COMPRESS_LEVELS] = {
 		40,			// mask_minColorRat
 		60,			// mask_huffThresh
 
-		60,			// lz_huffThresh
-		16,			// lz_minScore4
-		64,			// lz_minScore1
-		4,			// lz_nonzeroCoeff
-		18,			// lz_tableBits
+		40,			// pal_huffThresh
+		0.1f,		// pal_sympalThresh
+		0.6f,		// pal_filterCoverThresh
+		0.05f,		// pal_filterIncThresh
+		{5,3,1,1},	// pal_awards
+		true,		// pal_enableLZ
 
+		2070,		// rgba_lzPrematchLimit
+		512,		// rgba_lzInmatchLimit
+	
 		0,			// mono_revisitCount
 
 		false,		// cm_disableEntropy
@@ -105,12 +113,16 @@ static const GCIFKnobs DEFAULT_KNOBS[COMPRESS_LEVELS] = {
 		40,			// mask_minColorRat
 		60,			// mask_huffThresh
 
-		60,			// lz_huffThresh
-		16,			// lz_minScore4
-		64,			// lz_minScore1
-		4,			// lz_nonzeroCoeff
-		18,			// lz_tableBits
+		40,			// pal_huffThresh
+		0.1f,		// pal_sympalThresh
+		0.6f,		// pal_filterCoverThresh
+		0.05f,		// pal_filterIncThresh
+		{5,3,1,1},	// pal_awards
+		true,		// pal_enableLZ
 
+		2070,		// rgba_lzPrematchLimit
+		512,		// rgba_lzInmatchLimit
+	
 		0,			// mono_revisitCount
 
 		false,		// cm_disableEntropy
@@ -126,13 +138,17 @@ static const GCIFKnobs DEFAULT_KNOBS[COMPRESS_LEVELS] = {
 		40,			// mask_minColorRat
 		60,			// mask_huffThresh
 
-		60,			// lz_huffThresh
-		16,			// lz_minScore4
-		64,			// lz_minScore1
-		4,			// lz_nonzeroCoeff
-		19,			// lz_tableBits
+		40,			// pal_huffThresh
+		0.1f,		// pal_sympalThresh
+		0.6f,		// pal_filterCoverThresh
+		0.05f,		// pal_filterIncThresh
+		{5,3,1,1},	// pal_awards
+		true,		// pal_enableLZ
 
-		4096,			// mono_revisitCount
+		2070,		// rgba_lzPrematchLimit
+		512,		// rgba_lzInmatchLimit
+	
+		4096,		// mono_revisitCount
 
 		false,		// cm_disableEntropy
 		0,			// cm_maxEntropySkip

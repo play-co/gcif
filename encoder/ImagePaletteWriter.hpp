@@ -61,7 +61,6 @@ namespace cat {
 class ImagePaletteWriter {
 	static const int PALETTE_MAX = ImagePaletteReader::PALETTE_MAX;
 	static const int ENCODER_ZRLE_SYMS = ImagePaletteReader::ENCODER_ZRLE_SYMS;
-	static const int HUFF_THRESH = 40; // Palette size to start using Huffman encoding
 
 	const GCIFKnobs *_knobs;
 

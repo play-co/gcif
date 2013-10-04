@@ -184,17 +184,17 @@ void ImagePaletteWriter::generateMonoWriter() {
 	params.max_filters = 32;
 	params.min_bits = 2;
 	params.max_bits = 5;
-	params.sympal_thresh = 0.1f;
-	params.filter_cover_thresh = 0.6f;
-	params.filter_inc_thresh = 0.05f;
+	params.sympal_thresh = _knobs->pal_sympalThresh;
+	params.filter_cover_thresh = _knobs->pal_filterCoverThresh;
+	params.filter_inc_thresh = _knobs->pal_filterIncThresh;
 	params.mask.SetMember<ImagePaletteWriter, &ImagePaletteWriter::IsMasked>(this);
-	params.AWARDS[0] = 5;
-	params.AWARDS[1] = 3;
-	params.AWARDS[2] = 1;
-	params.AWARDS[3] = 1;
+	params.AWARDS[0] = _knobs->pal_awards[0];
+	params.AWARDS[1] = _knobs->pal_awards[1];
+	params.AWARDS[2] = _knobs->pal_awards[2];
+	params.AWARDS[3] = _knobs->pal_awards[3];
 	params.award_count = 4;
 	params.write_order = 0;
-	params.lz_enable = true;
+	params.lz_enable = _knobs->pal_enableLZ;
 
 	_mono_writer.init(params);
 }
@@ -251,7 +251,7 @@ void ImagePaletteWriter::writeTable(ImageWriter &writer) {
 	pal_bits += 8;
 
 	// If palette is small,
-	if (_palette_size < HUFF_THRESH) {
+	if (_palette_size < _knobs->pal_huffThresh) {
 		writer.writeBit(0);
 		++pal_bits;
 

@@ -1,7 +1,7 @@
 GCIF
 ====
 
-Game Closure Image Format : 1.2
+Game Closure Image Format : 1.2 PRERELEASE
 
 This is a lossless RGBA image format suited for mobile game sprite-sheets and
 other usage cases (such as webpages) where you want to compress tightly once,
@@ -823,8 +823,6 @@ For version 1.2 tagged release:
 + Fix bodies13, 14 and 26
 
 + Fix compression levels
-
-+ Verify nostrip works
 
 + Optimization
 

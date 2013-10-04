@@ -72,24 +72,25 @@ struct GCIFKnobs {
 	int bump;				// 0
 
 	//// Image Mask writer
-
 	int mask_minColorRat;	// 20: Minimum color pixel compression ratio
 	int mask_huffThresh;	// 60: Minimum post-LZ bytes to compress the data
 
-	//// Image 2D-LZ writer
+	//// Image Palette writer
+	int pal_huffThresh;				// 40: Palette size to start using Huffman encoding
+	float pal_sympalThresh;			// 0.1: Percentage of pixels covered by a color before it is chosen as a dedicated filter code
+	float pal_filterCoverThresh;	// 0.6: Sufficient coverage ratio of filter scores before stopping filter selection
+	float pal_filterIncThresh;		// 0.05: Minimum score improvement required from filters
+	int pal_awards[4];				// {5,3,1,1}: Points (1-5) to award for first-fourth place in filter competition per tile
+	bool pal_enableLZ;				// true: Enable LZ compression of palette-encoded pixels
 
-	int lz_huffThresh;		// 15: Minimum zones to compress the data
-	int lz_minScore4;		// 12: Minimum score to add an LZ match (RGBA mode)
-	int lz_minScore1;		// 64: Minimum score to add an LZ match (palette mode)
-	int lz_nonzeroCoeff;	// 4: Number of times nonzeroes worth over zeroes
-	int lz_tableBits;		// 18: Hash table bits
+	//// Image RGBA writer
+	int rgba_lzPrematchLimit;		// 2070: How far to walk the hash chain during LZ match finding on first pixel of a match
+	int rgba_lzInmatchLimit;		// 512: How far to walk the hash chain during LZ match finding inside a match (for optimal matching)
 
 	//// Image Mono writer
-
 	int mono_revisitCount;	// 4096: Number of pixels to revisit
 
 	//// Image CM writer
-
 	bool cm_disableEntropy;		// false: Disable entropy testing (faster)
 	int cm_maxEntropySkip;		// 4: Max filter error to skip entropy test
 	int cm_filterSelectFuzz;	// 256: Top L1 norm scored count for entropy test

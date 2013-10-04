@@ -103,8 +103,8 @@ void ImageRGBAWriter::designLZ() {
 	lz_params.xsize = _xsize;
 	lz_params.ysize = _ysize;
 	lz_params.costs = _costs.get();
-	lz_params.prematch_chain_limit = 2070;
-	lz_params.inmatch_chain_limit = 512;
+	lz_params.prematch_chain_limit = _knobs->rgba_lzPrematchLimit;
+	lz_params.inmatch_chain_limit = _knobs->rgba_lzInmatchLimit;
 
 	// Find LZ matches
 	const u32 *rgba = reinterpret_cast<const u32 *>( _rgba );
