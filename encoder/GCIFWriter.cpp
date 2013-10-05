@@ -70,17 +70,39 @@ static const GCIFKnobs DEFAULT_KNOBS[COMPRESS_LEVELS] = {
 		{5,3,1,1},	// pal_awards
 		true,		// pal_enableLZ
 
+		4096,		// rgba_revisitCount
 		2070,		// rgba_lzPrematchLimit
 		512,		// rgba_lzInmatchLimit
+		0.8f,		// rgba_filterCoverThresh
+		0.005f,		// rgba_filterIncThresh
+		{5,3,1,1},	// rgba_awards
+		true,		// rgba_enableLZ
+
+		0.1f,		// alpha_sympalThresh
+		0.6f,		// alpha_filterCoverThresh
+		0.05f,		// alpha_filterIncThresh
+		{5,3,1,1},	// alpha_awards
+		true,		// alpha_enableLZ
+
+		0.1f,		// sf_sympalThresh
+		0.6f,		// sf_filterCoverThresh
+		0.05f,		// sf_filterIncThresh
+		{5,3,1,1},	// sf_awards
+		true,		// sf_enableLZ
+
+		0.1f,		// cf_sympalThresh
+		0.6f,		// cf_filterCoverThresh
+		0.05f,		// cf_filterIncThresh
+		{5,3,1,1},	// cf_awards
+		true,		// cf_enableLZ
+
+		0.1f,		// spal_sympalThresh
+		0.6f,		// spal_filterCoverThresh
+		0.05f,		// spal_filterIncThresh
+		{5,3,1,1},	// spal_awards
+		true,		// spal_enableLZ
 	
 		0,			// mono_revisitCount
-
-		true,		// cm_disableEntropy
-		4,			// cm_maxEntropySkip
-		0,			// cm_filterSelectFuzz
-		0,			// cm_revisitCount
-		4000,		// cm_chaosThresh
-		1.3f,		// cm_minTapQuality
 	},
 	{	// L1 Better
 		0,			// Bump
@@ -95,17 +117,39 @@ static const GCIFKnobs DEFAULT_KNOBS[COMPRESS_LEVELS] = {
 		{5,3,1,1},	// pal_awards
 		true,		// pal_enableLZ
 
+		4096,		// rgba_revisitCount
 		2070,		// rgba_lzPrematchLimit
 		512,		// rgba_lzInmatchLimit
+		0.8f,		// rgba_filterCoverThresh
+		0.005f,		// rgba_filterIncThresh
+		{5,3,1,1},	// rgba_awards
+		true,		// rgba_enableLZ
+
+		0.1f,		// alpha_sympalThresh
+		0.6f,		// alpha_filterCoverThresh
+		0.05f,		// alpha_filterIncThresh
+		{5,3,1,1},	// alpha_awards
+		true,		// alpha_enableLZ
+
+		0.1f,		// sf_sympalThresh
+		0.6f,		// sf_filterCoverThresh
+		0.05f,		// sf_filterIncThresh
+		{5,3,1,1},	// sf_awards
+		true,		// sf_enableLZ
+
+		0.1f,		// cf_sympalThresh
+		0.6f,		// cf_filterCoverThresh
+		0.05f,		// cf_filterIncThresh
+		{5,3,1,1},	// cf_awards
+		true,		// cf_enableLZ
+
+		0.1f,		// spal_sympalThresh
+		0.6f,		// spal_filterCoverThresh
+		0.05f,		// spal_filterIncThresh
+		{5,3,1,1},	// spal_awards
+		true,		// spal_enableLZ
 	
 		0,			// mono_revisitCount
-
-		false,		// cm_disableEntropy
-		4,			// cm_maxEntropySkip
-		64,			// cm_filterSelectFuzz
-		0,			// cm_revisitCount
-		4000,		// cm_chaosThresh
-		1.3f,		// cm_minTapQuality
 	},
 	{	// L2 Harder
 		0,			// Bump
@@ -120,17 +164,39 @@ static const GCIFKnobs DEFAULT_KNOBS[COMPRESS_LEVELS] = {
 		{5,3,1,1},	// pal_awards
 		true,		// pal_enableLZ
 
+		4096,		// rgba_revisitCount
 		2070,		// rgba_lzPrematchLimit
 		512,		// rgba_lzInmatchLimit
+		0.8f,		// rgba_filterCoverThresh
+		0.005f,		// rgba_filterIncThresh
+		{5,3,1,1},	// rgba_awards
+		true,		// rgba_enableLZ
+
+		0.1f,		// alpha_sympalThresh
+		0.6f,		// alpha_filterCoverThresh
+		0.05f,		// alpha_filterIncThresh
+		{5,3,1,1},	// alpha_awards
+		true,		// alpha_enableLZ
+
+		0.1f,		// sf_sympalThresh
+		0.6f,		// sf_filterCoverThresh
+		0.05f,		// sf_filterIncThresh
+		{5,3,1,1},	// sf_awards
+		true,		// sf_enableLZ
+
+		0.1f,		// cf_sympalThresh
+		0.6f,		// cf_filterCoverThresh
+		0.05f,		// cf_filterIncThresh
+		{5,3,1,1},	// cf_awards
+		true,		// cf_enableLZ
+
+		0.1f,		// spal_sympalThresh
+		0.6f,		// spal_filterCoverThresh
+		0.05f,		// spal_filterIncThresh
+		{5,3,1,1},	// spal_awards
+		true,		// spal_enableLZ
 	
 		0,			// mono_revisitCount
-
-		false,		// cm_disableEntropy
-		0,			// cm_maxEntropySkip
-		256,		// cm_filterSelectFuzz
-		0,			// cm_revisitCount
-		4000,		// cm_chaosThresh
-		1.3f,		// cm_minTapQuality
 	},
 	{	// L3 Stronger
 		0,			// Bump
@@ -145,17 +211,39 @@ static const GCIFKnobs DEFAULT_KNOBS[COMPRESS_LEVELS] = {
 		{5,3,1,1},	// pal_awards
 		true,		// pal_enableLZ
 
+		4096,		// rgba_revisitCount
 		2070,		// rgba_lzPrematchLimit
 		512,		// rgba_lzInmatchLimit
+		0.8f,		// rgba_filterCoverThresh
+		0.005f,		// rgba_filterIncThresh
+		{5,3,1,1},	// rgba_awards
+		true,		// rgba_enableLZ
+
+		0.1f,		// alpha_sympalThresh
+		0.6f,		// alpha_filterCoverThresh
+		0.05f,		// alpha_filterIncThresh
+		{5,3,1,1},	// alpha_awards
+		true,		// alpha_enableLZ
+
+		0.1f,		// sf_sympalThresh
+		0.6f,		// sf_filterCoverThresh
+		0.05f,		// sf_filterIncThresh
+		{5,3,1,1},	// sf_awards
+		true,		// sf_enableLZ
+
+		0.1f,		// cf_sympalThresh
+		0.6f,		// cf_filterCoverThresh
+		0.05f,		// cf_filterIncThresh
+		{5,3,1,1},	// cf_awards
+		true,		// cf_enableLZ
+
+		0.1f,		// spal_sympalThresh
+		0.6f,		// spal_filterCoverThresh
+		0.05f,		// spal_filterIncThresh
+		{5,3,1,1},	// spal_awards
+		true,		// spal_enableLZ
 	
 		4096,		// mono_revisitCount
-
-		false,		// cm_disableEntropy
-		0,			// cm_maxEntropySkip
-		272,		// cm_filterSelectFuzz
-		4096,		// cm_revisitCount
-		4000,		// cm_chaosThresh
-		1.3f,		// cm_minTapQuality
 	}
 };
 

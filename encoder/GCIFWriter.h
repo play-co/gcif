@@ -84,19 +84,44 @@ struct GCIFKnobs {
 	bool pal_enableLZ;				// true: Enable LZ compression of palette-encoded pixels
 
 	//// Image RGBA writer
+	int rgba_revisitCount;			// 4096: Number of pixels to revisit
 	int rgba_lzPrematchLimit;		// 2070: How far to walk the hash chain during LZ match finding on first pixel of a match
 	int rgba_lzInmatchLimit;		// 512: How far to walk the hash chain during LZ match finding inside a match (for optimal matching)
+	float rgba_filterCoverThresh;	// 0.8: Sufficient coverage ratio of filter scores before stopping filter selection
+	float rgba_filterIncThresh;		// 0.05: Minimum score improvement required from filters
+	int rgba_awards[4];				// {5,3,1,1}: Points (1-5) to award for first-fourth place in filter competition per tile
+	bool rgba_enableLZ;				// true: Enable LZ compression of RGBA pixels
+
+	// Alpha channel encoder settings:
+	float alpha_sympalThresh;		// 0.1: Percentage of pixels covered by a color before it is chosen as a dedicated filter code
+	float alpha_filterCoverThresh;	// 0.6: Sufficient coverage ratio of filter scores before stopping filter selection
+	float alpha_filterIncThresh;	// 0.05: Minimum score improvement required from filters
+	int alpha_awards[4];			// {5,3,1,1}: Points (1-5) to award for first-fourth place in filter competition per tile
+	bool alpha_enableLZ;			// true: Enable LZ compression of RGBA pixels
+
+	// SF channel encoder settings:
+	float sf_sympalThresh;		// 0.1: Percentage of pixels covered by a color before it is chosen as a dedicated filter code
+	float sf_filterCoverThresh;	// 0.6: Sufficient coverage ratio of filter scores before stopping filter selection
+	float sf_filterIncThresh;	// 0.05: Minimum score improvement required from filters
+	int sf_awards[4];			// {5,3,1,1}: Points (1-5) to award for first-fourth place in filter competition per tile
+	bool sf_enableLZ;			// true: Enable LZ compression of RGBA pixels
+
+	// CF channel encoder settings:
+	float cf_sympalThresh;		// 0.1: Percentage of pixels covered by a color before it is chosen as a dedicated filter code
+	float cf_filterCoverThresh;	// 0.6: Sufficient coverage ratio of filter scores before stopping filter selection
+	float cf_filterIncThresh;	// 0.05: Minimum score improvement required from filters
+	int cf_awards[4];			// {5,3,1,1}: Points (1-5) to award for first-fourth place in filter competition per tile
+	bool cf_enableLZ;			// true: Enable LZ compression of RGBA pixels
+
+	//// Small Palette writer
+	float spal_sympalThresh;		// 0.1: Percentage of pixels covered by a color before it is chosen as a dedicated filter code
+	float spal_filterCoverThresh;	// 0.6: Sufficient coverage ratio of filter scores before stopping filter selection
+	float spal_filterIncThresh;		// 0.05: Minimum score improvement required from filters
+	int spal_awards[4];				// {5,3,1,1}: Points (1-5) to award for first-fourth place in filter competition per tile
+	bool spal_enableLZ;				// true: Enable LZ compression of palette-encoded pixels
 
 	//// Image Mono writer
-	int mono_revisitCount;	// 4096: Number of pixels to revisit
-
-	//// Image CM writer
-	bool cm_disableEntropy;		// false: Disable entropy testing (faster)
-	int cm_maxEntropySkip;		// 4: Max filter error to skip entropy test
-	int cm_filterSelectFuzz;	// 256: Top L1 norm scored count for entropy test
-	int cm_revisitCount;		// 4096: Number of pixels to revisit
-	int cm_chaosThresh;			// 4000: Min # of chaos pixels to use 8-level tables
-	float cm_minTapQuality;		// 1.3: Min coverage improvement to accept one
+	int mono_revisitCount;		// 4096: Number of pixels to revisit
 };
 
 /*

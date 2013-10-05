@@ -166,6 +166,9 @@ void ImageRGBAWriter::designFilters() {
 	u8 *cf = _cf_tiles.get();
 	const u8 *topleft_row = _rgba;
 
+	const int *AWARDS = _knobs->rgba_awards;
+	const int max_score = AWARDS[0] + AWARDS[1] + AWARDS[2] + AWARDS[3];
+
 	for (int y = 0; y < _ysize; y += _tile_ysize) {
 		const u8 *topleft = topleft_row;
 
@@ -205,11 +208,11 @@ void ImageRGBAWriter::designFilters() {
 			}
 
 			FilterScorer::Score *top = scores.getLow(4, true);
-			total_score += 5 + 3 + 1 + 1;
-			awards.add(top[0].index, 5);
-			awards.add(top[1].index, 3);
-			awards.add(top[2].index, 1);
-			awards.add(top[3].index, 1);
+			total_score += max_score;
+			awards.add(top[0].index, AWARDS[0]);
+			awards.add(top[1].index, AWARDS[1]);
+			awards.add(top[2].index, AWARDS[2]);
+			awards.add(top[3].index, AWARDS[3]);
 		}
 
 		topleft_row += _xsize * 4 * _tile_ysize;
@@ -242,8 +245,8 @@ void ImageRGBAWriter::designFilters() {
 		float coverage_ratio = coverage / (float)total_score;
 
 		// If coverage is sufficient,
-		if (coverage_ratio >= 0.8) {
-			if (score / (float)total_score < 0.05) {
+		if (coverage_ratio >= _knobs->rgba_filterCoverThresh) {
+			if (score / (float)total_score < _knobs->rgba_filterIncThresh) {
 				break;
 			}
 		}
@@ -360,7 +363,7 @@ void ImageRGBAWriter::designTiles() {
 
 	// Until revisits are done,
 	int passes = 0;
-	int revisitCount = _knobs->cm_revisitCount;
+	int revisitCount = _knobs->rgba_revisitCount;
 	while (passes < MAX_PASSES) {
 		const u8 *topleft_row = _rgba;
 		int ty = 0;
@@ -572,17 +575,17 @@ bool ImageRGBAWriter::compressAlpha() {
 	params.max_filters = 32;
 	params.min_bits = 2;
 	params.max_bits = 5;
-	params.sympal_thresh = 0.1f;
-	params.filter_cover_thresh = 0.6f;
-	params.filter_inc_thresh = 0.05f;
+	params.sympal_thresh = _knobs->alpha_sympalThresh;
+	params.filter_cover_thresh = _knobs->alpha_filterCoverThresh;
+	params.filter_inc_thresh = _knobs->alpha_filterIncThresh;
 	params.mask.SetMember<ImageRGBAWriter, &ImageRGBAWriter::IsMasked>(this);
-	params.AWARDS[0] = 5;
-	params.AWARDS[1] = 3;
-	params.AWARDS[2] = 1;
-	params.AWARDS[3] = 1;
+	params.AWARDS[0] = _knobs->alpha_awards[0];
+	params.AWARDS[1] = _knobs->alpha_awards[1];
+	params.AWARDS[2] = _knobs->alpha_awards[2];
+	params.AWARDS[3] = _knobs->alpha_awards[3];
 	params.award_count = 4;
 	params.write_order = 0;
-	params.lz_enable = true;
+	params.lz_enable = _knobs->alpha_enableLZ;
 
 	_a_encoder.init(params);
 
@@ -766,17 +769,17 @@ bool ImageRGBAWriter::compressSF() {
 	params.max_filters = 32;
 	params.min_bits = 2;
 	params.max_bits = 5;
-	params.sympal_thresh = 0.1f;
-	params.filter_cover_thresh = 0.6f;
-	params.filter_inc_thresh = 0.05f;
+	params.sympal_thresh = _knobs->sf_sympalThresh;
+	params.filter_cover_thresh = _knobs->sf_filterCoverThresh;
+	params.filter_inc_thresh = _knobs->sf_filterIncThresh;
 	params.mask.SetMember<ImageRGBAWriter, &ImageRGBAWriter::IsSFMasked>(this);
-	params.AWARDS[0] = 5;
-	params.AWARDS[1] = 3;
-	params.AWARDS[2] = 1;
-	params.AWARDS[3] = 1;
+	params.AWARDS[0] = _knobs->sf_awards[0];
+	params.AWARDS[1] = _knobs->sf_awards[1];
+	params.AWARDS[2] = _knobs->sf_awards[2];
+	params.AWARDS[3] = _knobs->sf_awards[3];
 	params.award_count = 4;
 	params.write_order = &_filter_order[0];
-	params.lz_enable = false;
+	params.lz_enable = _knobs->sf_enableLZ;
 
 	CAT_INANE("RGBA") << "Compressing spatial filter matrix...";
 
@@ -795,17 +798,17 @@ bool ImageRGBAWriter::compressCF() {
 	params.max_filters = 32;
 	params.min_bits = 2;
 	params.max_bits = 5;
-	params.sympal_thresh = 0.1f;
-	params.filter_cover_thresh = 0.6f;
-	params.filter_inc_thresh = 0.05f;
+	params.sympal_thresh = _knobs->cf_sympalThresh;
+	params.filter_cover_thresh = _knobs->cf_filterCoverThresh;
+	params.filter_inc_thresh = _knobs->cf_filterIncThresh;
 	params.mask.SetMember<ImageRGBAWriter, &ImageRGBAWriter::IsSFMasked>(this);
-	params.AWARDS[0] = 5;
-	params.AWARDS[1] = 3;
-	params.AWARDS[2] = 1;
-	params.AWARDS[3] = 1;
+	params.AWARDS[0] = _knobs->cf_awards[0];
+	params.AWARDS[1] = _knobs->cf_awards[1];
+	params.AWARDS[2] = _knobs->cf_awards[2];
+	params.AWARDS[3] = _knobs->cf_awards[3];
 	params.award_count = 4;
 	params.write_order = &_filter_order[0];
-	params.lz_enable = false;
+	params.lz_enable = _knobs->cf_enableLZ;
 
 	CAT_INANE("RGBA") << "Compressing color filter matrix...";
 
@@ -835,10 +838,6 @@ int ImageRGBAWriter::init(const u8 *rgba, int xsize, int ysize, ImageMaskWriter 
 		return GCIF_WE_BAD_DIMS;
 	}
 
-	if ((!knobs->cm_disableEntropy && knobs->cm_filterSelectFuzz <= 0)) {
-		return GCIF_WE_BAD_PARAMS;
-	}
-
 	_xsize = xsize;
 	_ysize = ysize;
 
@@ -852,7 +851,8 @@ int ImageRGBAWriter::init(const u8 *rgba, int xsize, int ysize, ImageMaskWriter 
 
 	_lz_enabled = false;
 
-	{
+	// If LZ is enabled,
+	if (_knobs->rgba_enableLZ) {
 		// Do a fast first pass at natural compression to better inform LZ decisions
 		maskTiles();
 		designFilters();
@@ -864,9 +864,9 @@ int ImageRGBAWriter::init(const u8 *rgba, int xsize, int ysize, ImageMaskWriter 
 
 		// Now do informed LZ77 compression
 		designLZ();
-	}
 
-	_lz_enabled = true;
+		_lz_enabled = true;
+	}
 
 	// Perform natural image compression post-LZ
 	maskTiles();

@@ -339,17 +339,17 @@ void SmallPaletteWriter::generateMonoWriter() {
 	params.max_filters = 32;
 	params.min_bits = 2;
 	params.max_bits = 5;
-	params.sympal_thresh = 0.1f;
-	params.filter_cover_thresh = 0.6f;
-	params.filter_inc_thresh = 0.05f;
+	params.sympal_thresh = _knobs->spal_sympalThresh;
+	params.filter_cover_thresh = _knobs->spal_filterCoverThresh;
+	params.filter_inc_thresh = _knobs->spal_filterIncThresh;
 	params.mask.SetMember<SmallPaletteWriter, &SmallPaletteWriter::IsMasked>(this);
-	params.AWARDS[0] = 5;
-	params.AWARDS[1] = 3;
-	params.AWARDS[2] = 1;
-	params.AWARDS[3] = 1;
+	params.AWARDS[0] = _knobs->spal_awards[0];
+	params.AWARDS[1] = _knobs->spal_awards[1];
+	params.AWARDS[2] = _knobs->spal_awards[2];
+	params.AWARDS[3] = _knobs->spal_awards[3];
 	params.award_count = 4;
 	params.write_order = 0;
-	params.lz_enable = true;
+	params.lz_enable = _knobs->spal_enableLZ;
 
 	_mono_writer.init(params);
 }
