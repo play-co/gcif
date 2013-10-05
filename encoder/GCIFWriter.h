@@ -69,11 +69,11 @@ int gcif_write(const void *rgba, int xsize, int ysize, const char *output_file_p
 // Extra twiddly knobs to eke out better performance if you prefer
 struct GCIFKnobs {
 	// Seed used for any randomized selections, may help discover improvements
-	int bump;				// 0
+	int bump;						// 0
 
 	//// Image Mask writer
-	int mask_minColorRat;	// 20: Minimum color pixel compression ratio
-	int mask_huffThresh;	// 60: Minimum post-LZ bytes to compress the data
+	int mask_minColorRat;			// 20: Minimum color pixel compression ratio
+	int mask_huffThresh;			// 60: Minimum post-LZ bytes to compress the data
 
 	//// Image Palette writer
 	int pal_huffThresh;				// 40: Palette size to start using Huffman encoding
@@ -84,6 +84,7 @@ struct GCIFKnobs {
 	bool pal_enableLZ;				// true: Enable LZ compression of palette-encoded pixels
 
 	//// Image RGBA writer
+	bool rgba_fastMode;				// false: Minimal mode
 	int rgba_revisitCount;			// 4096: Number of pixels to revisit
 	int rgba_lzPrematchLimit;		// 2070: How far to walk the hash chain during LZ match finding on first pixel of a match
 	int rgba_lzInmatchLimit;		// 512: How far to walk the hash chain during LZ match finding inside a match (for optimal matching)
@@ -100,18 +101,18 @@ struct GCIFKnobs {
 	bool alpha_enableLZ;			// true: Enable LZ compression of RGBA pixels
 
 	// SF channel encoder settings:
-	float sf_sympalThresh;		// 0.1: Percentage of pixels covered by a color before it is chosen as a dedicated filter code
-	float sf_filterCoverThresh;	// 0.6: Sufficient coverage ratio of filter scores before stopping filter selection
-	float sf_filterIncThresh;	// 0.05: Minimum score improvement required from filters
-	int sf_awards[4];			// {5,3,1,1}: Points (1-5) to award for first-fourth place in filter competition per tile
-	bool sf_enableLZ;			// true: Enable LZ compression of RGBA pixels
+	float sf_sympalThresh;			// 0.1: Percentage of pixels covered by a color before it is chosen as a dedicated filter code
+	float sf_filterCoverThresh;		// 0.6: Sufficient coverage ratio of filter scores before stopping filter selection
+	float sf_filterIncThresh;		// 0.05: Minimum score improvement required from filters
+	int sf_awards[4];				// {5,3,1,1}: Points (1-5) to award for first-fourth place in filter competition per tile
+	bool sf_enableLZ;				// true: Enable LZ compression of RGBA pixels
 
 	// CF channel encoder settings:
-	float cf_sympalThresh;		// 0.1: Percentage of pixels covered by a color before it is chosen as a dedicated filter code
-	float cf_filterCoverThresh;	// 0.6: Sufficient coverage ratio of filter scores before stopping filter selection
-	float cf_filterIncThresh;	// 0.05: Minimum score improvement required from filters
-	int cf_awards[4];			// {5,3,1,1}: Points (1-5) to award for first-fourth place in filter competition per tile
-	bool cf_enableLZ;			// true: Enable LZ compression of RGBA pixels
+	float cf_sympalThresh;			// 0.1: Percentage of pixels covered by a color before it is chosen as a dedicated filter code
+	float cf_filterCoverThresh;		// 0.6: Sufficient coverage ratio of filter scores before stopping filter selection
+	float cf_filterIncThresh;		// 0.05: Minimum score improvement required from filters
+	int cf_awards[4];				// {5,3,1,1}: Points (1-5) to award for first-fourth place in filter competition per tile
+	bool cf_enableLZ;				// true: Enable LZ compression of RGBA pixels
 
 	//// Small Palette writer
 	float spal_sympalThresh;		// 0.1: Percentage of pixels covered by a color before it is chosen as a dedicated filter code
@@ -121,7 +122,9 @@ struct GCIFKnobs {
 	bool spal_enableLZ;				// true: Enable LZ compression of palette-encoded pixels
 
 	//// Image Mono writer
-	int mono_revisitCount;		// 4096: Number of pixels to revisit
+	int mono_revisitCount;			// 4096: Number of pixels to revisit
+	int mono_lzPrematchLimit;		// 2070: How far to walk the hash chain during LZ match finding on first pixel of a match
+	int mono_lzInmatchLimit;		// 512: How far to walk the hash chain during LZ match finding inside a match (for optimal matching)
 };
 
 /*

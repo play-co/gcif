@@ -70,9 +70,10 @@ static const GCIFKnobs DEFAULT_KNOBS[COMPRESS_LEVELS] = {
 		{5,3,1,1},	// pal_awards
 		true,		// pal_enableLZ
 
-		4096,		// rgba_revisitCount
-		2070,		// rgba_lzPrematchLimit
-		512,		// rgba_lzInmatchLimit
+		true,		// rgba_fastMode
+		0,			// rgba_revisitCount
+		512,		// rgba_lzPrematchLimit
+		0,			// rgba_lzInmatchLimit
 		0.8f,		// rgba_filterCoverThresh
 		0.005f,		// rgba_filterIncThresh
 		{5,3,1,1},	// rgba_awards
@@ -82,19 +83,19 @@ static const GCIFKnobs DEFAULT_KNOBS[COMPRESS_LEVELS] = {
 		0.6f,		// alpha_filterCoverThresh
 		0.05f,		// alpha_filterIncThresh
 		{5,3,1,1},	// alpha_awards
-		true,		// alpha_enableLZ
+		false,		// alpha_enableLZ
 
 		0.1f,		// sf_sympalThresh
 		0.6f,		// sf_filterCoverThresh
 		0.05f,		// sf_filterIncThresh
 		{5,3,1,1},	// sf_awards
-		true,		// sf_enableLZ
+		false,		// sf_enableLZ
 
 		0.1f,		// cf_sympalThresh
 		0.6f,		// cf_filterCoverThresh
 		0.05f,		// cf_filterIncThresh
 		{5,3,1,1},	// cf_awards
-		true,		// cf_enableLZ
+		false,		// cf_enableLZ
 
 		0.1f,		// spal_sympalThresh
 		0.6f,		// spal_filterCoverThresh
@@ -103,6 +104,8 @@ static const GCIFKnobs DEFAULT_KNOBS[COMPRESS_LEVELS] = {
 		true,		// spal_enableLZ
 	
 		0,			// mono_revisitCount
+		2070,		// mono_lzPrematchLimit
+		512,		// mono_lzInmatchLimit
 	},
 	{	// L1 Better
 		0,			// Bump
@@ -117,7 +120,8 @@ static const GCIFKnobs DEFAULT_KNOBS[COMPRESS_LEVELS] = {
 		{5,3,1,1},	// pal_awards
 		true,		// pal_enableLZ
 
-		4096,		// rgba_revisitCount
+		false,		// rgba_fastMode
+		0,			// rgba_revisitCount
 		2070,		// rgba_lzPrematchLimit
 		512,		// rgba_lzInmatchLimit
 		0.8f,		// rgba_filterCoverThresh
@@ -150,6 +154,8 @@ static const GCIFKnobs DEFAULT_KNOBS[COMPRESS_LEVELS] = {
 		true,		// spal_enableLZ
 	
 		0,			// mono_revisitCount
+		2070,		// mono_lzPrematchLimit
+		512,		// mono_lzInmatchLimit
 	},
 	{	// L2 Harder
 		0,			// Bump
@@ -164,7 +170,8 @@ static const GCIFKnobs DEFAULT_KNOBS[COMPRESS_LEVELS] = {
 		{5,3,1,1},	// pal_awards
 		true,		// pal_enableLZ
 
-		4096,		// rgba_revisitCount
+		false,		// rgba_fastMode
+		0,			// rgba_revisitCount
 		2070,		// rgba_lzPrematchLimit
 		512,		// rgba_lzInmatchLimit
 		0.8f,		// rgba_filterCoverThresh
@@ -197,6 +204,8 @@ static const GCIFKnobs DEFAULT_KNOBS[COMPRESS_LEVELS] = {
 		true,		// spal_enableLZ
 	
 		0,			// mono_revisitCount
+		2070,		// mono_lzPrematchLimit
+		512,		// mono_lzInmatchLimit
 	},
 	{	// L3 Stronger
 		0,			// Bump
@@ -211,6 +220,7 @@ static const GCIFKnobs DEFAULT_KNOBS[COMPRESS_LEVELS] = {
 		{5,3,1,1},	// pal_awards
 		true,		// pal_enableLZ
 
+		false,		// rgba_fastMode
 		4096,		// rgba_revisitCount
 		2070,		// rgba_lzPrematchLimit
 		512,		// rgba_lzInmatchLimit
@@ -244,6 +254,8 @@ static const GCIFKnobs DEFAULT_KNOBS[COMPRESS_LEVELS] = {
 		true,		// spal_enableLZ
 	
 		4096,		// mono_revisitCount
+		2070,		// mono_lzPrematchLimit
+		512,		// mono_lzInmatchLimit
 	}
 };
 

@@ -868,18 +868,21 @@ int ImageRGBAWriter::init(const u8 *rgba, int xsize, int ysize, ImageMaskWriter 
 		_lz_enabled = true;
 	}
 
-	// Perform natural image compression post-LZ
-	maskTiles();
-	designFilters();
-	designTiles();
-	sortFilters();
-	computeResiduals();
+	// If doing a full compression,
+	if (!_knobs->rgba_fastMode) {
+		// Perform natural image compression post-LZ
+		maskTiles();
+		designFilters();
+		designTiles();
+		sortFilters();
+		computeResiduals();
+
+		// Decide how many chaos levels to use
+		designChaos();
+	}
 
 	// Compress alpha channel separately like a monochrome image
 	compressAlpha();
-
-	// Decide how many chaos levels to use
-	designChaos();
 
 	// Generate a write order matrix used for compressing SF/CF information
 	generateWriteOrder();

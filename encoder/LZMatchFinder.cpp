@@ -569,7 +569,7 @@ bool RGBAMatchFinder::findMatches(SuffixArray3_State * CAT_RESTRICT sa3state, co
 
 					// Next node
 					node = chain[node];
-				} while (node != 0 && --limit);
+				} while (node != 0 && --limit > 0);
 
 				// Score match based on residuals
 				if (sa3_n) {
@@ -755,7 +755,7 @@ bool MonoMatchFinder::findMatches(SuffixArray3_State * CAT_RESTRICT sa3state, co
 
 						// Next node
 						node = chain[node];
-					} while (node != 0 && --limit);
+					} while (node != 0 && --limit > 0);
 
 					// Score match based on residuals
 					if (longest_ml_n >= MIN_MATCH && longest_off_n < ii) {
